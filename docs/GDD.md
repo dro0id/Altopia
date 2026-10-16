@@ -30,9 +30,28 @@ où aller**. Tout continue hors-ligne.
 Équipage complet (les 3 rôles) : bonus global supplémentaire.
 Plus tard : raretés, classes, formation en slots, équipements, vaisseaux.
 
+## Exploration : types de destinations
+Chaque secteur contient plusieurs **corps célestes**. Chacun a sa propre phase
+d'exploration (auto, avec un petit choix du joueur avant l'envoi) :
+
+| Destination | Phase d'exploration | Récompenses | Rôle clé | Risques / événements |
+|---|---|---|---|---|
+| **Planète** | Orbite → scan → atterrissage → expédition au sol (étapes avec événements : ruines, faune, météo) | Données, Crédits, artefacts, nouveaux membres d'équipage | Scientifique | Tempêtes, créatures hostiles |
+| **Étoile** | Approche → collecte d'énergie / échantillons stellaires, sans atterrir | Énergie (améliore vaisseau), Données rares | Ingénieur | Éruptions solaires, chaleur (exige un bouclier) |
+| **Astéroïdes** | Champ à traverser → minage automatique | Minerais (Crédits, matériaux de craft) | Pilote | Collisions, pirates |
+| **Anomalie** *(plus tard)* | Énigme / événement unique | Récompenses uniques | Équipage complet | Imprévisible |
+
+### Fonctionnement
+- Une **expédition** = destination + équipage assigné + durée (de 30 s à plusieurs heures, terminable hors-ligne).
+- Le **rôle adapté** accélère l'expédition et augmente les gains ; une mauvaise composition la ralentit ou augmente les risques.
+- Chaque destination se **découvre** (scan) avant d'être explorable, puis peut être explorée à plusieurs niveaux de profondeur.
+- Les ressources collectées alimentent : améliorations du vaisseau, équipement, déblocage de nouveaux secteurs.
+- Visuellement : chaque type a sa petite scène 2D (planète en orbite, étoile en gros plan, champ d'astéroïdes en parallaxe).
+
 ## Ressources
 - **Crédits** : monnaie principale (recrutement, améliorations).
 - **Données** : débloquent secteurs et recherche.
+- **Énergie** (étoiles) et **Minerais** (astéroïdes) : améliorations du vaisseau et craft.
 - *(plus tard)* **Cristaux** premium / prestige.
 
 ## Direction artistique
