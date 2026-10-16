@@ -58,6 +58,8 @@ jobs:
           ls ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable | head -30
           ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" || true
           ls -la tools/debug.keystore
+          ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platforms" "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools" "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools/33.0.2" || true
+          ls /usr/lib/android-sdk/platform-tools | head -5 || true
       - name: Exporter l'APK
         run: |
           godot --headless --path . --import
