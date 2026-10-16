@@ -33,3 +33,9 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Godot
+.godot/
+*.translation
+export_presets.cfg
+.mono/
