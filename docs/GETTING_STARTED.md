@@ -16,3 +16,13 @@
 
 ## Premiers essais pour apprendre
 Dans `game_state.gd`, changez `base_rate` ou `base_cost` d'un rôle, relancez (F5), observez.
+
+## Tester sur votre téléphone Android (APK automatique)
+À chaque push, GitHub lance les tests puis génère un APK.
+1. Sur le téléphone, ouvrez la page **Releases** du dépôt GitHub → **Altopia — dernière version de test**.
+2. Téléchargez `altopia.apk`.
+3. Ouvrez le fichier ; Android demandera d'autoriser l'installation depuis le navigateur (« sources inconnues »). Acceptez.
+4. Les mises à jour suivantes s'installent par-dessus la précédente (même clé de signature de debug).
+
+Alternative : onglet **Actions** → dernier run → artefact `altopia-apk` (ZIP à dézipper).
+Lancer les tests en local : `$(tools/setup_godot.sh) --headless --path . -s tests/run_tests.gd`
