@@ -10,6 +10,7 @@ quand le joueur est hors-ligne.
 
 ## Documentation
 - [Game design (GDD)](docs/GDD.md)
+- [V1 : maquette de la boucle de gameplay](docs/V1.md)
 - [Feuille de route](docs/ROADMAP.md)
 - [Guide de démarrage (débutant)](docs/GETTING_STARTED.md)
 
