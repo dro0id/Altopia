@@ -39,3 +39,4 @@ google-services.json
 *.translation
 export_presets.cfg
 .mono/
+tools/godot/

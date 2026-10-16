@@ -13,6 +13,10 @@ quand le joueur est hors-ligne.
 - [Feuille de route](docs/ROADMAP.md)
 - [Guide de démarrage (débutant)](docs/GETTING_STARTED.md)
 
+## Outils
+- `tools/setup_godot.sh` : télécharge Godot 4.3 (Linux) pour l'exécuter en ligne de commande.
+- GitHub Actions (`.github/workflows/validate.yml`) : importe et lance le projet à chaque push pour détecter les erreurs.
+
 ## Lancer le prototype
 Voir le guide de démarrage. En bref : installer Godot 4.3+, « Importer » le
 dossier du projet (`project.godot`), puis appuyer sur F5.
