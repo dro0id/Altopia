@@ -20,7 +20,12 @@ où aller**. Tout continue hors-ligne.
 5. **Prestige** : « Saut hyperspatial » — reset contre un bonus permanent.
 6. Retour hors-ligne : récap des gains (plafonné, ex. 8 h).
 
-## Équipage (v0.1)
+## Couche RPG (V1)
+Les membres d'équipage sont des **héros nommés** à collectionner (classe, rareté, niveau, étoiles),
+regroupés en **escouades de 3** qui partent en expédition et **combattent automatiquement**.
+Détails et chiffres : [V1.md](V1.md).
+
+## Équipage (v0.1, remplacé par les héros)
 | Rôle | Fonction | Bonus de synergie |
 |---|---|---|
 | Pilote | Vitesse d'exploration | Avec Ingénieur : +10 % |

@@ -6,26 +6,65 @@ const RES_NAMES := {
 	"credits": "Crédits", "data": "Données", "minerals": "Minerais", "energy": "Énergie",
 }
 
+## Classes de héros. rate = crédits/s par niveau de héros possédé ; data_rate = données/s.
 const CREW_ORDER := ["pilot", "engineer", "scientist"]
-## rate = crédits/s par niveau ; data_rate = données/s par niveau.
 const CREW := {
-	"pilot": {"name": "Pilote", "desc": "Explore vite les astéroïdes", "base_cost": 10.0, "rate": 1.0, "data_rate": 0.0},
-	"engineer": {"name": "Ingénieur", "desc": "Maîtrise les étoiles", "base_cost": 50.0, "rate": 4.0, "data_rate": 0.0},
-	"scientist": {"name": "Scientifique", "desc": "Étudie les planètes", "base_cost": 120.0, "rate": 1.0, "data_rate": 0.5},
+	"pilot": {"name": "Pilote", "desc": "Maître des astéroïdes", "rate": 0.5, "data_rate": 0.0, "color": Color(0.35, 0.85, 1.0)},
+	"engineer": {"name": "Ingénieur", "desc": "Maître des étoiles", "rate": 1.0, "data_rate": 0.0, "color": Color(1.0, 0.62, 0.25)},
+	"scientist": {"name": "Scientifique", "desc": "Maître des planètes", "rate": 0.5, "data_rate": 0.25, "color": Color(0.45, 0.95, 0.55)},
 }
+
+const RARITY := {
+	"common": {"name": "Commun", "color": Color(0.72, 0.77, 0.88), "weight": 70},
+	"rare": {"name": "Rare", "color": Color(0.35, 0.65, 1.0), "weight": 25},
+	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "weight": 5},
+}
+const RARITY_ORDER := ["epic", "rare", "common"]
+
+## Héros recrutables : stats de base au niveau 1, 0 étoile.
+const HERO_ORDER := ["rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara"]
+const HEROES := {
+	"rex": {"name": "Rex", "class": "pilot", "rarity": "common", "hp": 100.0, "atk": 14.0, "def": 6.0, "spd": 12.0},
+	"nova": {"name": "Nova", "class": "pilot", "rarity": "rare", "hp": 110.0, "atk": 18.0, "def": 7.0, "spd": 15.0},
+	"zara": {"name": "Zara", "class": "pilot", "rarity": "epic", "hp": 120.0, "atk": 24.0, "def": 9.0, "spd": 18.0},
+	"bolt": {"name": "Bolt", "class": "engineer", "rarity": "common", "hp": 130.0, "atk": 10.0, "def": 10.0, "spd": 8.0},
+	"tess": {"name": "Tess", "class": "engineer", "rarity": "rare", "hp": 140.0, "atk": 12.0, "def": 13.0, "spd": 9.0},
+	"gorn": {"name": "Gorn", "class": "engineer", "rarity": "epic", "hp": 170.0, "atk": 15.0, "def": 17.0, "spd": 8.0},
+	"lumi": {"name": "Lumi", "class": "scientist", "rarity": "common", "hp": 90.0, "atk": 16.0, "def": 4.0, "spd": 10.0},
+	"quark": {"name": "Quark", "class": "scientist", "rarity": "rare", "hp": 95.0, "atk": 20.0, "def": 5.0, "spd": 11.0},
+	"elara": {"name": "Elara", "class": "scientist", "rarity": "epic", "hp": 105.0, "atk": 27.0, "def": 6.0, "spd": 13.0},
+}
+const STARTER_HEROES := ["rex", "bolt"]
+
+const SQUAD_SIZE := 3
+const MAX_LEVEL := 40
+const MAX_STARS := 5
+const LEVEL_BONUS := 0.15        # +15 % de stats par niveau
+const STAR_BONUS := 0.20         # +20 % de stats par étoile (doublon)
+const RECRUIT_BASE := 50.0
+const RECRUIT_GROWTH := 1.2
+const TRAIN_BASE := 30.0
+const TRAIN_GROWTH := 1.25
+const LOSS_REWARD := 0.25        # part du butin conservée en cas de défaite
+const ENEMY_LEVEL_STEP := 4      # victoires nécessaires pour +1 niveau d'ennemis
+const ENEMY_SCALE := 0.12
+const BATTLE_MAX_ROUNDS := 60
 
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
-		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0,
+		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 12,
+		"enemy": {"name": "Foreur rebelle", "count": 2, "hp": 70.0, "atk": 9.0, "def": 3.0, "spd": 9.0},
 		"rewards": {"minerals": 5.0, "credits": 10.0, "data": 1.0},
 	},
 	"star": {
-		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0,
+		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 30,
+		"enemy": {"name": "Sentinelle solaire", "count": 2, "hp": 120.0, "atk": 14.0, "def": 7.0, "spd": 10.0},
 		"rewards": {"energy": 8.0, "credits": 20.0, "data": 3.0},
 	},
 	"planet": {
-		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0,
+		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 60,
+		"enemy": {"name": "Créature xéno", "count": 3, "hp": 150.0, "atk": 18.0, "def": 8.0, "spd": 11.0},
 		"rewards": {"data": 12.0, "credits": 60.0, "minerals": 3.0, "energy": 2.0},
 	},
 }
@@ -45,7 +84,6 @@ const UPGRADES := {
 		"base": {"credits": 500.0, "minerals": 30.0, "energy": 20.0}},
 }
 
-const CREW_COST_GROWTH := 1.15
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
@@ -53,9 +91,20 @@ const ROLE_GAIN := 0.15          # +15 % de gains par niveau du rôle requis
 const ROLE_SPEED := 0.03         # -3 % de durée par niveau du rôle requis
 const UPGRADE_GAIN := 0.25
 const ENGINE_SPEED := 0.10
-const START_CREDITS := 10.0
+const START_CREDITS := 100.0
 const MAX_SLOTS := 2
 const OFFLINE_CAP_SECONDS := 8 * 3600
+
+
+## Stats d'un héros selon son niveau et ses étoiles.
+static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
+	var h: Dictionary = HEROES[id]
+	var m: float = (1.0 + LEVEL_BONUS * (level - 1)) * (1.0 + STAR_BONUS * stars)
+	return {"hp": h.hp * m, "atk": h.atk * m, "def": h.def * m, "spd": h.spd}
+
+
+static func xp_needed(level: int) -> int:
+	return int(20.0 * pow(level, 1.5))
 
 
 static func fmt(n: float) -> String:
