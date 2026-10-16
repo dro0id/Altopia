@@ -32,6 +32,12 @@ jobs:
         run: |
           mkdir -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+      - name: Installer le SDK Android 34 (cible par défaut de Godot 4.3)
+        run: |
+          SDKM=/usr/lib/android-sdk/cmdline-tools/latest/bin/sdkmanager
+          yes | $SDKM --sdk_root=/usr/lib/android-sdk --licenses > /dev/null || true
+          $SDKM --sdk_root=/usr/lib/android-sdk "platforms;android-34" "build-tools;34.0.0"
+          ls /usr/lib/android-sdk/platforms /usr/lib/android-sdk/build-tools
       - name: Configurer Android (SDK + clé de debug)
         run: |
           mkdir -p ~/.config/godot
