@@ -55,17 +55,17 @@ const DEST := {
 	"asteroids": {
 		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 12,
 		"enemy": {"name": "Foreur rebelle", "count": 2, "hp": 70.0, "atk": 9.0, "def": 3.0, "spd": 9.0},
-		"rewards": {"minerals": 5.0, "credits": 10.0, "data": 1.0},
+		"rewards": {"minerals": 5.0, "credits": 10.0, "data": 3.0},
 	},
 	"star": {
 		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 30,
 		"enemy": {"name": "Sentinelle solaire", "count": 2, "hp": 120.0, "atk": 14.0, "def": 7.0, "spd": 10.0},
-		"rewards": {"energy": 8.0, "credits": 20.0, "data": 3.0},
+		"rewards": {"energy": 8.0, "credits": 20.0, "data": 6.0},
 	},
 	"planet": {
 		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 60,
 		"enemy": {"name": "Créature xéno", "count": 3, "hp": 150.0, "atk": 18.0, "def": 8.0, "spd": 11.0},
-		"rewards": {"data": 12.0, "credits": 60.0, "minerals": 3.0, "energy": 2.0},
+		"rewards": {"data": 16.0, "credits": 60.0, "minerals": 3.0, "energy": 2.0},
 	},
 }
 
@@ -92,6 +92,7 @@ const ROLE_SPEED := 0.03         # -3 % de durée par niveau du rôle requis
 const UPGRADE_GAIN := 0.25
 const ENGINE_SPEED := 0.10
 const START_CREDITS := 100.0
+const BASE_DATA_RATE := 0.1      # données/s des capteurs de bord, même sans Scientifique
 const MAX_SLOTS := 2
 const OFFLINE_CAP_SECONDS := 8 * 3600
 

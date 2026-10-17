@@ -75,6 +75,44 @@ func test_new_game_starters() -> void:
 	_check(_gs.res["credits"] == Data.START_CREDITS, "crédits de départ")
 
 
+func test_new_game_is_playable_immediately() -> void:
+	_gs.new_game()
+	_check(_gs.squad_ids(0).has("rex"), "escouade composée dès le début")
+	_check(_gs.launch_block_reason("asteroids", 0) == "", "première expédition lançable sans rien faire")
+	_check(_gs.launch(0, "asteroids"), "lancement des astéroïdes OK")
+	_check(_gs.data_per_sec() > 0.0, "des données arrivent même sans scientifique")
+
+
+func test_data_unlocks_star_in_reasonable_time() -> void:
+	_gs.new_game()
+	_gs.launch(0, "asteroids")
+	var elapsed := 0.0
+	while not _gs.is_unlocked("star") and elapsed < 1800.0:
+		_gs.tick(1.0)
+		elapsed += 1.0
+	_check(elapsed < 360.0, "l'étoile se débloque en moins de 6 minutes (obtenu %d s)" % int(elapsed))
+
+
+func test_auto_squad_and_autoplace() -> void:
+	_gs.give_hero("rex")
+	_gs.give_hero("bolt")
+	_gs.give_hero("lumi")
+	_gs.give_hero("nova")
+	_gs.auto_squad(0)
+	var ids: Array = _gs.squad_ids(0)
+	_check(ids.size() == 3, "3 héros choisis")
+	var classes := {}
+	for id in ids:
+		classes[Data.HEROES[id]["class"]] = true
+	_check(classes.size() == 3, "une classe de chaque d'abord")
+	_check(ids.has("nova") == false or ids.has("rex") == false, "le plus fort d'une classe est préféré")
+	_gs.reset()
+	_give({"credits": 100000.0})
+	for i in 5:
+		_gs.recruit()
+	_check(_gs.squad_ids(0).size() > 0, "un héros recruté rejoint l'escouade libre")
+
+
 func test_recruit_cost_and_pull() -> void:
 	_check(_gs.recruit().is_empty(), "recrutement refusé sans crédits")
 	_give({"credits": 1000.0})

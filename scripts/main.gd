@@ -25,6 +25,8 @@ var _next_label: Label
 var _upgrade_ui := {}
 var _dirty := true
 var _timer := 0.0
+var _press_pos := Vector2.ZERO
+var _dragged := false       # le doigt a glissé : le relâchement ne doit rien acheter
 
 
 func _ready() -> void:
@@ -34,6 +36,35 @@ func _ready() -> void:
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
 		_show_offline_report(GameState.last_offline_report)
+
+
+func _input(event: InputEvent) -> void:
+	var pressed_now := false
+	var moved_to := Vector2.ZERO
+	var is_motion := false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		pressed_now = true
+		_press_pos = event.position
+	elif event is InputEventScreenTouch and event.pressed:
+		pressed_now = true
+		_press_pos = event.position
+	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		is_motion = true
+		moved_to = event.position
+	elif event is InputEventScreenDrag:
+		is_motion = true
+		moved_to = event.position
+	if pressed_now:
+		_dragged = false
+	elif is_motion and moved_to.distance_to(_press_pos) > 18.0:
+		_dragged = true
+
+
+## Enveloppe une action de bouton : ignorée si le geste était un glissement (défilement).
+func _tap(action: Callable) -> Callable:
+	return func():
+		if not _dragged:
+			action.call()
 
 
 func _process(delta: float) -> void:
@@ -131,7 +162,7 @@ func _build_heroes_page(page: VBoxContainer) -> void:
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_recruit_btn = _button(page, "", 100)
 	_recruit_btn.add_theme_font_size_override("font_size", 26)
-	_recruit_btn.pressed.connect(func(): GameState.recruit())
+	_recruit_btn.pressed.connect(_tap(func(): GameState.recruit()))
 	_recruit_label = _label(page, "", 22, COL_ACCENT)
 	_recruit_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for id in Data.HERO_ORDER:
@@ -149,6 +180,7 @@ func _build_heroes_page(page: VBoxContainer) -> void:
 		var xp := ProgressBar.new()
 		xp.custom_minimum_size = Vector2(0, 16)
 		xp.show_percentage = false
+		xp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		xp.max_value = 1.0
 		xp.add_theme_stylebox_override("fill", _flat(COL_GOOD, 6))
 		xp.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 6))
@@ -156,7 +188,7 @@ func _build_heroes_page(page: VBoxContainer) -> void:
 		var where_l := _label(right, "", 19, COL_TEXT_DIM)
 		var train := _button(right, "", 62)
 		train.add_theme_font_size_override("font_size", 21)
-		train.pressed.connect(func(): GameState.train(id))
+		train.pressed.connect(_tap(func(): GameState.train(id)))
 		_hero_ui[id] = {"portrait": portrait, "name": name_l, "stats": stats_l, "xp": xp,
 			"where": where_l, "train": train}
 
@@ -171,6 +203,7 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(0, 30)
 		bar.show_percentage = false
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bar.max_value = 1.0
 		bar.add_theme_stylebox_override("fill", _flat(COL_ACCENT, 8))
 		bar.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 8))
@@ -197,18 +230,21 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 			opt.item_selected.connect(_on_squad_pick.bind(i, k))
 			col.add_child(opt)
 			members.append({"portrait": por, "opt": opt, "ids": []})
+		var auto_sq := _button(card, "Composer l'escouade automatiquement", 62)
+		auto_sq.add_theme_font_size_override("font_size", 21)
+		auto_sq.pressed.connect(_tap(func(): GameState.auto_squad(i)))
 		var auto := CheckButton.new()
 		auto.text = "Relance automatique"
 		auto.add_theme_font_size_override("font_size", 22)
 		auto.toggled.connect(func(v: bool): GameState.set_auto(i, v))
 		card.add_child(auto)
 		var recall := _button(card, "Rappeler le vaisseau", 70)
-		recall.pressed.connect(func(): GameState.recall(i))
+		recall.pressed.connect(_tap(func(): GameState.recall(i)))
 		var dest_btns := {}
 		for d in Data.DEST_ORDER:
 			var b := _button(card, "", 120)
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			b.pressed.connect(func(): GameState.launch(i, d))
+			b.pressed.connect(_tap(func(): GameState.launch(i, d)))
 			dest_btns[d] = b
 		var last := _label(card, "", 20, COL_ACCENT)
 		last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -216,7 +252,7 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_slot_ui.append({
 			"card": card, "view": view, "title": title, "bar": bar, "status": status,
-			"members": members, "sig": "", "auto": auto, "recall": recall, "dest": dest_btns,
+			"members": members, "sig": "", "auto": auto, "auto_sq": auto_sq, "recall": recall, "dest": dest_btns,
 			"last": last, "log": log,
 		})
 	_next_label = _label(page, "", 22, COL_TEXT_DIM)
@@ -230,7 +266,7 @@ func _build_ship_page(page: VBoxContainer) -> void:
 		var name_l := _label(card, "", 27)
 		var desc_l := _label(card, "", 21, COL_TEXT_DIM)
 		var b := _button(card, "", 100)
-		b.pressed.connect(func(): GameState.buy_upgrade(id))
+		b.pressed.connect(_tap(func(): GameState.buy_upgrade(id)))
 		_upgrade_ui[id] = {"name": name_l, "desc": desc_l, "btn": b}
 
 
@@ -250,6 +286,7 @@ func _button(parent: Node, text: String, min_h: int) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(0, min_h)
 	b.add_theme_font_size_override("font_size", 23)
+	b.mouse_filter = Control.MOUSE_FILTER_PASS     # un glissement sur le bouton fait défiler la page
 	parent.add_child(b)
 	return b
 
@@ -271,6 +308,7 @@ func _panel(parent: Node) -> PanelContainer:
 	sb.set_border_width_all(2)
 	p.add_theme_stylebox_override("panel", sb)
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.mouse_filter = Control.MOUSE_FILTER_PASS    # laisse le doigt faire défiler la page
 	parent.add_child(p)
 	return p
 
@@ -381,6 +419,7 @@ func _refresh_expeditions() -> void:
 		u.title.text = "Vaisseau %d" % (i + 1)
 		u.auto.set_pressed_no_signal(slot.auto)
 		u.recall.visible = busy
+		u.auto_sq.visible = not busy
 		u.last.visible = slot.last != ""
 		u.last.text = slot.last
 		u.log.visible = not slot.log.is_empty()
@@ -392,7 +431,10 @@ func _refresh_expeditions() -> void:
 			u.status.text = "En route : %s — reste %s" % [Data.DEST[slot.dest].name, Data.fmt_time(slot.remaining)]
 		else:
 			u.bar.value = 0.0
-			u.status.text = "Composez votre escouade (3 héros max), puis choisissez une destination :"
+			if GameState.squad_ids(i).is_empty():
+				u.status.text = "Aucun héros dans l'escouade : touchez « Composer automatiquement » ou choisissez-les dans les listes."
+			else:
+				u.status.text = "Escouade prête (3 héros max). Choisissez une destination :"
 		for d in Data.DEST_ORDER:
 			var b: Button = u.dest[d]
 			var info: Dictionary = Data.DEST[d]

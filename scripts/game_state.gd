@@ -77,6 +77,7 @@ func new_game() -> void:
 	reset()
 	for id in Data.STARTER_HEROES:
 		give_hero(id)
+	auto_squad(0)
 	res["credits"] = Data.START_CREDITS
 	last_seen = int(Time.get_unix_time_from_system())
 	changed.emit()
@@ -157,6 +158,7 @@ func recruit() -> Dictionary:
 	var result := {"id": id, "new": not heroes.has(id), "maxed": false}
 	if result.new:
 		give_hero(id)
+		_autoplace(id)
 	elif heroes[id].stars < Data.MAX_STARS:
 		heroes[id].stars += 1
 	else:
@@ -239,7 +241,7 @@ func data_per_sec() -> float:
 	var total: float = 0.0
 	for c in Data.CREW_ORDER:
 		total += Data.CREW[c].data_rate * lv[c]
-	return total * synergy_multiplier()
+	return Data.BASE_DATA_RATE + total * synergy_multiplier()
 
 
 ## --- Escouades ---
@@ -276,6 +278,45 @@ func set_squad_member(slot_i: int, idx: int, id: String) -> bool:
 	slot.squad[idx] = id
 	changed.emit()
 	return true
+
+
+## Place un nouveau héros dans la première case libre d'un vaisseau au repos.
+func _autoplace(id: String) -> void:
+	for i in slot_count():
+		var slot: Dictionary = slots[i]
+		if slot.dest != "":
+			continue
+		for k in Data.SQUAD_SIZE:
+			if slot.squad[k] == "":
+				slot.squad[k] = id
+				return
+
+
+## Compose la meilleure escouade possible : un héros de chaque classe d'abord, puis les plus forts.
+func auto_squad(slot_i: int) -> void:
+	var slot: Dictionary = slots[slot_i]
+	if slot.dest != "":
+		return
+	var pool: Array = []
+	for id in hero_order:
+		var s := hero_slot(id)
+		if s == -1 or s == slot_i:
+			pool.append(id)
+	pool.sort_custom(func(a, b): return hero_power(a) > hero_power(b))
+	var picked: Array = []
+	for c in Data.CREW_ORDER:
+		for id in pool:
+			if Data.HEROES[id]["class"] == c:
+				picked.append(id)
+				break
+	for id in pool:
+		if picked.size() >= Data.SQUAD_SIZE:
+			break
+		if not (id in picked):
+			picked.append(id)
+	for k in Data.SQUAD_SIZE:
+		slot.squad[k] = picked[k] if k < picked.size() else ""
+	changed.emit()
 
 
 func squad_role_level(slot_i: int, dest: String) -> int:

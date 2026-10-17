@@ -10,6 +10,7 @@ var dimmed := false
 
 func _init() -> void:
 	custom_minimum_size = Vector2(96, 96)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func setup(id: String, star_count: int, is_dimmed: bool = false) -> void:
