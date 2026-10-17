@@ -5,13 +5,15 @@ const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
+const UiTheme = preload("res://scripts/ui_theme.gd")
+const UiIcons = preload("res://scripts/ui_icons.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 
-const COL_CARD := Color(0.07, 0.10, 0.22, 0.88)
-const COL_TEXT_DIM := Color(0.62, 0.70, 0.88)
-const COL_ACCENT := Color(0.49, 0.95, 1.0)
-const COL_GOOD := Color(0.5, 1.0, 0.6)
+const COL_CARD := UiTheme.PANEL
+const COL_TEXT_DIM := UiTheme.DIM
+const COL_ACCENT := UiTheme.ACCENT
+const COL_GOOD := UiTheme.GOOD
 
 var _res_labels := {}
 var _rate_label: Label
@@ -100,6 +102,7 @@ func _process(delta: float) -> void:
 ## ---------- Construction ----------
 
 func _build_ui() -> void:
+	theme = UiTheme.build()
 	add_child(Starfield.new())
 
 	var margin := MarginContainer.new()
@@ -130,16 +133,40 @@ func _build_ui() -> void:
 
 
 func _build_header(parent: Control) -> void:
-	var title := _label(parent, "ALTOPIA", 44, COL_ACCENT)
+	var title := _label(parent, "ALTOPIA", 46, COL_ACCENT)
+	title.add_theme_font_override("font", UiTheme.font(true))
+	title.add_theme_constant_override("outline_size", 0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 24)
-	grid.add_theme_constant_override("v_separation", 4)
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
 	parent.add_child(grid)
+	var colors := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
 	for id in Data.RES_ORDER:
-		var l := _label(grid, "", 28)
+		var chip := PanelContainer.new()
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.35), 6, 1, 10)
+		sb.border_width_bottom = 3
+		sb.border_color = colors[id]
+		chip.add_theme_stylebox_override("panel", sb)
+		grid.add_child(chip)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(row)
+		var ic := TextureRect.new()
+		ic.texture = UiIcons.icon(id, 44, colors[id])
+		ic.custom_minimum_size = Vector2(38, 38)
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(ic)
+		var l := _label(row, "", 30, UiTheme.TEXT)
+		l.add_theme_font_override("font", UiTheme.mono())
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_res_labels[id] = l
 	_rate_label = _label(parent, "", 20, COL_TEXT_DIM)
 	_rate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -166,13 +193,17 @@ func _build_tabs(parent: Control) -> void:
 	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["ship", "Vaisseau"]]:
 		var b := Button.new()
 		b.text = entry[1]
+		b.icon = UiIcons.icon(entry[0], 44, Color.WHITE)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		b.expand_icon = false
 		b.toggle_mode = true
 		b.button_group = group
-		b.custom_minimum_size = Vector2(0, 96)
+		b.custom_minimum_size = Vector2(0, 104)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.add_theme_font_size_override("font_size", 21)
-		b.add_theme_stylebox_override("pressed", _flat(Color(0.16, 0.32, 0.62), 10))
-		b.add_theme_stylebox_override("hover_pressed", _flat(Color(0.16, 0.32, 0.62), 10))
+		b.add_theme_constant_override("icon_max_width", 44)
+		b.add_theme_constant_override("h_separation", 0)
 		b.pressed.connect(_show_tab.bind(entry[0]))
 		bar.add_child(b)
 		_tab_buttons[entry[0]] = b
@@ -382,8 +413,8 @@ func _bar(parent: Node, height: int, color: Color) -> ProgressBar:
 	bar.show_percentage = false
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.max_value = 1.0
-	bar.add_theme_stylebox_override("fill", _flat(color, 8))
-	bar.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 8))
+	bar.add_theme_stylebox_override("fill", UiTheme.box(color, Color(0, 0, 0, 0), 4, 0, 0))
+	bar.add_theme_stylebox_override("background", UiTheme.box(Color(0.03, 0.08, 0.14), Color(0.22, 0.9, 1.0, 0.25), 4, 1, 0))
 	parent.add_child(bar)
 	return bar
 
@@ -397,13 +428,7 @@ func _flat(color: Color, radius: int) -> StyleBoxFlat:
 
 func _panel(parent: Node) -> PanelContainer:
 	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_CARD
-	sb.set_corner_radius_all(14)
-	sb.set_content_margin_all(16)
-	sb.border_color = Color(0.25, 0.4, 0.8, 0.5)
-	sb.set_border_width_all(2)
-	p.add_theme_stylebox_override("panel", sb)
+	p.add_theme_stylebox_override("panel", UiTheme.card_box())
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	p.mouse_filter = Control.MOUSE_FILTER_PASS    # laisse le doigt faire défiler la page
 	parent.add_child(p)
@@ -444,7 +469,7 @@ func _on_station_pick(index: int, slot_i: int, station_i: int) -> void:
 
 func _refresh() -> void:
 	for id in Data.RES_ORDER:
-		_res_labels[id].text = "%s  %s" % [Data.RES_NAMES[id], Data.fmt(GameState.res[id])]
+		_res_labels[id].text = Data.fmt(GameState.res[id])
 	var prod := GameState.production_per_sec()
 	_rate_label.text = "AFK/h : +%s cr  +%s min.  +%s én.  +%s don.    Exp. : %d" % [
 		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
