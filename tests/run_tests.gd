@@ -51,8 +51,10 @@ func _crew(slot_i: int, ids: Array) -> void:
 		_gs.set_squad_member(slot_i, Data.CREW_ORDER.find(Data.HEROES[id]["class"]), id)
 
 
-func _strong_captain() -> void:
-	_gs.captain.level = 30
+func _item(slot: String, rarity: String, ilvl: int, affixes: Array = []) -> Dictionary:
+	var it: Dictionary = _gs.make_item(slot, rarity, ilvl, false)
+	it.affixes = affixes
+	return it
 
 
 func test_hero_stats_scale() -> void:
@@ -81,82 +83,128 @@ func test_battle_deterministic_and_events() -> void:
 	_check(not Battle.simulate([Battle.make_unit("A", 20, 3, 0, 5)], [Battle.make_unit("E", 500, 30, 10, 5)]).win, "trop faible : défaite")
 
 
+func test_crit_and_lifesteal_in_battle() -> void:
+	var foe := [Battle.make_unit("E", 100000, 1, 0, 1)]
+	var plain: Dictionary = Battle.simulate([Battle.make_unit("A", 100, 20, 0, 10)], foe)
+	var crit: Dictionary = Battle.simulate([Battle.make_unit("A", 100, 20, 0, 10, 0.5, 0.0)], foe)
+	_check(crit.events[0].d > plain.events[0].d, "le critique augmente les dégâts moyens")
+	var tank := Battle.make_unit("A", 100, 20, 0, 10, 0.0, 0.5)
+	tank.hp = 50.0
+	var r: Dictionary = Battle.simulate([tank], [Battle.make_unit("E", 100000, 1, 0, 1)])
+	_check(r.events[0].h > 0.0, "le vol de vie soigne l'attaquant")
+	_check(r.allies[0].hp <= r.allies[0].max_hp, "les PV ne dépassent pas le maximum")
+
+
 func test_new_game_is_playable_immediately() -> void:
 	_gs.new_game()
 	_check(_gs.captain.level == 1, "Capitaine niveau 1")
-	for slot in Data.EQUIP_SLOTS:
-		_check(not _gs.equipped_item(slot).is_empty(), "équipement de départ : %s" % slot)
+	_check(not _gs.equipped_item("weapon").is_empty() and not _gs.equipped_item("suit").is_empty(), "arme et combinaison de départ")
+	_check(_gs.equipped_item("helmet").is_empty(), "le reste de l'équipement est à looter")
 	_check(_gs.squad_ids(0).has("rex") and _gs.squad_ids(0).has("bolt"), "équipage placé aux postes")
 	_check(_gs.launch_block_reason("asteroids", 0) == "", "première expédition lançable")
-	_check(_gs.launch(0, "asteroids"), "lancement OK")
 	_check(_gs.preview_battle("asteroids", 0).win, "le Capitaine débutant gagne le premier combat")
 	_check(_gs.data_per_sec() > 0.0, "des données arrivent sans scientifique")
 
 
-func test_captain_stats_sum_parts() -> void:
+func test_item_generation_by_rarity() -> void:
+	for r in Data.ITEM_RARITY_ORDER:
+		var it: Dictionary = _gs.make_item("weapon", r, 10)
+		_check(it.affixes.size() == Data.ITEM_RARITY[r].affixes, "%s : %d affixes" % [r, Data.ITEM_RARITY[r].affixes])
+		var keys := {}
+		for a in it.affixes:
+			keys[a.k] = true
+			_check(a.v > 0.0, "valeur d'affixe positive")
+		_check(keys.size() == it.affixes.size(), "pas deux fois le même affixe")
+	var low: Dictionary = _gs.item_stats(_item("weapon", "common", 1))
+	var high: Dictionary = _gs.item_stats(_item("weapon", "common", 20))
+	var epic: Dictionary = _gs.item_stats(_item("weapon", "epic", 1))
+	_check(high.atk > low.atk and epic.atk > low.atk, "le niveau d'objet et la rareté augmentent les stats")
+	_check(_gs.make_item("suit", "legendary", 5).name.length() > 10, "un légendaire a un nom propre")
+
+
+func test_affixes_change_captain_stats() -> void:
 	_gs.new_game()
-	var s: Dictionary = _gs.captain_stats(0)
-	_check(is_equal_approx(s.hp, s.base.hp + s.gear.hp + s.crew.hp), "PV = base + équipement + équipage")
-	_check(s.gear.atk > 0.0 and s.crew.atk > 0.0, "l'équipement et l'équipage comptent")
-	var before: float = s.atk
-	_gs.captain.level = 10
-	_check(_gs.captain_stats(0).atk > before, "le niveau augmente les stats")
-	_gs.set_squad_member(0, 0, "")
-	_check(_gs.captain_stats(0).crew.atk < s.crew.atk, "retirer un équipier réduit son bonus")
+	var before: Dictionary = _gs.captain_stats(0)
+	var it := _item("helmet", "rare", 10, [{"k": "atk_pct", "v": 20.0}, {"k": "crit", "v": 10.0}])
+	_gs.add_item(it)
+	_gs.equip(it.id)
+	var after: Dictionary = _gs.captain_stats(0)
+	_check(after.atk > before.atk * 1.15, "+20 %% ATQ appliqué (%d -> %d)" % [before.atk, after.atk])
+	_check(is_equal_approx(after.crit, 0.10), "critique 10 %")
+	var vs := _item("boots", "rare", 5, [{"k": "spd", "v": 4.0}, {"k": "lifesteal", "v": 5.0}])
+	_gs.add_item(vs)
+	_gs.equip(vs.id)
+	var after2: Dictionary = _gs.captain_stats(0)
+	_check(after2.spd > after.spd + 3.9 and is_equal_approx(after2.lifesteal, 0.05), "vitesse et vol de vie")
 
 
-func test_equipment_equip_and_best() -> void:
+func test_equip_compare_and_auto_equip() -> void:
 	_gs.new_game()
 	var weak: Dictionary = _gs.equipped_item("weapon")
-	var strong: Dictionary = _gs.make_item("weapon", "epic", 3)
+	var strong: Dictionary = _item("weapon", "epic", 12, [{"k": "atk_pct", "v": 8.0}])
 	_gs.add_item(strong)
-	var atk_before: float = _gs.captain_stats(0).atk
-	_check(_gs.equip(strong.id), "équiper un objet")
-	_check(_gs.captain_stats(0).atk > atk_before, "un meilleur objet augmente l'ATQ")
+	_check(_gs.power_delta(strong) > 0.0, "l'objet fort est une amélioration")
+	_check(_gs.power_delta(weak) < _gs.power_delta(strong), "comparaison cohérente")
+	_check(_gs.equip(strong.id) and _gs.equipped_item("weapon").id == strong.id, "équiper")
 	_gs.equip(weak.id)
 	_gs.auto_equip()
-	_check(_gs.equipped["weapon"] == strong.id, "auto-équipement : le meilleur objet")
+	_check(_gs.equipped["weapon"] == strong.id, "auto-équipement : le plus puissant")
 	_gs.unequip("weapon")
-	_check(_gs.equipped_item("weapon").is_empty(), "retrait de l'arme")
+	_check(_gs.equipped_item("weapon").is_empty(), "retrait")
 
 
-func test_scrap_and_inventory_cap() -> void:
+func test_scrap_recycle_and_cap() -> void:
 	_gs.new_game()
-	var extra: Dictionary = _gs.make_item("module", "common", 1)
+	var extra: Dictionary = _item("module", "common", 1)
 	_gs.add_item(extra)
 	var credits_before: float = _gs.res["credits"]
 	_check(_gs.scrap(extra.id) and _gs.res["credits"] > credits_before, "recyclage = crédits")
 	_check(not _gs.scrap(_gs.equipped["weapon"]), "un objet équipé ne se recycle pas")
-	for i in Data.INVENTORY_MAX + 10:
-		_gs.add_item(_gs.make_item("suit", "common", 1))
+	var junk: Dictionary = _item("weapon", "common", 1)
+	var good: Dictionary = _item("weapon", "epic", 15, [{"k": "atk_pct", "v": 9.0}])
+	_gs.add_item(junk)
+	_gs.add_item(good)
+	_gs.equip(good.id)
+	var gained: float = _gs.recycle_useless()
+	_check(gained > 0.0 and _gs.item_by_id(junk.id).is_empty() and not _gs.item_by_id(good.id).is_empty(), "recycler l'inutile garde l'équipé")
+	for i in Data.INVENTORY_MAX + 20:
+		_gs.add_item(_item("suit", "common", 1))
 	_check(_gs.items.size() <= Data.INVENTORY_MAX, "inventaire plafonné")
-	for slot in Data.EQUIP_SLOTS:
+	for slot in ["weapon", "suit"]:
 		_check(not _gs.equipped_item(slot).is_empty(), "les objets équipés survivent au plafond (%s)" % slot)
 
 
-func test_gear_levels_up_with_victories() -> void:
+func test_auto_recycle_on_drop() -> void:
 	_gs.new_game()
-	_strong_captain()
-	_gs.slots[0].auto = false
-	var it: Dictionary = _gs.equipped_item("weapon")
-	var lvl: int = it.level
-	for i in 6:
-		_gs.launch(0, "asteroids")
-		_gs._advance_expeditions(500.0)
-	_check(_gs.equipped_item("weapon").level > lvl, "l'équipement monte de niveau à l'usage")
-	_check(_gs.equipped_item("weapon").level <= Data.ITEM_MAX_LEVEL["common"], "plafonné par la rareté")
+	_gs.auto_recycle = 0
+	var credits_before: float = _gs.res["credits"]
+	var junk: Dictionary = _item("weapon", "common", 1)
+	_check(_gs._receive(junk).is_empty() and _gs.res["credits"] > credits_before, "un commun inutile est recyclé tout de suite")
+	var upgrade: Dictionary = _item("helmet", "common", 3)
+	_check(not _gs._receive(upgrade).is_empty(), "un objet pour un emplacement vide est gardé")
+	var rare: Dictionary = _item("boots", "rare", 3, [{"k": "spd", "v": 2.0}])
+	_check(not _gs._receive(rare).is_empty(), "un rare est gardé quand le réglage est « communs »")
+	_gs.auto_recycle = -1
+	_check(not _gs._receive(_item("weapon", "common", 1)).is_empty(), "recyclage auto désactivé : tout est gardé")
+	_gs.auto_recycle = Data.AUTO_RECYCLE_MAX
+	_gs.cycle_auto_recycle()
+	_check(_gs.auto_recycle == -1, "le réglage fait le tour")
 
 
-func test_drops() -> void:
+func test_drops_distribution() -> void:
+	_gs.new_game()
+	_gs.auto_recycle = -1
 	var got := 0
-	var rarities := {}
-	for i in 400:
-		var it: Dictionary = _gs.roll_drop(2)
+	var ranks := {}
+	for i in 600:
+		var it: Dictionary = _gs.roll_drop("planet")
 		if not it.is_empty():
 			got += 1
-			rarities[it.rarity] = true
-	_check(got > 80 and got < 240, "environ 40 %% de butin (obtenu %d/400)" % got)
-	_check(rarities.has("common") and rarities.has("rare"), "plusieurs raretés")
+			ranks[it.rarity] = ranks.get(it.rarity, 0) + 1
+	_check(got > 150 and got < 270, "environ 35 %% de butin (obtenu %d/600)" % got)
+	_check(ranks.get("common", 0) > ranks.get("uncommon", 0) and ranks.get("uncommon", 0) > ranks.get("rare", 0), "communs > peu communs > rares")
+	_check(ranks.has("epic"), "des épiques tombent")
+	_check(_gs.loot_level("planet") > _gs.loot_level("asteroids"), "les destinations élevées donnent des objets de plus haut niveau")
 
 
 func test_recruit_cost_and_pull() -> void:
@@ -206,16 +254,94 @@ func test_look_cycle() -> void:
 	_check(_gs.captain.look.style >= 0 and _gs.captain.look.style < Data.LOOK_STYLES, "la coupe reste valide")
 
 
-func test_passive_income_and_synergy() -> void:
-	_check(_gs.credits_per_sec() == 0.0, "sans équipage, pas de revenu")
-	_gs.give_hero("rex")
-	_check(is_equal_approx(_gs.synergy_multiplier(), 1.0), "une classe : pas de synergie")
-	_gs.give_hero("bolt")
-	_check(is_equal_approx(_gs.synergy_multiplier(), 1.1), "une paire : x1.1")
-	_gs.give_hero("lumi")
-	_check(is_equal_approx(_gs.synergy_multiplier(), 1.0 + 0.3 + 0.25), "équipage complet")
-	_gs.tick(10.0)
-	_check(_gs.res["credits"] > 0.0 and _gs.res["data"] > 0.0, "le temps produit crédits et données")
+func test_crew_produces_only_when_stationed() -> void:
+	_gs.give_hero("rex", 5)
+	_gs.give_hero("bolt", 5)
+	_gs.give_hero("lumi", 5)
+	var idle: Dictionary = _gs.production_per_sec()
+	_check(is_equal_approx(idle.minerals, 0.0) and is_equal_approx(idle.energy, 0.0) and idle.credits == 0.0, "sans poste, l'équipage ne produit rien")
+	_crew(0, ["rex"])
+	var one: Dictionary = _gs.production_per_sec()
+	_check(one.minerals > 0.0 and is_equal_approx(one.energy, 0.0) and one.credits > 0.0, "le Pilote produit des minerais et des crédits")
+	_crew(0, ["bolt", "lumi"])
+	var all: Dictionary = _gs.production_per_sec()
+	_check(all.energy > 0.0 and all.data > Data.BASE_DATA_RATE, "l'Ingénieur produit de l'énergie, le Scientifique des données")
+	_check(all.minerals > one.minerals, "la synergie des 3 classes augmente la production")
+	var before: float = _gs.res["minerals"]
+	_gs.tick(3600.0)
+	_check(_gs.res["minerals"] - before > 100.0, "une heure de production")
+
+
+func test_production_scales_with_level_rarity_stars() -> void:
+	_gs.give_hero("rex", 1)
+	_gs.give_hero("nova", 1, 2)
+	_crew(0, ["rex"])
+	var p1: float = _gs.production_per_sec().minerals
+	_crew(0, ["nova"])
+	_check(_gs.production_per_sec().minerals > p1 * 1.5, "rare + étoiles produisent plus qu'un commun")
+	_gs.heroes["nova"].level = 10
+	_check(_gs.production_per_sec().minerals > p1 * 8.0, "le niveau multiplie la production")
+
+
+func test_offline_efficiency_and_cap() -> void:
+	_check(is_equal_approx(_gs.offline_efficiency(), Data.OFFLINE_BASE_EFFICIENCY), "rendement de base hors ligne")
+	_check(is_equal_approx(_gs.offline_cap_seconds(), Data.OFFLINE_BASE_HOURS * 3600.0), "durée de base hors ligne")
+	_gs.give_hero("rex", 10)
+	_gs.give_hero("bolt", 10)
+	_crew(0, ["rex", "bolt"])
+	_check(_gs.offline_efficiency() > Data.OFFLINE_BASE_EFFICIENCY, "l'équipage placé améliore le rendement")
+	_check(_gs.offline_cap_seconds() > Data.OFFLINE_BASE_HOURS * 3600.0, "les Ingénieurs allongent la durée hors ligne")
+	_gs.give_hero("lumi", 200)
+	_crew(0, ["lumi"])
+	_check(_gs.offline_efficiency() <= Data.OFFLINE_EFF_MAX and _gs.offline_cap_seconds() <= Data.OFFLINE_MAX_HOURS * 3600.0, "plafonds respectés")
+	var it := _item("gloves", "rare", 5, [{"k": "offline_pct", "v": 8.0}])
+	var eff0: float = _gs.offline_efficiency()
+	_gs.add_item(it)
+	_gs.equip(it.id)
+	_check(_gs.offline_efficiency() >= eff0, "un affixe « gains hors ligne » ne baisse pas le rendement")
+
+
+func test_simulate_offline_uses_efficiency_and_cap() -> void:
+	_gs.new_game()
+	_gs.captain.level = 30
+	_gs.launch(0, "asteroids")
+	var cap: float = _gs.offline_cap_seconds()
+	var r: Dictionary = _gs.simulate_offline(cap * 10.0)
+	_check(is_equal_approx(r.seconds, cap), "la durée est plafonnée")
+	_check(r.expeditions > 100 and r.gains.minerals > 0.0, "les expéditions auto tournent hors ligne")
+	_check(_gs.slots[0].dest == "asteroids", "toujours en expédition au retour")
+	# même durée, rendement plus bas qu'en ligne
+	var a := _fresh_offline_minerals(1.0)
+	var b := _fresh_offline_minerals(0.5)
+	_check(b < a * 0.6 and b > a * 0.4, "le rendement hors ligne réduit les gains (%d vs %d)" % [a, b])
+
+
+func _fresh_offline_minerals(scale: float) -> float:
+	_gs.new_game()
+	_gs.captain.level = 30
+	_gs.launch(0, "asteroids")
+	_gs._gain_scale = scale
+	var before: float = _gs.res["minerals"]
+	_gs.tick(600.0)
+	_gs._gain_scale = 1.0
+	return _gs.res["minerals"] - before
+
+
+func test_xp_credits_drop_affixes() -> void:
+	_gs.new_game()
+	var base_credit: float = _gs.credit_mult()
+	var it := _item("module", "rare", 5, [{"k": "credits_pct", "v": 20.0}, {"k": "xp_pct", "v": 10.0}])
+	_gs.add_item(it)
+	_gs.equip(it.id)
+	_check(_gs.credit_mult() > base_credit + 0.19, "affixe crédits")
+	_check(is_equal_approx(_gs.equipped_bonus("xp_pct"), 10.0), "affixe XP")
+	var sched := {}
+	_gs.captain.level = 30
+	_gs.slots[0].auto = false
+	_gs.launch(0, "asteroids")
+	var xp_before: int = _gs.captain.xp
+	_gs._advance_expeditions(500.0)
+	_check(_gs.captain.xp != xp_before or _gs.captain.level > 30, "le Capitaine gagne de l'XP")
 
 
 func test_station_rules() -> void:
@@ -252,17 +378,15 @@ func test_launch_needs_role_and_unlock() -> void:
 func test_victory_pays_and_levels() -> void:
 	_gs.give_hero("rex", 10)
 	_crew(0, ["rex"])
-	_strong_captain()
+	_gs.captain.level = 30
 	_gs.slots[0].auto = false
 	_check(_gs.preview_battle("asteroids", 0).win, "victoire prévue")
 	_gs.launch(0, "asteroids")
-	var xp_before: int = _gs.captain.xp
 	var minerals_before: float = _gs.res["minerals"]
 	var expected: Dictionary = _gs.rewards_of("asteroids", 0)
 	_gs._advance_expeditions(500.0)
 	_check(_gs.slots[0].dest == "", "fini : vaisseau libre")
 	_check(is_equal_approx(_gs.res["minerals"] - minerals_before, expected["minerals"]), "butin complet crédité")
-	_check(_gs.captain.xp != xp_before or _gs.captain.level > 30, "le Capitaine gagne de l'XP")
 	_check(_gs.heroes["rex"].xp > 0 or _gs.heroes["rex"].level > 10, "l'équipage gagne de l'XP")
 	_check(_gs.dest_wins["asteroids"] == 1, "victoire comptée")
 	var b: Dictionary = _gs.slots[0].battle
@@ -317,7 +441,7 @@ func test_auto_squad_and_autoplace() -> void:
 
 func test_auto_repeat_offline() -> void:
 	_gs.new_game()
-	_strong_captain()
+	_gs.captain.level = 30
 	var d: float = _gs.duration_of("asteroids", 0)
 	_gs.launch(0, "asteroids")
 	_gs._advance_expeditions(d * 10.0 + 0.5)
@@ -363,8 +487,8 @@ func test_save_load_roundtrip() -> void:
 	_crew(0, ["nova"])
 	_gs.captain.level = 12
 	_gs.captain.look.hair = 3
-	var it: Dictionary = _gs.make_item("weapon", "epic", 3)
-	it.level = 4
+	_gs.auto_recycle = 1
+	var it := _item("weapon", "epic", 9, [{"k": "atk_pct", "v": 6.5}, {"k": "crit", "v": 3.2}, {"k": "offline_pct", "v": 4.0}])
 	_gs.add_item(it)
 	_gs.equip(it.id)
 	_gs.launch(0, "asteroids")
@@ -373,8 +497,10 @@ func test_save_load_roundtrip() -> void:
 	_gs.reset()
 	_check(_gs.heroes.is_empty() and _gs.items.is_empty(), "état vidé")
 	_check(_gs.load_game(), "chargement réussi")
-	_check(_gs.captain.level == 12 and _gs.captain.look.hair == 3, "Capitaine restauré")
-	_check(_gs.equipped_item("weapon").rarity == "epic" and _gs.equipped_item("weapon").level == 4, "équipement restauré")
+	_check(_gs.captain.level == 12 and _gs.captain.look.hair == 3 and _gs.auto_recycle == 1, "Capitaine et réglages restaurés")
+	var w: Dictionary = _gs.equipped_item("weapon")
+	_check(w.rarity == "epic" and w.ilvl == 9 and w.affixes.size() == 3, "objet et affixes restaurés")
+	_check(is_equal_approx(_gs.equipped_bonus("crit"), 3.2), "bonus restaurés")
 	_check(_gs.heroes["nova"].level == 7 and _gs.heroes["nova"].stars == 2, "équipage restauré")
 	_check(is_equal_approx(_gs.res["minerals"], 42.0), "ressources restaurées")
 	_check(_gs.squad_ids(0).has("nova") and _gs.slots[0].dest == "asteroids", "postes et expédition restaurés")

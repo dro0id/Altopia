@@ -5,8 +5,10 @@ extends RefCounted
 const Data = preload("res://scripts/game_data.gd")
 
 
-static func make_unit(unit_name: String, hp: float, atk: float, def: float, spd: float) -> Dictionary:
-	return {"name": unit_name, "hp": hp, "max_hp": hp, "atk": atk, "def": def, "spd": spd}
+static func make_unit(unit_name: String, hp: float, atk: float, def: float, spd: float,
+		crit: float = 0.0, lifesteal: float = 0.0) -> Dictionary:
+	return {"name": unit_name, "hp": hp, "max_hp": hp, "atk": atk, "def": def, "spd": spd,
+		"crit": crit, "lifesteal": lifesteal}
 
 
 static func _alive(units: Array) -> bool:
@@ -58,8 +60,14 @@ static func simulate(allies: Array, enemies: Array) -> Dictionary:
 			if target.is_empty():
 				break
 			var dmg := maxf(1.0, u.atk - target.def * 0.5)
+			# critique : valeur moyenne (déterministe) ; vol de vie : soigne l'attaquant
+			dmg *= 1.0 + clampf(u.get("crit", 0.0), 0.0, 0.8) * (Data.CRIT_MULT - 1.0)
 			target.hp -= dmg
-			events.append({"s": o.side, "a": o.i, "t": target.idx, "d": dmg, "ko": target.hp <= 0.0})
+			var heal := 0.0
+			if u.get("lifesteal", 0.0) > 0.0:
+				heal = minf(u.max_hp - u.hp, dmg * u.lifesteal)
+				u.hp += heal
+			events.append({"s": o.side, "a": o.i, "t": target.idx, "d": dmg, "h": heal, "ko": target.hp <= 0.0})
 			if log.size() < 10:
 				log.append("%s frappe %s (-%d)%s" % [u.name, target.name, int(dmg),
 					" — K.O." if target.hp <= 0.0 else ""])

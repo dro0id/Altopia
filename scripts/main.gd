@@ -33,6 +33,9 @@ var _slot_cards := {}       # emplacement d'équipement -> widgets
 var _inv_box: VBoxContainer
 var _inv_title: Label
 var _inv_sig := ""
+var _recycle_btn: Button
+var _useless_btn: Button
+var _afk_label: Label
 # Équipage
 var _hero_ui := {}
 var _recruit_btn: Button
@@ -205,16 +208,23 @@ func _build_captain_page(page: VBoxContainer) -> void:
 	_label(page, "Équipement", 28, COL_ACCENT)
 	for slot in Data.EQUIP_SLOTS:
 		var c := _card(page)
-		var title := _label(c, "", 24)
-		var stats := _label(c, "", 20, COL_TEXT_DIM)
-		var xp := _bar(c, 12, COL_GOOD)
-		var b := _button(c, "Retirer", 58)
-		b.add_theme_font_size_override("font_size", 20)
+		var title := _label(c, "", 23)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var stats := _label(c, "", 19, COL_TEXT_DIM)
+		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _button(c, "Retirer", 54)
+		b.add_theme_font_size_override("font_size", 19)
 		b.pressed.connect(_tap(func(): GameState.unequip(slot)))
-		_slot_cards[slot] = {"title": title, "stats": stats, "xp": xp, "btn": b}
-	var best := _button(page, "Équiper automatiquement le meilleur", 70)
-	best.add_theme_font_size_override("font_size", 21)
+		_slot_cards[slot] = {"title": title, "stats": stats, "btn": b}
+	var best := _button(page, "Équiper automatiquement le meilleur", 66)
+	best.add_theme_font_size_override("font_size", 20)
 	best.pressed.connect(_tap(func(): GameState.auto_equip()))
+	_recycle_btn = _button(page, "", 62)
+	_recycle_btn.add_theme_font_size_override("font_size", 19)
+	_recycle_btn.pressed.connect(_tap(func(): GameState.cycle_auto_recycle()))
+	_useless_btn = _button(page, "Recycler tous les objets inutiles", 62)
+	_useless_btn.add_theme_font_size_override("font_size", 19)
+	_useless_btn.pressed.connect(_tap(func(): GameState.recycle_useless()))
 	_inv_title = _label(page, "", 28, COL_ACCENT)
 	_inv_box = VBoxContainer.new()
 	_inv_box.add_theme_constant_override("separation", 10)
@@ -226,6 +236,9 @@ func _build_crew_page(page: VBoxContainer) -> void:
 	_collection_label = _label(page, "", 30, COL_ACCENT)
 	_synergy_label = _label(page, "", 21, COL_TEXT_DIM)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var afk_card := _card(page)
+	_afk_label = _label(afk_card, "", 20, COL_GOOD)
+	_afk_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_recruit_btn = _button(page, "", 100)
 	_recruit_btn.add_theme_font_size_override("font_size", 26)
 	_recruit_btn.pressed.connect(_tap(func(): GameState.recruit()))
@@ -243,8 +256,10 @@ func _build_crew_page(page: VBoxContainer) -> void:
 		card.add_child(right)
 		var name_l := _label(right, "", 26)
 		var stats_l := _label(right, "", 20, COL_TEXT_DIM)
+		stats_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var xp := _bar(right, 16, COL_GOOD)
 		var where_l := _label(right, "", 19, COL_TEXT_DIM)
+		where_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var train := _button(right, "", 62)
 		train.add_theme_font_size_override("font_size", 21)
 		train.pressed.connect(_tap(func(): GameState.train(id)))
@@ -429,9 +444,10 @@ func _on_station_pick(index: int, slot_i: int, station_i: int) -> void:
 func _refresh() -> void:
 	for id in Data.RES_ORDER:
 		_res_labels[id].text = "%s  %s" % [Data.RES_NAMES[id], Data.fmt(GameState.res[id])]
-	_rate_label.text = "+%s crédits/s    +%s données/s    Expéditions : %d" % [
-		Data.fmt(GameState.credits_per_sec()), Data.fmt(GameState.data_per_sec()),
-		GameState.expeditions_done]
+	var prod := GameState.production_per_sec()
+	_rate_label.text = "AFK/h : +%s cr  +%s min.  +%s én.  +%s don.    Exp. : %d" % [
+		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
+		Data.fmt(prod.data * 3600.0), GameState.expeditions_done]
 	_refresh_captain()
 	_refresh_crew()
 	_refresh_expeditions()
@@ -468,24 +484,34 @@ func _refresh_captain() -> void:
 		if it.is_empty():
 			u.title.text = "%s : aucun" % Data.EQUIP[slot].name
 			u.title.add_theme_color_override("font_color", COL_TEXT_DIM)
-			u.stats.text = "Emplacement vide — équipez un objet de l'inventaire."
-			u.xp.visible = false
+			u.stats.text = "Emplacement vide : looter ou équiper un objet."
 			u.btn.visible = false
 		else:
-			u.title.text = "%s : %s — %s niv. %d/%d" % [Data.EQUIP[slot].name, it.name,
-				Data.RARITY[it.rarity].name, it.level, Data.ITEM_MAX_LEVEL[it.rarity]]
-			u.title.add_theme_color_override("font_color", Data.RARITY[it.rarity].color)
-			u.stats.text = _stat_text(GameState.item_stats(it), "+") + ("   (niveau max)" if it.level >= Data.ITEM_MAX_LEVEL[it.rarity] else "")
-			u.xp.visible = it.level < Data.ITEM_MAX_LEVEL[it.rarity]
-			u.xp.value = float(it.xp) / float(Data.item_xp_needed(it.level))
+			u.title.text = "%s : %s — %s (niv. %d)" % [Data.EQUIP[slot].name, it.name, Data.ITEM_RARITY[it.rarity].name, it.ilvl]
+			u.title.add_theme_color_override("font_color", Data.ITEM_RARITY[it.rarity].color)
+			u.stats.text = _item_text(it)
 			u.btn.visible = true
+	_recycle_btn.text = "Recyclage automatique : %s" % GameState.auto_recycle_label()
 	_refresh_inventory()
+
+
+func _affix_text(a: Dictionary) -> String:
+	var d: Dictionary = Data.AFFIXES[a.k]
+	return "+%s%s %s" % [String.num(a.v, 1), d.unit, d.name]
+
+
+## Stats plates puis une ligne par bonus aléatoire.
+func _item_text(it: Dictionary) -> String:
+	var lines: Array[String] = [_stat_text(GameState.item_stats(it), "+")]
+	for a in it.affixes:
+		lines.append(_affix_text(a))
+	return "\n".join(lines)
 
 
 func _refresh_inventory() -> void:
 	var sig_parts: Array[String] = []
 	for it in GameState.items:
-		sig_parts.append("%d.%d.%d" % [it.id, it.level, 1 if GameState.equipped[it.slot] == it.id else 0])
+		sig_parts.append("%d.%d.%d" % [it.id, it.ilvl, 1 if GameState.equipped[it.slot] == it.id else 0])
 	var sig := ",".join(sig_parts)
 	_inv_title.text = "Inventaire (%d / %d)" % [GameState.items.size(), Data.INVENTORY_MAX]
 	if sig == _inv_sig:
@@ -504,12 +530,18 @@ func _refresh_inventory() -> void:
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(info)
-		var t := _label(info, "%s%s — %s niv. %d" % [it.name, " (équipé)" if is_eq else "",
-			Data.RARITY[it.rarity].name, it.level], 21, Data.RARITY[it.rarity].color)
+		var rar: Dictionary = Data.ITEM_RARITY[it.rarity]
+		var t := _label(info, "%s%s" % [it.name, " (équipé)" if is_eq else ""], 20, rar.color)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_label(info, "%s · %s" % [Data.EQUIP[it.slot].name, _stat_text(GameState.item_stats(it), "+")], 18, COL_TEXT_DIM)
+		_label(info, "%s · %s · niv. %d" % [Data.EQUIP[it.slot].name, rar.name, it.ilvl], 16, COL_TEXT_DIM)
+		var d := _label(info, _item_text(it), 16, Color(0.85, 0.92, 1.0))
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if not is_eq:
+			var delta := GameState.power_delta(it)
+			_label(info, ("▲ +%d puissance" % delta) if delta > 0.0 else ("▼ %d puissance" % delta), 17,
+				COL_GOOD if delta > 0.0 else Color(1.0, 0.55, 0.5))
 		var btns := VBoxContainer.new()
-		btns.custom_minimum_size = Vector2(210, 0)
+		btns.custom_minimum_size = Vector2(200, 0)
 		row.add_child(btns)
 		if not is_eq:
 			var eq := _button(btns, "Équiper", 54)
@@ -517,13 +549,18 @@ func _refresh_inventory() -> void:
 			var item_id: int = it.id
 			eq.pressed.connect(_tap(func(): GameState.equip(item_id)))
 			var sc := _button(btns, "Recycler +%s cr" % Data.fmt(GameState.scrap_value(it)), 54)
-			sc.add_theme_font_size_override("font_size", 17)
+			sc.add_theme_font_size_override("font_size", 16)
 			sc.pressed.connect(_tap(func(): GameState.scrap(item_id)))
 
 
 func _refresh_crew() -> void:
 	_collection_label.text = "Équipage : %d / %d cartes" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
 	_synergy_label.text = "L'équipage, ce sont des objets à placer aux postes de vos vaisseaux : ils renforcent le Capitaine et rapportent des crédits. Synergie x%.2f (paires de classes +10 %%, les 3 classes +25 %%)." % GameState.synergy_multiplier()
+	var prod := GameState.production_per_sec()
+	_afk_label.text = "AFK — l'équipage aux postes travaille même hors ligne\n+%s crédits/h   +%s minerais/h\n+%s énergie/h   +%s données/h\nRendement hors ligne : %d %%   ·   Durée max comptée : %s" % [
+		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
+		Data.fmt(prod.data * 3600.0), int(round(GameState.offline_efficiency() * 100.0)),
+		Data.fmt_time(GameState.offline_cap_seconds())]
 	var cost := GameState.recruit_cost()
 	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost
@@ -558,7 +595,7 @@ func _refresh_crew() -> void:
 		u.xp.visible = true
 		u.xp.value = float(h.xp) / float(Data.xp_needed(h.level))
 		var slot := GameState.hero_slot(id)
-		u.where.text = ("Au poste : vaisseau %d" % (slot + 1)) if slot >= 0 else "Disponible"
+		u.where.text = ("Au poste (vaisseau %d) : %s" % [slot + 1, _hero_prod_text(id)]) if slot >= 0 else "Au repos : placez-le à un poste pour produire (%s)" % _hero_prod_text(id)
 		u.train.visible = true
 		if h.level >= Data.MAX_LEVEL:
 			u.train.text = "Niveau maximum"
@@ -567,6 +604,15 @@ func _refresh_crew() -> void:
 			var tc := GameState.train_cost(id)
 			u.train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
 			u.train.disabled = GameState.res["credits"] < tc
+
+
+func _hero_prod_text(id: String) -> String:
+	var cls: String = Data.HEROES[id]["class"]
+	var m := GameState.crew_prod_mult(id) * GameState.synergy_multiplier()
+	var parts: Array[String] = []
+	for r in Data.CREW_PROD[cls]:
+		parts.append("+%s %s/h" % [Data.fmt(Data.CREW_PROD[cls][r] * m), String(Data.RES_NAMES[r]).to_lower()])
+	return "  ".join(parts)
 
 
 func _crew_signature() -> String:
@@ -694,8 +740,15 @@ func _cost_text(cost: Dictionary) -> String:
 func _show_offline_report(r: Dictionary) -> void:
 	var d := AcceptDialog.new()
 	d.title = "Bon retour, Commandant !"
-	d.dialog_text = "Pendant votre absence (%s) :\n%s\nExpéditions terminées : %d" % [
-		Data.fmt_time(r.seconds), Data.fmt_amounts(r.gains), r.expeditions]
+	var txt := "Absent %s (comptés : %s, rendement %d %%)\n%s\nExpéditions terminées : %d" % [
+		Data.fmt_time(r.away), Data.fmt_time(r.seconds), int(round(r.efficiency * 100.0)),
+		Data.fmt_amounts(r.gains), r.expeditions]
+	if r.loot_kept > 0:
+		var best: Dictionary = r.loot_best
+		txt += "\nButin : %d objet(s) gardé(s), meilleur : %s (%s)" % [r.loot_kept, best.name, Data.ITEM_RARITY[best.rarity].name]
+	if r.recycled > 0.0:
+		txt += "\nRecyclage automatique : +%s crédits" % Data.fmt(r.recycled)
+	d.dialog_text = txt
 	d.ok_button_text = "Continuer"
 	add_child(d)
-	d.popup_centered(Vector2i(600, 340))
+	d.popup_centered(Vector2i(640, 420))

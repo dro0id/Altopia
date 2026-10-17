@@ -6,6 +6,8 @@
 - [x] **V1 RPG + 2D/3D** : 9 héros (classes, raretés, niveaux, étoiles), recrutement aléatoire, escouades, combats automatiques, scène 3D des destinations ([détails](V1.md)).
 - [x] **Combats animés** : coups, barres de vie, dégâts, bandeau de résultat, rejouable.
 - [x] **V2 — Le Capitaine** (inspiré de Mini Legion: Rise) : le joueur est un personnage personnalisable, l'équipage devient des objets à des postes, équipement évolutif avec butin, personnages « chibi » ([détails](V2.md)).
+- [x] **V2.1 — Équipage AFK + loot RPG** : production même hors ligne, rendement et durée hors ligne, 6 emplacements, 5 raretés, bonus aléatoires, recyclage auto.
+- [ ] **Style visuel** : choisir parmi 3 pistes (voir [STYLE.md](STYLE.md)), puis habiller l'interface et intégrer les assets.
 - [ ] **V2-C — Anomalies** (donjons solo, meilleur temps), **boss de secteur**, **tour d'épreuves**.
 - [ ] **V2-D — Campagne** : chapitres narratifs, un par secteur.
 - [ ] Vrais assets graphiques et sons.

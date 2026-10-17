@@ -10,7 +10,7 @@ const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
 
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5
 const AUTOSAVE_EVERY := 10.0
 
 var save_path := SAVE_PATH
@@ -25,6 +25,7 @@ var captain := {}
 var items: Array = []
 var equipped := {}
 var next_item_id := 1
+var auto_recycle := Data.AUTO_RECYCLE_MAX   # recycle les objets peu utiles dès qu'ils tombent (-1 = non)
 
 ## L'équipage : cartes à collectionner (id -> {level, xp, stars}), placées aux postes des vaisseaux.
 var heroes := {}
@@ -41,6 +42,9 @@ var last_offline_report := {}
 var last_recruit := {}
 
 var _autosave_timer := 0.0
+var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne < 1)
+var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
+var _recycled_credits := 0.0    # crédits obtenus par recyclage automatique
 
 
 func _ready() -> void:
@@ -74,6 +78,7 @@ func reset() -> void:
 	for s in Data.EQUIP_SLOTS:
 		equipped[s] = -1
 	next_item_id = 1
+	auto_recycle = Data.AUTO_RECYCLE_MAX
 	heroes = {}
 	hero_order = []
 	recruits = 0
@@ -95,7 +100,7 @@ func new_game() -> void:
 	for id in Data.STARTER_HEROES:
 		give_hero(id)
 	auto_squad(0)
-	for s in Data.EQUIP_SLOTS:
+	for s in ["weapon", "suit"]:
 		var it := make_item(s, "common", 1)
 		items.append(it)
 		equipped[s] = it.id
@@ -168,7 +173,7 @@ func cycle_look(part: String) -> void:
 	changed.emit()
 
 
-## Stats du Capitaine pour un vaisseau : base + équipement + bonus de l'équipage aux postes.
+## Stats du Capitaine pour un vaisseau : base + équipement + équipage, puis bonus en %.
 func captain_stats(slot_i: int = 0) -> Dictionary:
 	var m: float = 1.0 + Data.CAPTAIN_LEVEL_BONUS * (captain.level - 1)
 	var base := {"hp": Data.CAPTAIN_BASE.hp * m, "atk": Data.CAPTAIN_BASE.atk * m,
@@ -191,6 +196,12 @@ func captain_stats(slot_i: int = 0) -> Dictionary:
 	var total := {}
 	for k in base:
 		total[k] = base[k] + gear[k] + crew[k]
+	total["hp"] *= 1.0 + equipped_bonus("hp_pct") / 100.0
+	total["atk"] *= 1.0 + equipped_bonus("atk_pct") / 100.0
+	total["def"] *= 1.0 + equipped_bonus("def_pct") / 100.0
+	total["spd"] += equipped_bonus("spd")
+	total["crit"] = equipped_bonus("crit") / 100.0
+	total["lifesteal"] = equipped_bonus("lifesteal") / 100.0
 	total["base"] = base
 	total["gear"] = gear
 	total["crew"] = crew
@@ -210,19 +221,30 @@ func drone_stats(slot_i: int) -> Dictionary:
 	return out
 
 
-## --- Équipement ---
+## --- Équipement : du loot comme dans un vrai RPG ---
 
-func make_item(slot: String, rarity: String, tier: int) -> Dictionary:
+func make_item(slot: String, rarity: String, ilvl: int, with_affixes: bool = true) -> Dictionary:
 	var names: Array = Data.EQUIP[slot].names
-	var item := {"id": next_item_id, "slot": slot, "rarity": rarity, "tier": tier,
-		"level": 1, "xp": 0, "name": names[rng.randi() % names.size()]}
+	var nm: String = names[rng.randi() % names.size()]
+	if rarity == "epic" or rarity == "legendary":
+		nm += " " + Data.EPITHETS[rng.randi() % Data.EPITHETS.size()]
+	var item := {"id": next_item_id, "slot": slot, "rarity": rarity, "ilvl": ilvl, "name": nm, "affixes": []}
 	next_item_id += 1
+	if with_affixes:
+		var pool: Array = Data.AFFIX_ORDER.duplicate()
+		for i in int(Data.ITEM_RARITY[rarity].affixes):
+			var k: String = pool[rng.randi() % pool.size()]
+			pool.erase(k)
+			var a: Dictionary = Data.AFFIXES[k]
+			var v: float = lerpf(a.min, a.max, rng.randf()) * (1.0 + Data.ITEM_ILVL_AFFIX * (ilvl - 1))
+			item.affixes.append({"k": k, "v": snappedf(v, 0.1)})
 	return item
 
 
+## Stats plates de l'objet (selon son emplacement, sa rareté et son niveau d'objet).
 func item_stats(item: Dictionary) -> Dictionary:
-	var base := Data.item_base(item.slot, item.tier)
-	var m: float = Data.RARITY_ITEM_MULT[item.rarity] * (1.0 + Data.ITEM_LEVEL_BONUS * (item.level - 1))
+	var base: Dictionary = Data.ITEM_BASE[item.slot]
+	var m: float = Data.ITEM_RARITY[item.rarity].mult * (1.0 + Data.ITEM_ILVL_BONUS * (item.ilvl - 1))
 	var out := {"hp": 0.0, "atk": 0.0, "def": 0.0, "spd": 0.0}
 	for k in base:
 		out[k] = base[k] * m
@@ -231,7 +253,16 @@ func item_stats(item: Dictionary) -> Dictionary:
 
 func item_power(item: Dictionary) -> float:
 	var s := item_stats(item)
-	return s.atk * 2.0 + s.hp * 0.2 + s.def * 1.0 + s.spd * 1.5
+	var p: float = s.atk * 2.0 + s.hp * 0.2 + s.def + s.spd * 1.5
+	for a in item.affixes:
+		p += a.v * Data.AFFIX_POWER[a.k]
+	return p
+
+
+## Différence de puissance avec l'objet équipé au même emplacement (> 0 = amélioration).
+func power_delta(item: Dictionary) -> float:
+	var eq := equipped_item(item.slot)
+	return item_power(item) - (item_power(eq) if not eq.is_empty() else 0.0)
 
 
 func item_by_id(id: int) -> Dictionary:
@@ -243,6 +274,17 @@ func item_by_id(id: int) -> Dictionary:
 
 func equipped_item(slot: String) -> Dictionary:
 	return item_by_id(equipped[slot])
+
+
+## Somme d'un bonus (affixe) sur tout l'équipement porté.
+func equipped_bonus(key: String) -> float:
+	var total := 0.0
+	for slot in Data.EQUIP_SLOTS:
+		var it := equipped_item(slot)
+		for a in it.get("affixes", []):
+			if a.k == key:
+				total += a.v
+	return total
 
 
 func equip(id: int) -> bool:
@@ -260,7 +302,7 @@ func unequip(slot: String) -> void:
 
 
 func scrap_value(item: Dictionary) -> float:
-	return ceil(15.0 * item.tier * Data.RARITY_ITEM_MULT[item.rarity] * item.level)
+	return ceil(10.0 * item.ilvl * Data.ITEM_RARITY[item.rarity].mult)
 
 
 ## Recycle un objet non équipé en crédits.
@@ -274,6 +316,22 @@ func scrap(id: int) -> bool:
 	return true
 
 
+## Recycle tout objet non équipé qui n'améliore rien (jusqu'à Rare). Retourne les crédits gagnés.
+func recycle_useless() -> float:
+	var gained := 0.0
+	for it in items.duplicate():
+		if equipped[it.slot] == it.id:
+			continue
+		if Data.ITEM_RARITY_ORDER.find(it.rarity) > 2 or power_delta(it) > 0.0:
+			continue
+		gained += scrap_value(it)
+		items.erase(it)
+	add_res("credits", gained)
+	changed.emit()
+	return gained
+
+
+## Équipe, pour chaque emplacement, l'objet le plus puissant possédé.
 func auto_equip() -> void:
 	for slot in Data.EQUIP_SLOTS:
 		var best := {}
@@ -282,6 +340,17 @@ func auto_equip() -> void:
 				best = it
 		equipped[slot] = best.id if not best.is_empty() else -1
 	changed.emit()
+
+
+func cycle_auto_recycle() -> void:
+	auto_recycle = auto_recycle + 1 if auto_recycle < Data.AUTO_RECYCLE_MAX else -1
+	changed.emit()
+
+
+func auto_recycle_label() -> String:
+	if auto_recycle < 0:
+		return "désactivé"
+	return "jusqu'à « %s »" % Data.ITEM_RARITY[Data.ITEM_RARITY_ORDER[auto_recycle]].name
 
 
 func add_item(item: Dictionary) -> void:
@@ -300,41 +369,46 @@ func add_item(item: Dictionary) -> void:
 		items.erase(worst)
 
 
-## Tire un objet de butin (ou {} si pas de chance). Les tiers élevés donnent de meilleures raretés.
-func roll_drop(tier: int) -> Dictionary:
-	if rng.randf() > Data.DROP_CHANCE:
+## Reçoit un objet tombé : recyclé tout de suite s'il est peu utile (réglage), sinon gardé.
+## Retourne l'objet gardé, ou {} s'il a été recyclé.
+func _receive(item: Dictionary) -> Dictionary:
+	var rank: int = Data.ITEM_RARITY_ORDER.find(item.rarity)
+	if auto_recycle >= 0 and rank <= auto_recycle and power_delta(item) <= 0.0:
+		var value := scrap_value(item)
+		add_res("credits", value)
+		_recycled_credits += value
 		return {}
-	var w_epic := 5.0 + 5.0 * (tier - 1)
-	var w_rare := 25.0 + 5.0 * (tier - 1)
-	var w_common := 100.0 - w_epic - w_rare
-	var roll := rng.randf() * 100.0
-	var rarity := "common"
-	if roll < w_epic:
-		rarity = "epic"
-	elif roll < w_epic + w_rare:
-		rarity = "rare"
-	var slot: String = Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
-	var item := make_item(slot, rarity, tier)
 	add_item(item)
+	_loot_log.append(item)
 	return item
 
 
-## L'équipement équipé gagne de l'XP à chaque victoire ; retourne les niveaux gagnés.
-func _gear_xp() -> int:
-	var gained := 0
-	for slot in Data.EQUIP_SLOTS:
-		var it := equipped_item(slot)
-		if it.is_empty():
-			continue
-		var max_level: int = Data.ITEM_MAX_LEVEL[it.rarity]
-		if it.level >= max_level:
-			continue
-		it.xp += Data.ITEM_XP_PER_WIN
-		while it.level < max_level and it.xp >= Data.item_xp_needed(it.level):
-			it.xp -= Data.item_xp_needed(it.level)
-			it.level += 1
-			gained += 1
-	return gained
+func loot_level(dest: String) -> int:
+	return dest_tier(dest) * 4 + enemy_level(dest)
+
+
+## Tire un objet de butin ou {} (pas de chance / recyclé). Les destinations élevées donnent mieux.
+func roll_drop(dest: String) -> Dictionary:
+	var tier := dest_tier(dest)
+	if rng.randf() > Data.DROP_CHANCE * (1.0 + equipped_bonus("drop_pct") / 100.0):
+		return {}
+	var total := 0.0
+	var weights := {}
+	for r in Data.ITEM_RARITY_ORDER:
+		var w: float = Data.ITEM_RARITY[r].weight
+		if Data.ITEM_RARITY_ORDER.find(r) >= 2:
+			w *= 1.0 + 0.25 * (tier - 1)
+		weights[r] = w
+		total += w
+	var roll := rng.randf() * total
+	var rarity := "common"
+	for r in Data.ITEM_RARITY_ORDER:
+		roll -= weights[r]
+		if roll < 0.0:
+			rarity = r
+			break
+	var slot: String = Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
+	return _receive(make_item(slot, rarity, loot_level(dest)))
 
 
 ## --- Équipage (cartes) ---
@@ -426,49 +500,84 @@ func gain_xp(id: String, amount: int) -> int:
 	return gained
 
 
-## Somme des niveaux d'équipage possédés d'une classe (alimente revenus et synergies).
-func class_levels() -> Dictionary:
+## --- L'équipage, c'est la partie AFK : production et bonus, même hors ligne ---
+
+## Les équipiers placés à un poste d'un vaisseau actif.
+func stationed_ids() -> Array:
+	var out: Array = []
+	for i in slot_count():
+		out.append_array(squad_ids(i))
+	return out
+
+
+func stationed_levels() -> Dictionary:
 	var out := {}
 	for c in Data.CREW_ORDER:
 		out[c] = 0
-	for id in heroes:
+	for id in stationed_ids():
 		out[Data.HEROES[id]["class"]] += heroes[id].level
 	return out
 
 
-func is_crew_complete() -> bool:
-	var lv := class_levels()
-	for c in Data.CREW_ORDER:
-		if lv[c] <= 0:
-			return false
-	return true
-
-
+## Synergie des classes présentes aux postes : paires +10 %, les 3 classes +25 %.
 func synergy_multiplier() -> float:
-	var lv := class_levels()
+	var lv := stationed_levels()
 	var mult: float = 1.0
+	var present := 0
+	for c in Data.CREW_ORDER:
+		if lv[c] > 0:
+			present += 1
 	for pair in Data.PAIRS:
 		if lv[pair[0]] > 0 and lv[pair[1]] > 0:
 			mult += Data.SYNERGY_PAIR
-	if is_crew_complete():
+	if present == Data.CREW_ORDER.size():
 		mult += Data.SYNERGY_FULL
 	return mult
 
 
+func crew_prod_mult(id: String) -> float:
+	var h: Dictionary = heroes[id]
+	return h.level * Data.RARITY[Data.HEROES[id].rarity].prod * (1.0 + Data.STAR_BONUS * h.stars)
+
+
+## Production par seconde de toutes les ressources (équipage aux postes + capteurs de bord).
+func production_per_sec() -> Dictionary:
+	var out := {"credits": 0.0, "data": Data.BASE_DATA_RATE, "minerals": 0.0, "energy": 0.0}
+	var syn := synergy_multiplier()
+	for id in stationed_ids():
+		var prod: Dictionary = Data.CREW_PROD[Data.HEROES[id]["class"]]
+		for r in prod:
+			out[r] += prod[r] * crew_prod_mult(id) * syn / 3600.0
+	out.credits *= credit_mult()
+	return out
+
+
+func credit_mult() -> float:
+	return 1.0 + equipped_bonus("credits_pct") / 100.0
+
+
 func credits_per_sec() -> float:
-	var lv := class_levels()
-	var total: float = 0.0
-	for c in Data.CREW_ORDER:
-		total += Data.CREW[c].rate * lv[c]
-	return total * synergy_multiplier()
+	return production_per_sec().credits
 
 
 func data_per_sec() -> float:
-	var lv := class_levels()
-	var total: float = 0.0
-	for c in Data.CREW_ORDER:
-		total += Data.CREW[c].data_rate * lv[c]
-	return Data.BASE_DATA_RATE + total * synergy_multiplier()
+	return production_per_sec().data
+
+
+## Rendement des gains quand le joueur est absent : monte avec le niveau de l'équipage placé.
+func offline_efficiency() -> float:
+	var lv := stationed_levels()
+	var total := 0
+	for c in lv:
+		total += lv[c]
+	var eff: float = Data.OFFLINE_BASE_EFFICIENCY + Data.OFFLINE_EFF_PER_LEVEL * total + equipped_bonus("offline_pct") / 100.0
+	return clampf(eff, Data.OFFLINE_BASE_EFFICIENCY, Data.OFFLINE_EFF_MAX)
+
+
+## Durée maximale comptabilisée hors ligne : les Ingénieurs l'allongent.
+func offline_cap_seconds() -> float:
+	var hours: float = Data.OFFLINE_BASE_HOURS + Data.OFFLINE_HOURS_PER_ENGINEER_LEVEL * stationed_levels()["engineer"]
+	return minf(hours, Data.OFFLINE_MAX_HOURS) * 3600.0
 
 
 ## --- Postes ---
@@ -643,7 +752,7 @@ func make_enemies(dest: String) -> Array:
 func make_allies(slot_i: int) -> Array:
 	if slot_i == 0:
 		var s := captain_stats(0)
-		return [Battle.make_unit(captain.name, s.hp, s.atk, s.def, s.spd)]
+		return [Battle.make_unit(captain.name, s.hp, s.atk, s.def, s.spd, s.crit, s.lifesteal)]
 	var d := drone_stats(slot_i)
 	return [Battle.make_unit("Drone", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
 
@@ -686,17 +795,17 @@ func _complete(slot_i: int) -> void:
 	var loot := {}
 	if battle.win:
 		dest_wins[dest] += 1
-		var xp: int = Data.DEST[dest].xp
+		var xp := int(round(Data.DEST[dest].xp * (1.0 + equipped_bonus("xp_pct") / 100.0)))
 		for id in squad_ids(slot_i):
 			levels_gained += gain_xp(id, xp)
 		if slot_i == 0:
 			levels_gained += gain_captain_xp(xp)
-			levels_gained += _gear_xp()
-			loot = roll_drop(dest_tier(dest))
+			loot = roll_drop(dest)
 	else:
 		for r in rewards:
 			rewards[r] *= Data.LOSS_REWARD
 	for r in rewards:
+		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0)
 		add_res(r, rewards[r])
 	expeditions_done += 1
 	var head := "Victoire en %d tours" % battle.rounds if battle.win else "Défaite (butin réduit)"
@@ -704,11 +813,11 @@ func _complete(slot_i: int) -> void:
 	if levels_gained > 0:
 		slot.last += "  |  %d niveau(x) gagné(s) !" % levels_gained
 	if not loot.is_empty():
-		slot.last += "  |  Butin : %s (%s)" % [loot.name, Data.RARITY[loot.rarity].name]
+		slot.last += "  |  Butin : %s (%s, niv. %d)" % [loot.name, Data.ITEM_RARITY[loot.rarity].name, loot.ilvl]
 	slot.log = battle.log
 	var ally: Dictionary = battle.allies[0]
 	slot.battle = {
-		"win": battle.win, "dest": dest, "events": battle.events,
+		"win": battle.win, "dest": dest, "events": battle.events, "loot": loot,
 		"allies": [{"id": "captain" if slot_i == 0 else "drone", "name": ally.name, "max_hp": ally.max_hp,
 			"look": captain.look.duplicate(), "crew": squad_ids(slot_i)}],
 		"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
@@ -734,12 +843,37 @@ func _advance_expeditions(seconds: float) -> void:
 				_complete(i)
 
 
-## Fait avancer le jeu de `seconds` secondes (revenu passif + expéditions).
+## Fait avancer le jeu de `seconds` secondes (production de l'équipage + expéditions).
 func tick(seconds: float) -> void:
-	add_res("credits", credits_per_sec() * seconds)
-	add_res("data", data_per_sec() * seconds)
+	var prod := production_per_sec()
+	for r in prod:
+		add_res(r, prod[r] * seconds * _gain_scale)
 	_advance_expeditions(seconds)
 	changed.emit()
+
+
+## Simule une absence : durée plafonnée par les Ingénieurs, gains au rendement hors ligne.
+func simulate_offline(away: float) -> Dictionary:
+	var secs := minf(away, offline_cap_seconds())
+	var before := res.duplicate()
+	var done_before := expeditions_done
+	_loot_log = []
+	_recycled_credits = 0.0
+	_gain_scale = offline_efficiency()
+	tick(secs)
+	_gain_scale = 1.0
+	var gains := {}
+	for id in res:
+		gains[id] = res[id] - before[id]
+	var best := {}
+	for it in _loot_log:
+		if best.is_empty() or item_power(it) > item_power(best):
+			best = it
+	return {
+		"seconds": secs, "away": away, "gains": gains, "expeditions": expeditions_done - done_before,
+		"efficiency": offline_efficiency(), "loot_kept": _loot_log.size(), "loot_best": best,
+		"recycled": _recycled_credits,
+	}
 
 
 ## --- Sauvegarde ---
@@ -753,7 +887,7 @@ func save_game() -> void:
 	f.store_string(JSON.stringify({
 		"version": SAVE_VERSION,
 		"res": res, "data_total": data_total, "captain": captain,
-		"items": items, "equipped": equipped, "next_item_id": next_item_id,
+		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
@@ -791,10 +925,16 @@ func load_game() -> bool:
 	}
 	items = []
 	for it in parsed.get("items", []):
-		if Data.EQUIP.has(String(it.get("slot", ""))) and Data.RARITY.has(String(it.get("rarity", ""))):
-			items.append({"id": int(it.id), "slot": String(it.slot), "rarity": String(it.rarity), "tier": int(it.tier),
-				"level": int(it.level), "xp": int(it.xp), "name": String(it.name)})
+		if not (Data.EQUIP.has(String(it.get("slot", ""))) and Data.ITEM_RARITY.has(String(it.get("rarity", "")))):
+			continue
+		var affixes: Array = []
+		for a in it.get("affixes", []):
+			if Data.AFFIXES.has(String(a.get("k", ""))):
+				affixes.append({"k": String(a.k), "v": float(a.v)})
+		items.append({"id": int(it.id), "slot": String(it.slot), "rarity": String(it.rarity),
+			"ilvl": int(it.ilvl), "name": String(it.name), "affixes": affixes})
 	next_item_id = int(parsed.get("next_item_id", 1))
+	auto_recycle = clampi(int(parsed.get("auto_recycle", Data.AUTO_RECYCLE_MAX)), -1, Data.AUTO_RECYCLE_MAX)
 	var saved_eq: Dictionary = parsed.get("equipped", {})
 	for s in Data.EQUIP_SLOTS:
 		equipped[s] = int(saved_eq.get(s, -1))
@@ -834,15 +974,7 @@ func load_game() -> bool:
 	last_seen = int(parsed.get("last_seen", 0))
 
 	var now := int(Time.get_unix_time_from_system())
-	var away := clampi(now - last_seen, 0, Data.OFFLINE_CAP_SECONDS)
+	var away := maxi(0, now - last_seen)
 	if away > 60:
-		var before := res.duplicate()
-		var done_before := expeditions_done
-		tick(away)
-		var gains := {}
-		for id in res:
-			gains[id] = res[id] - before[id]
-		last_offline_report = {
-			"seconds": away, "gains": gains, "expeditions": expeditions_done - done_before,
-		}
+		last_offline_report = simulate_offline(float(away))
 	return true

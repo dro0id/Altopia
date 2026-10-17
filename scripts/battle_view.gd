@@ -123,6 +123,8 @@ func advance(dt: float) -> void:
 		if ph >= 0.5 and not _applied:
 			_applied = true
 			tgt.hp = maxf(0.0, tgt.hp - ev.d)
+			if ev.get("h", 0.0) > 0.0:
+				att.hp = minf(att.max, att.hp + ev.h)
 			tgt.flash = 1.0
 			if ev.ko:
 				tgt.alive = false

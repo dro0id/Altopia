@@ -45,14 +45,14 @@ func _initialize() -> void:
 	gs.give_hero("lumi", 4)
 	gs.give_hero("nova", 3)
 	gs.give_hero("gorn", 2, 2)
-	var w = gs.make_item("weapon", "rare", 2); w.level = 3; w.xp = 25
-	var su = gs.make_item("suit", "epic", 2); su.level = 2
-	var mo = gs.make_item("module", "common", 1); mo.level = 4; mo.xp = 10
-	for it in [w, su, mo, gs.make_item("weapon", "common", 1), gs.make_item("suit", "rare", 1), gs.make_item("module", "epic", 3)]:
+	var worn := [["weapon", "legendary", 14], ["helmet", "epic", 12], ["suit", "epic", 11],
+		["gloves", "rare", 9], ["boots", "uncommon", 7], ["module", "legendary", 13]]
+	for e in worn:
+		var it = gs.make_item(e[0], e[1], e[2])
 		gs.items.append(it)
-	gs.equip(w.id)
-	gs.equip(su.id)
-	gs.equip(mo.id)
+		gs.equipped[e[0]] = it.id
+	for e in [["weapon", "rare", 12], ["helmet", "legendary", 15], ["boots", "epic", 13], ["gloves", "common", 3], ["suit", "rare", 10]]:
+		gs.items.append(gs.make_item(e[0], e[1], e[2]))
 	gs.auto_squad(0)
 	gs.add_res("credits", 650.0)
 	gs.add_res("data", 40.0)

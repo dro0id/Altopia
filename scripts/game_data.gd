@@ -15,9 +15,9 @@ const CREW := {
 }
 
 const RARITY := {
-	"common": {"name": "Commun", "color": Color(0.72, 0.77, 0.88), "weight": 70},
-	"rare": {"name": "Rare", "color": Color(0.35, 0.65, 1.0), "weight": 25},
-	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "weight": 5},
+	"common": {"name": "Commun", "color": Color(0.72, 0.77, 0.88), "weight": 70, "prod": 1.0},
+	"rare": {"name": "Rare", "color": Color(0.35, 0.65, 1.0), "weight": 25, "prod": 1.4},
+	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "weight": 5, "prod": 2.0},
 }
 const RARITY_ORDER := ["epic", "rare", "common"]
 
@@ -52,19 +52,71 @@ const LOOK_HAIRS := [Color(0.18, 0.12, 0.1), Color(0.95, 0.8, 0.35), Color(0.9, 
 	Color(0.35, 0.55, 0.95), Color(0.85, 0.85, 0.9), Color(0.3, 0.75, 0.5)]
 const LOOK_STYLES := 3
 
-## --- Équipement du Capitaine ---
-const EQUIP_SLOTS := ["weapon", "suit", "module"]
+## --- Équipement du Capitaine : du vrai loot RPG ---
+const EQUIP_SLOTS := ["weapon", "helmet", "suit", "gloves", "boots", "module"]
 const EQUIP := {
 	"weapon": {"name": "Arme", "names": ["Laser", "Blaster", "Rayon ionique", "Canon à plasma"]},
+	"helmet": {"name": "Casque", "names": ["Casque", "Heaume", "Visière tactique", "Masque pressurisé"]},
 	"suit": {"name": "Combinaison", "names": ["Combinaison", "Armure", "Exo-squelette", "Scaphandre"]},
+	"gloves": {"name": "Gants", "names": ["Gants", "Gantelets", "Poignes assistées"]},
+	"boots": {"name": "Bottes", "names": ["Bottes", "Jambières", "Bottes magnétiques"]},
 	"module": {"name": "Module", "names": ["Propulseur", "Bouclier", "Capteur", "Réacteur"]},
 }
-const RARITY_ITEM_MULT := {"common": 1.0, "rare": 1.6, "epic": 2.4}
-const ITEM_MAX_LEVEL := {"common": 5, "rare": 8, "epic": 12}
-const ITEM_LEVEL_BONUS := 0.12
-const ITEM_XP_PER_WIN := 10
-const DROP_CHANCE := 0.4
-const INVENTORY_MAX := 40
+## Stats plates de base par emplacement (avant rareté et niveau d'objet).
+const ITEM_BASE := {
+	"weapon": {"atk": 8.0},
+	"helmet": {"hp": 22.0, "def": 2.5},
+	"suit": {"hp": 34.0, "def": 4.0},
+	"gloves": {"atk": 3.5, "hp": 10.0},
+	"boots": {"spd": 2.0, "def": 2.0},
+	"module": {"atk": 2.5, "def": 1.5, "hp": 12.0, "spd": 1.0},
+}
+const ITEM_RARITY_ORDER := ["common", "uncommon", "rare", "epic", "legendary"]
+const ITEM_RARITY := {
+	"common": {"name": "Commun", "color": Color(0.72, 0.77, 0.88), "mult": 1.0, "affixes": 0, "weight": 60.0},
+	"uncommon": {"name": "Peu commun", "color": Color(0.45, 0.9, 0.5), "mult": 1.25, "affixes": 1, "weight": 25.0},
+	"rare": {"name": "Rare", "color": Color(0.35, 0.65, 1.0), "mult": 1.6, "affixes": 2, "weight": 11.0},
+	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "mult": 2.1, "affixes": 3, "weight": 3.5},
+	"legendary": {"name": "Légendaire", "color": Color(1.0, 0.65, 0.15), "mult": 2.8, "affixes": 4, "weight": 0.5},
+}
+## Bonus aléatoires (affixes) : valeur tirée entre min et max, puis augmentée avec le niveau d'objet.
+const AFFIX_ORDER := ["atk_pct", "hp_pct", "def_pct", "spd", "crit", "lifesteal", "xp_pct", "credits_pct", "drop_pct", "offline_pct"]
+const AFFIXES := {
+	"atk_pct": {"name": "Attaque", "unit": "%", "min": 3.0, "max": 7.0},
+	"hp_pct": {"name": "PV", "unit": "%", "min": 4.0, "max": 9.0},
+	"def_pct": {"name": "Défense", "unit": "%", "min": 3.0, "max": 7.0},
+	"spd": {"name": "Vitesse", "unit": "", "min": 1.0, "max": 3.0},
+	"crit": {"name": "Critique", "unit": "%", "min": 2.0, "max": 6.0},
+	"lifesteal": {"name": "Vol de vie", "unit": "%", "min": 2.0, "max": 5.0},
+	"xp_pct": {"name": "XP gagnée", "unit": "%", "min": 4.0, "max": 10.0},
+	"credits_pct": {"name": "Crédits", "unit": "%", "min": 5.0, "max": 12.0},
+	"drop_pct": {"name": "Butin", "unit": "%", "min": 4.0, "max": 10.0},
+	"offline_pct": {"name": "Gains hors ligne", "unit": "%", "min": 3.0, "max": 8.0},
+}
+## Poids de chaque affixe pour comparer deux objets (puissance).
+const AFFIX_POWER := {"atk_pct": 3.0, "hp_pct": 2.0, "def_pct": 2.0, "spd": 3.0, "crit": 4.0, "lifesteal": 3.0,
+	"xp_pct": 0.5, "credits_pct": 0.5, "drop_pct": 0.5, "offline_pct": 0.8}
+const EPITHETS := ["du Cratère Ardent", "de l'Aube Stellaire", "du Vide", "de Helios", "du Trou Noir", "des Anciens"]
+const ITEM_ILVL_BONUS := 0.10    # +10 % de stats par niveau d'objet
+const ITEM_ILVL_AFFIX := 0.04    # les affixes montent aussi avec le niveau d'objet
+const CRIT_MULT := 1.5           # un coup critique fait x1,5 (moyenne déterministe dans les combats)
+const DROP_CHANCE := 0.35
+const INVENTORY_MAX := 60
+const AUTO_RECYCLE_MAX := 2      # 0 = communs, 1 = jusqu'à peu commun, 2 = jusqu'à rare ; -1 = désactivé
+
+## --- Équipage AFK : production et bonus hors ligne ---
+## Production par heure et par niveau d'équipier placé à son poste (même hors ligne).
+const CREW_PROD := {
+	"pilot": {"minerals": 30.0, "credits": 100.0},
+	"engineer": {"energy": 20.0, "credits": 100.0},
+	"scientist": {"data": 15.0, "credits": 100.0},
+}
+const OFFLINE_BASE_EFFICIENCY := 0.5      # rendement hors ligne de départ
+const OFFLINE_EFF_PER_LEVEL := 0.02       # +2 % par niveau d'équipier placé
+const OFFLINE_EFF_MAX := 1.2
+const OFFLINE_BASE_HOURS := 4.0           # durée hors ligne comptabilisée
+const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.25
+const OFFLINE_MAX_HOURS := 24.0
 
 const SQUAD_SIZE := 3
 const MAX_LEVEL := 40
@@ -124,7 +176,6 @@ const ENGINE_SPEED := 0.10
 const START_CREDITS := 100.0
 const BASE_DATA_RATE := 0.1      # données/s des capteurs de bord, même sans Scientifique
 const MAX_SLOTS := 2
-const OFFLINE_CAP_SECONDS := 8 * 3600
 
 
 ## Stats d'un héros selon son niveau et ses étoiles.
@@ -132,21 +183,6 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 	var h: Dictionary = HEROES[id]
 	var m: float = (1.0 + LEVEL_BONUS * (level - 1)) * (1.0 + STAR_BONUS * stars)
 	return {"hp": h.hp * m, "atk": h.atk * m, "def": h.def * m, "spd": h.spd}
-
-
-## Stats de base d'un objet selon son emplacement et son tier (avant rareté et niveau).
-static func item_base(slot: String, tier: int) -> Dictionary:
-	match slot:
-		"weapon":
-			return {"atk": 6.0 * tier}
-		"suit":
-			return {"hp": 30.0 * tier, "def": 3.0 * tier}
-		_:
-			return {"spd": 2.0 * tier, "atk": 2.0 * tier, "def": 1.5 * tier}
-
-
-static func item_xp_needed(level: int) -> int:
-	return 20 * level
 
 
 static func xp_needed(level: int) -> int:
