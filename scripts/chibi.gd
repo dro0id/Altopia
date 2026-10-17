@@ -10,6 +10,9 @@ const Data = preload("res://scripts/game_data.gd")
 const SKIN := Color(0.97, 0.82, 0.7)
 const OUTLINE := Color(0.08, 0.08, 0.14)
 
+static var _tex_cache := {}
+
+var hero_id := ""
 var kind := "empty"
 var look := {"suit": 0, "hair": 0, "style": 0}
 var role := "pilot"
@@ -38,6 +41,7 @@ func setup_crew(hero_id: String, star_count: int, is_dimmed: bool = false) -> vo
 		setup_empty(role)
 		return
 	kind = "crew"
+	self.hero_id = hero_id
 	var h: Dictionary = Data.HEROES[hero_id]
 	role = h["class"]
 	rarity_col = Data.RARITY[h.rarity].color
@@ -72,6 +76,26 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+## Portrait 3D pré-rendu (assets/portraits) ; null si absent (retour au dessin en code).
+func _portrait() -> Texture2D:
+	var id := ""
+	match kind:
+		"captain":
+			id = "captain"
+		"crew":
+			id = hero_id
+		"enemy":
+			id = "enemy_" + enemy_kind
+		_:
+			return null
+	if id == "":
+		return null
+	if not _tex_cache.has(id):
+		var path := "res://assets/portraits/%s.png" % id
+		_tex_cache[id] = load(path) if ResourceLoader.exists(path) else null
+	return _tex_cache[id]
+
+
 func _fan(center: Vector2, r: float, a0: float, a1: float, steps: int = 16) -> PackedVector2Array:
 	var pts := PackedVector2Array([center])
 	for i in steps + 1:
@@ -92,6 +116,12 @@ func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var bob := sin(_t * 3.0) * s * 0.012 if animate else 0.0
 	var c := Vector2(size.x / 2.0, size.y / 2.0 + bob)
+	var tex := _portrait()
+	if tex != null:
+		var side := s * 1.08
+		var a := 0.45 if dimmed else 1.0
+		draw_texture_rect(tex, Rect2(c.x - side / 2.0, c.y - side / 2.0 - s * 0.04, side, side), false, Color(1, 1, 1, a))
+		return
 	match kind:
 		"captain":
 			_draw_human(c, s, Data.LOOK_SUITS[look.suit], Data.LOOK_HAIRS[look.hair], look.style, "captain")

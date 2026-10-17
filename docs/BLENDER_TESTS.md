@@ -34,3 +34,8 @@ Méthode : soudure des sommets puis subdivision des pièces Kenney (look gonflé
 Pièges : les sommets non soudés de Kenney donnent des bulles à la subdivision (souder d'abord) ; le nœud racine du pack est décalé (2, -1.5) : le remettre à zéro avant l'export.
 Version finale : casque réduit (rayon 0,185 au lieu de 0,24), matières en palette R2 directement dans le script. Aperçu : `docs/style/captain_astroneer_r2.png`.
 Limites : mouvements rigides (sans squelette), blanc du costume un peu lavé.
+
+## Équipage et ennemi (boucle de jeu)
+- `tools/blender/characters.py` (variable `VARIANT` = pilot, engineer, scientist, captain) : même base Astroneer, accent et accessoires par classe (ailerons du Pilote, réservoirs et lampe de l'Ingénieur, parabole et capteur du Scientifique).
+- `tools/blender/enemy.py` : golem (alien Kenney arrondi, matières rouge et magenta).
+- `tools/render_portraits.gd` : génère `assets/portraits/*.png` (9 équipiers, capitaine, 3 ennemis) depuis les modèles ; `scripts/chibi.gd` les affiche (cartes d'équipage, postes, combat) et retombe sur l'ancien dessin si un portrait manque.
