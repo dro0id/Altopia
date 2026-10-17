@@ -1,21 +1,19 @@
-# Pistes de style — « réaliste mais dessin animé »
+# Direction artistique — réaliste 2D/3D spatial
 
-Le style actuel du jeu (personnages dessinés en code, très simples) est **provisoire** et ne plaît pas.
-Trois directions ont été dessinées en maquette, avec les mêmes écrans (Capitaine + équipement RPG + équipage AFK,
-combat + butin légendaire) pour pouvoir comparer.
+Décision : **pas de cartoon**. Deux pistes réalistes ont été maquettées (rendus three.js, même HUD de cockpit).
 
-| | A · Cartoon héroïque | B · Peinture sci-fi | C · 3D toon doux |
-|---|---|---|---|
-| Trait | gros contours, ombres franches | sans contour, dégradés doux, contre-jour froid | rond, grands yeux, reflets brillants |
-| Interface | panneaux violets, bordures dorées, gros boutons | verre néon, typographie technique | bulles blanches, pastel |
-| Atouts | très lisible, proche de Mini Legion, facile à animer | le plus réaliste et immersif | accessible, simple à passer en 3D |
-| Limites | moins « réaliste » | lourd à produire et à animer | le plus enfantin |
+| | R1 · Réaliste sobre | R2 · Réaliste cinématique |
+|---|---|---|
+| Ambiance | Soleil chaud, acier blanc, orange sécurité | Contre-jour cyan/magenta, océans, atmosphère |
+| Interface | Panneaux biseautés, typo technique | Verre teinté, néons fins |
+| Coût mobile | Léger | Plus lourd (bloom à limiter) |
 
-Images : `docs/style/` — écrans Capitaine (`capitaine_X.png`), combat (`combat_X.png`) et personnages (`persos_X.png`).
+Maquettes : `docs/style/` (ui1/ui2 = écrans Capitaine et Combat, R1 et R2).
 
-## Important : la production finale
-Les maquettes sont des illustrations vectorielles générées par du code ; elles servent à **choisir une direction**.
-Pour un rendu final de qualité « jeu commercial », il faudra des **assets** (illustrateur, packs graphiques ou
-génération d'images) livrés en PNG/sprites ; le jeu les affichera à la place des dessins en code.
-L'habillage de l'interface (panneaux, boutons, polices, couleurs, effets de rareté) peut en revanche être réalisé
-directement dans Godot, dans le style choisi.
+## Ce qui est faisable dans Godot
+- Planètes, astéroïdes, étoiles, vaisseaux, lumière, bloom : oui (3D + shaders).
+- Interface (panneaux, polices, cadres de rareté) : oui, via thème Godot.
+- Personnages : nécessitent de vrais modèles 3D (glTF). Les formes simples restent « jouet ».
+
+## Prochaine étape
+Choisir R1, R2 ou un mélange, puis habiller le jeu (thème UI, rendu des destinations) et remplacer `chibi.gd` par des modèles.
