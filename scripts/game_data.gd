@@ -41,7 +41,7 @@ const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
 const CAPTAIN_MAX_LEVEL := 50
 const CAPTAIN_LEVEL_BONUS := 0.15
 const CAPTAIN_TRAIN_BASE := 40.0
-const CAPTAIN_TRAIN_GROWTH := 1.25
+const CAPTAIN_TRAIN_GROWTH := 1.35
 const CREW_STAT_SHARE := 0.35    # part des stats de l'équipage ajoutée au Capitaine
 const CREW_SPD_SHARE := 0.20
 const DRONE_ATK_SHARE := 0.6     # drone (vaisseau 2, sans capitaine) : stats de l'équipage réduites
@@ -117,6 +117,8 @@ const OFFLINE_EFF_MAX := 1.2
 const OFFLINE_BASE_HOURS := 4.0           # durée hors ligne comptabilisée
 const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.25
 const OFFLINE_MAX_HOURS := 24.0
+const OFFLINE_BULK_MIN := 40             # au-delà, les expéditions hors ligne sont regroupées
+const OFFLINE_BULK_CHUNK := 25
 
 const SQUAD_SIZE := 3
 const MAX_LEVEL := 40
@@ -126,53 +128,80 @@ const STAR_BONUS := 0.20         # +20 % de stats par étoile (doublon)
 const RECRUIT_BASE := 50.0
 const RECRUIT_GROWTH := 1.2
 const TRAIN_BASE := 30.0
-const TRAIN_GROWTH := 1.25
+const TRAIN_GROWTH := 1.32
 const LOSS_REWARD := 0.25        # part du butin conservée en cas de défaite
-const ENEMY_LEVEL_STEP := 4      # victoires nécessaires pour +1 niveau d'ennemis
+const ENEMY_LEVEL_STEP := 8      # victoires nécessaires pour +1 niveau d'ennemis
+const ENEMY_LEVEL_MAX := 60      # plafond : évite une inflation sans fin du butin et des ennemis
 const ENEMY_SCALE := 0.12
 const BATTLE_MAX_ROUNDS := 60
 
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
-		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 12,
+		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 5,
 		"enemy": {"kind": "asteroids", "name": "Foreur rebelle", "count": 2, "hp": 120.0, "atk": 18.0, "def": 6.0, "spd": 9.0},
-		"rewards": {"minerals": 5.0, "credits": 10.0, "data": 3.0},
+		"rewards": {"minerals": 5.0, "credits": 6.0, "data": 3.0},
 	},
 	"star": {
-		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 30,
+		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 12,
 		"enemy": {"kind": "star", "name": "Sentinelle solaire", "count": 2, "hp": 220.0, "atk": 26.0, "def": 12.0, "spd": 10.0},
-		"rewards": {"energy": 8.0, "credits": 20.0, "data": 6.0},
+		"rewards": {"energy": 8.0, "credits": 12.0, "data": 6.0},
 	},
 	"planet": {
-		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 60,
+		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 24,
 		"enemy": {"kind": "planet", "name": "Créature xéno", "count": 3, "hp": 300.0, "atk": 34.0, "def": 16.0, "spd": 11.0},
-		"rewards": {"data": 16.0, "credits": 60.0, "minerals": 3.0, "energy": 2.0},
+		"rewards": {"data": 16.0, "credits": 36.0, "minerals": 3.0, "energy": 2.0},
 	},
 }
 
-const UPGRADE_ORDER := ["laser", "solar", "scanner", "engines", "docks"]
+const UPGRADE_ORDER := ["laser", "solar", "scanner", "engines", "docks", "st_pilot", "st_engineer", "st_scientist"]
+const PROD_LEVEL_EXP := 0.7     # la production d'un équipier croît moins vite que son niveau
+const STATION_GAIN := 0.12      # +12 % de production du poste par niveau d'amélioration de poste
 ## cost = base * growth^niveau (arrondi au supérieur). bonus = effet par niveau.
 const UPGRADES := {
-	"laser": {"name": "Laser de minage", "desc": "+25 % minerais par niveau", "max": 20, "growth": 1.6,
+	"laser": {"name": "Laser de minage", "desc": "+25 % minerais par niveau", "max": 20, "growth": 1.85,
 		"base": {"credits": 100.0, "minerals": 10.0}},
-	"solar": {"name": "Collecteur solaire", "desc": "+25 % énergie par niveau", "max": 20, "growth": 1.6,
+	"solar": {"name": "Collecteur solaire", "desc": "+25 % énergie par niveau", "max": 20, "growth": 1.85,
 		"base": {"credits": 150.0, "energy": 10.0}},
-	"scanner": {"name": "Scanner", "desc": "+25 % données par niveau", "max": 20, "growth": 1.6,
+	"scanner": {"name": "Scanner", "desc": "+25 % données par niveau", "max": 20, "growth": 1.85,
 		"base": {"credits": 200.0, "minerals": 15.0}},
-	"engines": {"name": "Moteurs", "desc": "-10 % de durée par niveau", "max": 20, "growth": 1.7,
+	"engines": {"name": "Moteurs", "desc": "-5 % de durée par niveau", "max": 20, "growth": 1.85,
 		"base": {"credits": 120.0, "minerals": 8.0, "energy": 5.0}},
 	"docks": {"name": "Baie d'amarrage", "desc": "Débloque un 2e vaisseau", "max": 1, "growth": 1.0,
 		"base": {"credits": 500.0, "minerals": 30.0, "energy": 20.0}},
+	"st_pilot": {"name": "Poste Pilote", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
+		"base": {"credits": 300.0, "minerals": 15.0}},
+	"st_engineer": {"name": "Poste Ingénieur", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
+		"base": {"credits": 300.0, "energy": 10.0}},
+	"st_scientist": {"name": "Poste Scientifique", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
+		"base": {"credits": 300.0, "data": 8.0}},
 }
+
+## Objectifs : un palier à atteindre, une récompense à récupérer. Ils donnent un but à chaque retour.
+## kind : captain_level, crew_count, data_total, expeditions, epic_item, station_levels, docks, crew_level_sum
+const GOALS := [
+	{"id": "g1", "name": "Capitaine niveau 5", "kind": "captain_level", "target": 5, "reward": {"credits": 400.0}},
+	{"id": "g2", "name": "Posséder 4 cartes d'équipage", "kind": "crew_count", "target": 4, "reward": {"credits": 600.0, "minerals": 30.0}},
+	{"id": "g3", "name": "Accumuler 100 données", "kind": "data_total", "target": 100, "reward": {"credits": 800.0, "energy": 40.0}},
+	{"id": "g4", "name": "Améliorer les postes (niveaux cumulés : 5)", "kind": "station_levels", "target": 5, "reward": {"credits": 1200.0, "data": 20.0}},
+	{"id": "g5", "name": "Lancer 25 expéditions", "kind": "expeditions", "target": 25, "reward": {"credits": 1500.0, "minerals": 60.0}},
+	{"id": "g6", "name": "Débloquer le 2e vaisseau", "kind": "docks", "target": 1, "reward": {"credits": 2500.0, "energy": 80.0}},
+	{"id": "g7", "name": "Capitaine niveau 15", "kind": "captain_level", "target": 15, "reward": {"credits": 5000.0, "data": 80.0}},
+	{"id": "g8", "name": "Obtenir un objet épique", "kind": "epic_item", "target": 1, "reward": {"credits": 6000.0, "minerals": 150.0}},
+	{"id": "g9", "name": "Accumuler 1 500 données", "kind": "data_total", "target": 1500, "reward": {"credits": 12000.0, "energy": 200.0}},
+	{"id": "g10", "name": "Équipage : niveaux cumulés 40", "kind": "crew_level_sum", "target": 40, "reward": {"credits": 20000.0, "minerals": 300.0}},
+	{"id": "g11", "name": "Postes : niveaux cumulés 30", "kind": "station_levels", "target": 30, "reward": {"credits": 40000.0, "data": 400.0}},
+	{"id": "g12", "name": "Capitaine niveau 30", "kind": "captain_level", "target": 30, "reward": {"credits": 80000.0, "energy": 500.0}},
+]
 
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
 const ROLE_GAIN := 0.15          # +15 % de gains par niveau du rôle requis
-const ROLE_SPEED := 0.03         # -3 % de durée par niveau du rôle requis
+const ROLE_SPEED := 0.015        # -1,5 % de durée par niveau du rôle requis
 const UPGRADE_GAIN := 0.25
-const ENGINE_SPEED := 0.10
+const ENGINE_SPEED := 0.05
+const MIN_DURATION := 5.0         # durée minimale d'une expédition (secondes)
 const START_CREDITS := 100.0
 const BASE_DATA_RATE := 0.1      # données/s des capteurs de bord, même sans Scientifique
 const MAX_SLOTS := 2
@@ -186,7 +215,7 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 
 
 static func xp_needed(level: int) -> int:
-	return int(20.0 * pow(level, 1.5))
+	return int(20.0 * pow(level, 1.95))
 
 
 static func fmt(n: float) -> String:

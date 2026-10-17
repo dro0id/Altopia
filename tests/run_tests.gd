@@ -506,3 +506,50 @@ func test_save_load_roundtrip() -> void:
 	_check(_gs.squad_ids(0).has("nova") and _gs.slots[0].dest == "asteroids", "postes et expédition restaurés")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))
 	_gs.save_path = _gs.SAVE_PATH
+
+
+func test_station_upgrade_boosts_production() -> void:
+	_gs.new_game()
+	var before: float = _gs.production_per_sec().credits
+	_gs.res["credits"] = 1.0e6
+	_gs.res["minerals"] = 1.0e4
+	_check(_gs.buy_upgrade("st_pilot"), "amélioration du poste Pilote achetée")
+	var after: float = _gs.production_per_sec().credits
+	_check(after > before * 1.05, "la production augmente (%.4f -> %.4f)" % [before, after])
+
+
+func test_goals() -> void:
+	_gs.new_game()
+	var g: Dictionary = _gs.next_goal()
+	_check(g.id == "g1" and not _gs.goal_ready(g), "premier objectif non atteint")
+	_check(not _gs.claim_goal(), "récupération impossible avant le palier")
+	_gs.captain.level = 5
+	_check(_gs.goal_ready(_gs.next_goal()), "objectif atteint au niveau 5")
+	var credits_before: float = _gs.res["credits"]
+	_check(_gs.claim_goal(), "récompense récupérée")
+	_check(_gs.res["credits"] >= credits_before + 399.0, "crédits reçus")
+	_check(_gs.next_goal().id == "g2", "objectif suivant")
+	_gs.save_path = "user://test_goals.json"
+	_gs.save_game()
+	_gs.reset()
+	_check(_gs.load_game() and _gs.goals_claimed.has("g1"), "objectifs sauvegardés")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_goals.json"))
+	_gs.save_path = _gs.SAVE_PATH
+
+
+func test_offline_bulk_is_fast_and_consistent() -> void:
+	_gs.new_game()
+	_gs.upgrade_levels["engines"] = 20
+	_gs.launch(0, "asteroids")
+	var t0 := Time.get_ticks_msec()
+	var rep: Dictionary = _gs.simulate_offline(24.0 * 3600.0)
+	var ms := Time.get_ticks_msec() - t0
+	_check(ms < 4000, "24 h hors ligne calculées en moins de 4 s (obtenu %d ms)" % ms)
+	_check(rep.expeditions > 1000, "beaucoup d'expéditions comptées (%d)" % rep.expeditions)
+	_check(rep.gains.credits > 0.0, "des gains sont crédités")
+
+
+func test_enemy_level_is_capped() -> void:
+	_gs.new_game()
+	_gs.dest_wins["asteroids"] = 1000000
+	_check(_gs.enemy_level("asteroids") == Data.ENEMY_LEVEL_MAX, "niveau des ennemis plafonné")

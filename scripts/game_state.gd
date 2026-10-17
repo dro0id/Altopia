@@ -31,7 +31,8 @@ var auto_recycle := Data.AUTO_RECYCLE_MAX   # recycle les objets peu utiles dès
 var heroes := {}
 var hero_order: Array = []
 var recruits := 0
-var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0}
+var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0, "st_pilot": 0, "st_engineer": 0, "st_scientist": 0}
+var goals_claimed: Array = []
 ## Un emplacement de vaisseau : dest "" = libre ; squad = un poste par classe (ids, "" = vide).
 ## Vaisseau 0 = vaisseau amiral (avec le Capitaine) ; vaisseau 1 = drone (équipage seul).
 var slots: Array = []
@@ -42,7 +43,8 @@ var last_offline_report := {}
 var last_recruit := {}
 
 var _autosave_timer := 0.0
-var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne < 1)
+var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
+var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
 var _recycled_credits := 0.0    # crédits obtenus par recyclage automatique
 
@@ -84,6 +86,7 @@ func reset() -> void:
 	recruits = 0
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
+	goals_claimed = []
 	slots = []
 	for i in Data.MAX_SLOTS:
 		slots.append(_new_slot())
@@ -537,7 +540,7 @@ func synergy_multiplier() -> float:
 
 func crew_prod_mult(id: String) -> float:
 	var h: Dictionary = heroes[id]
-	return h.level * Data.RARITY[Data.HEROES[id].rarity].prod * (1.0 + Data.STAR_BONUS * h.stars)
+	return pow(float(h.level), Data.PROD_LEVEL_EXP) * Data.RARITY[Data.HEROES[id].rarity].prod * (1.0 + Data.STAR_BONUS * h.stars)
 
 
 ## Production par seconde de toutes les ressources (équipage aux postes + capteurs de bord).
@@ -545,9 +548,11 @@ func production_per_sec() -> Dictionary:
 	var out := {"credits": 0.0, "data": Data.BASE_DATA_RATE, "minerals": 0.0, "energy": 0.0}
 	var syn := synergy_multiplier()
 	for id in stationed_ids():
-		var prod: Dictionary = Data.CREW_PROD[Data.HEROES[id]["class"]]
+		var cls: String = Data.HEROES[id]["class"]
+		var prod: Dictionary = Data.CREW_PROD[cls]
+		var station: float = 1.0 + Data.STATION_GAIN * upgrade_levels["st_" + cls]
 		for r in prod:
-			out[r] += prod[r] * crew_prod_mult(id) * syn / 3600.0
+			out[r] += prod[r] * crew_prod_mult(id) * syn * station / 3600.0
 	out.credits *= credit_mult()
 	return out
 
@@ -655,6 +660,56 @@ func squad_role_level(slot_i: int, dest: String) -> int:
 	return total
 
 
+## --- Objectifs ---
+
+func goal_progress(g: Dictionary) -> float:
+	match String(g.kind):
+		"captain_level": return float(captain.level)
+		"crew_count": return float(hero_order.size())
+		"data_total": return data_total
+		"expeditions": return float(expeditions_done)
+		"docks": return float(upgrade_levels["docks"])
+		"epic_item":
+			for it in items:
+				if it.rarity == "epic" or it.rarity == "legendary":
+					return 1.0
+			return 0.0
+		"station_levels":
+			var n := 0
+			for c in Data.CREW_ORDER:
+				n += upgrade_levels["st_" + c]
+			return float(n)
+		"crew_level_sum":
+			var n := 0
+			for id in hero_order:
+				n += heroes[id].level
+			return float(n)
+	return 0.0
+
+
+## Premier objectif non récupéré ({} si tous faits).
+func next_goal() -> Dictionary:
+	for g in Data.GOALS:
+		if not goals_claimed.has(g.id):
+			return g
+	return {}
+
+
+func goal_ready(g: Dictionary) -> bool:
+	return not g.is_empty() and goal_progress(g) >= float(g.target)
+
+
+func claim_goal() -> bool:
+	var g := next_goal()
+	if not goal_ready(g):
+		return false
+	for r in g.reward:
+		add_res(r, g.reward[r])
+	goals_claimed.append(g.id)
+	changed.emit()
+	return true
+
+
 ## --- Améliorations du vaisseau ---
 
 func upgrade_cost(id: String) -> Dictionary:
@@ -713,7 +768,7 @@ func duration_of(dest: String, slot_i: int) -> float:
 	var base: float = Data.DEST[dest].duration
 	var speed: float = (1.0 + Data.ENGINE_SPEED * upgrade_levels["engines"]) \
 		* (1.0 + Data.ROLE_SPEED * squad_role_level(slot_i, dest))
-	return maxf(1.0, base / speed)
+	return maxf(Data.MIN_DURATION, base / speed)
 
 
 func upgrade_multiplier(resource: String) -> float:
@@ -736,7 +791,7 @@ func rewards_of(dest: String, slot_i: int) -> Dictionary:
 
 
 func enemy_level(dest: String) -> int:
-	return 1 + dest_wins[dest] / Data.ENEMY_LEVEL_STEP
+	return mini(1 + dest_wins[dest] / Data.ENEMY_LEVEL_STEP, Data.ENEMY_LEVEL_MAX)
 
 
 func make_enemies(dest: String) -> Array:
@@ -786,7 +841,8 @@ func set_auto(slot_i: int, value: bool) -> void:
 	changed.emit()
 
 
-func _complete(slot_i: int) -> void:
+## `times` > 1 : plusieurs expéditions identiques regroupées (calcul hors ligne) ; un seul combat est simulé.
+func _complete(slot_i: int, times: int = 1) -> void:
 	var slot: Dictionary = slots[slot_i]
 	var dest: String = slot.dest
 	var battle := preview_battle(dest, slot_i)
@@ -794,20 +850,25 @@ func _complete(slot_i: int) -> void:
 	var levels_gained := 0
 	var loot := {}
 	if battle.win:
-		dest_wins[dest] += 1
-		var xp := int(round(Data.DEST[dest].xp * (1.0 + equipped_bonus("xp_pct") / 100.0)))
+		dest_wins[dest] += times
+		var xp := int(round(Data.DEST[dest].xp * (1.0 + equipped_bonus("xp_pct") / 100.0) * _gain_scale * times))
 		for id in squad_ids(slot_i):
 			levels_gained += gain_xp(id, xp)
 		if slot_i == 0:
 			levels_gained += gain_captain_xp(xp)
-			loot = roll_drop(dest)
+			for k in times:
+				if _offline_calc and rng.randf() > _gain_scale:
+					continue      # hors ligne, une partie du butin est perdue (rendement)
+				var drop := roll_drop(dest)
+				if not drop.is_empty():
+					loot = drop
 	else:
 		for r in rewards:
 			rewards[r] *= Data.LOSS_REWARD
 	for r in rewards:
-		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0)
+		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0) * times
 		add_res(r, rewards[r])
-	expeditions_done += 1
+	expeditions_done += times
 	var head := "Victoire en %d tours" % battle.rounds if battle.win else "Défaite (butin réduit)"
 	slot.last = "%s — %s : %s" % [head, Data.DEST[dest].name, Data.fmt_amounts(rewards)]
 	if levels_gained > 0:
@@ -840,7 +901,16 @@ func _advance_expeditions(seconds: float) -> void:
 				t = 0.0
 			else:
 				t -= slot.remaining
-				_complete(i)
+				var extra := 0
+				var d := duration_of(slot.dest, i)
+				# hors ligne : on regroupe les cycles (au plus ~40 combats simulés par poste)
+				if _offline_calc and slot.auto and d > 0.0:
+					var total := 1 + int(t / d)
+					if total > Data.OFFLINE_BULK_MIN:
+						extra = maxi(Data.OFFLINE_BULK_CHUNK, total / 40) - 1
+						extra = mini(extra, total - 1)
+				_complete(i, 1 + extra)
+				t -= extra * d
 
 
 ## Fait avancer le jeu de `seconds` secondes (production de l'équipage + expéditions).
@@ -860,7 +930,9 @@ func simulate_offline(away: float) -> Dictionary:
 	_loot_log = []
 	_recycled_credits = 0.0
 	_gain_scale = offline_efficiency()
+	_offline_calc = true
 	tick(secs)
+	_offline_calc = false
 	_gain_scale = 1.0
 	var gains := {}
 	for id in res:
@@ -889,7 +961,7 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": captain,
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "slots": _slots_for_save(), "dest_wins": dest_wins,
+		"upgrades": upgrade_levels, "goals": goals_claimed, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
 
@@ -952,6 +1024,9 @@ func load_game() -> bool:
 	var saved_up: Dictionary = parsed.get("upgrades", {})
 	for id in upgrade_levels:
 		upgrade_levels[id] = int(saved_up.get(id, 0))
+	goals_claimed = []
+	for gid in parsed.get("goals", []):
+		goals_claimed.append(String(gid))
 	var saved_wins: Dictionary = parsed.get("dest_wins", {})
 	for d in Data.DEST_ORDER:
 		dest_wins[d] = int(saved_wins.get(d, 0))

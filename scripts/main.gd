@@ -39,6 +39,10 @@ var _inv_sig := ""
 var _recycle_btn: Button
 var _useless_btn: Button
 var _afk_label: Label
+var _goal_title: Label
+var _goal_bar: ProgressBar
+var _goal_info: Label
+var _goal_btn: Button
 # Équipage
 var _hero_ui := {}
 var _recruit_btn: Button
@@ -138,32 +142,32 @@ func _build_header(parent: Control) -> void:
 	title.add_theme_constant_override("outline_size", 0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
 	parent.add_child(grid)
 	var colors := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
 	for id in Data.RES_ORDER:
 		var chip := PanelContainer.new()
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.35), 6, 1, 10)
-		sb.border_width_bottom = 3
+		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.35), 5, 1, 6)
+		sb.border_width_bottom = 2
 		sb.border_color = colors[id]
 		chip.add_theme_stylebox_override("panel", sb)
 		grid.add_child(chip)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", 5)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		chip.add_child(row)
 		var ic := TextureRect.new()
-		ic.texture = UiIcons.icon(id, 44, colors[id])
-		ic.custom_minimum_size = Vector2(38, 38)
+		ic.texture = UiIcons.icon(id, 28, colors[id])
+		ic.custom_minimum_size = Vector2(24, 24)
 		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(ic)
-		var l := _label(row, "", 30, UiTheme.TEXT)
+		var l := _label(row, "", 22, UiTheme.TEXT)
 		l.add_theme_font_override("font", UiTheme.mono())
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -210,6 +214,14 @@ func _build_tabs(parent: Control) -> void:
 
 
 func _build_captain_page(page: VBoxContainer) -> void:
+	var goal := _card(page)
+	_goal_title = _label(goal, "", 24, UiTheme.MAGENTA)
+	_goal_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_goal_bar = _bar(goal, 14, UiTheme.MAGENTA)
+	_goal_info = _label(goal, "", 20, COL_TEXT_DIM)
+	_goal_btn = _button(goal, "", 60)
+	_goal_btn.add_theme_font_size_override("font_size", 22)
+	_goal_btn.pressed.connect(_tap(func(): GameState.claim_goal()))
 	var card := _card_h(page)
 	_cap_chibi = BaseView.new()
 	_cap_chibi.custom_minimum_size = Vector2(190, 230)
@@ -474,6 +486,7 @@ func _refresh() -> void:
 	_rate_label.text = "AFK/h : +%s cr  +%s min.  +%s én.  +%s don.    Exp. : %d" % [
 		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
 		Data.fmt(prod.data * 3600.0), GameState.expeditions_done]
+	_refresh_goal()
 	_refresh_captain()
 	_refresh_crew()
 	_refresh_expeditions()
@@ -486,6 +499,25 @@ func _stat_text(st: Dictionary, sign: String = "") -> String:
 		if st.get(entry[0], 0.0) > 0.4:
 			parts.append("%s %s%d" % [entry[1], sign, int(round(st[entry[0]]))])
 	return "  ".join(parts)
+
+
+func _refresh_goal() -> void:
+	var g: Dictionary = GameState.next_goal()
+	if g.is_empty():
+		_goal_title.text = "Objectifs : tous accomplis"
+		_goal_bar.value = 1.0
+		_goal_info.text = "Bravo ! De nouveaux objectifs arrivent avec les prochaines mises à jour."
+		_goal_btn.visible = false
+		return
+	var prog: float = GameState.goal_progress(g)
+	var target: float = float(g.target)
+	_goal_title.text = "Objectif %d/%d : %s" % [GameState.goals_claimed.size() + 1, Data.GOALS.size(), g.name]
+	_goal_bar.value = clampf(prog / target, 0.0, 1.0)
+	_goal_info.text = "%s / %s   —   Récompense : %s" % [Data.fmt(minf(prog, target)), Data.fmt(target), Data.fmt_amounts(g.reward)]
+	_goal_btn.visible = true
+	var ready: bool = GameState.goal_ready(g)
+	_goal_btn.disabled = not ready
+	_goal_btn.text = "Récupérer la récompense" if ready else "En cours…"
 
 
 func _refresh_captain() -> void:
