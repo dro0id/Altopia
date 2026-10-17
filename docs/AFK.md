@@ -52,6 +52,11 @@ Recherches en temps réel (voir plus bas), file de 5 recherches payées d'avance
 - XP perdue : **0** (plus de plafond). Défaites en anomalie : 0 (le robot ne tente que les failles qu'il peut gagner ; un joueur peut tenter plus haut, la charge lui est rendue).
 - Postes de recherche vides au début d'une session : 56 % (casual), 40 % (evening), 18 % (regular), 4 % (hardcore) **sans** la recherche automatique, qui règle ce cas.
 
+### Mis de côté (à reprendre plus tard)
+- Inventaire plein dès le jour 30 (60 objets) : recyclage plus simple à prévoir.
+- Entraînement payant du Capitaine et des cartes : coût inabordable après le niveau ~60, à baisser ou retirer.
+- Objectifs : les 12 paliers sont tous faits au jour 90, il en faut qui continuent.
+
 ### Limites connues
 - Le robot dépense au mieux : un vrai joueur sera plus lent. Les chiffres donnent la direction.
 - Les expéditions ne présentent presque plus de défi (les ennemis s'adaptent) : le défi est dans les anomalies. À voir selon les retours.
