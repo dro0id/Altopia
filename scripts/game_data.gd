@@ -235,6 +235,12 @@ static func xp_needed(level: int) -> int:
 
 
 static func fmt(n: float) -> String:
+	if n >= 1.0e18:
+		return "%.2fQi" % (n / 1.0e18)
+	if n >= 1.0e15:
+		return "%.2fQa" % (n / 1.0e15)
+	if n >= 1.0e12:
+		return "%.2fT" % (n / 1.0e12)
 	if n >= 1.0e9:
 		return "%.2fB" % (n / 1.0e9)
 	if n >= 1.0e6:

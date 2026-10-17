@@ -130,7 +130,7 @@ func advance(dt: float) -> void:
 			tgt.flash = 1.0
 			if ev.ko:
 				tgt.alive = false
-			_floats.append({"unit": tgt, "text": str(int(ev.d)), "t": 0.0, "crit": ev.get("c", false),
+			_floats.append({"unit": tgt, "text": Data.fmt(ev.d), "t": 0.0, "crit": ev.get("c", false),
 				"col": Color(1.0, 0.85, 0.4) if ev.s == 0 else Color(1.0, 0.5, 0.45)})
 		if _ev_t >= _step:
 			att.off = Vector2.ZERO
@@ -202,4 +202,4 @@ func _draw_hp(u: Dictionary) -> void:
 	draw_rect(Rect2(left, Vector2(w * ratio, 10)), col)
 	draw_rect(Rect2(left, Vector2(w * ratio, 4)), col.lightened(0.35))
 	draw_rect(Rect2(left - Vector2(2, 2), Vector2(w + 4, 14)), UiTheme.LINE, false, 1.0)
-	draw_string(UiTheme.mono(), left + Vector2(0, 28), "%d / %d" % [ceili(u.shown), int(u.max)], HORIZONTAL_ALIGNMENT_CENTER, w, 14, UiTheme.DIM)
+	draw_string(UiTheme.mono(), left + Vector2(-20, 28), "%s / %s" % [Data.fmt(ceilf(u.shown)), Data.fmt(u.max)], HORIZONTAL_ALIGNMENT_CENTER, w + 40, 14, UiTheme.DIM)
