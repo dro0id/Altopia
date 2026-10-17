@@ -4,6 +4,7 @@ extends Control
 
 const Data = preload("res://scripts/game_data.gd")
 const Chibi = preload("res://scripts/chibi.gd")
+const UiTheme = preload("res://scripts/ui_theme.gd")
 
 const UNIT := 76.0
 
@@ -128,7 +129,7 @@ func advance(dt: float) -> void:
 			tgt.flash = 1.0
 			if ev.ko:
 				tgt.alive = false
-			_floats.append({"pos": tgt.base + Vector2(0, -tgt.node.size.y * 0.5 - 4.0), "text": str(int(ev.d)), "t": 0.0,
+			_floats.append({"unit": tgt, "text": str(int(ev.d)), "t": 0.0, "crit": ev.get("c", false),
 				"col": Color(1.0, 0.85, 0.4) if ev.s == 0 else Color(1.0, 0.5, 0.45)})
 		if _ev_t >= _step:
 			att.off = Vector2.ZERO
@@ -147,30 +148,56 @@ func _sync_nodes() -> void:
 	for u in _allies + _enemies:
 		var n: Control = u.node
 		n.position = u.base + u.off - n.size / 2.0
-		var a := 1.0 if u.alive else 0.28
+		u.fade = move_toward(u.get("fade", 1.0), 1.0 if u.alive else (0.0 if not u.ally else 0.35), 0.04)
+		var a: float = u.fade
 		n.modulate = Color(1.0, 1.0 - u.flash * 0.6, 1.0 - u.flash * 0.6, a)
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.05, 0.13, 0.95))
-	draw_line(Vector2(0, size.y * 0.92), Vector2(size.x, size.y * 0.92), Color(0.2, 0.3, 0.6, 0.6), 2.0)
+	# fond : dégradé nuit -> halo cyan à l'horizon, grille de sol
+	var h := size.y
+	var top := Color(0.02, 0.04, 0.1)
+	var mid := Color(0.04, 0.12, 0.2)
+	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, h * 0.92), Vector2(0, h * 0.92)]),
+		PackedColorArray([top, top, mid, mid]))
+	draw_rect(Rect2(0, h * 0.92, size.x, h * 0.08), Color(0.02, 0.05, 0.09))
+	draw_line(Vector2(0, h * 0.92), Vector2(size.x, h * 0.92), UiTheme.LINE, 2.0)
+	for i in range(1, 8):
+		var x := size.x * i / 8.0
+		draw_line(Vector2(x, h * 0.92), Vector2(size.x * 0.5 + (x - size.x * 0.5) * 1.8, h), Color(0.22, 0.9, 1.0, 0.12), 1.0)
+	draw_rect(Rect2(Vector2.ZERO, size), UiTheme.LINE, false, 1.0)
 	for u in _allies + _enemies:
 		_draw_hp(u)
-	var font := ThemeDB.fallback_font
+	var bold := UiTheme.font(true)
 	for f in _floats:
-		var p: Vector2 = f.pos + Vector2(0, -40.0 * f.t)
+		var u: Dictionary = f.unit
+		var p: Vector2 = u.base + Vector2(0, -u.node.size.y * 0.5 - 4.0) + Vector2(0, -40.0 * f.t)
 		var col: Color = f.col
 		col.a = 1.0 - f.t / 0.9
-		draw_string(font, p + Vector2(-30, 0), "-" + f.text, HORIZONTAL_ALIGNMENT_CENTER, 60, 28, col)
+		var txt: String = "-" + String(f.text)
+		var fs: int = 34 if f.crit else 28
+		draw_string_outline(bold, p + Vector2(-40, 0), txt, HORIZONTAL_ALIGNMENT_CENTER, 80, fs, 5, Color(0, 0, 0, col.a * 0.8))
+		draw_string(bold, p + Vector2(-40, 0), txt, HORIZONTAL_ALIGNMENT_CENTER, 80, fs, col)
 	if _ev_i >= _events.size() and playing:
-		draw_string(font, Vector2(0, size.y * 0.2), _banner, HORIZONTAL_ALIGNMENT_CENTER, size.x, 54, _banner_col)
+		var pos := Vector2(0, size.y * 0.2)
+		draw_string_outline(bold, pos, _banner, HORIZONTAL_ALIGNMENT_CENTER, size.x, 58, 8, Color(0, 0, 0, 0.8))
+		draw_string(bold, pos, _banner, HORIZONTAL_ALIGNMENT_CENTER, size.x, 58, _banner_col)
 
 
 func _draw_hp(u: Dictionary) -> void:
+	if not u.alive and u.get("fade", 1.0) < 0.05:
+		return
 	var half: float = u.node.size.y / 2.0
 	var c: Vector2 = u.base + u.off + Vector2(0, half - 4.0)
-	var w := 84.0 if u.ally else 70.0
-	draw_rect(Rect2(c + Vector2(-w / 2.0, 0), Vector2(w, 9)), Color(0.1, 0.12, 0.2))
+	var w := 92.0 if u.ally else 76.0
+	var left := c + Vector2(-w / 2.0, 0)
 	var ratio := clampf(u.shown / u.max, 0.0, 1.0)
-	var col := Color(0.4, 0.95, 0.5) if u.ally else Color(1.0, 0.45, 0.4)
-	draw_rect(Rect2(c + Vector2(-w / 2.0, 0), Vector2(w * ratio, 9)), col)
+	var col := Color(0.43, 1.0, 0.61) if u.ally else Color(1.0, 0.45, 0.4)
+	if ratio < 0.3:
+		col = Color(1.0, 0.7, 0.3)
+	draw_rect(Rect2(left - Vector2(2, 2), Vector2(w + 4, 14)), Color(0.0, 0.0, 0.0, 0.55))
+	draw_rect(Rect2(left, Vector2(w, 10)), Color(0.07, 0.1, 0.16))
+	draw_rect(Rect2(left, Vector2(w * ratio, 10)), col)
+	draw_rect(Rect2(left, Vector2(w * ratio, 4)), col.lightened(0.35))
+	draw_rect(Rect2(left - Vector2(2, 2), Vector2(w + 4, 14)), UiTheme.LINE, false, 1.0)
+	draw_string(UiTheme.mono(), left + Vector2(0, 28), "%d / %d" % [ceili(u.shown), int(u.max)], HORIZONTAL_ALIGNMENT_CENTER, w, 14, UiTheme.DIM)

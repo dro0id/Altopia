@@ -7,7 +7,7 @@
 - [x] **Combats animés** : coups, barres de vie, dégâts, bandeau de résultat, rejouable.
 - [x] **V2 — Le Capitaine** (inspiré de Mini Legion: Rise) : le joueur est un personnage personnalisable, l'équipage devient des objets à des postes, équipement évolutif avec butin, personnages « chibi » ([détails](V2.md)).
 - [x] **V2.1 — Équipage AFK + loot RPG** : production même hors ligne, rendement et durée hors ligne, 6 emplacements, 5 raretés, bonus aléatoires, recyclage auto.
-- [ ] **Style visuel** : choisir parmi 3 pistes (voir [STYLE.md](STYLE.md)), puis habiller l'interface et intégrer les assets.
+- [x] **Style visuel R2** : thème verre/cyan, polices, icônes SVG, cartes d'équipement à cadre de rareté, combat et rapport hors ligne restylés ([STYLE.md](STYLE.md)).
 - [ ] **V2-C — Anomalies** (donjons solo, meilleur temps), **boss de secteur**, **tour d'épreuves**.
 - [ ] **V2-D — Campagne** : chapitres narratifs, un par secteur.
 - [ ] Vrais assets graphiques et sons.

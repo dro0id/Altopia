@@ -251,15 +251,26 @@ func _build_captain_page(page: VBoxContainer) -> void:
 
 	_label(page, "Équipement", 28, COL_ACCENT)
 	for slot in Data.EQUIP_SLOTS:
-		var c := _card(page)
-		var title := _label(c, "", 23)
+		var panel := _rarity_panel(page, COL_TEXT_DIM)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		var tile := _icon_tile(row, slot, COL_TEXT_DIM, 84)
+		var c := VBoxContainer.new()
+		c.add_theme_constant_override("separation", 6)
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(c)
+		var kind := _label(c, Data.EQUIP[slot].name.to_upper(), 16, COL_TEXT_DIM)
+		var title := _label(c, "", 24)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var stats := _label(c, "", 19, COL_TEXT_DIM)
 		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var b := _button(c, "Retirer", 54)
+		var b := _button(c, "Retirer", 50)
 		b.add_theme_font_size_override("font_size", 19)
 		b.pressed.connect(_tap(func(): GameState.unequip(slot)))
-		_slot_cards[slot] = {"title": title, "stats": stats, "btn": b}
+		_slot_cards[slot] = {"title": title, "stats": stats, "btn": b, "panel": panel, "tile": tile, "kind": kind}
 	var best := _button(page, "Équiper automatiquement le meilleur", 66)
 	best.add_theme_font_size_override("font_size", 20)
 	best.pressed.connect(_tap(func(): GameState.auto_equip()))
@@ -447,6 +458,51 @@ func _panel(parent: Node) -> PanelContainer:
 	return p
 
 
+## Panneau à cadre de rareté : filet épais à gauche, fin tout autour, teinte de fond légère.
+func _rarity_panel(parent: Node, color: Color) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.mouse_filter = Control.MOUSE_FILTER_PASS
+	parent.add_child(p)
+	_set_rarity_style(p, color)
+	return p
+
+
+func _set_rarity_style(p: PanelContainer, color: Color) -> void:
+	var sb := UiTheme.box(UiTheme.PANEL.lerp(color, 0.07), color.lerp(Color(0, 0, 0, 1), 0.25), 6, 1, 14)
+	sb.border_width_left = 6
+	sb.border_color = color
+	sb.shadow_color = Color(color.r, color.g, color.b, 0.18)
+	sb.shadow_size = 8
+	p.add_theme_stylebox_override("panel", sb)
+
+
+## Tuile carrée avec l'icône de l'emplacement, teintée à la couleur de rareté.
+func _icon_tile(parent: Node, icon_name: String, color: Color, size: int) -> PanelContainer:
+	var tile := PanelContainer.new()
+	tile.custom_minimum_size = Vector2(size, size)
+	tile.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(tile)
+	var ic := TextureRect.new()
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(ic)
+	tile.set_meta("icon", ic)
+	tile.set_meta("size", size)
+	_set_tile_color(tile, icon_name, color)
+	return tile
+
+
+func _set_tile_color(tile: PanelContainer, icon_name: String, color: Color) -> void:
+	var sb := UiTheme.box(Color(0.02, 0.06, 0.11, 0.9), color.lerp(Color(0, 0, 0, 1), 0.3), 6, 1, 8)
+	tile.add_theme_stylebox_override("panel", sb)
+	var px: int = int(tile.get_meta("size")) - 16
+	var ic: TextureRect = tile.get_meta("icon")
+	ic.texture = UiIcons.icon(icon_name, px, color)
+
+
 func _card(parent: Node) -> VBoxContainer:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -540,15 +596,22 @@ func _refresh_captain() -> void:
 		var u: Dictionary = _slot_cards[slot]
 		var it := GameState.equipped_item(slot)
 		if it.is_empty():
-			u.title.text = "%s : aucun" % Data.EQUIP[slot].name
+			u.title.text = "Emplacement vide"
 			u.title.add_theme_color_override("font_color", COL_TEXT_DIM)
-			u.stats.text = "Emplacement vide : looter ou équiper un objet."
+			u.stats.text = "Looter ou équiper un objet."
 			u.btn.visible = false
+			_set_rarity_style(u.panel, COL_TEXT_DIM)
+			_set_tile_color(u.tile, slot, COL_TEXT_DIM)
+			u.kind.text = Data.EQUIP[slot].name.to_upper()
 		else:
-			u.title.text = "%s : %s — %s (niv. %d)" % [Data.EQUIP[slot].name, it.name, Data.ITEM_RARITY[it.rarity].name, it.ilvl]
-			u.title.add_theme_color_override("font_color", Data.ITEM_RARITY[it.rarity].color)
+			var rc: Color = Data.ITEM_RARITY[it.rarity].color
+			u.kind.text = "%s  ·  %s  ·  NIV. %d" % [Data.EQUIP[slot].name.to_upper(), String(Data.ITEM_RARITY[it.rarity].name).to_upper(), it.ilvl]
+			u.title.text = it.name
+			u.title.add_theme_color_override("font_color", rc)
 			u.stats.text = _item_text(it)
 			u.btn.visible = true
+			_set_rarity_style(u.panel, rc)
+			_set_tile_color(u.tile, slot, rc)
 	_recycle_btn.text = "Recyclage automatique : %s" % GameState.auto_recycle_label()
 	_refresh_inventory()
 
@@ -584,22 +647,29 @@ func _refresh_inventory() -> void:
 		return GameState.item_power(a) > GameState.item_power(b))
 	for it in sorted:
 		var is_eq: bool = GameState.equipped[it.slot] == it.id
-		var row := _card_h(_inv_box)
+		var rar: Dictionary = Data.ITEM_RARITY[it.rarity]
+		var panel := _rarity_panel(_inv_box, rar.color)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		_icon_tile(row, it.slot, rar.color, 64)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(info)
-		var rar: Dictionary = Data.ITEM_RARITY[it.rarity]
-		var t := _label(info, "%s%s" % [it.name, " (équipé)" if is_eq else ""], 20, rar.color)
+		var t := _label(info, "%s%s" % [it.name, " (équipé)" if is_eq else ""], 21, rar.color)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_label(info, "%s · %s · niv. %d" % [Data.EQUIP[it.slot].name, rar.name, it.ilvl], 16, COL_TEXT_DIM)
-		var d := _label(info, _item_text(it), 16, Color(0.85, 0.92, 1.0))
+		var d := _label(info, _item_text(it), 17, Color(0.85, 0.92, 1.0))
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if not is_eq:
 			var delta := GameState.power_delta(it)
-			_label(info, ("▲ +%d puissance" % delta) if delta > 0.0 else ("▼ %d puissance" % delta), 17,
+			_label(info, ("▲ +%d puissance" % delta) if delta > 0.0 else ("▼ %d puissance" % delta), 18,
 				COL_GOOD if delta > 0.0 else Color(1.0, 0.55, 0.5))
 		var btns := VBoxContainer.new()
-		btns.custom_minimum_size = Vector2(200, 0)
+		btns.custom_minimum_size = Vector2(190, 0)
+		btns.mouse_filter = Control.MOUSE_FILTER_PASS
 		row.add_child(btns)
 		if not is_eq:
 			var eq := _button(btns, "Équiper", 54)
@@ -796,17 +866,67 @@ func _cost_text(cost: Dictionary) -> String:
 
 
 func _show_offline_report(r: Dictionary) -> void:
-	var d := AcceptDialog.new()
-	d.title = "Bon retour, Commandant !"
-	var txt := "Absent %s (comptés : %s, rendement %d %%)\n%s\nExpéditions terminées : %d" % [
-		Data.fmt_time(r.away), Data.fmt_time(r.seconds), int(round(r.efficiency * 100.0)),
-		Data.fmt_amounts(r.gains), r.expeditions]
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.0, 0.02, 0.05, 0.82)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(620, 0)
+	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.03, 0.09, 0.15, 0.97), UiTheme.ACCENT, 8, 2, 24))
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+	var title := _label(box, "BON RETOUR, COMMANDANT !", 34, COL_ACCENT)
+	title.add_theme_font_override("font", UiTheme.font(true))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var sub := _label(box, "Absent %s  ·  comptés %s  ·  rendement %d %%" % [
+		Data.fmt_time(r.away), Data.fmt_time(r.seconds), int(round(r.efficiency * 100.0))], 21, COL_TEXT_DIM)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var colors := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	box.add_child(grid)
+	for id in Data.RES_ORDER:
+		var gain: float = r.gains.get(id, 0.0)
+		var chip := PanelContainer.new()
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.3), 6, 1, 10)
+		sb.border_width_bottom = 3
+		sb.border_color = colors[id]
+		chip.add_theme_stylebox_override("panel", sb)
+		grid.add_child(chip)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		chip.add_child(row)
+		var ic := TextureRect.new()
+		ic.texture = UiIcons.icon(id, 36, colors[id])
+		ic.custom_minimum_size = Vector2(32, 32)
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(ic)
+		var l := _label(row, "+" + Data.fmt(gain), 30, UiTheme.GOOD if gain > 0.0 else COL_TEXT_DIM)
+		l.add_theme_font_override("font", UiTheme.mono())
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_label(box, "Expéditions terminées : %d" % r.expeditions, 22)
 	if r.loot_kept > 0:
 		var best: Dictionary = r.loot_best
-		txt += "\nButin : %d objet(s) gardé(s), meilleur : %s (%s)" % [r.loot_kept, best.name, Data.ITEM_RARITY[best.rarity].name]
+		var rar: Dictionary = Data.ITEM_RARITY[best.rarity]
+		var lt := _label(box, "Butin : %d objet(s), meilleur : %s (%s)" % [r.loot_kept, best.name, rar.name], 21, rar.color)
+		lt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if r.recycled > 0.0:
-		txt += "\nRecyclage automatique : +%s crédits" % Data.fmt(r.recycled)
-	d.dialog_text = txt
-	d.ok_button_text = "Continuer"
-	add_child(d)
-	d.popup_centered(Vector2i(640, 420))
+		_label(box, "Recyclage automatique : +%s crédits" % Data.fmt(r.recycled), 20, COL_TEXT_DIM)
+	if GameState.goal_ready(GameState.next_goal()):
+		var gl := _label(box, "Objectif accompli : récupérez votre récompense dans l'onglet Capitaine !", 21, UiTheme.MAGENTA)
+		gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var ok := _button(box, "Continuer", 76)
+	ok.add_theme_font_size_override("font_size", 28)
+	ok.pressed.connect(func(): overlay.queue_free())

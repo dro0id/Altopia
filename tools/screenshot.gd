@@ -94,4 +94,9 @@ func _initialize() -> void:
 	_advance(bv, 0.4)      # juste après le dernier coup : le bandeau de résultat s'affiche
 	await _shot_tab(main, "exp", out_dir + "/shot_battle_late.png")
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
+	gs.captain.level = 5
+	var rep: Dictionary = gs.simulate_offline(6.0 * 3600.0)
+	main._show_tab("captain")
+	main._show_offline_report(rep)
+	await _shot(out_dir + "/shot_offline.png")
 	quit()
