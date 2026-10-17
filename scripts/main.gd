@@ -4,6 +4,7 @@ extends Control
 const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
+const BaseView = preload("res://scripts/base_view.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 
@@ -179,7 +180,7 @@ func _build_tabs(parent: Control) -> void:
 
 func _build_captain_page(page: VBoxContainer) -> void:
 	var card := _card_h(page)
-	_cap_chibi = Chibi.new()
+	_cap_chibi = BaseView.new()
 	_cap_chibi.custom_minimum_size = Vector2(190, 230)
 	_cap_chibi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	card.add_child(_cap_chibi)
