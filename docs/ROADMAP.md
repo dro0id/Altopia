@@ -5,7 +5,10 @@
 - [x] **V1 jouable** : expéditions (astéroïdes, étoile, planète), améliorations du vaisseau, hors-ligne, fond d'étoiles.
 - [x] **V1 RPG + 2D/3D** : 9 héros (classes, raretés, niveaux, étoiles), recrutement aléatoire, escouades, combats automatiques, scène 3D des destinations ([détails](V1.md)).
 - [x] **Combats animés** : coups, barres de vie, dégâts, bandeau de résultat, rejouable.
-- [ ] **Prochaine** : équipements, boss de secteur, événements de planète, vrais assets graphiques.
+- [x] **V2 — Le Capitaine** (inspiré de Mini Legion: Rise) : le joueur est un personnage personnalisable, l'équipage devient des objets à des postes, équipement évolutif avec butin, personnages « chibi » ([détails](V2.md)).
+- [ ] **V2-C — Anomalies** (donjons solo, meilleur temps), **boss de secteur**, **tour d'épreuves**.
+- [ ] **V2-D — Campagne** : chapitres narratifs, un par secteur.
+- [ ] Vrais assets graphiques et sons.
 - [ ] **Étape 2 — Univers** : fond spatial parallaxe, carte des secteurs, premiers boss.
 - [ ] **Étape 2b — Exploration** : système d'expéditions (destination + équipage + durée), puis les 3 types :
   - [ ] Astéroïdes (le plus simple : minage automatique)

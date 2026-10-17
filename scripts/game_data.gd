@@ -36,6 +36,36 @@ const HEROES := {
 }
 const STARTER_HEROES := ["rex", "bolt"]
 
+## --- Capitaine (le joueur) ---
+const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
+const CAPTAIN_MAX_LEVEL := 50
+const CAPTAIN_LEVEL_BONUS := 0.15
+const CAPTAIN_TRAIN_BASE := 40.0
+const CAPTAIN_TRAIN_GROWTH := 1.25
+const CREW_STAT_SHARE := 0.35    # part des stats de l'équipage ajoutée au Capitaine
+const CREW_SPD_SHARE := 0.20
+const DRONE_ATK_SHARE := 0.6     # drone (vaisseau 2, sans capitaine) : stats de l'équipage réduites
+const DRONE_DEF_SHARE := 0.4
+const LOOK_SUITS := [Color(0.35, 0.75, 1.0), Color(1.0, 0.55, 0.25), Color(0.5, 0.9, 0.55),
+	Color(0.78, 0.5, 1.0), Color(1.0, 0.4, 0.45), Color(0.92, 0.94, 1.0)]
+const LOOK_HAIRS := [Color(0.18, 0.12, 0.1), Color(0.95, 0.8, 0.35), Color(0.9, 0.35, 0.35),
+	Color(0.35, 0.55, 0.95), Color(0.85, 0.85, 0.9), Color(0.3, 0.75, 0.5)]
+const LOOK_STYLES := 3
+
+## --- Équipement du Capitaine ---
+const EQUIP_SLOTS := ["weapon", "suit", "module"]
+const EQUIP := {
+	"weapon": {"name": "Arme", "names": ["Laser", "Blaster", "Rayon ionique", "Canon à plasma"]},
+	"suit": {"name": "Combinaison", "names": ["Combinaison", "Armure", "Exo-squelette", "Scaphandre"]},
+	"module": {"name": "Module", "names": ["Propulseur", "Bouclier", "Capteur", "Réacteur"]},
+}
+const RARITY_ITEM_MULT := {"common": 1.0, "rare": 1.6, "epic": 2.4}
+const ITEM_MAX_LEVEL := {"common": 5, "rare": 8, "epic": 12}
+const ITEM_LEVEL_BONUS := 0.12
+const ITEM_XP_PER_WIN := 10
+const DROP_CHANCE := 0.4
+const INVENTORY_MAX := 40
+
 const SQUAD_SIZE := 3
 const MAX_LEVEL := 40
 const MAX_STARS := 5
@@ -54,17 +84,17 @@ const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
 		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 12,
-		"enemy": {"name": "Foreur rebelle", "count": 2, "hp": 70.0, "atk": 9.0, "def": 3.0, "spd": 9.0},
+		"enemy": {"kind": "asteroids", "name": "Foreur rebelle", "count": 2, "hp": 120.0, "atk": 18.0, "def": 6.0, "spd": 9.0},
 		"rewards": {"minerals": 5.0, "credits": 10.0, "data": 3.0},
 	},
 	"star": {
 		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 30,
-		"enemy": {"name": "Sentinelle solaire", "count": 2, "hp": 120.0, "atk": 14.0, "def": 7.0, "spd": 10.0},
+		"enemy": {"kind": "star", "name": "Sentinelle solaire", "count": 2, "hp": 220.0, "atk": 26.0, "def": 12.0, "spd": 10.0},
 		"rewards": {"energy": 8.0, "credits": 20.0, "data": 6.0},
 	},
 	"planet": {
 		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 60,
-		"enemy": {"name": "Créature xéno", "count": 3, "hp": 150.0, "atk": 18.0, "def": 8.0, "spd": 11.0},
+		"enemy": {"kind": "planet", "name": "Créature xéno", "count": 3, "hp": 300.0, "atk": 34.0, "def": 16.0, "spd": 11.0},
 		"rewards": {"data": 16.0, "credits": 60.0, "minerals": 3.0, "energy": 2.0},
 	},
 }
@@ -102,6 +132,21 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 	var h: Dictionary = HEROES[id]
 	var m: float = (1.0 + LEVEL_BONUS * (level - 1)) * (1.0 + STAR_BONUS * stars)
 	return {"hp": h.hp * m, "atk": h.atk * m, "def": h.def * m, "spd": h.spd}
+
+
+## Stats de base d'un objet selon son emplacement et son tier (avant rareté et niveau).
+static func item_base(slot: String, tier: int) -> Dictionary:
+	match slot:
+		"weapon":
+			return {"atk": 6.0 * tier}
+		"suit":
+			return {"hp": 30.0 * tier, "def": 3.0 * tier}
+		_:
+			return {"spd": 2.0 * tier, "atk": 2.0 * tier, "def": 1.5 * tier}
+
+
+static func item_xp_needed(level: int) -> int:
+	return 20 * level
 
 
 static func xp_needed(level: int) -> int:

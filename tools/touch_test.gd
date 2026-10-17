@@ -74,17 +74,36 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	# Héros : on part d'un portrait, d'un texte, d'un bouton.
-	await _check_scroll(main, "heroes", Vector2(80, 700), "heroes depuis le portrait")
-	await _check_scroll(main, "heroes", Vector2(400, 640), "heroes depuis un texte de carte")
-	await _check_scroll(main, "heroes", Vector2(400, 790), "heroes depuis un bouton")
+	await _check_scroll(main, "captain", Vector2(100, 500), "capitaine depuis le personnage")
+	await _check_scroll(main, "captain", Vector2(400, 1000), "capitaine depuis un bouton")
+	await _check_scroll(main, "crew", Vector2(80, 700), "équipage depuis le portrait")
+	await _check_scroll(main, "crew", Vector2(400, 640), "équipage depuis un texte de carte")
+	await _check_scroll(main, "crew", Vector2(400, 790), "équipage depuis un bouton")
 	await _check_scroll(main, "exp", Vector2(360, 450), "exp depuis la scène 3D")
-	await _check_scroll(main, "exp", Vector2(360, 1000), "exp depuis le bouton Rappeler / bouton")
+	main._show_tab("exp")
+	await process_frame
+	await process_frame
+	var opt: Control = main._slot_ui[0].members[1].opt
+	main._pages["exp"].get_meta("scroll").scroll_vertical = 0
+	await process_frame
+	await process_frame
+	print("liste déroulante (poste Ingénieur) : ", opt.get_global_rect(), " filtre=", opt.mouse_filter)
+	var squad_before: Array = gs.slots[0].squad.duplicate()
+	await _check_scroll(main, "exp", opt.get_global_rect().get_center(), "exp depuis une liste déroulante de poste")
+	await process_frame
+	await process_frame
+	var popup_open: bool = opt.get_popup().visible
+	var same: bool = gs.slots[0].squad == squad_before
+	print(("ok   " if (not popup_open and same) else "FAIL ") + "après glissement sur la liste : fermée=%s, poste inchangé=%s" % [not popup_open, same])
+	if popup_open or not same:
+		failures += 1
+	await _check_scroll(main, "exp", Vector2(360, 1060), "exp depuis un bouton")
 	await _check_scroll(main, "ship", Vector2(360, 700), "ship depuis une carte")
 	# Un simple tap (sans glisser) doit toujours déclencher le bouton.
-	main._show_tab("heroes")
+	main._show_tab("crew")
 	await process_frame
 	await process_frame
-	var sc: ScrollContainer = main._pages["heroes"].get_meta("scroll")
+	var sc: ScrollContainer = main._pages["crew"].get_meta("scroll")
 	sc.scroll_vertical = 0
 	await process_frame
 	var before: int = gs.recruits
@@ -93,6 +112,24 @@ func _initialize() -> void:
 	print(("ok   " if tapped else "FAIL ") + "tap simple sur « Recruter » : recrues %d -> %d" % [before, gs.recruits])
 	if not tapped:
 		failures += 1
+	# Un tap simple sur une liste de poste doit l'ouvrir.
+	gs.new_game()
+	main._refresh()
+	main._show_tab("exp")
+	await process_frame
+	await process_frame
+	var opt2: OptionButton = main._slot_ui[0].members[0].opt
+	main._pages["exp"].get_meta("scroll").scroll_vertical = 0
+	await process_frame
+	await process_frame
+	await _drag(opt2.get_global_rect().get_center(), opt2.get_global_rect().get_center())
+	await process_frame
+	var opened: bool = opt2.get_popup().visible
+	print(("ok   " if opened else "FAIL ") + "tap simple sur une liste de poste : ouverte=%s" % opened)
+	if not opened:
+		failures += 1
+	opt2.get_popup().hide()
+	await process_frame
 	# Scénario du joueur : nouvelle partie -> Expéditions -> toucher « Champ d'astéroïdes ».
 	gs.new_game()
 	main._refresh()

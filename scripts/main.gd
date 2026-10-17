@@ -1,9 +1,9 @@
 extends Control
-## Interface : 3 onglets (Héros, Expéditions, Vaisseau), construite en code.
+## Interface : 4 onglets (Capitaine, Équipage, Expéditions, Vaisseau), construite en code.
 
 const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
-const Portrait = preload("res://scripts/portrait.gd")
+const Chibi = preload("res://scripts/chibi.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 
@@ -16,26 +16,41 @@ var _res_labels := {}
 var _rate_label: Label
 var _pages := {}
 var _tab_buttons := {}
+var _dirty := true
+var _timer := 0.0
+var _press_pos := Vector2.ZERO
+var _dragged := false       # le doigt a glissé : le relâchement ne doit rien acheter
+var _pending_battle := {}   # emplacement -> un combat vient de se terminer, à animer
+
+# Capitaine
+var _cap_chibi: Control
+var _cap_name: Label
+var _cap_level: Label
+var _cap_xp: ProgressBar
+var _cap_stats: Label
+var _cap_train: Button
+var _slot_cards := {}       # emplacement d'équipement -> widgets
+var _inv_box: VBoxContainer
+var _inv_title: Label
+var _inv_sig := ""
+# Équipage
 var _hero_ui := {}
 var _recruit_btn: Button
 var _recruit_label: Label
 var _collection_label: Label
 var _synergy_label: Label
+# Expéditions
 var _slot_ui: Array = []
 var _next_label: Label
+# Vaisseau
 var _upgrade_ui := {}
-var _dirty := true
-var _timer := 0.0
-var _press_pos := Vector2.ZERO
-var _pending_battle := {}   # emplacement -> un combat vient de se terminer, à animer
-var _dragged := false       # le doigt a glissé : le relâchement ne doit rien acheter
 
 
 func _ready() -> void:
 	_build_ui()
 	GameState.changed.connect(func(): _dirty = true)
 	GameState.battle_finished.connect(_on_battle_finished)
-	_show_tab("heroes")
+	_show_tab("captain")
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
 		_show_offline_report(GameState.last_offline_report)
@@ -100,10 +115,10 @@ func _build_ui() -> void:
 	var holder := Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(holder)
-	_pages["heroes"] = _make_page(holder)
-	_pages["exp"] = _make_page(holder)
-	_pages["ship"] = _make_page(holder)
-	_build_heroes_page(_pages["heroes"])
+	for id in ["captain", "crew", "exp", "ship"]:
+		_pages[id] = _make_page(holder)
+	_build_captain_page(_pages["captain"])
+	_build_crew_page(_pages["crew"])
 	_build_expedition_page(_pages["exp"])
 	_build_ship_page(_pages["ship"])
 
@@ -141,17 +156,17 @@ func _make_page(holder: Control) -> VBoxContainer:
 
 func _build_tabs(parent: Control) -> void:
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 10)
+	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 	var group := ButtonGroup.new()
-	for entry in [["heroes", "Héros"], ["exp", "Expéditions"], ["ship", "Vaisseau"]]:
+	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["ship", "Vaisseau"]]:
 		var b := Button.new()
 		b.text = entry[1]
 		b.toggle_mode = true
 		b.button_group = group
 		b.custom_minimum_size = Vector2(0, 96)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 26)
+		b.add_theme_font_size_override("font_size", 21)
 		b.add_theme_stylebox_override("pressed", _flat(Color(0.16, 0.32, 0.62), 10))
 		b.add_theme_stylebox_override("hover_pressed", _flat(Color(0.16, 0.32, 0.62), 10))
 		b.pressed.connect(_show_tab.bind(entry[0]))
@@ -159,7 +174,55 @@ func _build_tabs(parent: Control) -> void:
 		_tab_buttons[entry[0]] = b
 
 
-func _build_heroes_page(page: VBoxContainer) -> void:
+func _build_captain_page(page: VBoxContainer) -> void:
+	var card := _card_h(page)
+	_cap_chibi = Chibi.new()
+	_cap_chibi.custom_minimum_size = Vector2(190, 230)
+	_cap_chibi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	card.add_child(_cap_chibi)
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 6)
+	card.add_child(right)
+	_cap_name = _label(right, "", 30, COL_ACCENT)
+	_cap_level = _label(right, "", 24)
+	_cap_xp = _bar(right, 16, COL_GOOD)
+	_cap_stats = _label(right, "", 21, COL_TEXT_DIM)
+	_cap_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cap_train = _button(right, "", 66)
+	_cap_train.add_theme_font_size_override("font_size", 21)
+	_cap_train.pressed.connect(_tap(func(): GameState.train_captain()))
+
+	var look_row := HBoxContainer.new()
+	look_row.add_theme_constant_override("separation", 8)
+	page.add_child(look_row)
+	for entry in [["suit", "Combinaison"], ["hair", "Cheveux"], ["style", "Coupe"]]:
+		var b := _button(look_row, "Changer : " + entry[1], 70)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 19)
+		b.pressed.connect(_tap(func(): GameState.cycle_look(entry[0])))
+
+	_label(page, "Équipement", 28, COL_ACCENT)
+	for slot in Data.EQUIP_SLOTS:
+		var c := _card(page)
+		var title := _label(c, "", 24)
+		var stats := _label(c, "", 20, COL_TEXT_DIM)
+		var xp := _bar(c, 12, COL_GOOD)
+		var b := _button(c, "Retirer", 58)
+		b.add_theme_font_size_override("font_size", 20)
+		b.pressed.connect(_tap(func(): GameState.unequip(slot)))
+		_slot_cards[slot] = {"title": title, "stats": stats, "xp": xp, "btn": b}
+	var best := _button(page, "Équiper automatiquement le meilleur", 70)
+	best.add_theme_font_size_override("font_size", 21)
+	best.pressed.connect(_tap(func(): GameState.auto_equip()))
+	_inv_title = _label(page, "", 28, COL_ACCENT)
+	_inv_box = VBoxContainer.new()
+	_inv_box.add_theme_constant_override("separation", 10)
+	_inv_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_child(_inv_box)
+
+
+func _build_crew_page(page: VBoxContainer) -> void:
 	_collection_label = _label(page, "", 30, COL_ACCENT)
 	_synergy_label = _label(page, "", 21, COL_TEXT_DIM)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -170,8 +233,8 @@ func _build_heroes_page(page: VBoxContainer) -> void:
 	_recruit_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for id in Data.HERO_ORDER:
 		var card := _card_h(page)
-		var portrait: Control = Portrait.new()
-		portrait.custom_minimum_size = Vector2(104, 104)
+		var portrait: Control = Chibi.new()
+		portrait.custom_minimum_size = Vector2(112, 112)
 		portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		card.add_child(portrait)
 		var right := VBoxContainer.new()
@@ -180,14 +243,7 @@ func _build_heroes_page(page: VBoxContainer) -> void:
 		card.add_child(right)
 		var name_l := _label(right, "", 26)
 		var stats_l := _label(right, "", 20, COL_TEXT_DIM)
-		var xp := ProgressBar.new()
-		xp.custom_minimum_size = Vector2(0, 16)
-		xp.show_percentage = false
-		xp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		xp.max_value = 1.0
-		xp.add_theme_stylebox_override("fill", _flat(COL_GOOD, 6))
-		xp.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 6))
-		right.add_child(xp)
+		var xp := _bar(right, 16, COL_GOOD)
 		var where_l := _label(right, "", 19, COL_TEXT_DIM)
 		var train := _button(right, "", 62)
 		train.add_theme_font_size_override("font_size", 21)
@@ -206,37 +262,39 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		bv.visible = false
 		card.add_child(bv)
 		var title := _label(card, "", 26)
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(0, 30)
-		bar.show_percentage = false
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.max_value = 1.0
-		bar.add_theme_stylebox_override("fill", _flat(COL_ACCENT, 8))
-		bar.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 8))
-		card.add_child(bar)
+		var bar := _bar(card, 30, COL_ACCENT)
 		var status := _label(card, "", 21, COL_TEXT_DIM)
 		status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var squad_row := HBoxContainer.new()
-		squad_row.add_theme_constant_override("separation", 8)
-		card.add_child(squad_row)
+		var station_row := HBoxContainer.new()
+		station_row.add_theme_constant_override("separation", 8)
+		card.add_child(station_row)
 		var members: Array = []
-		for k in Data.SQUAD_SIZE:
+		for k in Data.CREW_ORDER.size():
 			var col := VBoxContainer.new()
 			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			col.add_theme_constant_override("separation", 4)
-			squad_row.add_child(col)
-			var por: Control = Portrait.new()
-			por.custom_minimum_size = Vector2(0, 88)
+			col.add_theme_constant_override("separation", 2)
+			station_row.add_child(col)
+			var cls: Dictionary = Data.CREW[Data.CREW_ORDER[k]]
+			var lbl := _label(col, "Poste " + String(cls.name), 18, cls.color)
+			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			var por: Control = Chibi.new()
+			por.custom_minimum_size = Vector2(0, 100)
+			por.role = Data.CREW_ORDER[k]
 			col.add_child(por)
 			var opt := OptionButton.new()
 			opt.custom_minimum_size = Vector2(0, 62)
 			opt.add_theme_font_size_override("font_size", 19)
 			opt.fit_to_longest_item = false
 			opt.clip_text = true
-			opt.item_selected.connect(_on_squad_pick.bind(i, k))
+			opt.mouse_filter = Control.MOUSE_FILTER_PASS         # un glissement dessus fait défiler la page
+			opt.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+			opt.get_popup().about_to_popup.connect(func():
+				if _dragged:     # le doigt a glissé : ce n'était pas un tap, on referme la liste
+					opt.get_popup().hide.call_deferred())
+			opt.item_selected.connect(_on_station_pick.bind(i, k))
 			col.add_child(opt)
 			members.append({"portrait": por, "opt": opt, "ids": []})
-		var auto_sq := _button(card, "Composer l'escouade automatiquement", 62)
+		var auto_sq := _button(card, "Placer automatiquement le meilleur équipage", 62)
 		auto_sq.add_theme_font_size_override("font_size", 21)
 		auto_sq.pressed.connect(_tap(func(): GameState.auto_squad(i)))
 		var auto := CheckButton.new()
@@ -302,6 +360,18 @@ func _button(parent: Node, text: String, min_h: int) -> Button:
 	return b
 
 
+func _bar(parent: Node, height: int, color: Color) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(0, height)
+	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.max_value = 1.0
+	bar.add_theme_stylebox_override("fill", _flat(color, 8))
+	bar.add_theme_stylebox_override("background", _flat(Color(0.1, 0.14, 0.28), 8))
+	parent.add_child(bar)
+	return bar
+
+
 func _flat(color: Color, radius: int) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
@@ -349,9 +419,9 @@ func _on_battle_finished(slot_i: int) -> void:
 	_pending_battle[slot_i] = _pages["exp"].get_meta("scroll").visible
 
 
-func _on_squad_pick(index: int, slot_i: int, member_i: int) -> void:
-	var ids: Array = _slot_ui[slot_i].members[member_i].ids
-	GameState.set_squad_member(slot_i, member_i, ids[index] if index < ids.size() else "")
+func _on_station_pick(index: int, slot_i: int, station_i: int) -> void:
+	var ids: Array = _slot_ui[slot_i].members[station_i].ids
+	GameState.set_squad_member(slot_i, station_i, ids[index] if index < ids.size() else "")
 
 
 ## ---------- Rafraîchissement ----------
@@ -362,40 +432,125 @@ func _refresh() -> void:
 	_rate_label.text = "+%s crédits/s    +%s données/s    Expéditions : %d" % [
 		Data.fmt(GameState.credits_per_sec()), Data.fmt(GameState.data_per_sec()),
 		GameState.expeditions_done]
-	_refresh_heroes()
+	_refresh_captain()
+	_refresh_crew()
 	_refresh_expeditions()
 	_refresh_ship()
 
 
-func _refresh_heroes() -> void:
-	_collection_label.text = "Collection : %d / %d héros" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
-	_synergy_label.text = "Synergie : x%.2f (chaque paire de classes possédées +10 %%, les 3 classes +25 %%). Les héros rapportent des crédits en continu." % GameState.synergy_multiplier()
+func _stat_text(st: Dictionary, sign: String = "") -> String:
+	var parts: Array[String] = []
+	for entry in [["hp", "PV"], ["atk", "ATQ"], ["def", "DÉF"], ["spd", "VIT"]]:
+		if st.get(entry[0], 0.0) > 0.4:
+			parts.append("%s %s%d" % [entry[1], sign, int(round(st[entry[0]]))])
+	return "  ".join(parts)
+
+
+func _refresh_captain() -> void:
+	var cap: Dictionary = GameState.captain
+	_cap_chibi.setup_captain(cap.look)
+	_cap_name.text = cap.name
+	_cap_level.text = "Niveau %d / %d" % [cap.level, Data.CAPTAIN_MAX_LEVEL]
+	_cap_xp.value = float(cap.xp) / float(Data.xp_needed(cap.level))
+	var cs := GameState.captain_stats(0)
+	_cap_stats.text = "PV %d   ATQ %d\nDÉF %d   VIT %d\nÉquipement : %s\nÉquipage : %s" % [
+		cs.hp, cs.atk, cs.def, cs.spd, _stat_text(cs.gear, "+"), _stat_text(cs.crew, "+")]
+	if cap.level >= Data.CAPTAIN_MAX_LEVEL:
+		_cap_train.text = "Niveau maximum"
+		_cap_train.disabled = true
+	else:
+		var tc := GameState.captain_train_cost()
+		_cap_train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
+		_cap_train.disabled = GameState.res["credits"] < tc
+	for slot in Data.EQUIP_SLOTS:
+		var u: Dictionary = _slot_cards[slot]
+		var it := GameState.equipped_item(slot)
+		if it.is_empty():
+			u.title.text = "%s : aucun" % Data.EQUIP[slot].name
+			u.title.add_theme_color_override("font_color", COL_TEXT_DIM)
+			u.stats.text = "Emplacement vide — équipez un objet de l'inventaire."
+			u.xp.visible = false
+			u.btn.visible = false
+		else:
+			u.title.text = "%s : %s — %s niv. %d/%d" % [Data.EQUIP[slot].name, it.name,
+				Data.RARITY[it.rarity].name, it.level, Data.ITEM_MAX_LEVEL[it.rarity]]
+			u.title.add_theme_color_override("font_color", Data.RARITY[it.rarity].color)
+			u.stats.text = _stat_text(GameState.item_stats(it), "+") + ("   (niveau max)" if it.level >= Data.ITEM_MAX_LEVEL[it.rarity] else "")
+			u.xp.visible = it.level < Data.ITEM_MAX_LEVEL[it.rarity]
+			u.xp.value = float(it.xp) / float(Data.item_xp_needed(it.level))
+			u.btn.visible = true
+	_refresh_inventory()
+
+
+func _refresh_inventory() -> void:
+	var sig_parts: Array[String] = []
+	for it in GameState.items:
+		sig_parts.append("%d.%d.%d" % [it.id, it.level, 1 if GameState.equipped[it.slot] == it.id else 0])
+	var sig := ",".join(sig_parts)
+	_inv_title.text = "Inventaire (%d / %d)" % [GameState.items.size(), Data.INVENTORY_MAX]
+	if sig == _inv_sig:
+		return
+	_inv_sig = sig
+	for c in _inv_box.get_children():
+		c.queue_free()
+	var sorted: Array = GameState.items.duplicate()
+	sorted.sort_custom(func(a, b):
+		if a.slot != b.slot:
+			return Data.EQUIP_SLOTS.find(a.slot) < Data.EQUIP_SLOTS.find(b.slot)
+		return GameState.item_power(a) > GameState.item_power(b))
+	for it in sorted:
+		var is_eq: bool = GameState.equipped[it.slot] == it.id
+		var row := _card_h(_inv_box)
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(info)
+		var t := _label(info, "%s%s — %s niv. %d" % [it.name, " (équipé)" if is_eq else "",
+			Data.RARITY[it.rarity].name, it.level], 21, Data.RARITY[it.rarity].color)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_label(info, "%s · %s" % [Data.EQUIP[it.slot].name, _stat_text(GameState.item_stats(it), "+")], 18, COL_TEXT_DIM)
+		var btns := VBoxContainer.new()
+		btns.custom_minimum_size = Vector2(210, 0)
+		row.add_child(btns)
+		if not is_eq:
+			var eq := _button(btns, "Équiper", 54)
+			eq.add_theme_font_size_override("font_size", 19)
+			var item_id: int = it.id
+			eq.pressed.connect(_tap(func(): GameState.equip(item_id)))
+			var sc := _button(btns, "Recycler +%s cr" % Data.fmt(GameState.scrap_value(it)), 54)
+			sc.add_theme_font_size_override("font_size", 17)
+			sc.pressed.connect(_tap(func(): GameState.scrap(item_id)))
+
+
+func _refresh_crew() -> void:
+	_collection_label.text = "Équipage : %d / %d cartes" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
+	_synergy_label.text = "L'équipage, ce sont des objets à placer aux postes de vos vaisseaux : ils renforcent le Capitaine et rapportent des crédits. Synergie x%.2f (paires de classes +10 %%, les 3 classes +25 %%)." % GameState.synergy_multiplier()
 	var cost := GameState.recruit_cost()
-	_recruit_btn.text = "Recruter un héros — %s crédits" % Data.fmt(cost)
+	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost
 	var lr: Dictionary = GameState.last_recruit
 	if lr.is_empty():
 		_recruit_label.text = "Doublon = +1 étoile (stats +20 %). Épique : 5 % de chance."
 	else:
 		var hd: Dictionary = Data.HEROES[lr.id]
-		var what := "NOUVEAU héros" if lr.new else ("+1 étoile" if not lr.maxed else "doublon max (remboursé en partie)")
+		var what := "NOUVELLE carte" if lr.new else ("+1 étoile" if not lr.maxed else "doublon max (remboursé en partie)")
 		_recruit_label.text = "Dernier recrutement : %s (%s) — %s" % [hd.name, Data.RARITY[hd.rarity].name, what]
 	for id in Data.HERO_ORDER:
 		var u: Dictionary = _hero_ui[id]
 		var tpl: Dictionary = Data.HEROES[id]
 		var cls: Dictionary = Data.CREW[tpl["class"]]
 		if not GameState.heroes.has(id):
-			u.portrait.setup("", 0)
+			u.portrait.role = tpl["class"]
+			u.portrait.setup_empty(tpl["class"])
 			u.name.text = "???  —  %s %s" % [Data.RARITY[tpl.rarity].name, cls.name]
 			u.name.add_theme_color_override("font_color", COL_TEXT_DIM)
-			u.stats.text = "Héros non recruté"
+			u.stats.text = "Carte non recrutée"
 			u.xp.visible = false
 			u.where.text = ""
 			u.train.visible = false
 			continue
 		var h: Dictionary = GameState.heroes[id]
 		var st := Data.hero_stats(id, h.level, h.stars)
-		u.portrait.setup(id, h.stars)
+		u.portrait.setup_crew(id, h.stars)
 		u.name.text = "%s  —  niv. %d" % [tpl.name, h.level]
 		u.name.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
 		u.stats.text = "%s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
@@ -403,7 +558,7 @@ func _refresh_heroes() -> void:
 		u.xp.visible = true
 		u.xp.value = float(h.xp) / float(Data.xp_needed(h.level))
 		var slot := GameState.hero_slot(id)
-		u.where.text = ("En escouade : vaisseau %d" % (slot + 1)) if slot >= 0 else "Disponible"
+		u.where.text = ("Au poste : vaisseau %d" % (slot + 1)) if slot >= 0 else "Disponible"
 		u.train.visible = true
 		if h.level >= Data.MAX_LEVEL:
 			u.train.text = "Niveau maximum"
@@ -414,7 +569,7 @@ func _refresh_heroes() -> void:
 			u.train.disabled = GameState.res["credits"] < tc
 
 
-func _hero_signature() -> String:
+func _crew_signature() -> String:
 	var parts: Array[String] = []
 	for id in GameState.hero_order:
 		parts.append("%s%d" % [id, GameState.heroes[id].level])
@@ -423,7 +578,7 @@ func _hero_signature() -> String:
 
 func _refresh_expeditions() -> void:
 	var count := GameState.slot_count()
-	var hero_sig := _hero_signature()
+	var crew_sig := _crew_signature()
 	for i in Data.MAX_SLOTS:
 		var u: Dictionary = _slot_ui[i]
 		u.card.get_parent().visible = i < count
@@ -438,7 +593,10 @@ func _refresh_expeditions() -> void:
 		u.view.visible = not u.bv.playing
 		u.bv.visible = u.bv.playing
 		u.replay.visible = not slot.battle.is_empty() and not u.bv.playing
-		u.title.text = "Vaisseau %d" % (i + 1)
+		if i == 0:
+			u.title.text = "Vaisseau amiral — %s (niv. %d)" % [GameState.captain.name, GameState.captain.level]
+		else:
+			u.title.text = "Drone d'exploration (équipage seul, sans Capitaine)"
 		u.auto.set_pressed_no_signal(slot.auto)
 		u.recall.visible = busy
 		u.auto_sq.visible = not busy
@@ -446,7 +604,7 @@ func _refresh_expeditions() -> void:
 		u.last.text = slot.last
 		u.log.visible = not slot.log.is_empty()
 		u.log.text = "\n".join(slot.log.slice(0, 4)) if not slot.log.is_empty() else ""
-		_refresh_squad_row(u, i, hero_sig + str(busy))
+		_refresh_stations(u, i, crew_sig + str(busy))
 		if busy:
 			var total := GameState.duration_of(slot.dest, i)
 			u.bar.value = clampf(1.0 - slot.remaining / total, 0.0, 1.0)
@@ -454,9 +612,9 @@ func _refresh_expeditions() -> void:
 		else:
 			u.bar.value = 0.0
 			if GameState.squad_ids(i).is_empty():
-				u.status.text = "Aucun héros dans l'escouade : touchez « Composer automatiquement » ou choisissez-les dans les listes."
+				u.status.text = "Postes vides : touchez « Placer automatiquement le meilleur équipage » ou choisissez une carte par poste."
 			else:
-				u.status.text = "Escouade prête (3 héros max). Choisissez une destination :"
+				u.status.text = "Équipage en place. Choisissez une destination :"
 		for d in Data.DEST_ORDER:
 			var b: Button = u.dest[d]
 			var info: Dictionary = Data.DEST[d]
@@ -480,16 +638,17 @@ func _refresh_expeditions() -> void:
 	_next_label.text = next
 
 
-func _refresh_squad_row(u: Dictionary, slot_i: int, sig: String) -> void:
+func _refresh_stations(u: Dictionary, slot_i: int, sig: String) -> void:
 	var slot: Dictionary = GameState.slots[slot_i]
 	var busy: bool = slot.dest != ""
 	var full_sig := sig + str(slot.squad)
 	var rebuild: bool = u.sig != full_sig
 	u.sig = full_sig
-	for k in Data.SQUAD_SIZE:
+	for k in Data.CREW_ORDER.size():
 		var m: Dictionary = u.members[k]
 		var cur: String = slot.squad[k]
-		m.portrait.setup(cur, GameState.heroes[cur].stars if cur != "" else 0, busy)
+		m.portrait.role = Data.CREW_ORDER[k]
+		m.portrait.setup_crew(cur, GameState.heroes[cur].stars if cur != "" else 0, busy)
 		var opt: OptionButton = m.opt
 		opt.disabled = busy
 		if not rebuild:
@@ -498,12 +657,13 @@ func _refresh_squad_row(u: Dictionary, slot_i: int, sig: String) -> void:
 		m.ids = [""]
 		opt.add_item("— vide —")
 		for id in GameState.hero_order:
+			if Data.HEROES[id]["class"] != Data.CREW_ORDER[k]:
+				continue
 			var h: Dictionary = GameState.heroes[id]
 			m.ids.append(id)
 			var other := GameState.hero_slot(id)
 			var tag := "" if other < 0 or (other == slot_i and slot.squad[k] == id) else " (v.%d)" % (other + 1)
-			opt.add_item("%s %s niv.%d%s" % [Data.HEROES[id].name,
-				String(Data.CREW[Data.HEROES[id]["class"]].name).substr(0, 3) + ".", h.level, tag])
+			opt.add_item("%s niv.%d%s" % [Data.HEROES[id].name, h.level, tag])
 		opt.select(maxi(0, m.ids.find(cur)))
 
 

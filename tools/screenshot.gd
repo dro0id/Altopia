@@ -1,13 +1,32 @@
 extends SceneTree
 ## Capture d'écran de l'UI (nécessite un affichage, p. ex. xvfb-run).
-## godot --path . --rendering-driver opengl3 --rendering-method gl_compatibility -s tools/screenshot.gd -- <dossier>
+## godot --path . --resolution 720x1280 -s tools/screenshot.gd -- <dossier>
 ## Joue une courte partie scriptée et enregistre un PNG par écran.
 
-func _shot(path: String) -> void:
-	for i in 8:
+func _frames(n: int = 8) -> void:
+	for i in n:
 		await process_frame
 	await RenderingServer.frame_post_draw
+
+
+func _shot(path: String) -> void:
+	await _frames()
 	root.get_viewport().get_texture().get_image().save_png(path)
+
+
+func _advance(bv: Node, seconds: float) -> void:
+	var t := 0.0
+	while t < seconds:
+		bv.advance(0.05)
+		t += 0.05
+
+
+func _shot_tab(main: Node, tab: String, path: String, scroll: int = 0) -> void:
+	main._show_tab(tab)
+	main._refresh()
+	await _frames(3)
+	main._pages[tab].get_meta("scroll").scroll_vertical = scroll
+	await _shot(path)
 
 
 func _initialize() -> void:
@@ -17,12 +36,24 @@ func _initialize() -> void:
 	var gs = root.get_node("GameState")
 	gs.save_path = "user://screenshot_save.json"
 	gs.reset()
-	gs.rng.seed = 3
+	gs.rng.seed = 5
+	gs.captain.level = 8
+	gs.captain.xp = 60
+	gs.captain.look = {"suit": 0, "hair": 1, "style": 1}
 	gs.give_hero("rex", 6)
 	gs.give_hero("bolt", 5, 1)
 	gs.give_hero("lumi", 4)
 	gs.give_hero("nova", 3)
 	gs.give_hero("gorn", 2, 2)
+	var w = gs.make_item("weapon", "rare", 2); w.level = 3; w.xp = 25
+	var su = gs.make_item("suit", "epic", 2); su.level = 2
+	var mo = gs.make_item("module", "common", 1); mo.level = 4; mo.xp = 10
+	for it in [w, su, mo, gs.make_item("weapon", "common", 1), gs.make_item("suit", "rare", 1), gs.make_item("module", "epic", 3)]:
+		gs.items.append(it)
+	gs.equip(w.id)
+	gs.equip(su.id)
+	gs.equip(mo.id)
+	gs.auto_squad(0)
 	gs.add_res("credits", 650.0)
 	gs.add_res("data", 40.0)
 	gs.add_res("minerals", 60.0)
@@ -30,10 +61,9 @@ func _initialize() -> void:
 	var main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
-	gs.set_squad_member(0, 0, "rex")
-	gs.set_squad_member(0, 1, "bolt")
-	gs.set_squad_member(0, 2, "lumi")
-	await _shot_tab(main, "heroes", out_dir + "/shot_heroes.png")
+	await _shot_tab(main, "captain", out_dir + "/shot_captain.png")
+	await _shot_tab(main, "captain", out_dir + "/shot_captain_inv.png", 640)
+	await _shot_tab(main, "crew", out_dir + "/shot_crew.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_idle.png")
 	gs.launch(0, "star")
 	gs.tick(12.0)
@@ -65,16 +95,3 @@ func _initialize() -> void:
 	await _shot_tab(main, "exp", out_dir + "/shot_battle_late.png")
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
 	quit()
-
-
-func _advance(bv: Node, seconds: float) -> void:
-	var t := 0.0
-	while t < seconds:
-		bv.advance(0.05)
-		t += 0.05
-
-
-func _shot_tab(main: Node, tab: String, path: String) -> void:
-	main._show_tab(tab)
-	main._refresh()
-	await _shot(path)

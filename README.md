@@ -1,8 +1,8 @@
 # Altopia
 
-Jeu Android de type **RPG idle / AFK** dans l'espace : on collectionne des héros,
-on compose des escouades qui explorent et combattent automatiquement
-(astéroïdes, étoiles, planètes), et la progression continue hors-ligne.
+Jeu Android de type **RPG idle / AFK** dans l'espace : vous êtes le **Capitaine** d'un vaisseau.
+Vous l'équipez, placez votre équipage (cartes à collectionner) à ses postes, puis vous partez
+explorer et combattre automatiquement (astéroïdes, étoiles, planètes). La progression continue hors-ligne.
 
 - Moteur : [Godot 4](https://godotengine.org/) (GDScript)
 - Plateforme cible : Android (portrait)
@@ -10,7 +10,7 @@ on compose des escouades qui explorent et combattent automatiquement
 
 ## Documentation
 - [Game design (GDD)](docs/GDD.md)
-- [V1 : boucle RPG + idle, règles et captures](docs/V1.md)
+- [V2 : le Capitaine, équipement, règles et captures](docs/V2.md)
 - [Feuille de route](docs/ROADMAP.md)
 - [Guide de démarrage (débutant)](docs/GETTING_STARTED.md)
 
