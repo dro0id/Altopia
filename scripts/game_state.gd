@@ -56,6 +56,7 @@ var last_recruit := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
+var _afk_loot_clock := 0.0      # objets en cours de fabrication par le travail AFK
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
@@ -416,8 +417,8 @@ func afk_level() -> int:
 	return n
 
 
-func loot_level(dest: String) -> int:
-	return dest_tier(dest) * 3 + int(afk_level() / Data.AFK_ILVL_DIV)
+func loot_level() -> int:
+	return 3 + int(afk_level() / Data.AFK_ILVL_DIV)
 
 
 ## Poids de tirage de chaque rareté : le niveau d'AFK fait monter les raretés élevées.
@@ -434,12 +435,9 @@ func drop_weights(tier: int) -> Dictionary:
 	return out
 
 
-## Tire un objet de butin ou {} (pas de chance / recyclé). Les destinations élevées donnent mieux.
-func roll_drop(dest: String) -> Dictionary:
-	var tier := dest_tier(dest)
-	if rng.randf() > Data.DROP_CHANCE * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0):
-		return {}
-	var weights := drop_weights(tier)
+## Tire un objet de butin pour le Capitaine : rareté et niveau selon le niveau d'AFK. Retourne {} s'il est recyclé.
+func roll_afk_drop() -> Dictionary:
+	var weights := drop_weights(1)
 	var total := 0.0
 	for r in weights:
 		total += weights[r]
@@ -451,7 +449,7 @@ func roll_drop(dest: String) -> Dictionary:
 			rarity = r
 			break
 	var slot: String = Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
-	return _receive(make_item(slot, rarity, loot_level(dest)))
+	return _receive(make_item(slot, rarity, loot_level()))
 
 
 ## --- Équipage (cartes) ---
@@ -530,7 +528,7 @@ func train(id: String) -> bool:
 
 
 ## Ajoute de l'XP à une carte d'équipage ; retourne le nombre de niveaux gagnés.
-func gain_xp(id: String, amount: int) -> int:
+func gain_xp(id: String, amount: float) -> int:
 	var h: Dictionary = heroes[id]
 	var gained := 0
 	h.xp += amount
@@ -1025,7 +1023,7 @@ func rewards_of(dest: String, slot_i: int) -> Dictionary:
 	var out := {}
 	var role_mult: float = 1.0 + Data.ROLE_GAIN * Data.role_scale(squad_role_level(slot_i, dest))
 	for r in Data.DEST[dest].rewards:
-		out[r] = Data.DEST[dest].rewards[r] * role_mult * upgrade_multiplier(r) * synergy_multiplier() * (1.0 + research_bonus("reward_pct") / 100.0)
+		out[r] = Data.DEST[dest].rewards[r] * Data.EXPEDITION_REWARD_MULT * role_mult * upgrade_multiplier(r) * synergy_multiplier() * (1.0 + research_bonus("reward_pct") / 100.0)
 	return out
 
 
@@ -1042,10 +1040,12 @@ func make_enemies(dest: String) -> Array:
 	return out
 
 
-## Le combattant du vaisseau : l'équipage seul (le Capitaine ne participe pas à l'AFK).
+## Le combattant du vaisseau : le Capitaine (vaisseau 1, avec 35 % des stats de son équipage) ou l'équipage seul (vaisseau 2).
 func make_allies(slot_i: int) -> Array:
+	if slot_i == 0:
+		return [captain_unit()]
 	var d := drone_stats(slot_i)
-	return [Battle.make_unit("Équipage", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
+	return [Battle.make_unit("Drone", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
 
 
 ## Aperçu : le vaisseau battrait-il les ennemis actuels de cette destination ?
@@ -1084,19 +1084,13 @@ func _complete(slot_i: int, times: int = 1) -> void:
 	var battle := preview_battle(dest, slot_i)
 	var rewards: Dictionary = rewards_of(dest, slot_i)
 	var levels_gained := 0
-	var loot := {}
+	var xp_gain := 0
 	if battle.win:
 		afk_wins += times
 		dest_wins[dest] += times
-		var xp := int(round(Data.DEST[dest].xp * (1.0 + (equipped_bonus("xp_pct") + research_bonus("xp_pct")) / 100.0) * _gain_scale * times))
-		for id in squad_ids(slot_i):
-			levels_gained += gain_xp(id, xp)
-		for k in times:      # le butin est pour le Capitaine : il dépend du niveau d'AFK
-			if _offline_calc and rng.randf() > _gain_scale:
-				continue      # hors ligne, une partie du butin est perdue (rendement)
-			var drop := roll_drop(dest)
-			if not drop.is_empty():
-				loot = drop
+		if slot_i == 0:      # le Capitaine, à bord du vaisseau 1, progresse en expédition
+			xp_gain = int(round(captain_run_xp(1.0) * Data.EXPEDITION_CAPTAIN_XP_RATIO)) * times
+			levels_gained += gain_captain_xp(xp_gain)
 	else:
 		afk_defeats += times
 		dest_wins[dest] = int(float(dest_wins[dest]) * pow(Data.ENEMY_DEFEAT_DECAY, float(mini(times, 5))))   # les ennemis s'adaptent
@@ -1108,15 +1102,15 @@ func _complete(slot_i: int, times: int = 1) -> void:
 	expeditions_done += times
 	var head := "Victoire en %d tours" % battle.rounds if battle.win else "Défaite (butin réduit)"
 	slot.last = "%s — %s : %s" % [head, Data.DEST[dest].name, Data.fmt_amounts(rewards)]
+	if xp_gain > 0:
+		slot.last += "  |  Capitaine +%s XP" % Data.fmt(xp_gain)
 	if levels_gained > 0:
 		slot.last += "  |  %d niveau(x) gagné(s) !" % levels_gained
-	if not loot.is_empty():
-		slot.last += "  |  Butin : %s (%s, niv. %d)" % [loot.name, Data.ITEM_RARITY[loot.rarity].name, loot.ilvl]
 	slot.log = battle.log
 	var ally: Dictionary = battle.allies[0]
 	slot.battle = {
-		"win": battle.win, "dest": dest, "events": battle.events, "loot": loot,
-		"allies": [{"id": "drone", "name": ally.name, "max_hp": ally.max_hp,
+		"win": battle.win, "dest": dest, "events": battle.events, "loot": {},
+		"allies": [{"id": "captain" if slot_i == 0 else "drone", "name": ally.name, "max_hp": ally.max_hp,
 			"look": captain.look.duplicate(), "crew": squad_ids(slot_i)}],
 		"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
 	}
@@ -1132,22 +1126,39 @@ func _advance_expeditions(seconds: float) -> void:
 	for i in slot_count():
 		var slot: Dictionary = slots[i]
 		var t := seconds
-		while slot.dest != "" and t > 0.0:
+		var guard := 0
+		while slot.dest != "" and t > 0.0 and guard < 200:
+			guard += 1
 			if slot.remaining > t:
 				slot.remaining -= t
 				t = 0.0
 			else:
 				t -= slot.remaining
-				var extra := 0
-				var d := duration_of(slot.dest, i)
-				# hors ligne : on regroupe les cycles (au plus ~40 combats simulés par poste)
-				if _offline_calc and slot.auto and d > 0.0:
-					var total := 1 + int(t / d)
-					if total > Data.OFFLINE_BULK_MIN:
-						extra = maxi(Data.OFFLINE_BULK_CHUNK, total / 40) - 1
-						extra = mini(extra, total - 1)
-				_complete(i, 1 + extra)
-				t -= extra * d
+				_complete(i)
+
+
+## Le travail aux postes (AFK) : XP de l'équipage et butin pour le Capitaine.
+func crew_xp_per_sec(id: String) -> float:
+	var lv: int = heroes[id].level
+	return float(Data.xp_needed(lv)) / ((Data.AFK_XP_HOURS_BASE + Data.AFK_XP_HOURS_PER_LEVEL * lv) * 3600.0)
+
+
+func afk_drops_per_hour() -> float:
+	return Data.AFK_DROPS_PER_HOUR * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0)
+
+
+func _afk_work(seconds: float) -> void:
+	var ids := stationed_ids()
+	if ids.is_empty():
+		return
+	for id in ids:
+		gain_xp(id, crew_xp_per_sec(id) * seconds * _gain_scale)
+	_afk_loot_clock += seconds * _gain_scale / 3600.0 * afk_drops_per_hour()
+	var guard := 0
+	while _afk_loot_clock >= 1.0 and guard < 400:
+		guard += 1
+		_afk_loot_clock -= 1.0
+		roll_afk_drop()
 
 
 ## Fait avancer le jeu de `seconds` secondes (production de l'équipage + expéditions).
@@ -1155,7 +1166,9 @@ func tick(seconds: float) -> void:
 	var prod := production_per_sec()
 	for r in prod:
 		add_res(r, prod[r] * seconds * _gain_scale)
-	_advance_expeditions(seconds)
+	if not _offline_calc:
+		_advance_expeditions(seconds)      # les expéditions se jouent en direct : elles se mettent en pause hors ligne
+	_afk_work(seconds)
 	if not _skip_research:
 		_advance_research(seconds)
 		_regen_anomaly(seconds)
@@ -1218,16 +1231,18 @@ func anomaly_preview(n: int) -> Dictionary:
 	return Battle.simulate([captain_unit()], make_anomaly_enemies(n))
 
 
-## XP d'une victoire : xp_needed(niveau) / (3 + niveau/2.5) (soit 3 victoires par niveau au début, ~35 vers le niveau 80),
-## modulée par la difficulté de la faille par rapport au niveau du Capitaine (de x0,5 à x1) : pas de bonus à la 1re réussite,
-## on ne monte pas en niveau en grimpant les failles, seulement en jouant.
-func anomaly_xp(n: int, first: bool) -> int:
+## XP de base d'une victoire du Capitaine : xp_needed(niveau) / (3 + niveau/2,5) (3 victoires par niveau au début,
+## ~35 vers le niveau 80), multipliée par `diff` (difficulté de l'activité). Les expéditions n'en donnent qu'une fraction.
+func captain_run_xp(diff: float) -> float:
 	var lv: int = captain.level
 	var runs_per_level: float = 3.0 + float(lv) / 2.5
-	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(lv), 0.5, 1.0)
-	var xp: float = float(Data.xp_needed(lv)) / runs_per_level * diff
-	xp *= 1.0 + equipped_bonus("xp_pct") / 100.0       # seul l'équipement joue : les recherches d'XP sont pour l'équipage
-	return maxi(1, int(round(xp)))
+	return float(Data.xp_needed(lv)) / runs_per_level * diff * (1.0 + equipped_bonus("xp_pct") / 100.0)
+
+
+## Anomalie : modulée de x0,5 à x1 selon la difficulté de la faille par rapport au niveau du Capitaine.
+func anomaly_xp(n: int, first: bool) -> int:
+	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(captain.level), 0.5, 1.0)
+	return maxi(1, int(round(captain_run_xp(diff))))
 
 
 func anomaly_credits(n: int) -> float:
@@ -1364,7 +1379,7 @@ func load_game() -> bool:
 	for id in parsed.get("hero_order", []):
 		if Data.HEROES.has(id) and saved_heroes.has(id):
 			var h: Dictionary = saved_heroes[id]
-			heroes[id] = {"level": int(h.get("level", 1)), "xp": int(h.get("xp", 0)), "stars": int(h.get("stars", 0))}
+			heroes[id] = {"level": int(h.get("level", 1)), "xp": float(h.get("xp", 0.0)), "stars": int(h.get("stars", 0))}
 			hero_order.append(id)
 	recruits = int(parsed.get("recruits", 0))
 	var saved_up: Dictionary = parsed.get("upgrades", {})

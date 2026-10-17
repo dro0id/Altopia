@@ -9,7 +9,7 @@
 - [x] **V2.1 — Équipage AFK + loot RPG** : production même hors ligne, rendement et durée hors ligne, 6 emplacements, 5 raretés, bonus aléatoires, recyclage auto.
 - [x] **Style visuel R2** : thème verre/cyan, polices, icônes SVG, cartes d'équipement à cadre de rareté, combat et rapport hors ligne restylés ([STYLE.md](STYLE.md)).
 - [x] **Socle de durée** : Labo (recherches en temps réel, file, accélération), plafonds de niveau relevés par des académies, économie recalibrée, simulateur à 4 profils ([détails](AFK.md)).
-- [x] **Refonte « deux jeux »** : plus de plafonds de niveau, l'AFK est l'équipage seul, le Capitaine gagne son XP par les **anomalies** (contenu actif), et le niveau d'AFK fait monter la qualité du butin du Capitaine ([détails](AFK.md)).
+- [x] **Refonte « deux jeux »** : plus de plafonds de niveau, l'AFK (équipage aux postes) fabrique les objets du Capitaine, les expéditions sont un jeu en direct avec le Capitaine, et les **anomalies** font surtout monter son niveau, et le niveau d'AFK fait monter la qualité du butin du Capitaine ([détails](AFK.md)).
 - [ ] **V2-C — Anomalies (suite : boss de secteur, tour d'épreuves)** (donjons solo, meilleur temps), **boss de secteur**, **tour d'épreuves**.
 - [ ] **V2-D — Campagne** : chapitres narratifs, un par secteur.
 - [ ] Vrais assets graphiques et sons.

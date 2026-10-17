@@ -100,7 +100,10 @@ const EPITHETS := ["du Cratère Ardent", "de l'Aube Stellaire", "du Vide", "de H
 const ITEM_ILVL_BONUS := 0.10    # +10 % de stats par niveau d'objet
 const ITEM_ILVL_AFFIX := 0.04    # les affixes montent aussi avec le niveau d'objet
 const CRIT_MULT := 1.5           # un coup critique fait x1,5 (moyenne déterministe dans les combats)
-const DROP_CHANCE := 0.004       # par victoire AFK (des milliers par jour : ~30 objets/jour)
+## AFK : le travail aux postes fabrique le butin du Capitaine et fait gagner de l'XP à l'équipage (hors ligne compris).
+const AFK_DROPS_PER_HOUR := 1.2     # objets par heure de travail aux postes (~29 par jour pour un coffre de 24 h)
+const AFK_XP_HOURS_BASE := 1.0      # heures de travail pour passer du niveau L à L+1 : base + par_niveau x L
+const AFK_XP_HOURS_PER_LEVEL := 0.25
 ## Niveau d'AFK = niveaux de l'équipage aux postes + améliorations de postes et de vaisseau. Plus il est haut,
 ## plus le butin du Capitaine est puissant : rareté (poids ci-dessous par rang de rareté) et niveau d'objet.
 const AFK_RARITY_RATE := 0.005
@@ -122,8 +125,6 @@ const OFFLINE_EFF_MAX := 1.5
 const OFFLINE_BASE_HOURS := 4.0           # durée hors ligne comptabilisée
 const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.1
 const OFFLINE_MAX_HOURS := 24.0
-const OFFLINE_BULK_MIN := 40             # au-delà, les expéditions hors ligne sont regroupées
-const OFFLINE_BULK_CHUNK := 25
 
 const SQUAD_SIZE := 3
 const MAX_LEVEL := 999           # pas de plafond pratique
@@ -147,17 +148,17 @@ const BATTLE_MAX_ROUNDS := 60
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
-		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 10,
+		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0,
 		"enemy": {"kind": "asteroids", "name": "Foreur rebelle", "count": 2, "hp": 120.0, "atk": 18.0, "def": 6.0, "spd": 9.0},
 		"rewards": {"minerals": 5.0, "credits": 6.0, "data": 3.0},
 	},
 	"star": {
-		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 24,
+		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0,
 		"enemy": {"kind": "star", "name": "Sentinelle solaire", "count": 2, "hp": 220.0, "atk": 26.0, "def": 12.0, "spd": 10.0},
 		"rewards": {"energy": 8.0, "credits": 12.0, "data": 6.0},
 	},
 	"planet": {
-		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 48,
+		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0,
 		"enemy": {"kind": "planet", "name": "Créature xéno", "count": 3, "hp": 300.0, "atk": 34.0, "def": 16.0, "spd": 11.0},
 		"rewards": {"data": 16.0, "credits": 36.0, "minerals": 3.0, "energy": 2.0},
 	},
@@ -206,6 +207,9 @@ const GOALS := [
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
+## Expéditions : jeu en direct (Capitaine + équipage), en pause hors ligne.
+const EXPEDITION_REWARD_MULT := 12.0
+const EXPEDITION_CAPTAIN_XP_RATIO := 0.05   # part de l'XP d'une victoire d'anomalie gagnée par victoire d'expédition
 const ROLE_GAIN := 0.15          # gains : +15 % par « niveau effectif » du rôle requis (voir role_scale)
 const ROLE_SPEED := 0.015        # -1,5 % de durée par niveau du rôle requis
 const UPGRADE_GAIN := 0.25

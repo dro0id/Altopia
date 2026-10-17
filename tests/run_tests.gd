@@ -194,19 +194,13 @@ func test_auto_recycle_on_drop() -> void:
 func test_drops_distribution() -> void:
 	_gs.new_game()
 	_gs.auto_recycle = -1
-	var got := 0
 	var ranks := {}
-	var tries := 40000
-	for i in tries:
-		var it: Dictionary = _gs.roll_drop("planet")
+	for i in 4000:
+		var it: Dictionary = _gs.roll_afk_drop()
 		if not it.is_empty():
-			got += 1
 			ranks[it.rarity] = ranks.get(it.rarity, 0) + 1
-	var expected: float = tries * Data.DROP_CHANCE
-	_check(got > expected * 0.7 and got < expected * 1.3, "taux de butin conforme (%d obtenus, ~%d attendus)" % [got, int(expected)])
 	_check(ranks.get("common", 0) > ranks.get("uncommon", 0) and ranks.get("uncommon", 0) > ranks.get("rare", 0), "communs > peu communs > rares")
 	_check(ranks.has("epic"), "des épiques tombent")
-	_check(_gs.loot_level("planet") > _gs.loot_level("asteroids"), "les destinations élevées donnent des objets de plus haut niveau")
 
 
 func test_recruit_cost_and_pull() -> void:
@@ -310,8 +304,8 @@ func test_simulate_offline_uses_efficiency_and_cap() -> void:
 	var cap: float = _gs.offline_cap_seconds()
 	var r: Dictionary = _gs.simulate_offline(cap * 10.0)
 	_check(is_equal_approx(r.seconds, cap), "la durée est plafonnée")
-	_check(r.expeditions > 100 and r.gains.minerals > 0.0, "les expéditions auto tournent hors ligne")
-	_check(_gs.slots[0].dest == "asteroids", "toujours en expédition au retour")
+	_check(r.gains.minerals > 0.0 and r.gains.credits > 0.0, "le travail aux postes rapporte hors ligne")
+	_check(_gs.slots[0].dest == "asteroids", "l'expédition est en pause, pas perdue")
 	# même durée, rendement plus bas qu'en ligne
 	var a := _fresh_offline_minerals(1.0)
 	var b := _fresh_offline_minerals(0.5)
@@ -332,19 +326,13 @@ func _fresh_offline_minerals(scale: float) -> float:
 func test_xp_credits_drop_affixes() -> void:
 	_gs.new_game()
 	var base_credit: float = _gs.credit_mult()
+	var base_xp: float = _gs.captain_run_xp(1.0)
 	var it := _item("module", "rare", 5, [{"k": "credits_pct", "v": 20.0}, {"k": "xp_pct", "v": 10.0}])
 	_gs.add_item(it)
 	_gs.equip(it.id)
 	_check(_gs.credit_mult() > base_credit + 0.19, "affixe crédits")
 	_check(is_equal_approx(_gs.equipped_bonus("xp_pct"), 10.0), "affixe XP")
-	_gs.give_hero("rex", 10)
-	_crew(0, ["rex"])
-	_gs.slots[0].auto = false
-	_gs.launch(0, "asteroids")
-	var xp_before: int = _gs.heroes["rex"].xp
-	var lv_before: int = _gs.heroes["rex"].level
-	_gs._advance_expeditions(500.0)
-	_check(_gs.heroes["rex"].xp != xp_before or _gs.heroes["rex"].level > lv_before, "l'équipage gagne de l'XP en AFK")
+	_check(_gs.captain_run_xp(1.0) > base_xp * 1.09, "le bonus d'XP de l'équipement s'applique au Capitaine")
 
 
 func test_station_rules() -> void:
@@ -390,16 +378,16 @@ func test_victory_pays_and_levels() -> void:
 	_gs._advance_expeditions(500.0)
 	_check(_gs.slots[0].dest == "", "fini : vaisseau libre")
 	_check(is_equal_approx(_gs.res["minerals"] - minerals_before, expected["minerals"]), "butin complet crédité")
-	_check(_gs.heroes["rex"].xp > 0 or _gs.heroes["rex"].level > 10, "l'équipage gagne de l'XP")
+	_check(_gs.captain.xp > 0 or _gs.captain.level > 30, "le Capitaine gagne de l'XP")
 	_check(_gs.dest_wins["asteroids"] == 1, "victoire comptée")
 	var b: Dictionary = _gs.slots[0].battle
-	_check(not b.is_empty() and b.allies.size() == 1 and b.allies[0].id == "drone" and b.events.size() > 0, "combat mémorisé (équipage seul)")
+	_check(not b.is_empty() and b.allies.size() == 1 and b.allies[0].id == "captain" and b.events.size() > 0, "combat mémorisé (Capitaine)")
 
 
 func test_defeat_reduces_loot() -> void:
 	_gs.new_game()
 	_gs.slots[0].auto = false
-	_gs.dest_wins["asteroids"] = 400
+	_gs.dest_wins["asteroids"] = 100000
 	_check(not _gs.preview_battle("asteroids", 0).win, "défaite prévue")
 	_gs.launch(0, "asteroids")
 	var full: Dictionary = _gs.rewards_of("asteroids", 0)
@@ -407,30 +395,77 @@ func test_defeat_reduces_loot() -> void:
 	var items_before: int = _gs.items.size()
 	_gs._advance_expeditions(500.0)
 	_check(is_equal_approx(_gs.res["minerals"] - minerals_before, full["minerals"] * Data.LOSS_REWARD), "défaite : butin réduit")
-	_check(_gs.captain.level == 1 and _gs.captain.xp == 0 and _gs.items.size() == items_before, "pas d'XP ni d'objet en cas de défaite")
+	_check(_gs.captain.level == 1 and _gs.captain.xp == 0, "pas d'XP en cas de défaite")
 
 
-func test_afk_is_crew_only_and_gives_no_captain_xp() -> void:
-	_gs.give_hero("rex", 10)
-	_gs.give_hero("bolt", 10)
-	_gs.give_hero("lumi", 10)
+func test_captain_joins_expeditions_on_ship_1() -> void:
+	_gs.new_game()
 	_gs.upgrade_levels["docks"] = 1
-	for i in 2:
-		_crew(i, ["rex", "bolt", "lumi"] if i == 1 else ["rex"])
-		_gs.slots[i].auto = false
-		_check(_gs.make_allies(i)[0].name == "Équipage", "vaisseau %d : l'équipage combat seul" % (i + 1))
+	_check(_gs.make_allies(0)[0].name == _gs.captain.name, "vaisseau 1 : le Capitaine combat")
+	_check(_gs.make_allies(1)[0].name == "Drone", "vaisseau 2 : drone (équipage seul)")
+	_gs.slots[0].auto = false
+	_gs.captain.level = 20
 	_gs.launch(0, "asteroids")
-	_gs.launch(1, "asteroids")
-	var xp_before: int = _gs.captain.xp
+	var lv: int = _gs.captain.level
+	var xp0: float = _gs.captain.xp
 	_gs._advance_expeditions(500.0)
-	_check(_gs.captain.xp == xp_before and _gs.captain.level == 1, "l'AFK ne fait pas progresser le Capitaine")
-	_check(_gs.slots[1].battle.allies[0].id == "drone", "combat mémorisé")
+	_check(_gs.captain.xp > xp0 or _gs.captain.level > lv, "le Capitaine gagne de l'XP en expédition")
+	_check(_gs.slots[0].battle.allies[0].id == "captain", "combat mémorisé avec le Capitaine")
+
+
+func test_expeditions_are_paused_offline() -> void:
+	_gs.new_game()
+	_gs.launch(0, "asteroids")
+	var remaining: float = _gs.slots[0].remaining
+	var done: int = _gs.expeditions_done
+	var res_before: Dictionary = _gs.res.duplicate()
+	_gs.simulate_offline(6.0 * 3600.0)
+	_check(_gs.expeditions_done == done and is_equal_approx(_gs.slots[0].remaining, remaining), "hors ligne, l'expédition ne bouge pas")
+	_check(_gs.res["credits"] > res_before["credits"] - 0.001 and _gs.res["data"] > res_before["data"], "mais le travail aux postes continue (ressources)")
+
+
+func test_crew_gains_xp_by_working_at_stations() -> void:
+	_gs.new_game()
+	var lv0: int = _gs.heroes["rex"].level
+	var xp0: float = _gs.heroes["rex"].xp
+	_gs.tick(3600.0)
+	_check(_gs.heroes["rex"].xp > xp0 or _gs.heroes["rex"].level > lv0, "un équipier au poste gagne de l'XP en travaillant")
+	var idle_id := ""
+	for id in _gs.hero_order:
+		if _gs.hero_slot(id) < 0:
+			idle_id = id
+	if idle_id == "":
+		_gs.give_hero("nova")
+		idle_id = "nova"
+	var xp1: float = _gs.heroes[idle_id].xp
+	_gs.tick(3600.0)
+	_check(is_equal_approx(_gs.heroes[idle_id].xp, xp1), "un équipier au repos n'en gagne pas")
+	_gs.simulate_offline(8.0 * 3600.0)
+	_check(_gs.heroes["rex"].level > lv0, "et ça continue hors ligne")
+
+
+func test_afk_work_makes_items_for_the_captain() -> void:
+	_gs.new_game()
+	_gs.auto_recycle = -1
+	var items0: int = _gs.items.size()
+	_gs.tick(3600.0 * 10.0)
+	_check(_gs.items.size() >= items0 + 8, "10 h de travail AFK : des objets pour le Capitaine (%d)" % (_gs.items.size() - items0))
+	_gs.reset()
+	_gs.new_game()
+	_gs.auto_recycle = -1
+	for i in _gs.slot_count():
+		for k in Data.CREW_ORDER.size():
+			_gs.slots[i].squad[k] = ""
+	var n0: int = _gs.items.size()
+	_gs._afk_loot_clock = 0.0
+	_gs.tick(3600.0 * 10.0)
+	_check(_gs.items.size() == n0, "sans équipage aux postes, rien n'est fabriqué")
 
 
 func test_afk_level_raises_loot_quality() -> void:
 	_gs.new_game()
 	var w0: Dictionary = _gs.drop_weights(1)
-	var l0: int = _gs.loot_level("asteroids")
+	var l0: int = _gs.loot_level()
 	_gs.give_hero("nova", 60)
 	_gs.give_hero("tess", 60)
 	_gs.give_hero("zara", 60)
@@ -441,24 +476,8 @@ func test_afk_level_raises_loot_quality() -> void:
 	var share0: float = w0["legendary"] / (w0["common"] + w0["uncommon"] + w0["rare"] + w0["epic"] + w0["legendary"])
 	var share1: float = w1["legendary"] / (w1["common"] + w1["uncommon"] + w1["rare"] + w1["epic"] + w1["legendary"])
 	_check(share1 > share0 * 3.0, "la part de légendaires explose avec le niveau d'AFK (%.3f -> %.3f)" % [share0, share1])
-	_check(_gs.loot_level("asteroids") > l0 + 8, "le niveau d'objet monte aussi")
+	_check(_gs.loot_level() > l0 + 8, "le niveau d'objet monte aussi")
 	_check(w1["common"] / w0["common"] < 1.01, "les communs ne bénéficient pas du niveau d'AFK")
-
-
-func test_afk_drops_come_from_any_ship() -> void:
-	_gs.new_game()
-	_gs.heroes["rex"].level = 20
-	_gs.upgrade_levels["docks"] = 1
-	_crew(1, ["rex"])
-	_gs.slots[1].auto = false
-	_gs.auto_recycle = -1
-	var found := 0
-	for i in 1500:
-		_gs.slots[1].dest = "asteroids"
-		_gs.slots[1].remaining = 0.0
-		_gs._complete(1)
-		found = _gs.items.size()
-	_check(found > 6, "le vaisseau 2 aussi rapporte du butin pour le Capitaine (%d objets)" % found)
 
 
 func test_anomalies_basics() -> void:
@@ -626,15 +645,16 @@ func test_goals() -> void:
 	_gs.save_path = _gs.SAVE_PATH
 
 
-func test_offline_bulk_is_fast_and_consistent() -> void:
+func test_offline_24h_is_fast() -> void:
 	_gs.new_game()
-	_gs.upgrade_levels["engines"] = 20
-	_gs.launch(0, "asteroids")
+	_gs.give_hero("nova", 30)
+	_gs.give_hero("tess", 30)
+	_gs.give_hero("zara", 30)
+	_crew(0, ["nova", "tess", "zara"])
 	var t0 := Time.get_ticks_msec()
 	var rep: Dictionary = _gs.simulate_offline(24.0 * 3600.0)
 	var ms := Time.get_ticks_msec() - t0
-	_check(ms < 4000, "24 h hors ligne calculées en moins de 4 s (obtenu %d ms)" % ms)
-	_check(rep.expeditions > 1000, "beaucoup d'expéditions comptées (%d)" % rep.expeditions)
+	_check(ms < 2000, "24 h hors ligne calculées en moins de 2 s (obtenu %d ms)" % ms)
 	_check(rep.gains.credits > 0.0, "des gains sont crédités")
 
 

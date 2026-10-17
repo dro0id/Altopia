@@ -20,10 +20,11 @@ Ce document décrit le socle de durée (Labo, plafonds de niveau) et les résult
 - **Accélérer** : retire 25 % de la durée totale contre de l'énergie, 2 fois par recherche au plus (le rythme reste prévisible).
 - **21 recherches** : production, gains d'expédition, XP, vitesse, rendement et coffre hors ligne, butin, automatisation du labo, postes de recherche, et deux **académies** qui relèvent les plafonds de niveau. Les lignes de base ont des paliers II et III qui s'ouvrent quand la précédente est terminée.
 
-## Deux jeux, un cercle
-- **L'AFK, c'est l'équipage.** Les cartes aux postes produisent, combattent **seules** en expédition (le Capitaine n'y participe pas) et gagnent l'XP. Il n'y a **plus de plafond de niveau** : la courbe d'XP (XP_PER_LEVEL x niveau) ralentit toute seule.
-- **Le RPG, c'est le Capitaine.** Son XP ne vient **que des anomalies** (contenu actif). Il garde 35 % des stats de l'équipage du vaisseau 1 et son équipement.
-- **Le pont : l'AFK fabrique l'équipement du Capitaine.** Chaque victoire AFK a une chance de faire tomber un objet. Le **niveau d'AFK** (niveaux de l'équipage aux postes + améliorations de postes et de vaisseau) fait monter la rareté (surtout épique et légendaire) et le niveau des objets. Le but : monter son AFK pour équiper un Capitaine plus fort et pousser plus loin dans les anomalies. Les chances sont affichées dans l'onglet Équipage.
+## Trois activités, un cercle
+- **L'AFK, c'est l'équipage aux postes** (continue hors ligne) : il produit des ressources, **gagne son XP en travaillant** (heures par niveau = 1 + 0,25 x niveau) et **fabrique les objets du Capitaine** (environ 1,2 par heure de travail). Il n'y a **plus de plafond de niveau** : la courbe d'XP (XP_PER_LEVEL x niveau) ralentit toute seule.
+- **Les expéditions ne sont pas de l'AFK** : elles se jouent en direct, **avec le Capitaine** à bord du vaisseau 1 (il y gagne de l'XP, 5 % d'une victoire d'anomalie par victoire) et son équipage qui l'accompagne (35 % de ses stats). Le vaisseau 2 est un drone piloté par l'équipage seul. **Hors ligne, les expéditions se mettent en pause** (rien n'est perdu). Les gains d'expédition sont multipliés par 12 pour compenser.
+- **Les anomalies** sont l'autre activité du Capitaine (voir plus bas) : c'est elles qui font surtout monter son niveau.
+- **Le pont : l'AFK fabrique l'équipement du Capitaine.** Le **niveau d'AFK** (niveaux de l'équipage aux postes + améliorations de postes et de vaisseau) fait monter la rareté (surtout épique et légendaire) et le niveau des objets. Les chances sont affichées dans l'onglet Équipage.
 
 ## Anomalies (Capitaine, onglet Capitaine)
 - Faille n : 2 sentinelles et 1 gardien, niveau d'ennemi 1 + 4 x (n-1). La faille n+1 s'ouvre quand on réussit la n.
@@ -33,27 +34,27 @@ Ce document décrit le socle de durée (Labo, plafonds de niveau) et les résult
 
 ## Règles d'économie
 - Niveau des ennemis AFK = 1 + (victoires / 150)^0,65 ; **chaque défaite fait redescendre le compteur de 10 %** : les ennemis s'adaptent, l'équipage gagne presque toujours (99 % en simulation).
-- Butin : 0,4 % par victoire AFK (~30 objets par jour) ; niveau d'objet = 3 x tier + niveau d'AFK / 8.
+- Butin : ~1,2 objet par heure de travail aux postes (~29 par jour) ; niveau d'objet = 3 + niveau d'AFK / 8.
 - Vitesse d'expédition : bonus additifs plafonnés à x2,5. Gains du rôle requis en niveau^0,7.
 
 ## Le Labo
 Recherches en temps réel (voir plus bas), file de 5 recherches payées d'avance, **recherche automatique** (un poste libre lance la plus courte recherche abordable). Les académies de plafond ont disparu avec les plafonds ; les recherches d'XP ne concernent plus que l'équipage.
 
 ## Résultats du simulateur (120 jours, robot)
-| Profil | Capitaine j7 / j30 / j90 | Faille max j90 | Niveau d'AFK j90 | Équipement j90 | Victoires AFK |
+| Profil | Capitaine j7 / j30 / j90 | Faille max j90 | Niveau d'AFK j90 | Équipement j90 | Victoires expéditions |
 |---|---|---|---|---|---|
-| casual (1 x 5 min/jour) | 27 / 56 / 98 | 180 | 634 | niv. 75, 3 légendaires | 99 % |
-| evening (1 x 15 min) | 28 / 60 / 102 | 188 | 512 | niv. 59, 5 légendaires | 99 % |
-| regular (3 x 8 min) | 35 / 64 / 110 | 176 | 545 | niv. 65, 5 légendaires | 99 % |
-| hardcore (6 x 10 min) | 37 / 70 / 119 | 271 | 689 | niv. 84, 4 légendaires | 99 % |
+| casual (1 x 5 min/jour) | 24 / 54 / 101 | 179 | 581 | niv. 68, 6 légendaires | 100 % |
+| evening (1 x 15 min) | 27 / 59 / 105 | 254 | 755 | niv. 90, 5 légendaires | 100 % |
+| regular (3 x 8 min) | 34 / 65 / 125 | 221 | 621 | niv. 75, 6 légendaires | 100 % |
+| hardcore (6 x 10 min) | 37 / 73 / 136 | 220 | 621 | niv. 74, 6 légendaires | 100 % |
 
-- Aucune période sans progrès de plus d'**1 jour**. Le joueur occasionnel progresse à chaque session ; le premier objet épique arrive vers le jour 7-14, les premiers légendaires vers le jour 14-30.
+- La plus longue période sans progrès est de **2 jours** au pire. Le premier objet épique arrive vers le jour 7, les premiers légendaires vers le jour 14-30.
 - XP perdue : **0** (plus de plafond). Défaites en anomalie : 0 (le robot ne tente que les failles qu'il peut gagner ; un joueur peut tenter plus haut, la charge lui est rendue).
-- Postes de recherche vides au début d'une session : 37 % (casual), 33 % (evening), 8 % (regular), 2 % (hardcore) **sans** la recherche automatique, qui règle ce cas.
+- Postes de recherche vides au début d'une session : 56 % (casual), 40 % (evening), 18 % (regular), 4 % (hardcore) **sans** la recherche automatique, qui règle ce cas.
 
 ### Limites connues
 - Le robot dépense au mieux : un vrai joueur sera plus lent. Les chiffres donnent la direction.
-- L'AFK ne présente presque plus de défi (99 % de victoires) : le défi est dans les anomalies. À voir selon les retours.
+- Les expéditions ne présentent presque plus de défi (les ennemis s'adaptent) : le défi est dans les anomalies. À voir selon les retours.
 - Le rythme de l'équipement (premiers légendaires entre le jour 14 et 30) et du Capitaine (niveau ~100 au jour 90) est à confirmer par des tests réels.
 - Garanties de butin et de recrutement, missions du jour : pas encore faites.
 

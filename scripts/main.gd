@@ -348,7 +348,7 @@ func _build_crew_page(page: VBoxContainer) -> void:
 	_synergy_label = _label(page, "", 21, COL_TEXT_DIM)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var afk_card := _card(page)
-	_label(afk_card, "AFK : l'équipage aux postes travaille même hors ligne", 21, COL_GOOD)
+	_label(afk_card, "AFK : l'équipage aux postes travaille même hors ligne (ressources, XP des équipiers, objets du Capitaine)", 21, COL_GOOD).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var afk_grid := GridContainer.new()
 	afk_grid.columns = 2
 	afk_grid.add_theme_constant_override("h_separation", 10)
@@ -396,6 +396,8 @@ func _build_crew_page(page: VBoxContainer) -> void:
 
 func _build_expedition_page(page: VBoxContainer) -> void:
 	_section(page, "Expéditions")
+	var note := _label(page, "Les expéditions se jouent en direct : le Capitaine y gagne de l'XP et l'équipage l'accompagne. Elles se mettent en pause quand vous quittez l'appli (l'AFK, lui, continue).", 19, COL_TEXT_DIM)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for i in Data.MAX_SLOTS:
 		var card := _card(page)
 		var view := SpaceView.new()
@@ -944,7 +946,7 @@ func _refresh_crew() -> void:
 		_afk_rates[id].text = "+%s /h" % Data.fmt(prod[id] * 3600.0)
 	_afk_label.text = "Rendement hors ligne : %d %%   ·   Durée max comptée : %s" % [
 		int(round(GameState.offline_efficiency() * 100.0)), Data.fmt_time(GameState.offline_cap_seconds())]
-	var w := GameState.drop_weights(2)
+	var w := GameState.drop_weights(1)
 	var wsum := 0.0
 	for r in w:
 		wsum += w[r]
@@ -952,8 +954,9 @@ func _refresh_crew() -> void:
 	for r in Data.ITEM_RARITY_ORDER:
 		if Data.ITEM_RARITY_ORDER.find(r) >= 2:
 			parts.append("%s %s %%" % [Data.ITEM_RARITY[r].name, String.num(100.0 * w[r] / wsum, 1)])
-	_afk_loot.text = "Niveau d'AFK : %d  →  butin du Capitaine (objets niv. ~%d). Chances : %s. Montez l'équipage et les postes pour du butin plus puissant." % [
-		GameState.afk_level(), GameState.loot_level("star"), "  ·  ".join(parts)]
+	var per_hour := GameState.afk_drops_per_hour()
+	_afk_loot.text = "Le travail aux postes fabrique des objets pour le Capitaine : environ 1 toutes les %d min (niv. ~%d). Niveau d'AFK : %d. Chances : %s. Montez l'équipage et les postes pour un butin plus puissant." % [
+		int(round(60.0 / per_hour)), GameState.loot_level(), GameState.afk_level(), "  ·  ".join(parts)]
 	var cost := GameState.recruit_cost()
 	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost
@@ -1035,9 +1038,9 @@ func _refresh_expeditions() -> void:
 		u.bv.visible = u.bv.playing
 		u.replay.visible = not slot.battle.is_empty() and not u.bv.playing
 		if i == 0:
-			u.title.text = "Vaisseau 1 — l'équipage combat seul"
+			u.title.text = "Vaisseau 1 — le Capitaine (niv. %d) et son équipage" % GameState.captain.level
 		else:
-			u.title.text = "Vaisseau 2 (baie d'amarrage) — l'équipage combat seul"
+			u.title.text = "Vaisseau 2 (baie d'amarrage) — drone piloté par l'équipage seul"
 		u.auto.set_pressed_no_signal(slot.auto)
 		u.recall.visible = busy
 		u.auto_sq.visible = not busy
@@ -1257,7 +1260,6 @@ func _show_offline_report(r: Dictionary) -> void:
 		l.add_theme_font_override("font", UiTheme.mono())
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_label(box, "Expéditions terminées : %d" % r.expeditions, 22)
 	if not r.get("research_done", []).is_empty():
 		var rl := _label(box, "Recherches terminées : %s" % ", ".join(r.research_done), 21, UiTheme.GOOD)
 		rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
