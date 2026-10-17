@@ -39,3 +39,4 @@ google-services.json
 *.translation
 .mono/
 tools/godot/
+assets_src/
