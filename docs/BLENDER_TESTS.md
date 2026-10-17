@@ -32,4 +32,5 @@ KENNEY_GLB="<dossier GLTF format>" OUT=assets/kenney_r2/ python tools/blender/ba
 Script : `tools/blender/captain_astro.py` (source : `captain_astro.blend`, export : `assets/kenney_r2/captain_astro.glb`). Aperçu : `docs/style/captain_astroneer.png`.
 Méthode : soudure des sommets puis subdivision des pièces Kenney (look gonflé), casque sphérique + visière, sac dorsal arrondi avec antenne, bottes et gants ronds. Animations Walk, Idle et Shoot conservées.
 Pièges : les sommets non soudés de Kenney donnent des bulles à la subdivision (souder d'abord) ; le nœud racine du pack est décalé (2, -1.5) : le remettre à zéro avant l'export.
-Limites : mouvements rigides (sans squelette), casque trop gros à ajuster, couleurs non repassées dans `batch_r2.py`.
+Version finale : casque réduit (rayon 0,185 au lieu de 0,24), matières en palette R2 directement dans le script. Aperçu : `docs/style/captain_astroneer_r2.png`.
+Limites : mouvements rigides (sans squelette), blanc du costume un peu lavé.

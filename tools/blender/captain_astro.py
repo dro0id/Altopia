@@ -9,9 +9,9 @@ def mat(name, rgb, metal=0.2, rough=0.5, emit=None, ei=0):
     b.inputs["Base Color"].default_value=(*rgb,1); b.inputs["Metallic"].default_value=metal; b.inputs["Roughness"].default_value=rough
     if emit: b.inputs["Emission Color"].default_value=(*emit,1); b.inputs["Emission Strength"].default_value=ei
     return m
-SUIT=mat("suit_white",(0.45,0.52,0.64),0.1,0.55); JOINT=mat("suit_dark",(0.05,0.07,0.11),0.3,0.6)
-ACC=mat("accent_cyan",(0.02,0.25,0.32),0.3,0.35,(0.2,0.9,1.0),0.8); PACK=mat("pack_navy",(0.07,0.12,0.28),0.4,0.45)
-VIS=mat("visor_glass",(0.01,0.03,0.06),1.0,0.05,(0.05,0.35,0.55),0.5); GLOW=mat("glow_magenta",(0.3,0.03,0.25),0.2,0.3,(1.0,0.3,0.85),2.0)
+SUIT=mat("suit_steel",(0.42,0.5,0.62),0.25,0.5); JOINT=mat("suit_dark",(0.011,0.016,0.024),0.5,0.35,(0.2,0.9,1.0),0.12)
+ACC=mat("accent_cyan",(0.012,0.07,0.09),0.4,0.3,(0.2,0.9,1.0),0.7); PACK=mat("pack_navy",(0.07,0.09,0.13),0.8,0.45)
+VIS=mat("visor_glass",(0.01,0.025,0.04),0.9,0.08,(0.1,0.5,0.7),0.25); GLOW=mat("glow_magenta",(0.25,0.03,0.2),0.2,0.2,(1.0,0.3,0.85),0.9)
 
 def smooth(o, levels=2):
     bpy.context.view_layer.objects.active=o
@@ -32,13 +32,13 @@ def prim(kind,name,loc,scale,parent,m,**kw):
     from mathutils import Matrix, Vector
     o.parent=parent; o.matrix_world=P["astronautA"].matrix_world @ Matrix.LocRotScale(Vector(loc),None,Vector(scale)); o.data.materials.append(m); bpy.ops.object.shade_smooth(); return o
 head=P["head"]; head.hide_set(True); head.hide_render=True  # l'ancienne tête est remplacée
-helmet=prim("uv_sphere","helmet",(0,0.0,0.69),(0.24,0.24,0.24),P["body"],SUIT,segments=32,ring_count=20)
-visor=prim("uv_sphere","visor",(0,0.12,0.7),(0.19,0.16,0.15),P["body"],VIS,segments=32,ring_count=20)
-neck=prim("torus","neck_ring",(0,0,0.5),(0.12,0.12,0.12),P["body"],ACC,major_radius=1.0,minor_radius=0.25)
+helmet=prim("uv_sphere","helmet",(0,0.0,0.65),(0.185,0.185,0.185),P["body"],SUIT,segments=32,ring_count=20)
+visor=prim("uv_sphere","visor",(0,0.085,0.66),(0.145,0.13,0.11),P["body"],VIS,segments=32,ring_count=20)
+neck=prim("torus","neck_ring",(0,0,0.5),(0.1,0.1,0.1),P["body"],ACC,major_radius=1.0,minor_radius=0.25)
 pack=prim("cube","backpack",(0,-0.19,0.38),(0.16,0.09,0.17),P["body"],PACK); bv=pack.modifiers.new("bev","BEVEL"); bv.width=0.35; bv.segments=4; bv.limit_method='NONE'
 prim("cube","pack_panel",(0,-0.285,0.38),(0.1,0.01,0.1),P["body"],ACC)
 prim("cylinder","antenna",(0.09,-0.19,0.62),(0.012,0.012,0.1),P["body"],JOINT)
-prim("uv_sphere","antenna_tip",(0.09,-0.19,0.73),(0.03,0.03,0.03),P["body"],GLOW)
+prim("uv_sphere","antenna_tip",(0.09,-0.19,0.72),(0.028,0.028,0.028),P["body"],GLOW)
 prim("uv_sphere","pack_lamp",(-0.07,-0.285,0.46),(0.025,0.02,0.025),P["body"],GLOW)
 for s_,x in (("L",-0.075),("R",0.075)):
     prim("uv_sphere","boot"+s_,(x,0.02,0.045),(0.07,0.1,0.055),P["leg"+("Left" if s_=="L" else "Right")],ACC)
