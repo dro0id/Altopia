@@ -455,7 +455,12 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		var auto := CheckButton.new()
 		auto.text = "Relance automatique"
 		auto.add_theme_font_size_override("font_size", 22)
-		auto.toggled.connect(func(v: bool): GameState.set_auto(i, v))
+		auto.mouse_filter = Control.MOUSE_FILTER_PASS      # un glissement sur l'interrupteur fait défiler la page
+		auto.toggled.connect(func(v: bool):
+			if _dragged:
+				auto.set_pressed_no_signal(not v)
+			else:
+				GameState.set_auto(i, v))
 		card.add_child(auto)
 		var replay := _button(card, "Revoir le dernier combat", 62)
 		replay.add_theme_font_size_override("font_size", 21)
@@ -498,7 +503,12 @@ func _build_lab_page(page: VBoxContainer) -> void:
 	_lab_auto = CheckButton.new()
 	_lab_auto.text = "Recherche automatique (poste libre : la plus courte abordable)"
 	_lab_auto.add_theme_font_size_override("font_size", 19)
-	_lab_auto.toggled.connect(func(v: bool): GameState.set_research_auto(v))
+	_lab_auto.mouse_filter = Control.MOUSE_FILTER_PASS
+	_lab_auto.toggled.connect(func(v: bool):
+		if _dragged:
+			_lab_auto.set_pressed_no_signal(not v)
+		else:
+			GameState.set_research_auto(v))
 	page.add_child(_lab_auto)
 	for i in 3:
 		var card := _card(page)
