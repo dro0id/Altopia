@@ -29,3 +29,7 @@ La licence CC0 permet de modifier le pack. La retouche remplace les matières pa
 ## R2 avec le pack Kenney complet, version spatiale
 Aperçu : `docs/style/kenney_full_r2.png` (scène : `docs/style/kenney_full_r2_scene.html`).
 4 scènes : base lunaire, station orbitale, exploration, combat spatial. Une trentaine de modèles du pack (hangars, fusée, tourelles, antennes, couloirs, rover, vaisseaux, rochers, cristaux) en palette R2, avec de vraies textures de planètes en fond.
+
+## Altopack R2
+Nom du pack de personnages et d'engins retouchés du projet (base Kenney CC0, palette R2) : `assets/altopack_r2/` (modèles), `tools/blender/altopack_*.py` (scripts), `docs/style/altopack_*.png` (aperçus).
+Personnages : le Capitaine (acier clair, accents cyan), le Pilote (bleu, visière ambrée, ailerons), l'Ingénieur (orange, casque de chantier, ceinture, réservoirs) et le Scientifique (blanc et vert, antennes, parabole, bocal) ; ennemi : le golem.

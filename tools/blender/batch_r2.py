@@ -1,5 +1,5 @@
 import bpy, glob, os
-K=os.environ.get("KENNEY_GLB","/tmp/claude-0/kenney/sk/Models/GLTF format/"); OUT=os.environ.get("OUT","assets/kenney_r2/"); os.makedirs(OUT,exist_ok=True)
+K=os.environ.get("KENNEY_GLB","/tmp/claude-0/kenney/sk/Models/GLTF format/"); OUT=os.environ.get("OUT","assets/altopack_r2/"); os.makedirs(OUT,exist_ok=True)
 R2={"metal":((0.38,0.46,0.58),0.65,0.38,None,0),"metalDark":((0.07,0.09,0.13),0.8,0.45,None,0),"dark":((0.011,0.016,0.024),0.5,0.35,(0.2,0.9,1.0),0.12),
 "metalRed":((0.012,0.07,0.09),0.4,0.3,(0.2,0.9,1.0),0.7),"skin":((0.01,0.025,0.04),0.9,0.08,(0.1,0.5,0.7),0.25),"crystal":((0.25,0.03,0.2),0.2,0.2,(1.0,0.3,0.85),0.9),
 "rock":((0.09,0.1,0.15),0.1,0.95,None,0),"rockDark":((0.03,0.035,0.06),0.1,0.95,None,0),"rockTrack":((0.1,0.11,0.17),0.1,0.95,None,0),"bone":((0.45,0.48,0.55),0.1,0.8,None,0),"_defaultMat":((0.38,0.46,0.58),0.6,0.4,None,0)}

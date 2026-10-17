@@ -12,10 +12,10 @@ func _tint(n: Node, suit: Color, accent_tint: Color, mix: float) -> void:
 			if src == null:
 				continue
 			var mat := src.duplicate() as StandardMaterial3D
-			if mat.resource_name == "suit_steel":
-				mat.albedo_color = Color(0.42, 0.5, 0.62).lerp(suit, mix)
+			if mat.resource_name == "suit_steel" and mix > 0.0:
+				mat.albedo_color = mat.albedo_color.lerp(suit, mix)
 			elif mat.resource_name == "accent_cyan" or mat.resource_name == "enemy_body":
-				mat.emission = mat.emission.lerp(accent_tint, 0.5)
+				mat.emission = mat.emission.lerp(accent_tint, 0.22)
 			m.set_surface_override_material(i, mat)
 
 
@@ -66,7 +66,7 @@ func _initialize() -> void:
 		var idx: int = Data.HERO_ORDER.find(id)
 		var suit: Color = Data.LOOK_SUITS[idx % Data.LOOK_SUITS.size()]
 		var tint: Color = Data.RARITY[h.rarity].color
-		await _shot("crew_" + h["class"], id, PI - 0.45, suit, tint, 0.2)
+		await _shot("crew_" + h["class"], id, PI - 0.45, suit, tint, 0.0)
 	await _shot("captain", "captain", PI - 0.45, Data.LOOK_SUITS[0], Color(0.2, 0.9, 1.0), 0.0)
 	var kinds := {"asteroids": Color(0.55, 0.45, 0.4), "star": Color(1.0, 0.6, 0.2), "planet": Color(0.3, 0.9, 0.5)}
 	for k in kinds:

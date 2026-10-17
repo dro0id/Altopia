@@ -1,9 +1,5 @@
 import bpy, math, os
-import os
-from mathutils import Matrix, Vector, Euler
-K=os.environ.get("KENNEY_GLB","/tmp/claude-0/kenney/sk/Models/GLTF format/"); OUT=os.environ.get("OUT","./"); VARIANT=os.environ.get("VARIANT","captain")
-ACCS={"captain":(0.2,0.9,1.0),"pilot":(0.15,0.55,1.0),"engineer":(1.0,0.55,0.1),"scientist":(0.72,0.3,1.0)}
-AC=ACCS[VARIANT]
+K=os.environ.get("KENNEY_GLB","/tmp/claude-0/kenney/sk/Models/GLTF format/"); OUT=os.environ.get("OUT","./")
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=K+"astronautA.glb")
 P={o.name:o for o in bpy.data.objects}
@@ -14,7 +10,7 @@ def mat(name, rgb, metal=0.2, rough=0.5, emit=None, ei=0):
     if emit: b.inputs["Emission Color"].default_value=(*emit,1); b.inputs["Emission Strength"].default_value=ei
     return m
 SUIT=mat("suit_steel",(0.42,0.5,0.62),0.25,0.5); JOINT=mat("suit_dark",(0.011,0.016,0.024),0.5,0.35,(0.2,0.9,1.0),0.12)
-ACC=mat("accent_cyan",(AC[0]*0.06,AC[1]*0.08,AC[2]*0.09),0.4,0.3,AC,0.7); PACK=mat("pack_navy",(0.07,0.09,0.13),0.8,0.45)
+ACC=mat("accent_cyan",(0.012,0.07,0.09),0.4,0.3,(0.2,0.9,1.0),0.7); PACK=mat("pack_navy",(0.07,0.09,0.13),0.8,0.45)
 VIS=mat("visor_glass",(0.01,0.025,0.04),0.9,0.08,(0.1,0.5,0.7),0.25); GLOW=mat("glow_magenta",(0.25,0.03,0.2),0.2,0.2,(1.0,0.3,0.85),0.9)
 
 def smooth(o, levels=2):
@@ -33,7 +29,7 @@ for n,mats in (("body",[SUIT,SUIT,ACC]),("armLeft",[SUIT,SUIT,SUIT]),("armRight"
 # 2) gros casque sphérique + visière + joint de cou
 def prim(kind,name,loc,scale,parent,m,**kw):
     getattr(bpy.ops.mesh,f"primitive_{kind}_add")(location=loc,**kw); o=bpy.context.active_object; o.name=name
-    from mathutils import Matrix, Vector, Euler
+    from mathutils import Matrix, Vector
     o.parent=parent; o.matrix_world=P["astronautA"].matrix_world @ Matrix.LocRotScale(Vector(loc),None,Vector(scale)); o.data.materials.append(m); bpy.ops.object.shade_smooth(); return o
 head=P["head"]; head.hide_set(True); head.hide_render=True  # l'ancienne tête est remplacée
 helmet=prim("uv_sphere","helmet",(0,0.0,0.65),(0.185,0.185,0.185),P["body"],SUIT,segments=32,ring_count=20)
@@ -48,20 +44,6 @@ for s_,x in (("L",-0.075),("R",0.075)):
     prim("uv_sphere","boot"+s_,(x,0.02,0.045),(0.07,0.1,0.055),P["leg"+("Left" if s_=="L" else "Right")],ACC)
 for s_,x in (("L",-0.186),("R",0.186)):
     prim("uv_sphere","glove"+s_,(x,0.0,0.16),(0.065,0.065,0.065),P["arm"+("Left" if s_=="L" else "Right")],JOINT)
-
-
-if VARIANT=="pilot":
-    for sx in (-1,1):
-        f=prim("cube","fin",(sx*0.14,-0.27,0.46),(0.012,0.1,0.11),P["body"],ACC); f.rotation_euler=(0,sx*0.5,0)
-        f.matrix_world=P["astronautA"].matrix_world @ Matrix.LocRotScale(Vector((sx*0.14,-0.27,0.46)),Euler((0,sx*0.5,0)),Vector((0.012,0.1,0.11)))
-elif VARIANT=="engineer":
-    for sx in (-1,1):
-        prim("cylinder","tank",(sx*0.14,-0.25,0.3),(0.04,0.04,0.11),P["body"],ACC)
-    prim("cube","helmet_lamp",(0,0.12,0.84),(0.04,0.04,0.025),P["body"],GLOW)
-elif VARIANT=="scientist":
-    d=prim("cone","dish",(0,-0.3,0.55),(0.1,0.1,0.05),P["body"],ACC)
-    d.matrix_world=P["astronautA"].matrix_world @ Matrix.LocRotScale(Vector((0,-0.3,0.55)),Euler((math.radians(90),0,0)),Vector((0.1,0.1,0.05)))
-    prim("uv_sphere","sensor",(0.1,0,0.84),(0.035,0.035,0.035),P["body"],GLOW)
 
 # 5) animation : mêmes clips que le capitaine V1 (pivots épaules/hanches)
 def pivot(o,z):
@@ -94,6 +76,6 @@ for nm,fn in (("Walk",walk),("Idle",idle),("Shoot",shoot)):
         fc=[fc for l in act.layers for st in l.strips for cb in st.channelbags for fc in cb.fcurves]
         if not fc: bpy.data.actions.remove(act); continue
         tr=o.animation_data.nla_tracks.new(); tr.name=nm; tr.strips.new(nm,1,act)
-bpy.ops.export_scene.gltf(filepath=OUT+("captain_astro.glb" if VARIANT=="captain" else f"crew_{VARIANT}.glb"), export_format='GLB', export_animation_mode='NLA_TRACKS', export_apply=True, use_visible=True)
-bpy.ops.wm.save_as_mainfile(filepath=OUT+("captain_astro.blend" if VARIANT=="captain" else f"crew_{VARIANT}.blend"))
+bpy.ops.export_scene.gltf(filepath=OUT+"captain.glb", export_format='GLB', export_animation_mode='NLA_TRACKS', export_apply=True, use_visible=True)
+bpy.ops.wm.save_as_mainfile(filepath=OUT+"altopack_captain.blend")
 print("ASTRO OK", sorted(o.name for o in bpy.data.objects if o.type=="MESH"))

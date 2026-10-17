@@ -12,14 +12,14 @@ Blender 5.2 (module Python `bpy`) a été utilisé en ligne de commande. Résult
 | Rendu des modèles réexportés | OK (`docs/style/blender_r2_scene.png`) |
 
 ## Fichiers
-- `tools/blender/captain.py` : crée le capitaine animé (`assets/kenney_r2/captain_anime.glb`), `captain.blend` en est la source.
+- `tools/blender/captain.py` : crée le capitaine animé (`assets/altopack_r2/captain_anime.glb`), `captain.blend` en est la source.
 - `tools/blender/batch_r2.py` : recolore tout le pack en palette R2.
-- `assets/kenney_r2/` : modèles recolorés (ignorés par Godot grâce à `.gdignore` jusqu'à adoption).
+- `assets/altopack_r2/` : modèles recolorés (ignorés par Godot grâce à `.gdignore` jusqu'à adoption).
 
 ## Reproduire
 ```
 pip install bpy
-KENNEY_GLB="<dossier GLTF format>" OUT=assets/kenney_r2/ python tools/blender/batch_r2.py
+KENNEY_GLB="<dossier GLTF format>" OUT=assets/altopack_r2/ python tools/blender/batch_r2.py
 ```
 
 ## Pièges rencontrés
@@ -28,14 +28,14 @@ KENNEY_GLB="<dossier GLTF format>" OUT=assets/kenney_r2/ python tools/blender/ba
 - L'avant d'un modèle glTF est +Y dans Blender.
 - Le capitaine animé garde les couleurs d'origine du pack (construit avant la recoloration) : à repasser dans `batch_r2.py`.
 
-## Test : capitaine style Astroneer
-Script : `tools/blender/captain_astro.py` (source : `captain_astro.blend`, export : `assets/kenney_r2/captain_astro.glb`). Aperçu : `docs/style/captain_astroneer.png`.
+## Altopack R2 : capitaine
+Script : `tools/blender/altopack_captain.py` (source : `altopack_captain.blend`, export : `assets/altopack_r2/captain.glb`). Aperçu : `docs/style/altopack_captain.png`.
 Méthode : soudure des sommets puis subdivision des pièces Kenney (look gonflé), casque sphérique + visière, sac dorsal arrondi avec antenne, bottes et gants ronds. Animations Walk, Idle et Shoot conservées.
 Pièges : les sommets non soudés de Kenney donnent des bulles à la subdivision (souder d'abord) ; le nœud racine du pack est décalé (2, -1.5) : le remettre à zéro avant l'export.
-Version finale : casque réduit (rayon 0,185 au lieu de 0,24), matières en palette R2 directement dans le script. Aperçu : `docs/style/captain_astroneer_r2.png`.
+Version finale : casque réduit (rayon 0,185 au lieu de 0,24), matières en palette R2 directement dans le script. Aperçu : `docs/style/altopack_captain_r2.png`.
 Limites : mouvements rigides (sans squelette), blanc du costume un peu lavé.
 
 ## Équipage et ennemi (boucle de jeu)
-- `tools/blender/characters.py` (variable `VARIANT` = pilot, engineer, scientist, captain) : même base Astroneer, accent et accessoires par classe (ailerons du Pilote, réservoirs et lampe de l'Ingénieur, parabole et capteur du Scientifique).
-- `tools/blender/enemy.py` : golem (alien Kenney arrondi, matières rouge et magenta).
+- `tools/blender/altopack_crew.py` (variable `VARIANT` = pilot, engineer, scientist, captain) : base Altopack R2, couleur de costume, visière et accessoires propres à chaque classe (Pilote : ailerons, oreillettes, bande frontale ; Ingénieur : casque de chantier, ceinture, réservoirs ; Scientifique : antennes, parabole, écran, bocal).
+- `tools/blender/altopack_enemy.py` : golem (alien Kenney arrondi, matières rouge et magenta).
 - `tools/render_portraits.gd` : génère `assets/portraits/*.png` (9 équipiers, capitaine, 3 ennemis) depuis les modèles ; `scripts/chibi.gd` les affiche (cartes d'équipage, postes, combat) et retombe sur l'ancien dessin si un portrait manque.
