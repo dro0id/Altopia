@@ -93,6 +93,16 @@ func _initialize() -> void:
 		bv.advance(0.05)
 	_advance(bv, 0.4)      # juste après le dernier coup : le bandeau de résultat s'affiche
 	await _shot_tab(main, "exp", out_dir + "/shot_battle_late.png")
+	gs.research_levels["calibrage"] = 7
+	gs.research_levels["cartographie"] = 4
+	gs.add_res("credits", 2.0e6)
+	gs.add_res("data", 5.0e5)
+	gs.add_res("minerals", 1.0e5)
+	gs.start_research("academie_capitaine")
+	gs.start_research("protocoles")
+	gs.tick(3000.0)
+	await _shot_tab(main, "lab", out_dir + "/shot_lab.png")
+	await _shot_tab(main, "lab", out_dir + "/shot_lab_list.png", 700)
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
 	await _shot_tab(main, "ship", out_dir + "/shot_ship_end.png", 900)
 	gs.captain.level = 5

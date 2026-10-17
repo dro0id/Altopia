@@ -38,7 +38,8 @@ const STARTER_HEROES := ["rex", "bolt"]
 
 ## --- Capitaine (le joueur) ---
 const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
-const CAPTAIN_MAX_LEVEL := 50
+const CAPTAIN_MAX_LEVEL := 100   # plafond absolu ; le plafond du moment se relève au Labo
+const CAPTAIN_BASE_CAP := 30
 const CAPTAIN_LEVEL_BONUS := 0.15
 const CAPTAIN_TRAIN_BASE := 40.0
 const CAPTAIN_TRAIN_GROWTH := 1.35
@@ -112,16 +113,17 @@ const CREW_PROD := {
 	"scientist": {"data": 15.0, "credits": 100.0},
 }
 const OFFLINE_BASE_EFFICIENCY := 0.5      # rendement hors ligne de départ
-const OFFLINE_EFF_PER_LEVEL := 0.02       # +2 % par niveau d'équipier placé
-const OFFLINE_EFF_MAX := 1.2
+const OFFLINE_EFF_PER_LEVEL := 0.003      # +0,3 % par niveau d'équipier placé
+const OFFLINE_EFF_MAX := 1.5
 const OFFLINE_BASE_HOURS := 4.0           # durée hors ligne comptabilisée
-const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.25
+const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.1
 const OFFLINE_MAX_HOURS := 24.0
 const OFFLINE_BULK_MIN := 40             # au-delà, les expéditions hors ligne sont regroupées
 const OFFLINE_BULK_CHUNK := 25
 
 const SQUAD_SIZE := 3
-const MAX_LEVEL := 40
+const MAX_LEVEL := 80            # plafond absolu des cartes
+const CREW_BASE_CAP := 25
 const MAX_STARS := 5
 const LEVEL_BONUS := 0.15        # +15 % de stats par niveau
 const STAR_BONUS := 0.20         # +20 % de stats par étoile (doublon)
@@ -197,11 +199,11 @@ const GOALS := [
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
-const ROLE_GAIN := 0.15          # +15 % de gains par niveau du rôle requis
+const ROLE_GAIN := 0.15          # gains : +15 % par « niveau effectif » du rôle requis (voir role_scale)
 const ROLE_SPEED := 0.015        # -1,5 % de durée par niveau du rôle requis
 const UPGRADE_GAIN := 0.25
 const ENGINE_SPEED := 0.05
-const MIN_DURATION := 5.0         # durée minimale d'une expédition (secondes)
+const MIN_DURATION_RATIO := 0.4   # une expédition dure au moins 40 % de sa durée de base
 const START_CREDITS := 100.0
 const BASE_DATA_RATE := 0.1      # données/s des capteurs de bord, même sans Scientifique
 const MAX_SLOTS := 2
@@ -212,6 +214,11 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 	var h: Dictionary = HEROES[id]
 	var m: float = (1.0 + LEVEL_BONUS * (level - 1)) * (1.0 + STAR_BONUS * stars)
 	return {"hp": h.hp * m, "atk": h.atk * m, "def": h.def * m, "spd": h.spd}
+
+
+## L'XP d'une victoire grandit avec le niveau des ennemis (sinon les hauts niveaux seraient infinis).
+static func xp_level_scale(enemy_level: int) -> float:
+	return 1.0 + 0.12 * float(enemy_level - 1)
 
 
 static func xp_needed(level: int) -> int:
@@ -245,3 +252,100 @@ static func fmt_amounts(d: Dictionary) -> String:
 		if d.has(id) and d[id] > 0.0:
 			parts.append("+%s %s" % [fmt(d[id]), String(RES_NAMES[id]).to_lower()])
 	return "  ".join(parts)
+
+
+## --- Laboratoire : recherches en temps réel (c'est elles qui font durer le jeu) ---
+## Règles : toujours une recherche courte disponible, plusieurs recherches en parallèle, tout se termine
+## même hors ligne, une file d'attente payée d'avance, annulation remboursée.
+const RESEARCH_BASE_SLOTS := 1
+const RESEARCH_QUEUE_MAX := 3
+## Accélération : retire 25 % de la durée totale d'une recherche, 2 fois au plus (le rythme reste prévisible).
+const RESEARCH_BOOST_FRACTION := 0.25
+const RESEARCH_BOOST_MAX := 2
+const RESEARCH_BOOST_ENERGY_BASE := 20.0      # énergie par minute retirée, + la même chose par niveau de recherche accompli
+const RESEARCH_BOOST_ENERGY_PER_LEVEL := 4.0
+const RESEARCH_CANCEL_REFUND := 0.7           # part remboursée d'une recherche en cours qu'on annule
+const RESEARCH_SPEED_MIN := 0.4               # les durées ne descendent pas sous 40 %
+
+## Pour chaque ressource et pour la durée : [valeur au niveau 1, valeur au dernier niveau] (progression géométrique).
+const RESEARCH_ORDER := ["calibrage", "cartographie", "entrainement", "propulsion", "protocoles", "soute", "butin",
+	"labo_vitesse", "labo_annexe", "academie_capitaine", "academie_equipage",
+	"calibrage_ii", "cartographie_ii", "entrainement_ii", "propulsion_ii", "butin_ii",
+	"calibrage_iii", "cartographie_iii", "entrainement_iii", "propulsion_iii", "butin_iii"]
+const RESEARCH := {
+	"calibrage": {"name": "Calibrage des systèmes", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
+		"effect": {"key": "prod_pct", "per": 2.0, "unit": "% de production"},
+		"cost": {"credits": [150.0, 400000.0]}, "time": [30.0, 172800.0], "requires": {}},
+	"cartographie": {"name": "Cartographie stellaire", "icon": "exp", "color": Color(0.5, 0.95, 1.0), "max": 20,
+		"effect": {"key": "reward_pct", "per": 3.0, "unit": "% de gains d'expédition"},
+		"cost": {"data": [15.0, 6000000.0]}, "time": [60.0, 691200.0], "requires": {}},
+	"entrainement": {"name": "Entraînement accéléré", "icon": "captain", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "xp_pct", "per": 4.0, "unit": "% d'XP gagnée"},
+		"cost": {"credits": [120.0, 150000.0], "data": [10.0, 3000000.0]}, "time": [240.0, 518400.0], "requires": {}},
+	"propulsion": {"name": "Propulsion ionique", "icon": "ship", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "speed_pct", "per": 3.0, "unit": "% de vitesse d'expédition"},
+		"cost": {"energy": [12.0, 3000000.0]}, "time": [120.0, 864000.0], "requires": {"calibrage": 3}},
+	"protocoles": {"name": "Protocoles de récupération", "icon": "data", "color": Color(0.75, 0.55, 1.0), "max": 15,
+		"effect": {"key": "offline_eff", "per": 2.0, "unit": " pts de rendement hors ligne"},
+		"cost": {"data": [25.0, 9000000.0], "credits": [100.0, 200000.0]}, "time": [300.0, 1209600.0], "requires": {"calibrage": 4}},
+	"soute": {"name": "Soute étendue", "icon": "chest", "color": Color(0.8, 0.7, 0.62), "max": 20,
+		"effect": {"key": "offline_hours", "per": 1.0, "unit": " h de coffre hors ligne"},
+		"cost": {"minerals": [20.0, 7500000.0]}, "time": [600.0, 1555200.0], "requires": {"protocoles": 2}},
+	"butin": {"name": "Détecteur de butin", "icon": "star", "color": Color(1.0, 0.61, 0.93), "max": 10,
+		"effect": {"key": "loot_pct", "per": 3.0, "unit": "% de chance de butin"},
+		"cost": {"minerals": [30.0, 4500000.0], "energy": [15.0, 2250000.0]}, "time": [900.0, 1036800.0], "requires": {"cartographie": 3}},
+	"labo_vitesse": {"name": "Automatisation du labo", "icon": "hourglass", "color": Color(0.5, 0.95, 1.0), "max": 10,
+		"effect": {"key": "research_speed", "per": 3.0, "unit": "% de durée des recherches en moins"},
+		"cost": {"data": [40.0, 12000000.0], "energy": [20.0, 6000000.0]}, "time": [1800.0, 1728000.0], "requires": {"calibrage": 8}},
+	"labo_annexe": {"name": "Laboratoire annexe", "icon": "scientist", "color": Color(0.5, 1.0, 0.6), "max": 2,
+		"effect": {"key": "research_slots", "per": 1.0, "unit": " poste de recherche en plus"},
+		"cost": {"credits": [20000.0, 2000000.0], "minerals": [200.0, 4500000.0]}, "time": [14400.0, 518400.0], "requires": {"calibrage": 6, "cartographie": 4}},
+	"academie_capitaine": {"name": "Académie des capitaines", "icon": "book", "color": Color(0.35, 0.85, 1.0), "max": 7,
+		"effect": {"key": "cap_captain", "per": 10.0, "unit": " niveaux de plafond du Capitaine"},
+		"cost": {"credits": [5000.0, 60000000.0], "data": [200.0, 12000000.0]}, "time": [21600.0, 1728000.0], "requires": {"calibrage": 3}},
+	"academie_equipage": {"name": "Académie de l'équipage", "icon": "book", "color": Color(1.0, 0.65, 0.3), "max": 5,
+		"effect": {"key": "cap_crew", "per": 11.0, "unit": " niveaux de plafond de l'équipage"},
+		"cost": {"credits": [4000.0, 30000000.0], "minerals": [100.0, 6000000.0]}, "time": [43200.0, 1296000.0], "requires": {"calibrage": 3}},
+	"calibrage_ii": {"name": "Calibrage des systèmes II", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
+		"effect": {"key": "prod_pct", "per": 3.0, "unit": "% de production"},
+		"cost": {"credits": [100000.0, 2400000.0]}, "time": [17280.0, 345600.0], "requires": {"calibrage": 25}},
+	"calibrage_iii": {"name": "Calibrage des systèmes III", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
+		"effect": {"key": "prod_pct", "per": 4.0, "unit": "% de production"},
+		"cost": {"credits": [600000.0, 12000000.0]}, "time": [34560.0, 518400.0], "requires": {"calibrage_ii": 25}},
+	"cartographie_ii": {"name": "Cartographie stellaire II", "icon": "exp", "color": Color(0.5, 0.95, 1.0), "max": 20,
+		"effect": {"key": "reward_pct", "per": 4.5, "unit": "% de gains d'expédition"},
+		"cost": {"data": [1500000.0, 36000000.0]}, "time": [69120.0, 1382400.0], "requires": {"cartographie": 20}},
+	"cartographie_iii": {"name": "Cartographie stellaire III", "icon": "exp", "color": Color(0.5, 0.95, 1.0), "max": 20,
+		"effect": {"key": "reward_pct", "per": 6.0, "unit": "% de gains d'expédition"},
+		"cost": {"data": [9000000.0, 180000000.0]}, "time": [138240.0, 2073600.0], "requires": {"cartographie_ii": 20}},
+	"entrainement_ii": {"name": "Entraînement accéléré II", "icon": "captain", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "xp_pct", "per": 6.0, "unit": "% d'XP gagnée"},
+		"cost": {"credits": [37500.0, 900000.0], "data": [750000.0, 18000000.0]}, "time": [51840.0, 1036800.0], "requires": {"entrainement": 15}},
+	"entrainement_iii": {"name": "Entraînement accéléré III", "icon": "captain", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "xp_pct", "per": 8.0, "unit": "% d'XP gagnée"},
+		"cost": {"credits": [225000.0, 4500000.0], "data": [4500000.0, 90000000.0]}, "time": [103680.0, 1555200.0], "requires": {"entrainement_ii": 15}},
+	"propulsion_ii": {"name": "Propulsion ionique II", "icon": "ship", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "speed_pct", "per": 4.5, "unit": "% de vitesse d'expédition"},
+		"cost": {"energy": [750000.0, 18000000.0]}, "time": [86400.0, 1728000.0], "requires": {"propulsion": 15}},
+	"propulsion_iii": {"name": "Propulsion ionique III", "icon": "ship", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "speed_pct", "per": 6.0, "unit": "% de vitesse d'expédition"},
+		"cost": {"energy": [4500000.0, 90000000.0]}, "time": [172800.0, 2592000.0], "requires": {"propulsion_ii": 15}},
+	"butin_ii": {"name": "Détecteur de butin II", "icon": "star", "color": Color(1.0, 0.61, 0.93), "max": 10,
+		"effect": {"key": "loot_pct", "per": 4.5, "unit": "% de chance de butin"},
+		"cost": {"minerals": [1125000.0, 27000000.0], "energy": [562500.0, 13500000.0]}, "time": [103680.0, 2073600.0], "requires": {"butin": 10}},
+	"butin_iii": {"name": "Détecteur de butin III", "icon": "star", "color": Color(1.0, 0.61, 0.93), "max": 10,
+		"effect": {"key": "loot_pct", "per": 6.0, "unit": "% de chance de butin"},
+		"cost": {"minerals": [6750000.0, 135000000.0], "energy": [3375000.0, 67500000.0]}, "time": [207360.0, 3110400.0], "requires": {"butin_ii": 10}},
+}
+
+
+## Niveau effectif d'un rôle : croît moins vite que la somme des niveaux (sinon les hauts niveaux explosent).
+static func role_scale(level: int) -> float:
+	return pow(float(level), 0.7)
+
+
+## Interpolation géométrique entre le niveau 1 et le dernier niveau (lvl = niveau déjà atteint, 0 = premier).
+static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
+	if max_lvl <= 1:
+		return range_[0]
+	return range_[0] * pow(range_[1] / range_[0], float(lvl) / float(max_lvl - 1))

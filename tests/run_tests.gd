@@ -553,3 +553,81 @@ func test_enemy_level_is_capped() -> void:
 	_gs.new_game()
 	_gs.dest_wins["asteroids"] = 1000000
 	_check(_gs.enemy_level("asteroids") == Data.ENEMY_LEVEL_MAX, "niveau des ennemis plafonné")
+
+
+func test_research_start_queue_and_cancel() -> void:
+	_gs.new_game()
+	_give({"credits": 100000.0, "data": 1000.0, "minerals": 1000.0, "energy": 1000.0})
+	var c0: float = _gs.res["credits"]
+	_check(_gs.start_research("calibrage"), "recherche lancée")
+	_check(_gs.res["credits"] < c0, "coût payé d'avance")
+	_check(_gs.research_active.size() == 1, "une recherche en cours")
+	_check(not _gs.start_research("calibrage"), "pas deux fois la même en même temps")
+	_check(_gs.start_research("cartographie") and _gs.research_queue.has("cartographie"), "2e recherche mise en file (1 seul poste)")
+	var d0: float = _gs.res["data"]
+	_check(_gs.cancel_research("cartographie") and _gs.res["data"] > d0 and _gs.research_queue.is_empty(), "annulation de la file : remboursée en entier")
+	_check(_gs.research_block_reason("propulsion") != "", "prérequis : Calibrage niv. 3")
+
+
+func test_research_completes_and_applies() -> void:
+	_gs.new_game()
+	_give({"credits": 1.0e6})
+	var p0: float = _gs.production_per_sec().data
+	_check(_gs.start_research("calibrage"), "lancée")
+	_gs.tick(Data.research_curve(Data.RESEARCH.calibrage.time, 0, 25) + 1.0)
+	_check(_gs.research_level("calibrage") == 1 and _gs.research_active.is_empty(), "terminée en temps réel")
+	_check(_gs.production_per_sec().data > p0, "l'effet s'applique (production)")
+
+
+func test_research_offline_runs_to_the_end() -> void:
+	_gs.new_game()
+	_give({"credits": 1.0e7, "data": 1.0e5, "minerals": 1.0e5})
+	# trois recherches enchaînées, durées cumulées bien supérieures au plafond hors ligne (4 h)
+	for id in ["academie_capitaine"]:
+		_gs.research_levels["calibrage"] = 3
+		_check(_gs.start_research(id), "académie lancée")
+	var total: float = _gs.research_active[0].remaining
+	_gs.simulate_offline(total + 10.0)
+	_check(_gs.research_level("academie_capitaine") == 1, "terminée hors ligne même au-delà du plafond de coffre")
+	_check(_gs.captain_cap() == Data.CAPTAIN_BASE_CAP + 10, "plafond du Capitaine relevé")
+
+
+func test_level_cap_banks_xp_then_levels_up() -> void:
+	_gs.new_game()
+	_gs.captain.level = Data.CAPTAIN_BASE_CAP
+	_gs.captain.xp = 0
+	_gs.gain_captain_xp(Data.xp_needed(Data.CAPTAIN_BASE_CAP) * 3)
+	_check(_gs.captain.level == Data.CAPTAIN_BASE_CAP, "plafond : pas de niveau en plus")
+	_check(_gs.captain.xp == Data.xp_needed(Data.CAPTAIN_BASE_CAP), "l'XP est mise de côté (un niveau)")
+	_check(not _gs.train_captain(), "entraînement refusé au plafond")
+	_gs.research_levels["academie_capitaine"] = 1
+	_gs._on_research_completed()
+	_check(_gs.captain.level == Data.CAPTAIN_BASE_CAP + 1, "le plafond monte : le niveau tombe tout de suite")
+
+
+func test_research_boost_costs_energy_and_is_limited() -> void:
+	_gs.new_game()
+	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4})
+	_gs.research_levels["calibrage"] = 3
+	_check(_gs.start_research("academie_capitaine"), "lancée")
+	var total: float = _gs.research_active[0].total
+	_check(not _gs.boost_research("academie_capitaine"), "pas assez d'énergie")
+	_give({"energy": 1.0e9})
+	_check(_gs.boost_research("academie_capitaine"), "1re accélération")
+	_check(is_equal_approx(_gs.research_active[0].remaining, total * 0.75), "−25 % de la durée totale")
+	_check(_gs.boost_research("academie_capitaine"), "2e accélération")
+	_check(not _gs.boost_research("academie_capitaine") and _gs.research_level("academie_capitaine") == 0, "3e refusée : la recherche n'est pas terminée d'un coup")
+
+
+func test_research_save_load() -> void:
+	_gs.save_path = "user://test_research.json"
+	_gs.new_game()
+	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4})
+	_gs.research_levels["calibrage"] = 4
+	_check(_gs.start_research("academie_equipage"), "lancée")
+	_gs.save_game()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement")
+	_check(_gs.research_level("calibrage") == 4 and _gs.research_active.size() == 1 and _gs.research_active[0].id == "academie_equipage", "recherches restaurées")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_research.json"))
+	_gs.save_path = _gs.SAVE_PATH

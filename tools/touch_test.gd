@@ -99,6 +99,7 @@ func _initialize() -> void:
 		failures += 1
 	await _check_scroll(main, "exp", Vector2(360, 1060), "exp depuis un bouton")
 	await _check_scroll(main, "ship", Vector2(360, 700), "ship depuis une carte")
+	await _check_scroll(main, "lab", Vector2(360, 760), "labo depuis un bouton de recherche")
 	# Un simple tap (sans glisser) doit toujours déclencher le bouton.
 	main._show_tab("crew")
 	await process_frame

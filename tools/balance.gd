@@ -1,67 +1,117 @@
 extends SceneTree
-## Simulation d'équilibrage : un joueur « robot » suit un planning (sessions courtes + absences)
-## et dépense au mieux ses ressources. Affiche des points de contrôle.
-##   godot --headless --path . -s tools/balance.gd -- [jours]
+## Simulation d'équilibrage : un joueur « robot » suit un planning de sessions (avec des absences entre),
+## lance les recherches et dépense au mieux. Il sert à vérifier la durée du jeu et l'absence de frustration.
+##   godot --headless --path . -s tools/balance.gd -- <profil> [jours]
+## Profils : casual (1 session de 5 min/jour), regular (3 x 8 min), hardcore (6 x 10 min), evening (1 x 15 min le soir).
 const Data = preload("res://scripts/game_data.gd")
+const PROFILES := {
+	"casual": [[8.0, 5.0]],
+	"evening": [[21.0, 15.0]],
+	"regular": [[8.0, 8.0], [12.5, 8.0], [19.0, 8.0]],
+	"hardcore": [[7.0, 10.0], [10.0, 10.0], [13.0, 10.0], [16.0, 10.0], [19.0, 10.0], [22.0, 10.0]],
+}
+const CHECK_DAYS := [1, 3, 7, 14, 21, 30, 45, 60, 75, 90, 120]
+const RESEARCH_PRIORITY := ["labo_annexe", "academie_capitaine", "academie_equipage", "labo_vitesse", "calibrage",
+	"protocoles", "soute", "entrainement", "cartographie", "propulsion", "butin",
+	"calibrage_ii", "entrainement_ii", "cartographie_ii", "propulsion_ii", "butin_ii",
+	"calibrage_iii", "entrainement_iii", "cartographie_iii", "propulsion_iii", "butin_iii"]
 var gs: Node
+var _last_sig := 0
+var _no_progress_run := 0
+var _worst_no_progress := 0
+var _sessions := 0
+var _sessions_with_progress := 0
+var _recent: Array = []     # progrès des dernières sessions (1/0)
+var _cap_log: Array = []    # jours où un plafond de niveau a monté
+var _last_caps := Vector2i.ZERO
+var _day := 0
+var _last_progress_day := 0
+var _worst_gap_days := 0
+
 
 func _initialize() -> void:
 	await process_frame
 	gs = root.get_node("GameState")
 	gs.save_path = "user://balance_test.json"
-	var days := 7
 	var args := OS.get_cmdline_user_args()
-	if args.size() > 0:
-		days = int(args[0])
+	var profile := args[0] if args.size() > 0 else "regular"
+	var days := int(args[1]) if args.size() > 1 else 60
 	gs.new_game()
 	gs.rng.seed = 12345
-	var checkpoints := [4.6, 8.0, 16.0, 24.0, 36.0, 48.0, 60.0, 72.0, 168.0, 336.0]
-	var next_cp := 0
-	var t := 0.0                       # heures écoulées depuis la première session
-	var started := true
-	print("  heure | capitaine | équipage(niv.) | postes | vaisseau | crédits/h (en ligne) | données | objectifs | exp.")
-	# planning quotidien : 3 sessions de 8 min (matin, midi, soir) ; le reste du temps, absent
-	var sessions := [[0.0, 0.13], [4.5, 0.13], [11.0, 0.13]]
-	while t < days * 24.0:
-		var day_t := fmod(t, 24.0)
-		var nxt := 24.0
-		var length := 0.0
+	var sessions: Array = PROFILES[profile]
+	print("Profil : %s, %d jours" % [profile, days])
+	print(" jour | capitaine (plafond) | équipage niv./plafond | recherches | vaisseau | postes | crédits/h | données | obj. | sessions avec progrès (14 derniers) | pire série sans progrès")
+	var clock := 0.0                       # secondes depuis le début
+	var cp := 0
+	for day in days:
 		for s in sessions:
-			if s[0] >= day_t - 0.0001:
-				nxt = s[0]
-				length = s[1]
-				break
-		if nxt > day_t + 0.0001 and not started:
-			t += nxt - day_t        # le joueur commence à sa première session
-			started = true
-		elif nxt > day_t + 0.0001:
-			_away((nxt - day_t) * 3600.0)
-			t += nxt - day_t
-		else:
-			_session(length * 3600.0)
-			t += length
-			if length == 0.0:
-				t += 0.01
-		while next_cp < checkpoints.size() and t >= checkpoints[next_cp]:
-			_report(checkpoints[next_cp])
-			next_cp += 1
+			var start: float = day * 86400.0 + float(s[0]) * 3600.0
+			if start > clock:
+				var away: float = start - clock
+				if away > 60.0:
+					gs.simulate_offline(away)
+				else:
+					gs.tick(away)
+				clock = start
+			_play(float(s[1]) * 60.0)
+			clock += float(s[1]) * 60.0
+			_day = day + 1
+			_track()
+		if cp < CHECK_DAYS.size() and day + 1 == CHECK_DAYS[cp]:
+			_report(day + 1)
+			cp += 1
+	print("Plafonds : ", " · ".join(_cap_log))
+	_worst_gap_days = maxi(_worst_gap_days, days - _last_progress_day)
+	print("Sessions avec progrès : %d/%d, pire série sans progrès : %d sessions, plus longue période sans aucun progrès : %d jour(s)" % [_sessions_with_progress, _sessions, _worst_no_progress, _worst_gap_days])
 	quit()
 
 
-func _session(seconds: float) -> void:
-	var step := 5.0
-	var elapsed := 0.0
-	while elapsed < seconds:
+func _play(seconds: float) -> void:
+	var step := 20.0
+	var t := 0.0
+	while t < seconds:
 		_spend()
 		gs.tick(step)
-		elapsed += step
+		t += step
+	_spend()
 
 
-func _away(seconds: float) -> void:
-	gs.simulate_offline(seconds)
+func _signature() -> int:
+	var n: int = int(gs.captain.level) + gs.hero_order.size() * 3 + gs.goals_claimed.size() * 5
+	for id in gs.hero_order:
+		n += gs.heroes[id].level
+	for id in gs.research_levels:
+		n += gs.research_levels[id] * 4
+	for id in gs.upgrade_levels:
+		n += gs.upgrade_levels[id] * 2
+	for slot in Data.EQUIP_SLOTS:
+		n += int(gs.item_power(gs.equipped_item(slot)) / 40.0) if not gs.equipped_item(slot).is_empty() else 0
+	return n
 
 
-## Politique d'achat : récupère les objectifs, lance les expéditions, puis dépense au mieux.
+func _track() -> void:
+	var caps := Vector2i(gs.captain_cap(), gs.crew_cap())
+	if caps != _last_caps:
+		_cap_log.append("j%d: capitaine %d / équipage %d" % [_day, caps.x, caps.y])
+		_last_caps = caps
+	var sig := _signature()
+	var progressed := sig > _last_sig
+	_last_sig = sig
+	_sessions += 1
+	if progressed:
+		_sessions_with_progress += 1
+		_no_progress_run = 0
+		_worst_gap_days = maxi(_worst_gap_days, _day - _last_progress_day)
+		_last_progress_day = _day
+	else:
+		_no_progress_run += 1
+		_worst_no_progress = maxi(_worst_no_progress, _no_progress_run)
+	_recent.append(1 if progressed else 0)
+	if _recent.size() > 14:
+		_recent.pop_front()
+
+
+## Politique d'achat du robot.
 func _spend() -> void:
 	gs.claim_goal()
 	for i in gs.slot_count():
@@ -70,21 +120,26 @@ func _spend() -> void:
 				if gs.launch_block_reason(d, i) == "" and gs.launch(i, d):
 					break
 	gs.auto_squad(0)
+	for a in gs.research_active.duplicate():       # accélère quand l'énergie est largement suffisante
+		if gs.research_boost_cost(a.id) > 0.0 and gs.res.energy > gs.research_boost_cost(a.id) * 8.0:
+			gs.boost_research(a.id)
+			gs.boost_research(a.id)
+	for k in 4:
+		var id := _pick_research()
+		if id == "" or not gs.start_research(id):
+			break
 	for pass_i in 6:
 		var bought := false
-		# Capitaine
-		if gs.res.credits >= gs.captain_train_cost() * 1.0 and gs.captain.level < Data.CAPTAIN_MAX_LEVEL:
+		if gs.captain.level < gs.captain_cap() and gs.res.credits >= gs.captain_train_cost():
 			bought = gs.train_captain() or bought
-		# Héros : le moins cher d'abord
 		var best := ""
 		var best_c := 1e30
 		for id in gs.hero_order:
-			if gs.heroes[id].level < Data.MAX_LEVEL and gs.train_cost(id) < best_c:
+			if gs.heroes[id].level < gs.hero_cap(id) and gs.train_cost(id) < best_c:
 				best = id
 				best_c = gs.train_cost(id)
 		if best != "" and gs.res.credits >= best_c:
 			bought = gs.train(best) or bought
-		# Améliorations : la moins chère en crédits
 		for id in Data.UPGRADE_ORDER:
 			if gs.upgrade_maxed(id):
 				continue
@@ -92,7 +147,6 @@ func _spend() -> void:
 				continue
 			if gs.can_afford(gs.upgrade_cost(id)) and gs.res.credits > gs.upgrade_cost(id).credits * 1.5:
 				bought = gs.buy_upgrade(id) or bought
-		# Recrutement
 		if gs.hero_order.size() < Data.HEROES.size() and gs.res.credits >= gs.recruit_cost() * 2.0:
 			gs.recruit()
 			bought = true
@@ -101,17 +155,46 @@ func _spend() -> void:
 	gs.auto_equip()
 
 
-func _report(h: float) -> void:
+func _pick_research() -> String:
+	var cap_close: bool = gs.captain.level >= gs.captain_cap() - 3
+	var crew_close := false
+	for id in gs.hero_order:
+		if gs.heroes[id].level >= gs.hero_cap(id) - 3:
+			crew_close = true
+	for id in RESEARCH_PRIORITY:
+		if id == "academie_capitaine" and not cap_close:
+			continue
+		if id == "academie_equipage" and not crew_close:
+			continue
+		if gs.research_block_reason(id) == "" and gs.can_afford(gs.research_cost(id)):
+			return id
+	return ""
+
+
+func _report(day: int) -> void:
 	var crew_lv := 0
 	for id in gs.hero_order:
 		crew_lv += gs.heroes[id].level
-	var st := 0
-	for c in Data.CREW_ORDER:
-		st += gs.upgrade_levels["st_" + c]
+	var rs := 0
+	var rs_max := 0
+	for id in Data.RESEARCH_ORDER:
+		rs += gs.research_levels[id]
+		rs_max += Data.RESEARCH[id].max
 	var ships := 0
 	for u in ["laser", "solar", "scanner", "engines"]:
 		ships += gs.upgrade_levels[u]
+	var st := 0
+	for c in Data.CREW_ORDER:
+		st += gs.upgrade_levels["st_" + c]
 	var prod: Dictionary = gs.production_per_sec()
-	print("%7.2f | niv %2d | %2d cartes / %3d | %3d | %3d | %9s | %9s | %2d/%d | %d" % [
-		h, gs.captain.level, gs.hero_order.size(), crew_lv, st, ships, Data.fmt(prod.credits * 3600.0),
-		Data.fmt(gs.data_total), gs.goals_claimed.size(), Data.GOALS.size(), gs.expeditions_done])
+	var rec := 0
+	for v in _recent:
+		rec += v
+	print("%5d | %3d (%3d) | %4d / %3d | %3d/%3d | %3d | %3d | %9s | %9s | %2d/%d | %2d/%2d | %d" % [
+		day, gs.captain.level, gs.captain_cap(), crew_lv, gs.crew_cap() * gs.hero_order.size(), rs, rs_max, ships, st,
+		Data.fmt(prod.credits * 3600.0), Data.fmt(gs.data_total), gs.goals_claimed.size(), Data.GOALS.size(),
+		rec, _recent.size(), _worst_no_progress])
+	if OS.get_cmdline_user_args().has("--detail"):
+		print("      revenus/h  cr %s  min %s  én %s  don %s   |  stock  cr %s  min %s  én %s  don %s" % [
+			Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0), Data.fmt(prod.data * 3600.0),
+			Data.fmt(gs.res.credits), Data.fmt(gs.res.minerals), Data.fmt(gs.res.energy), Data.fmt(gs.res.data)])

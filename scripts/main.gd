@@ -61,6 +61,13 @@ var _slot_ui: Array = []
 var _next_label: Label
 # Vaisseau
 var _upgrade_ui := {}
+# Labo
+var _lab_info: Label
+var _lab_slots: Array = []
+var _lab_queue_box: VBoxContainer
+var _lab_queue_rows: Array = []
+var _lab_ui := {}
+var _lab_sig := ""
 
 
 func _ready() -> void:
@@ -133,11 +140,12 @@ func _build_ui() -> void:
 	var holder := Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(holder)
-	for id in ["captain", "crew", "exp", "ship"]:
+	for id in ["captain", "crew", "exp", "lab", "ship"]:
 		_pages[id] = _make_page(holder)
 	_build_captain_page(_pages["captain"])
 	_build_crew_page(_pages["crew"])
 	_build_expedition_page(_pages["exp"])
+	_build_lab_page(_pages["lab"])
 	_build_ship_page(_pages["ship"])
 
 	_build_tabs(root)
@@ -201,7 +209,7 @@ func _build_tabs(parent: Control) -> void:
 	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 	var group := ButtonGroup.new()
-	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["ship", "Vaisseau"]]:
+	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["ship", "Vaisseau"]]:
 		var b := Button.new()
 		b.text = entry[1]
 		b.icon = UiIcons.icon(entry[0], 44, Color.WHITE)
@@ -438,6 +446,68 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 	_next_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
+func _build_lab_page(page: VBoxContainer) -> void:
+	_section(page, "Laboratoire")
+	_lab_info = _label(page, "", 20, COL_TEXT_DIM)
+	_lab_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for i in 3:
+		var card := _card(page)
+		var title := _label(card, "", 24)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var bar := _bar(card, 22, UiTheme.ACCENT)
+		var status := _label(card, "", 20, COL_TEXT_DIM)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		card.add_child(row)
+		var rush := _button(row, "", 62)
+		rush.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rush.add_theme_font_size_override("font_size", 19)
+		UiTheme.style_primary(rush)
+		var cancel := _button(row, "Annuler", 62)
+		cancel.add_theme_font_size_override("font_size", 19)
+		UiTheme.style_danger(cancel)
+		_lab_slots.append({"card": card, "title": title, "bar": bar, "status": status, "rush": rush, "cancel": cancel, "id": ""})
+		rush.pressed.connect(_tap(func(): GameState.boost_research(_lab_slots[i].id)))
+		cancel.pressed.connect(_tap(func(): GameState.cancel_research(_lab_slots[i].id)))
+	_lab_queue_box = VBoxContainer.new()
+	_lab_queue_box.add_theme_constant_override("separation", 8)
+	page.add_child(_lab_queue_box)
+	for i in Data.RESEARCH_QUEUE_MAX:
+		var qrow := HBoxContainer.new()
+		qrow.add_theme_constant_override("separation", 8)
+		_lab_queue_box.add_child(qrow)
+		var ql := _label(qrow, "", 20, COL_TEXT_DIM)
+		ql.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var qc := _button(qrow, "Annuler", 52)
+		qc.add_theme_font_size_override("font_size", 18)
+		UiTheme.style_danger(qc)
+		_lab_queue_rows.append({"row": qrow, "label": ql, "id": ""})
+		qc.pressed.connect(_tap(func(): GameState.cancel_research(_lab_queue_rows[i].id)))
+	_section(page, "Recherches")
+	for id in Data.RESEARCH_ORDER:
+		var r: Dictionary = Data.RESEARCH[id]
+		var panel := _rarity_panel(page, r.color)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		_icon_tile(row, r.icon, r.color, 76)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 5)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(col)
+		var name_l := _label(col, "", 24)
+		var lvl_bar := _bar(col, 8, r.color)
+		var desc_l := _label(col, "", 19, COL_TEXT_DIM)
+		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _button(col, "", 68)
+		b.add_theme_font_size_override("font_size", 19)
+		UiTheme.style_primary(b)
+		b.pressed.connect(_tap(func(): GameState.start_research(id)))
+		_lab_ui[id] = {"name": name_l, "bar": lvl_bar, "desc": desc_l, "btn": b}
+
+
 func _build_ship_page(page: VBoxContainer) -> void:
 	_section(page, "Vaisseau")
 	for id in Data.UPGRADE_ORDER:
@@ -645,6 +715,7 @@ func _refresh() -> void:
 	_refresh_captain()
 	_refresh_crew()
 	_refresh_expeditions()
+	_refresh_lab()
 	_refresh_ship()
 
 
@@ -679,13 +750,13 @@ func _refresh_captain() -> void:
 	var cap: Dictionary = GameState.captain
 	_cap_chibi.setup_captain(cap.look)
 	_cap_name.text = cap.name
-	_cap_level.text = "Niveau %d / %d" % [cap.level, Data.CAPTAIN_MAX_LEVEL]
+	_cap_level.text = "Niveau %d / %d" % [cap.level, GameState.captain_cap()] + ("  (plafond : Académie des capitaines, au Labo)" if cap.level >= GameState.captain_cap() and cap.level < Data.CAPTAIN_MAX_LEVEL else "")
 	_cap_xp.value = float(cap.xp) / float(Data.xp_needed(cap.level))
 	var cs := GameState.captain_stats(0)
 	_cap_stats.text = "PV %d   ATQ %d\nDÉF %d   VIT %d\nÉquipement : %s\nÉquipage : %s" % [
 		cs.hp, cs.atk, cs.def, cs.spd, _stat_text(cs.gear, "+"), _stat_text(cs.crew, "+")]
-	if cap.level >= Data.CAPTAIN_MAX_LEVEL:
-		_cap_train.text = "Niveau maximum"
+	if cap.level >= GameState.captain_cap():
+		_cap_train.text = "Niveau maximum" if cap.level >= Data.CAPTAIN_MAX_LEVEL else "Plafond atteint : relevez-le au Labo"
 		_cap_train.disabled = true
 	else:
 		var tc := GameState.captain_train_cost()
@@ -816,7 +887,7 @@ func _refresh_crew() -> void:
 		var h: Dictionary = GameState.heroes[id]
 		var st := Data.hero_stats(id, h.level, h.stars)
 		u.portrait.setup_crew(id, h.stars)
-		u.name.text = "%s  —  niv. %d  %s" % [tpl.name, h.level, "★".repeat(h.stars)]
+		u.name.text = "%s  —  niv. %d/%d  %s" % [tpl.name, h.level, GameState.hero_cap(id), "★".repeat(h.stars)]
 		u.name.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
 		_set_rarity_style(u.panel, Data.RARITY[tpl.rarity].color)
 		u.stats.text = "%s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
@@ -826,8 +897,8 @@ func _refresh_crew() -> void:
 		var slot := GameState.hero_slot(id)
 		u.where.text = ("Au poste (vaisseau %d) : %s" % [slot + 1, _hero_prod_text(id)]) if slot >= 0 else "Au repos : placez-le à un poste pour produire (%s)" % _hero_prod_text(id)
 		u.train.visible = true
-		if h.level >= Data.MAX_LEVEL:
-			u.train.text = "Niveau maximum"
+		if h.level >= GameState.hero_cap(id):
+			u.train.text = "Niveau maximum" if h.level >= Data.MAX_LEVEL else "Plafond atteint : Académie de l'équipage (Labo)"
 			u.train.disabled = true
 		else:
 			var tc := GameState.train_cost(id)
@@ -942,6 +1013,78 @@ func _refresh_stations(u: Dictionary, slot_i: int, sig: String) -> void:
 		opt.select(maxi(0, m.ids.find(cur)))
 
 
+func _effect_text(id: String, lvl: int) -> String:
+	var e: Dictionary = Data.RESEARCH[id].effect
+	var v: float = float(e.per) * lvl
+	var txt := String.num(v, 0) if is_equal_approx(v, round(v)) else String.num(v, 1)
+	return "+%s%s" % [txt, e.unit]
+
+
+func _refresh_lab() -> void:
+	var slots_n := GameState.research_slots()
+	var q := GameState.research_queue
+	_lab_info.text = "Les recherches avancent même hors ligne, jusqu'au bout. Postes : %d  ·  File d'attente : %d / %d (payée d'avance, annulable)." % [
+		slots_n, q.size(), Data.RESEARCH_QUEUE_MAX]
+	for i in _lab_slots.size():
+		var u: Dictionary = _lab_slots[i]
+		u.card.get_parent().visible = i < slots_n
+		if i >= slots_n:
+			continue
+		if i < GameState.research_active.size():
+			var a: Dictionary = GameState.research_active[i]
+			var r: Dictionary = Data.RESEARCH[a.id]
+			u.id = a.id
+			u.title.text = "%s → niv. %d" % [r.name, GameState.research_level(a.id) + 1]
+			u.title.add_theme_color_override("font_color", r.color)
+			u.bar.value = clampf(1.0 - a.remaining / maxf(a.total, 1.0), 0.0, 1.0)
+			u.status.text = "Reste %s" % Data.fmt_time(a.remaining)
+			u.status.visible = true
+			u.bar.visible = true
+			var rc := GameState.research_boost_cost(a.id)
+			u.rush.visible = true
+			if GameState.research_boost_seconds(a.id) <= 0.0:
+				u.rush.text = "Accélérations utilisées"
+				u.rush.disabled = true
+			else:
+				u.rush.text = "Accélérer −%s — %s énergie" % [Data.fmt_time(GameState.research_boost_seconds(a.id)), Data.fmt(rc)]
+				u.rush.disabled = GameState.res["energy"] < rc
+			u.cancel.visible = true
+		else:
+			u.id = ""
+			u.title.text = "Poste de recherche libre"
+			u.title.add_theme_color_override("font_color", COL_TEXT_DIM)
+			u.bar.visible = false
+			u.status.text = "Lancez une recherche ci-dessous : plus elle est courte, plus vite elle sert."
+			u.rush.visible = false
+			u.cancel.visible = false
+	for i in _lab_queue_rows.size():
+		var qr: Dictionary = _lab_queue_rows[i]
+		qr.row.visible = i < q.size()
+		if i < q.size():
+			qr.id = q[i]
+			qr.label.text = "En file : %s → niv. %d" % [Data.RESEARCH[q[i]].name, GameState.research_level(q[i]) + 1]
+	for id in Data.RESEARCH_ORDER:
+		var r: Dictionary = Data.RESEARCH[id]
+		var u: Dictionary = _lab_ui[id]
+		var lvl := GameState.research_level(id)
+		u.name.text = "%s   %d/%d" % [r.name, lvl, r.max]
+		u.bar.value = float(lvl) / float(r.max)
+		var now_t := _effect_text(id, lvl) if lvl > 0 else "aucun bonus"
+		u.desc.text = "%s  →  %s" % [now_t, _effect_text(id, mini(lvl + 1, r.max))] if lvl < r.max else "Actuel : %s" % now_t
+		var reason := GameState.research_block_reason(id)
+		if lvl >= r.max:
+			u.btn.text = "Niveau maximum"
+			u.btn.disabled = true
+		elif reason != "":
+			u.btn.text = reason
+			u.btn.disabled = true
+		else:
+			var cost := GameState.research_cost(id)
+			var verb := "Lancer" if GameState.research_active.size() < slots_n else "Mettre en file"
+			u.btn.text = "%s — %s · %s" % [verb, Data.fmt_time(GameState.research_duration(id)), _cost_text(cost)]
+			u.btn.disabled = not GameState.can_afford(cost)
+
+
 func _refresh_ship() -> void:
 	for id in Data.UPGRADE_ORDER:
 		var up: Dictionary = Data.UPGRADES[id]
@@ -1019,6 +1162,9 @@ func _show_offline_report(r: Dictionary) -> void:
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_label(box, "Expéditions terminées : %d" % r.expeditions, 22)
+	if not r.get("research_done", []).is_empty():
+		var rl := _label(box, "Recherches terminées : %s" % ", ".join(r.research_done), 21, UiTheme.GOOD)
+		rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if r.loot_kept > 0:
 		var best: Dictionary = r.loot_best
 		var rar: Dictionary = Data.ITEM_RARITY[best.rarity]

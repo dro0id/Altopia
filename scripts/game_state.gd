@@ -33,6 +33,10 @@ var hero_order: Array = []
 var recruits := 0
 var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0, "st_pilot": 0, "st_engineer": 0, "st_scientist": 0}
 var goals_claimed: Array = []
+var research_levels := {}
+var research_active: Array = []   # [{id, remaining, total}] : recherches en cours
+var research_queue: Array = []    # ids en attente (déjà payées)
+var research_done_log: Array = [] # noms terminés depuis le dernier rapport
 ## Un emplacement de vaisseau : dest "" = libre ; squad = un poste par classe (ids, "" = vide).
 ## Vaisseau 0 = vaisseau amiral (avec le Capitaine) ; vaisseau 1 = drone (équipage seul).
 var slots: Array = []
@@ -44,6 +48,7 @@ var last_recruit := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
+var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
 var _recycled_credits := 0.0    # crédits obtenus par recyclage automatique
@@ -87,6 +92,12 @@ func reset() -> void:
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
 	goals_claimed = []
+	research_levels = {}
+	for rid in Data.RESEARCH_ORDER:
+		research_levels[rid] = 0
+	research_active = []
+	research_queue = []
+	research_done_log = []
 	slots = []
 	for i in Data.MAX_SLOTS:
 		slots.append(_new_slot())
@@ -145,8 +156,22 @@ func captain_train_cost() -> float:
 	return ceil(Data.CAPTAIN_TRAIN_BASE * pow(Data.CAPTAIN_TRAIN_GROWTH, captain.level - 1))
 
 
+## Plafond de niveau du Capitaine : relevé par l'Académie ; on ne descend jamais sous le niveau actuel.
+func captain_cap() -> int:
+	var cap := mini(Data.CAPTAIN_BASE_CAP + int(research_bonus("cap_captain")), Data.CAPTAIN_MAX_LEVEL)
+	return maxi(cap, captain.level)
+
+
+func crew_cap() -> int:
+	return mini(Data.CREW_BASE_CAP + int(research_bonus("cap_crew")), Data.MAX_LEVEL)
+
+
+func hero_cap(id: String) -> int:
+	return maxi(crew_cap(), heroes[id].level if heroes.has(id) else 0)
+
+
 func train_captain() -> bool:
-	if captain.level >= Data.CAPTAIN_MAX_LEVEL:
+	if captain.level >= captain_cap():
 		return false
 	var cost := captain_train_cost()
 	if res["credits"] < cost:
@@ -161,12 +186,12 @@ func train_captain() -> bool:
 func gain_captain_xp(amount: int) -> int:
 	var gained := 0
 	captain.xp += amount
-	while captain.level < Data.CAPTAIN_MAX_LEVEL and captain.xp >= Data.xp_needed(captain.level):
+	while captain.level < captain_cap() and captain.xp >= Data.xp_needed(captain.level):
 		captain.xp -= Data.xp_needed(captain.level)
 		captain.level += 1
 		gained += 1
-	if captain.level >= Data.CAPTAIN_MAX_LEVEL:
-		captain.xp = 0
+	if captain.level >= captain_cap():     # l'XP est mise de côté : le niveau tombe dès que le plafond monte
+		captain.xp = mini(captain.xp, Data.xp_needed(captain.level))
 	return gained
 
 
@@ -393,7 +418,7 @@ func loot_level(dest: String) -> int:
 ## Tire un objet de butin ou {} (pas de chance / recyclé). Les destinations élevées donnent mieux.
 func roll_drop(dest: String) -> Dictionary:
 	var tier := dest_tier(dest)
-	if rng.randf() > Data.DROP_CHANCE * (1.0 + equipped_bonus("drop_pct") / 100.0):
+	if rng.randf() > Data.DROP_CHANCE * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0):
 		return {}
 	var total := 0.0
 	var weights := {}
@@ -478,7 +503,7 @@ func train_cost(id: String) -> float:
 
 
 func train(id: String) -> bool:
-	if not heroes.has(id) or heroes[id].level >= Data.MAX_LEVEL:
+	if not heroes.has(id) or heroes[id].level >= hero_cap(id):
 		return false
 	var cost := train_cost(id)
 	if res["credits"] < cost:
@@ -494,12 +519,12 @@ func gain_xp(id: String, amount: int) -> int:
 	var h: Dictionary = heroes[id]
 	var gained := 0
 	h.xp += amount
-	while h.level < Data.MAX_LEVEL and h.xp >= Data.xp_needed(h.level):
+	while h.level < hero_cap(id) and h.xp >= Data.xp_needed(h.level):
 		h.xp -= Data.xp_needed(h.level)
 		h.level += 1
 		gained += 1
-	if h.level >= Data.MAX_LEVEL:
-		h.xp = 0
+	if h.level >= hero_cap(id):
+		h.xp = mini(h.xp, Data.xp_needed(h.level))
 	return gained
 
 
@@ -554,6 +579,9 @@ func production_per_sec() -> Dictionary:
 		for r in prod:
 			out[r] += prod[r] * crew_prod_mult(id) * syn * station / 3600.0
 	out.credits *= credit_mult()
+	var pm := 1.0 + research_bonus("prod_pct") / 100.0
+	for r in out:
+		out[r] *= pm
 	return out
 
 
@@ -575,14 +603,192 @@ func offline_efficiency() -> float:
 	var total := 0
 	for c in lv:
 		total += lv[c]
-	var eff: float = Data.OFFLINE_BASE_EFFICIENCY + Data.OFFLINE_EFF_PER_LEVEL * total + equipped_bonus("offline_pct") / 100.0
+	var eff: float = Data.OFFLINE_BASE_EFFICIENCY + Data.OFFLINE_EFF_PER_LEVEL * total + equipped_bonus("offline_pct") / 100.0 + research_bonus("offline_eff") / 100.0
 	return clampf(eff, Data.OFFLINE_BASE_EFFICIENCY, Data.OFFLINE_EFF_MAX)
 
 
 ## Durée maximale comptabilisée hors ligne : les Ingénieurs l'allongent.
 func offline_cap_seconds() -> float:
-	var hours: float = Data.OFFLINE_BASE_HOURS + Data.OFFLINE_HOURS_PER_ENGINEER_LEVEL * stationed_levels()["engineer"]
+	var hours: float = Data.OFFLINE_BASE_HOURS + Data.OFFLINE_HOURS_PER_ENGINEER_LEVEL * stationed_levels()["engineer"] + research_bonus("offline_hours")
 	return minf(hours, Data.OFFLINE_MAX_HOURS) * 3600.0
+
+
+## --- Laboratoire ---
+
+func research_level(id: String) -> int:
+	return int(research_levels.get(id, 0))
+
+
+## Somme des effets de toutes les recherches pour une clé d'effet.
+func research_bonus(key: String) -> float:
+	var total := 0.0
+	for id in Data.RESEARCH_ORDER:
+		var r: Dictionary = Data.RESEARCH[id]
+		if r.effect.key == key:
+			total += float(r.effect.per) * research_level(id)
+	return total
+
+
+func research_slots() -> int:
+	return Data.RESEARCH_BASE_SLOTS + int(research_bonus("research_slots"))
+
+
+func research_maxed(id: String) -> bool:
+	return research_level(id) >= Data.RESEARCH[id].max
+
+
+func research_cost(id: String) -> Dictionary:
+	var r: Dictionary = Data.RESEARCH[id]
+	var out := {}
+	for res_id in r.cost:
+		out[res_id] = ceil(Data.research_curve(r.cost[res_id], research_level(id), r.max))
+	return out
+
+
+func research_duration(id: String) -> float:
+	var r: Dictionary = Data.RESEARCH[id]
+	var base: float = Data.research_curve(r.time, research_level(id), r.max)
+	var speed := maxf(Data.RESEARCH_SPEED_MIN, 1.0 - research_bonus("research_speed") / 100.0)
+	return maxf(5.0, round(base * speed))
+
+
+func research_is_busy(id: String) -> bool:
+	if research_queue.has(id):
+		return true
+	for a in research_active:
+		if a.id == id:
+			return true
+	return false
+
+
+## "" si la recherche peut être lancée (ressources mises à part), sinon la raison.
+func research_block_reason(id: String) -> String:
+	if research_maxed(id):
+		return "Niveau maximum"
+	if research_is_busy(id):
+		return "Déjà en cours ou en file"
+	var req: Dictionary = Data.RESEARCH[id].requires
+	for rid in req:
+		if research_level(rid) < req[rid]:
+			return "Requiert %s niv. %d" % [Data.RESEARCH[rid].name, req[rid]]
+	if research_active.size() >= research_slots() and research_queue.size() >= Data.RESEARCH_QUEUE_MAX:
+		return "File d'attente pleine"
+	return ""
+
+
+## Lance la recherche (ou la met en file si tous les postes sont pris). Le coût est payé tout de suite.
+func start_research(id: String) -> bool:
+	if research_block_reason(id) != "":
+		return false
+	var cost := research_cost(id)
+	if not can_afford(cost):
+		return false
+	pay(cost)
+	if research_active.size() < research_slots():
+		_begin_research(id)
+	else:
+		research_queue.append(id)
+	changed.emit()
+	return true
+
+
+func _begin_research(id: String) -> void:
+	var d := research_duration(id)
+	research_active.append({"id": id, "remaining": d, "total": d, "boosts": 0})
+
+
+## Annule une recherche en file (remboursée en entier) ou en cours (partiellement).
+func cancel_research(id: String) -> bool:
+	var cost := research_cost(id)
+	if research_queue.has(id):
+		research_queue.erase(id)
+		for r in cost:
+			add_res(r, cost[r])
+		changed.emit()
+		return true
+	for i in research_active.size():
+		if research_active[i].id == id:
+			research_active.remove_at(i)
+			for r in cost:
+				add_res(r, floor(cost[r] * Data.RESEARCH_CANCEL_REFUND))
+			_promote_queue()
+			changed.emit()
+			return true
+	return false
+
+
+func _research_levels_total() -> int:
+	var n := 0
+	for id in Data.RESEARCH_ORDER:
+		n += research_level(id)
+	return n
+
+
+## Temps retiré par une accélération (en secondes) ; 0 si impossible.
+func research_boost_seconds(id: String) -> float:
+	for a in research_active:
+		if a.id == id and int(a.get("boosts", 0)) < Data.RESEARCH_BOOST_MAX:
+			return minf(a.remaining, a.total * Data.RESEARCH_BOOST_FRACTION)
+	return 0.0
+
+
+func research_boost_cost(id: String) -> float:
+	var minutes := research_boost_seconds(id) / 60.0
+	var rate := Data.RESEARCH_BOOST_ENERGY_BASE + Data.RESEARCH_BOOST_ENERGY_PER_LEVEL * _research_levels_total()
+	return ceil(minutes * rate)
+
+
+## Accélère une recherche en cours contre de l'énergie (25 % de sa durée, 2 fois au plus).
+func boost_research(id: String) -> bool:
+	var secs := research_boost_seconds(id)
+	var cost := research_boost_cost(id)
+	if secs <= 0.0 or res["energy"] < cost:
+		return false
+	res["energy"] -= cost
+	for a in research_active:
+		if a.id == id:
+			a.remaining -= secs
+			a["boosts"] = int(a.get("boosts", 0)) + 1
+	_advance_research(0.0)
+	changed.emit()
+	return true
+
+
+func _promote_queue() -> void:
+	while research_active.size() < research_slots() and not research_queue.is_empty():
+		_begin_research(research_queue.pop_front())
+
+
+## Fait avancer les recherches de `seconds` (exact, même sur de longues absences).
+func _advance_research(seconds: float) -> void:
+	var t := seconds
+	var guard := 0
+	while guard < 1000:
+		guard += 1
+		_promote_queue()
+		if research_active.is_empty():
+			return
+		var step := t
+		for a in research_active:
+			step = minf(step, a.remaining)
+		for a in research_active:
+			a.remaining -= step
+		t -= step
+		var finished := research_active.filter(func(a): return a.remaining <= 0.0001)
+		if finished.is_empty():
+			return
+		research_active = research_active.filter(func(a): return a.remaining > 0.0001)
+		for a in finished:
+			research_levels[a.id] = research_level(a.id) + 1
+			research_done_log.append("%s niv. %d" % [Data.RESEARCH[a.id].name, research_level(a.id)])
+		_on_research_completed()
+
+
+## Un plafond de niveau a pu monter : l'XP mise de côté est convertie en niveaux.
+func _on_research_completed() -> void:
+	gain_captain_xp(0)
+	for id in hero_order:
+		gain_xp(id, 0)
 
 
 ## --- Postes ---
@@ -766,9 +972,10 @@ func launch_block_reason(dest: String, slot_i: int) -> String:
 
 func duration_of(dest: String, slot_i: int) -> float:
 	var base: float = Data.DEST[dest].duration
-	var speed: float = (1.0 + Data.ENGINE_SPEED * upgrade_levels["engines"]) \
-		* (1.0 + Data.ROLE_SPEED * squad_role_level(slot_i, dest))
-	return maxf(Data.MIN_DURATION, base / speed)
+	# les bonus de vitesse s'additionnent et ne dépassent jamais ×2,5 : la fréquence des expéditions reste bornée
+	var speed: float = 1.0 + Data.ENGINE_SPEED * upgrade_levels["engines"] \
+		+ Data.ROLE_SPEED * Data.role_scale(squad_role_level(slot_i, dest)) + research_bonus("speed_pct") / 100.0
+	return maxf(base * Data.MIN_DURATION_RATIO, base / speed)
 
 
 func upgrade_multiplier(resource: String) -> float:
@@ -784,9 +991,9 @@ func upgrade_multiplier(resource: String) -> float:
 
 func rewards_of(dest: String, slot_i: int) -> Dictionary:
 	var out := {}
-	var role_mult: float = 1.0 + Data.ROLE_GAIN * squad_role_level(slot_i, dest)
+	var role_mult: float = 1.0 + Data.ROLE_GAIN * Data.role_scale(squad_role_level(slot_i, dest))
 	for r in Data.DEST[dest].rewards:
-		out[r] = Data.DEST[dest].rewards[r] * role_mult * upgrade_multiplier(r) * synergy_multiplier()
+		out[r] = Data.DEST[dest].rewards[r] * role_mult * upgrade_multiplier(r) * synergy_multiplier() * (1.0 + research_bonus("reward_pct") / 100.0)
 	return out
 
 
@@ -851,7 +1058,7 @@ func _complete(slot_i: int, times: int = 1) -> void:
 	var loot := {}
 	if battle.win:
 		dest_wins[dest] += times
-		var xp := int(round(Data.DEST[dest].xp * (1.0 + equipped_bonus("xp_pct") / 100.0) * _gain_scale * times))
+		var xp := int(round(Data.DEST[dest].xp * (1.0 + (equipped_bonus("xp_pct") + research_bonus("xp_pct")) / 100.0) * _gain_scale * times * Data.xp_level_scale(enemy_level(dest))))
 		for id in squad_ids(slot_i):
 			levels_gained += gain_xp(id, xp)
 		if slot_i == 0:
@@ -919,6 +1126,8 @@ func tick(seconds: float) -> void:
 	for r in prod:
 		add_res(r, prod[r] * seconds * _gain_scale)
 	_advance_expeditions(seconds)
+	if not _skip_research:
+		_advance_research(seconds)
 	changed.emit()
 
 
@@ -931,9 +1140,13 @@ func simulate_offline(away: float) -> Dictionary:
 	_recycled_credits = 0.0
 	_gain_scale = offline_efficiency()
 	_offline_calc = true
+	_skip_research = true
+	research_done_log = []
 	tick(secs)
+	_skip_research = false
 	_offline_calc = false
 	_gain_scale = 1.0
+	_advance_research(away)       # les recherches vont jusqu'au bout, sans plafond de durée
 	var gains := {}
 	for id in res:
 		gains[id] = res[id] - before[id]
@@ -944,7 +1157,7 @@ func simulate_offline(away: float) -> Dictionary:
 	return {
 		"seconds": secs, "away": away, "gains": gains, "expeditions": expeditions_done - done_before,
 		"efficiency": offline_efficiency(), "loot_kept": _loot_log.size(), "loot_best": best,
-		"recycled": _recycled_credits,
+		"recycled": _recycled_credits, "research_done": research_done_log.duplicate(),
 	}
 
 
@@ -961,7 +1174,7 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": captain,
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "goals": goals_claimed, "slots": _slots_for_save(), "dest_wins": dest_wins,
+		"upgrades": upgrade_levels, "goals": goals_claimed, "research": {"levels": research_levels, "active": research_active, "queue": research_queue}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
 
@@ -1024,6 +1237,18 @@ func load_game() -> bool:
 	var saved_up: Dictionary = parsed.get("upgrades", {})
 	for id in upgrade_levels:
 		upgrade_levels[id] = int(saved_up.get(id, 0))
+	var saved_rs: Dictionary = parsed.get("research", {})
+	var saved_levels: Dictionary = saved_rs.get("levels", {})
+	for rid in Data.RESEARCH_ORDER:
+		research_levels[rid] = clampi(int(saved_levels.get(rid, 0)), 0, Data.RESEARCH[rid].max)
+	research_active = []
+	for a in saved_rs.get("active", []):
+		if Data.RESEARCH.has(String(a.get("id", ""))):
+			research_active.append({"id": String(a.id), "remaining": float(a.get("remaining", 0.0)), "total": float(a.get("total", 1.0)), "boosts": int(a.get("boosts", 0))})
+	research_queue = []
+	for rid in saved_rs.get("queue", []):
+		if Data.RESEARCH.has(String(rid)):
+			research_queue.append(String(rid))
 	goals_claimed = []
 	for gid in parsed.get("goals", []):
 		goals_claimed.append(String(gid))
@@ -1052,4 +1277,6 @@ func load_game() -> bool:
 	var away := maxi(0, now - last_seen)
 	if away > 60:
 		last_offline_report = simulate_offline(float(away))
+	elif away > 0:
+		_advance_research(float(away))
 	return true

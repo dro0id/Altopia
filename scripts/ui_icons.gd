@@ -18,6 +18,11 @@ const PATHS := {
 	"pilot": "<path d='M24 3l6 19v12l-6 5-6-5V22z'/><path d='M18 25L5 34v6l13-3M30 25l13 9v6l-13-3'/><circle cx='24' cy='17' r='3'/><path d='M21 42v4M27 42v4'/>",
 	"engineer": "<circle cx='24' cy='24' r='14'/><circle cx='24' cy='24' r='6'/><path d='M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2'/>",
 	"scientist": "<path d='M18 6h12M20 6v12L8 38a3 3 0 003 6h26a3 3 0 003-6L28 18V6'/><path d='M13 31h22'/><circle cx='22' cy='37' r='1.5'/><circle cx='28' cy='34' r='1.5'/>",
+	"lab": "<circle cx='24' cy='24' r='3'/><ellipse cx='24' cy='24' rx='19' ry='7'/><ellipse cx='24' cy='24' rx='19' ry='7' transform='rotate(60 24 24)'/><ellipse cx='24' cy='24' rx='19' ry='7' transform='rotate(120 24 24)'/>",
+	"book": "<path d='M6 11c7-3 13-2 18 2 5-4 11-5 18-2v27c-7-3-13-2-18 2-5-4-11-5-18-2z'/><path d='M24 13v27'/>",
+	"hourglass": "<path d='M12 6h24M12 42h24M14 6c0 10 10 12 10 18S14 32 14 42M34 6c0 10-10 12-10 18s10 8 10 18'/>",
+	"chest": "<rect x='6' y='19' width='36' height='21' rx='3'/><path d='M6 27h36M6 19c0-8 8-13 18-13s18 5 18 13M21 27v7h6v-7'/>",
+	"star": "<path d='M24 5l5.5 12 13 1.5-9.7 8.8 2.8 12.9L24 33l-11.6 7.2 2.8-12.9L5.5 18.5l13-1.5z'/>",
 	"ship": "<path d='M24 4c7 8 9 18 8 28H16c-1-10 1-20 8-28z'/><path d='M16 30l-8 8M32 30l8 8M20 38l4 6 4-6'/><circle cx='24' cy='20' r='3'/>",
 }
 
