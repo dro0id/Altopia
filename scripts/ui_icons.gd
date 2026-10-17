@@ -15,6 +15,9 @@ const PATHS := {
 	"gloves": "<path d='M13 43V27l-4-9 4-2 4 7V9h4v15V7h4v17V9h4v18l4-6 4 2-6 14v7z'/>",
 	"boots": "<path d='M15 6h13v22l13 6v9H9V6z'/><path d='M15 14h13'/>",
 	"module": "<rect x='12' y='12' width='24' height='24' rx='3'/><rect x='19' y='19' width='10' height='10'/><path d='M18 6v6M30 6v6M18 36v6M30 36v6M6 18h6M6 30h6M36 18h6M36 30h6'/>",
+	"pilot": "<path d='M24 4l5 15 16 7v5l-16-3-2 9 5 4v3l-8-2-8 2v-3l5-4-2-9-16 3v-5l16-7z'/>",
+	"engineer": "<circle cx='24' cy='24' r='14'/><circle cx='24' cy='24' r='6'/><path d='M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2'/>",
+	"scientist": "<path d='M18 6h12M20 6v12L8 38a3 3 0 003 6h26a3 3 0 003-6L28 18V6'/><path d='M13 31h22'/><circle cx='22' cy='37' r='1.5'/><circle cx='28' cy='34' r='1.5'/>",
 	"ship": "<path d='M24 4c7 8 9 18 8 28H16c-1-10 1-20 8-28z'/><path d='M16 30l-8 8M32 30l8 8M20 38l4 6 4-6'/><circle cx='24' cy='20' r='3'/>",
 }
 
@@ -30,6 +33,25 @@ static func icon(name: String, px: int = 48, color: Color = Color.WHITE) -> Text
 	var img := Image.new()
 	var tex: Texture2D = null
 	if img.load_svg_from_string(svg, float(px) / 48.0) == OK:
+		tex = ImageTexture.create_from_image(img)
+	_cache[key] = tex
+	return tex
+
+
+## Interrupteur : piste arrondie et pastille, rasterisés pour CheckButton.
+static func toggle(on: bool, disabled: bool = false) -> Texture2D:
+	var key := "toggle_%s_%s" % [on, disabled]
+	if _cache.has(key):
+		return _cache[key]
+	var track := "#1b6f82" if on else "#0b1b27"
+	var stroke := "#7ff2ff" if on else "#4b7482"
+	var knob := "#e8fdff" if on else "#7c9aa6"
+	var cx := 62 if on else 22
+	var op := 0.45 if disabled else 1.0
+	var svg := "<svg xmlns='http://www.w3.org/2000/svg' width='84' height='44' viewBox='0 0 84 44' opacity='%s'><rect x='2' y='4' width='80' height='36' rx='18' fill='%s' stroke='%s' stroke-width='3'/><circle cx='%d' cy='22' r='12' fill='%s'/></svg>" % [op, track, stroke, cx, knob]
+	var img := Image.new()
+	var tex: Texture2D = null
+	if img.load_svg_from_string(svg, 1.0) == OK:
 		tex = ImageTexture.create_from_image(img)
 	_cache[key] = tex
 	return tex

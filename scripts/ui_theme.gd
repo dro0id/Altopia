@@ -11,6 +11,7 @@ const GOOD := Color(0.43, 1.0, 0.61)
 const WARN := Color(1.0, 0.7, 0.42)
 const MAGENTA := Color(1.0, 0.61, 0.93)
 
+const Icons = preload("res://scripts/ui_icons.gd")
 const RES_COLORS := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
 
 static var _theme: Theme
@@ -72,6 +73,20 @@ static func build() -> Theme:
 		t.set_stylebox("hover_pressed", c, pressed)
 		t.set_stylebox("disabled", c, disabled)
 		t.set_stylebox("focus", c, StyleBoxEmpty.new())
+	# interrupteurs : fond neutre (plus de remplissage plein), pastille dessinée
+	var flat := box(Color(0.04, 0.12, 0.2, 0.55), Color(0.22, 0.9, 1.0, 0.25), 6, 1, 10)
+	for st in ["normal", "pressed", "hover_pressed", "hover", "disabled"]:
+		t.set_stylebox(st, "CheckButton", flat)
+	t.set_stylebox("focus", "CheckButton", StyleBoxEmpty.new())
+	t.set_icon("checked", "CheckButton", Icons.toggle(true))
+	t.set_icon("unchecked", "CheckButton", Icons.toggle(false))
+	t.set_icon("checked_disabled", "CheckButton", Icons.toggle(true, true))
+	t.set_icon("unchecked_disabled", "CheckButton", Icons.toggle(false, true))
+	t.set_icon("checked_mirrored", "CheckButton", Icons.toggle(true))
+	t.set_icon("unchecked_mirrored", "CheckButton", Icons.toggle(false))
+	t.set_icon("checked_disabled_mirrored", "CheckButton", Icons.toggle(true, true))
+	t.set_icon("unchecked_disabled_mirrored", "CheckButton", Icons.toggle(false, true))
+	t.set_constant("h_separation", "CheckButton", 14)
 	t.set_stylebox("panel", "PopupPanel", box(Color(0.03, 0.08, 0.14, 0.98), LINE, 6, 1, 8))
 	t.set_stylebox("panel", "PopupMenu", box(Color(0.03, 0.08, 0.14, 0.98), LINE, 6, 1, 8))
 	t.set_stylebox("hover", "PopupMenu", box(Color(0.1, 0.36, 0.5, 0.9), ACCENT, 4, 0, 6))

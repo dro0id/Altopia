@@ -41,7 +41,7 @@ var _useless_btn: Button
 var _afk_label: Label
 var _afk_rates := {}
 const UPGRADE_ICONS := {"laser": "minerals", "solar": "energy", "scanner": "data", "engines": "exp", "docks": "ship",
-	"st_pilot": "captain", "st_engineer": "crew", "st_scientist": "crew"}
+	"st_pilot": "pilot", "st_engineer": "engineer", "st_scientist": "scientist"}
 const UpgradeColors := {"laser": Color(0.8, 0.7, 0.62), "solar": Color(0.75, 0.55, 1.0), "scanner": Color(0.5, 0.95, 1.0),
 	"engines": Color(0.43, 1.0, 0.61), "docks": Color(1.0, 0.82, 0.35), "st_pilot": Color(0.35, 0.85, 1.0),
 	"st_engineer": Color(1.0, 0.65, 0.3), "st_scientist": Color(0.5, 1.0, 0.6)}
@@ -366,8 +366,19 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 			col.add_theme_constant_override("separation", 2)
 			station_row.add_child(col)
 			var cls: Dictionary = Data.CREW[Data.CREW_ORDER[k]]
-			var lbl := _label(col, "Poste " + String(cls.name), 18, cls.color)
-			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			var head := HBoxContainer.new()
+			head.alignment = BoxContainer.ALIGNMENT_CENTER
+			head.add_theme_constant_override("separation", 6)
+			head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(head)
+			var hic := TextureRect.new()
+			hic.texture = UiIcons.icon(Data.CREW_ORDER[k], 26, cls.color)
+			hic.custom_minimum_size = Vector2(22, 22)
+			hic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			hic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			hic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			head.add_child(hic)
+			_label(head, String(cls.name), 19, cls.color)
 			var por: Control = Chibi.new()
 			por.custom_minimum_size = Vector2(0, 100)
 			por.role = Data.CREW_ORDER[k]
