@@ -51,11 +51,9 @@ var _an_btn: Button
 var _an_minus: Button
 var _an_plus: Button
 var _afk_rates := {}
-const UPGRADE_ICONS := {"laser": "minerals", "solar": "energy", "scanner": "data", "engines": "exp", "docks": "ship",
-	"st_pilot": "pilot", "st_engineer": "engineer", "st_scientist": "scientist"}
+const UPGRADE_ICONS := {"laser": "minerals", "solar": "energy", "scanner": "data", "engines": "exp", "docks": "ship"}
 const UpgradeColors := {"laser": Color(0.8, 0.7, 0.62), "solar": Color(0.75, 0.55, 1.0), "scanner": Color(0.5, 0.95, 1.0),
-	"engines": Color(0.43, 1.0, 0.61), "docks": Color(1.0, 0.82, 0.35), "st_pilot": Color(0.35, 0.85, 1.0),
-	"st_engineer": Color(1.0, 0.65, 0.3), "st_scientist": Color(0.5, 1.0, 0.6)}
+	"engines": Color(0.43, 1.0, 0.61), "docks": Color(1.0, 0.82, 0.35)}
 const DEST_ICONS := {"asteroids": "minerals", "star": "energy", "planet": "data"}
 var _goal_title: Label
 var _goal_bar: ProgressBar
@@ -72,6 +70,17 @@ var _slot_ui: Array = []
 var _next_label: Label
 # Vaisseau
 var _upgrade_ui := {}
+# Base
+var _base_info: Label
+var _room_ui := {}
+var _room_sig := ""
+var _at_rate: Label
+var _at_bar: ProgressBar
+var _at_next: Label
+var _at_slot: OptionButton
+var _at_focus: OptionButton
+var _at_last: Label
+var _at_chances: Label
 # Labo
 var _lab_info: Label
 var _lab_auto: CheckButton
@@ -222,7 +231,7 @@ func _build_tabs(parent: Control) -> void:
 	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 	var group := ButtonGroup.new()
-	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["ship", "Vaisseau"]]:
+	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["ship", "Base"]]:
 		var b := Button.new()
 		b.text = entry[1]
 		b.icon = UiIcons.icon(entry[0], 44, Color.WHITE)
@@ -568,8 +577,88 @@ func _build_lab_page(page: VBoxContainer) -> void:
 		_lab_ui[id] = {"name": name_l, "bar": lvl_bar, "desc": desc_l, "btn": b}
 
 
+func _drag_safe_option(opt: OptionButton) -> void:
+	opt.fit_to_longest_item = false
+	opt.clip_text = true
+	opt.mouse_filter = Control.MOUSE_FILTER_PASS         # un glissement dessus fait défiler la page
+	opt.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	opt.add_theme_font_size_override("font_size", 19)
+	opt.get_popup().about_to_popup.connect(func():
+		if _dragged:     # le doigt a glissé : ce n'était pas un tap, on referme la liste
+			opt.get_popup().hide.call_deferred())
+
+
 func _build_ship_page(page: VBoxContainer) -> void:
-	_section(page, "Vaisseau")
+	_section(page, "Base")
+	_base_info = _label(page, "", 20, UiTheme.MAGENTA)
+	_base_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label(page, "Salles", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
+	for rid in Data.ROOM_ORDER:
+		var r: Dictionary = Data.ROOMS[rid]
+		var panel := _rarity_panel(page, r.color)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		_icon_tile(row, r.icon, r.color, 84)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 5)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(col)
+		var name_l := _label(col, "", 26)
+		var lvl_bar := _bar(col, 10, r.color)
+		var desc_l := _label(col, "", 19, COL_TEXT_DIM)
+		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var opt := OptionButton.new()
+		opt.custom_minimum_size = Vector2(0, 62)
+		_drag_safe_option(opt)
+		opt.item_selected.connect(_on_room_pick.bind(rid))
+		col.add_child(opt)
+		var b := _button(col, "", 70)
+		b.add_theme_font_size_override("font_size", 19)
+		UiTheme.style_primary(b)
+		b.pressed.connect(_tap(func(): GameState.buy_room_upgrade(rid)))
+		_room_ui[rid] = {"name": name_l, "bar": lvl_bar, "desc": desc_l, "opt": opt, "btn": b, "ids": [""]}
+	# Atelier : ordres de fabrication
+	_label(page, "Atelier : ordres de fabrication", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
+	var at := _rarity_panel(page, Data.ROOMS["atelier"].color)
+	var atv := VBoxContainer.new()
+	atv.add_theme_constant_override("separation", 8)
+	atv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	at.add_child(atv)
+	_at_rate = _label(atv, "", 22)
+	_at_rate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_at_bar = _bar(atv, 18, Data.ROOMS["atelier"].color)
+	_at_next = _label(atv, "", 19, COL_TEXT_DIM)
+	_label(atv, "Emplacement visé", 19, COL_TEXT_DIM)
+	_at_slot = OptionButton.new()
+	_at_slot.custom_minimum_size = Vector2(0, 62)
+	_drag_safe_option(_at_slot)
+	_at_slot.add_item("Au hasard")
+	for sl in Data.EQUIP_SLOTS:
+		_at_slot.add_item(String(Data.EQUIP[sl].name))
+	_at_slot.item_selected.connect(func(i: int):
+		GameState.atelier_slot = "" if i == 0 else Data.EQUIP_SLOTS[i - 1]
+		GameState.changed.emit())
+	atv.add_child(_at_slot)
+	_label(atv, "Bonus visé (garanti sur les objets qui en ont)", 19, COL_TEXT_DIM)
+	_at_focus = OptionButton.new()
+	_at_focus.custom_minimum_size = Vector2(0, 62)
+	_drag_safe_option(_at_focus)
+	_at_focus.add_item("Au hasard")
+	for k in Data.AFFIX_ORDER:
+		_at_focus.add_item(String(Data.AFFIXES[k].name))
+	_at_focus.item_selected.connect(func(i: int):
+		GameState.atelier_focus = "" if i == 0 else Data.AFFIX_ORDER[i - 1]
+		GameState.changed.emit())
+	atv.add_child(_at_focus)
+	_at_last = _label(atv, "", 20, UiTheme.GOOD)
+	_at_last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_at_chances = _label(atv, "", 19, UiTheme.MAGENTA)
+	_at_chances.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# améliorations du vaisseau (expéditions et revenus)
+	_label(page, "Améliorations du vaisseau", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
 	for id in Data.UPGRADE_ORDER:
 		var icon_name: String = UPGRADE_ICONS[id]
 		var color: Color = UpgradeColors.get(id, UiTheme.ACCENT)
@@ -591,6 +680,13 @@ func _build_ship_page(page: VBoxContainer) -> void:
 		UiTheme.style_primary(b)
 		b.pressed.connect(_tap(func(): GameState.buy_upgrade(id)))
 		_upgrade_ui[id] = {"name": name_l, "desc": desc_l, "btn": b, "bar": lvl_bar}
+
+
+func _on_room_pick(index: int, rid: String) -> void:
+	var ids: Array = _room_ui[rid].ids
+	if index < 0 or index >= ids.size():
+		return
+	GameState.set_room_crew(rid, ids[index])
 
 
 ## ---------- Helpers de widgets ----------
@@ -1002,8 +1098,7 @@ func _refresh_crew() -> void:
 			cls.name, Data.RARITY[tpl.rarity].name, st.hp, st.atk, st.def, st.spd]
 		u.xp.visible = true
 		u.xp.value = float(h.xp) / float(Data.xp_needed(h.level))
-		var slot := GameState.hero_slot(id)
-		u.where.text = ("Au poste (vaisseau %d) : %s" % [slot + 1, _hero_prod_text(id)]) if slot >= 0 else "Au repos : placez-le à un poste pour produire (%s)" % _hero_prod_text(id)
+		u.where.text = _hero_work_text(id)
 		u.train.visible = true
 		if h.level >= Data.MAX_LEVEL:
 			u.train.text = "Niveau maximum"
@@ -1014,13 +1109,13 @@ func _refresh_crew() -> void:
 			u.train.disabled = GameState.res["credits"] < tc
 
 
-func _hero_prod_text(id: String) -> String:
-	var cls: String = Data.HEROES[id]["class"]
-	var m := GameState.crew_prod_mult(id) * GameState.synergy_multiplier()
-	var parts: Array[String] = []
-	for r in Data.CREW_PROD[cls]:
-		parts.append("+%s %s/h" % [Data.fmt(Data.CREW_PROD[cls][r] * m), String(Data.RES_NAMES[r]).to_lower()])
-	return "  ".join(parts)
+func _hero_work_text(id: String) -> String:
+	var room := GameState.hero_room(id)
+	var spec: String = Data.HEROES[id].get("specialty", "")
+	var spec_name: String = Data.ROOMS[spec].name if Data.ROOMS.has(spec) else "?"
+	if room != "":
+		return "Au travail : %s%s. %s" % [Data.ROOMS[room].name, " (sa spécialité !)" if room == spec else "", _room_effect_text(room)]
+	return "Au repos. Spécialité : %s. Placez-le dans une salle de la Base pour produire." % spec_name
 
 
 func _crew_signature() -> String:
@@ -1194,7 +1289,91 @@ func _refresh_lab() -> void:
 			u.btn.disabled = not GameState.can_afford(cost)
 
 
+func _room_effect_text(rid: String) -> String:
+	var w := GameState.room_worker(rid)
+	match rid:
+		"atelier":
+			return "Fabrique %s objet(s) par heure." % String.num(GameState.afk_drops_per_hour(), 2)
+		"quartiers":
+			return "XP des équipiers au travail : +%d %%." % int(round((GameState.crew_xp_mult() - 1.0) * 100.0))
+		"soute":
+			return "Coffre hors ligne : %s, rendement %d %%." % [Data.fmt_time(GameState.offline_cap_seconds()), int(round(GameState.offline_efficiency() * 100.0))]
+	if w == "":
+		return "Aucun équipier : la salle ne produit rien."
+	var m := GameState.room_hero_mult(rid, w) * GameState.room_level_factor(rid) * GameState.synergy_multiplier()
+	var parts: Array[String] = []
+	var prod: Dictionary = Data.ROOMS[rid].prod
+	for r in prod:
+		var amount: float = prod[r] * m * (GameState.credit_mult() if r == "credits" else 1.0) * (1.0 + GameState.research_bonus("prod_pct") / 100.0)
+		parts.append("+%s %s/h" % [Data.fmt(amount), String(Data.RES_NAMES[r]).to_lower()])
+	return "  ".join(parts)
+
+
 func _refresh_ship() -> void:
+	_base_info.text = "Niveau d'AFK : %d  ·  Puissance de fabrication : %d (objets niv. ~%d). L'équipage travaille aussi hors ligne." % [
+		GameState.afk_level(), GameState.craft_power(), GameState.loot_level()]
+	var sig_parts: Array[String] = [str(GameState.hero_order)]
+	for rid in Data.ROOM_ORDER:
+		sig_parts.append("%s=%s" % [rid, GameState.room_worker(rid)])
+		sig_parts.append(str(GameState.heroes.get(GameState.room_worker(rid), {}).get("level", 0)))
+	var rebuild := ",".join(sig_parts) != _room_sig
+	_room_sig = ",".join(sig_parts)
+	for rid in Data.ROOM_ORDER:
+		var r: Dictionary = Data.ROOMS[rid]
+		var u: Dictionary = _room_ui[rid]
+		var lvl := GameState.room_level(rid)
+		u.name.text = "%s   niv. %d/%d" % [r.name, lvl, Data.ROOM_MAX_LEVEL]
+		u.bar.value = float(lvl) / float(Data.ROOM_MAX_LEVEL)
+		u.desc.text = _room_effect_text(rid) if rid in ["atelier", "quartiers", "soute"] else "%s  —  %s" % [r.desc, _room_effect_text(rid)]
+		if GameState.room_maxed(rid):
+			u.btn.text = "Niveau maximum"
+			u.btn.disabled = true
+		else:
+			var cost := GameState.room_upgrade_cost(rid)
+			u.btn.text = "Améliorer — " + _cost_text(cost)
+			u.btn.disabled = not GameState.can_afford(cost)
+		if rebuild:
+			var opt: OptionButton = u.opt
+			opt.clear()
+			u.ids = [""]
+			opt.add_item("— personne —")
+			for id in GameState.hero_order:
+				var h: Dictionary = GameState.heroes[id]
+				var tpl: Dictionary = Data.HEROES[id]
+				var tags := ""
+				if tpl.get("specialty", "") == rid:
+					tags += " ✦"
+				if tpl["class"] == r.affinity:
+					tags += " ●"
+				var other := GameState.hero_room(id)
+				var where := "" if other == "" or other == rid else " (%s)" % String(Data.ROOMS[other].name)
+				u.ids.append(id)
+				opt.add_item("%s niv.%d%s%s" % [tpl.name, h.level, tags, where])
+			opt.select(maxi(0, u.ids.find(GameState.room_worker(rid))))
+	# Atelier
+	var per_hour := GameState.afk_drops_per_hour()
+	var penalties := (1 if GameState.atelier_slot != "" else 0) + (1 if GameState.atelier_focus != "" else 0)
+	_at_rate.text = "Cadence : %s objet(s) par heure%s" % [String.num(per_hour, 2), ("  (ciblage : −%d %%)" % int(round((1.0 - pow(Data.ATELIER_TARGET_FACTOR, penalties)) * 100.0))) if penalties > 0 else ""]
+	_at_bar.value = GameState.atelier_progress()
+	_at_next.text = "Prochain objet dans environ %s" % Data.fmt_time(GameState.atelier_next_in())
+	_at_slot.select(0 if GameState.atelier_slot == "" else 1 + Data.EQUIP_SLOTS.find(GameState.atelier_slot))
+	_at_focus.select(0 if GameState.atelier_focus == "" else 1 + Data.AFFIX_ORDER.find(GameState.atelier_focus))
+	var lc: Dictionary = GameState.last_crafted
+	if lc.is_empty():
+		_at_last.text = "Aucun objet fabriqué pour l'instant."
+	else:
+		var rar: Dictionary = Data.ITEM_RARITY[lc.rarity]
+		_at_last.text = "Dernier objet : %s (%s, niv. %d)%s" % [lc.name, rar.name, lc.ilvl, "" if lc.get("kept", true) else "  — recyclé automatiquement"]
+		_at_last.add_theme_color_override("font_color", rar.color)
+	var w := GameState.drop_weights(1)
+	var wsum := 0.0
+	for k in w:
+		wsum += w[k]
+	var parts: Array[String] = []
+	for k in Data.ITEM_RARITY_ORDER:
+		if Data.ITEM_RARITY_ORDER.find(k) >= 2:
+			parts.append("%s %s %%" % [Data.ITEM_RARITY[k].name, String.num(100.0 * w[k] / wsum, 1)])
+	_at_chances.text = "Chances par objet : " + "  ·  ".join(parts)
 	for id in Data.UPGRADE_ORDER:
 		var up: Dictionary = Data.UPGRADES[id]
 		var u: Dictionary = _upgrade_ui[id]

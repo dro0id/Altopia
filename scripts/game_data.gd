@@ -24,15 +24,15 @@ const RARITY_ORDER := ["epic", "rare", "common"]
 ## Héros recrutables : stats de base au niveau 1, 0 étoile.
 const HERO_ORDER := ["rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara"]
 const HEROES := {
-	"rex": {"name": "Rex", "class": "pilot", "rarity": "common", "hp": 100.0, "atk": 14.0, "def": 6.0, "spd": 12.0},
-	"nova": {"name": "Nova", "class": "pilot", "rarity": "rare", "hp": 110.0, "atk": 18.0, "def": 7.0, "spd": 15.0},
-	"zara": {"name": "Zara", "class": "pilot", "rarity": "epic", "hp": 120.0, "atk": 24.0, "def": 9.0, "spd": 18.0},
-	"bolt": {"name": "Bolt", "class": "engineer", "rarity": "common", "hp": 130.0, "atk": 10.0, "def": 10.0, "spd": 8.0},
-	"tess": {"name": "Tess", "class": "engineer", "rarity": "rare", "hp": 140.0, "atk": 12.0, "def": 13.0, "spd": 9.0},
-	"gorn": {"name": "Gorn", "class": "engineer", "rarity": "epic", "hp": 170.0, "atk": 15.0, "def": 17.0, "spd": 8.0},
-	"lumi": {"name": "Lumi", "class": "scientist", "rarity": "common", "hp": 90.0, "atk": 16.0, "def": 4.0, "spd": 10.0},
-	"quark": {"name": "Quark", "class": "scientist", "rarity": "rare", "hp": 95.0, "atk": 20.0, "def": 5.0, "spd": 11.0},
-	"elara": {"name": "Elara", "class": "scientist", "rarity": "epic", "hp": 105.0, "atk": 27.0, "def": 6.0, "spd": 13.0},
+	"rex": {"name": "Rex", "class": "pilot", "rarity": "common", "specialty": "mine", "hp": 100.0, "atk": 14.0, "def": 6.0, "spd": 12.0},
+	"nova": {"name": "Nova", "class": "pilot", "rarity": "rare", "specialty": "quartiers", "hp": 110.0, "atk": 18.0, "def": 7.0, "spd": 15.0},
+	"zara": {"name": "Zara", "class": "pilot", "rarity": "epic", "specialty": "mine", "hp": 120.0, "atk": 24.0, "def": 9.0, "spd": 18.0},
+	"bolt": {"name": "Bolt", "class": "engineer", "rarity": "common", "specialty": "centrale", "hp": 130.0, "atk": 10.0, "def": 10.0, "spd": 8.0},
+	"tess": {"name": "Tess", "class": "engineer", "rarity": "rare", "specialty": "atelier", "hp": 140.0, "atk": 12.0, "def": 13.0, "spd": 9.0},
+	"gorn": {"name": "Gorn", "class": "engineer", "rarity": "epic", "specialty": "atelier", "hp": 170.0, "atk": 15.0, "def": 17.0, "spd": 8.0},
+	"lumi": {"name": "Lumi", "class": "scientist", "rarity": "common", "specialty": "labo", "hp": 90.0, "atk": 16.0, "def": 4.0, "spd": 10.0},
+	"quark": {"name": "Quark", "class": "scientist", "rarity": "rare", "specialty": "soute", "hp": 95.0, "atk": 20.0, "def": 5.0, "spd": 11.0},
+	"elara": {"name": "Elara", "class": "scientist", "rarity": "epic", "specialty": "labo", "hp": 105.0, "atk": 27.0, "def": 6.0, "spd": 13.0},
 }
 const STARTER_HEROES := ["rex", "bolt"]
 
@@ -101,14 +101,13 @@ const ITEM_ILVL_BONUS := 0.10    # +10 % de stats par niveau d'objet
 const ITEM_ILVL_AFFIX := 0.04    # les affixes montent aussi avec le niveau d'objet
 const CRIT_MULT := 1.5           # un coup critique fait x1,5 (moyenne déterministe dans les combats)
 ## AFK : le travail aux postes fabrique le butin du Capitaine et fait gagner de l'XP à l'équipage (hors ligne compris).
-const AFK_DROPS_PER_HOUR := 1.2     # objets par heure de travail aux postes (~29 par jour pour un coffre de 24 h)
 const AFK_XP_HOURS_BASE := 1.0      # heures de travail pour passer du niveau L à L+1 : base + par_niveau x L
 const AFK_XP_HOURS_PER_LEVEL := 0.25
 ## Niveau d'AFK = niveaux de l'équipage aux postes + améliorations de postes et de vaisseau. Plus il est haut,
 ## plus le butin du Capitaine est puissant : rareté (poids ci-dessous par rang de rareté) et niveau d'objet.
-const AFK_RARITY_RATE := 0.005
+const AFK_RARITY_RATE := 0.003
 const AFK_RARITY_RANK_FACTOR := [0.0, 0.0, 1.0, 2.5, 5.0]
-const AFK_ILVL_DIV := 8.0
+const AFK_ILVL_DIV := 16.0
 const INVENTORY_MAX := 60
 const AUTO_RECYCLE_MAX := 2      # 0 = communs, 1 = jusqu'à peu commun, 2 = jusqu'à rare ; -1 = désactivé
 
@@ -164,9 +163,8 @@ const DEST := {
 	},
 }
 
-const UPGRADE_ORDER := ["laser", "solar", "scanner", "engines", "docks", "st_pilot", "st_engineer", "st_scientist"]
+const UPGRADE_ORDER := ["laser", "solar", "scanner", "engines", "docks"]
 const PROD_LEVEL_EXP := 0.7     # la production d'un équipier croît moins vite que son niveau
-const STATION_GAIN := 0.12      # +12 % de production du poste par niveau d'amélioration de poste
 ## cost = base * growth^niveau (arrondi au supérieur). bonus = effet par niveau.
 const UPGRADES := {
 	"laser": {"name": "Laser de minage", "desc": "+25 % minerais par niveau", "max": 20, "growth": 1.85,
@@ -179,28 +177,22 @@ const UPGRADES := {
 		"base": {"credits": 120.0, "minerals": 8.0, "energy": 5.0}},
 	"docks": {"name": "Baie d'amarrage", "desc": "Débloque un 2e vaisseau", "max": 1, "growth": 1.0,
 		"base": {"credits": 500.0, "minerals": 30.0, "energy": 20.0}},
-	"st_pilot": {"name": "Poste Pilote", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
-		"base": {"credits": 300.0, "minerals": 15.0}},
-	"st_engineer": {"name": "Poste Ingénieur", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
-		"base": {"credits": 300.0, "energy": 10.0}},
-	"st_scientist": {"name": "Poste Scientifique", "desc": "+12 % de production du poste par niveau", "max": 30, "growth": 1.5,
-		"base": {"credits": 300.0, "data": 8.0}},
 }
 
 ## Objectifs : un palier à atteindre, une récompense à récupérer. Ils donnent un but à chaque retour.
-## kind : captain_level, crew_count, data_total, expeditions, epic_item, station_levels, docks, crew_level_sum
+## kind : captain_level, crew_count, data_total, expeditions, epic_item, room_levels, docks, crew_level_sum
 const GOALS := [
 	{"id": "g1", "name": "Capitaine niveau 5", "kind": "captain_level", "target": 5, "reward": {"credits": 400.0}},
 	{"id": "g2", "name": "Posséder 4 cartes d'équipage", "kind": "crew_count", "target": 4, "reward": {"credits": 600.0, "minerals": 30.0}},
 	{"id": "g3", "name": "Accumuler 100 données", "kind": "data_total", "target": 100, "reward": {"credits": 800.0, "energy": 40.0}},
-	{"id": "g4", "name": "Améliorer les postes (niveaux cumulés : 5)", "kind": "station_levels", "target": 5, "reward": {"credits": 1200.0, "data": 20.0}},
+	{"id": "g4", "name": "Améliorer la Base (niveaux de salles cumulés : 12)", "kind": "room_levels", "target": 12, "reward": {"credits": 1200.0, "data": 20.0}},
 	{"id": "g5", "name": "Lancer 25 expéditions", "kind": "expeditions", "target": 25, "reward": {"credits": 1500.0, "minerals": 60.0}},
 	{"id": "g6", "name": "Débloquer le 2e vaisseau", "kind": "docks", "target": 1, "reward": {"credits": 2500.0, "energy": 80.0}},
 	{"id": "g7", "name": "Capitaine niveau 15", "kind": "captain_level", "target": 15, "reward": {"credits": 5000.0, "data": 80.0}},
 	{"id": "g8", "name": "Obtenir un objet épique", "kind": "epic_item", "target": 1, "reward": {"credits": 6000.0, "minerals": 150.0}},
 	{"id": "g9", "name": "Accumuler 1 500 données", "kind": "data_total", "target": 1500, "reward": {"credits": 12000.0, "energy": 200.0}},
 	{"id": "g10", "name": "Équipage : niveaux cumulés 40", "kind": "crew_level_sum", "target": 40, "reward": {"credits": 20000.0, "minerals": 300.0}},
-	{"id": "g11", "name": "Postes : niveaux cumulés 30", "kind": "station_levels", "target": 30, "reward": {"credits": 40000.0, "data": 400.0}},
+	{"id": "g11", "name": "Base : niveaux de salles cumulés 90", "kind": "room_levels", "target": 90, "reward": {"credits": 40000.0, "data": 400.0}},
 	{"id": "g12", "name": "Capitaine niveau 30", "kind": "captain_level", "target": 30, "reward": {"credits": 80000.0, "energy": 500.0}},
 ]
 
@@ -373,3 +365,37 @@ const ANOMALY_REF_LEVEL_PER_FAILLE := 2.5
 const ANOMALY_RECORD_BONUS := 0.5         # +50 % de crédits quand on bat son record de tours
 const ANOMALY_CREDITS := 40.0
 const ANOMALY_FIRST_RES := {"data": 30.0, "minerals": 15.0, "energy": 10.0}
+
+
+## --- La Base : six salles où travaille l'équipage (le jeu AFK) ---
+## Une salle = un niveau, un équipier (facultatif pour l'Atelier, les Quartiers, la Soute) et une production.
+## Bonus d'équipier : affinité de classe (+25 %) et spécialité de la carte (+50 %), cumulables.
+const ROOM_ORDER := ["mine", "centrale", "labo", "atelier", "quartiers", "soute"]
+const ROOMS := {
+	"mine": {"name": "Mine", "desc": "Minerais et crédits", "affinity": "pilot", "icon": "minerals", "color": Color(0.8, 0.7, 0.62),
+		"prod": {"minerals": 17.0, "credits": 20.0}, "cost": {"credits": 300.0, "minerals": 15.0}},
+	"centrale": {"name": "Centrale", "desc": "Énergie et crédits", "affinity": "engineer", "icon": "energy", "color": Color(0.75, 0.55, 1.0),
+		"prod": {"energy": 11.0, "credits": 20.0}, "cost": {"credits": 300.0, "energy": 10.0}},
+	"labo": {"name": "Laboratoire de données", "desc": "Données et crédits", "affinity": "scientist", "icon": "data", "color": Color(0.5, 0.95, 1.0),
+		"prod": {"data": 8.5, "credits": 20.0}, "cost": {"credits": 300.0, "data": 8.0}},
+	"atelier": {"name": "Atelier", "desc": "Fabrique les objets du Capitaine", "affinity": "engineer", "icon": "engineer", "color": Color(1.0, 0.65, 0.3),
+		"prod": {"credits": 8.5}, "cost": {"credits": 350.0, "minerals": 20.0}},
+	"quartiers": {"name": "Quartiers", "desc": "XP des équipiers au travail", "affinity": "pilot", "icon": "crew", "color": Color(0.43, 1.0, 0.61),
+		"prod": {"credits": 8.5}, "cost": {"credits": 350.0, "data": 10.0}},
+	"soute": {"name": "Soute", "desc": "Coffre hors ligne plus long et plus rentable", "affinity": "scientist", "icon": "chest", "color": Color(1.0, 0.82, 0.35),
+		"prod": {"credits": 8.5}, "cost": {"credits": 350.0, "energy": 10.0}},
+}
+const ROOM_MAX_LEVEL := 30
+const ROOM_COST_GROWTH := 1.75
+const ROOM_LEVEL_GAIN := 0.06          # +8 % de production / d'effet par niveau de salle
+const ROOM_AFFINITY_BONUS := 0.25
+const ROOM_SPECIALTY_BONUS := 0.5
+const ROOM_CREW_REF := 30.0            # force d'équipier de référence pour les salles à effet (Atelier, Quartiers, Soute)
+
+## Atelier : cadence de fabrication et ciblage. Cibler un emplacement et/ou un bonus coûte 15 % de cadence chacun.
+const ATELIER_BASE_PER_HOUR := 0.8
+const ATELIER_TARGET_FACTOR := 0.85
+const ATELIER_QUALITY_PER_LEVEL := 3.0     # niveaux d'AFK équivalents par niveau d'Atelier
+const QUARTERS_XP_GAIN := 0.03             # +3 % d'XP des équipiers par niveau de Quartiers
+const SOUTE_HOURS_GAIN := 0.4              # +0,4 h de coffre par niveau de Soute
+const SOUTE_EFF_GAIN := 0.008              # +0,8 point de rendement hors ligne par niveau de Soute

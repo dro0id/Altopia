@@ -128,3 +128,21 @@ Mesures ajoutées au simulateur : XP perdue au plafond, sessions au plafond, pos
 - **Recherche automatique** : un réglage qui lance la prochaine recherche abordable dès qu'un poste se libère ; file portée à 5.
 - **Difficulté adaptative** : le niveau des ennemis ne monte plus quand la victoire devient incertaine ; la relance automatique repasse à la destination inférieure plutôt que d'enchaîner les défaites.
 - **Contenu actif** pour combler les périodes calmes : secteurs, boss, missions d'équipage (étapes suivantes).
+
+## La Base : salles, spécialités, Atelier ciblé
+
+L'AFK est le gameplay de l'équipage : chaque équipier travaille dans une salle de la **Base** (onglet « Base »).
+
+| Salle | Produit | Effet propre |
+|---|---|---|
+| Mine | minerais + crédits | |
+| Centrale | énergie + crédits | |
+| Laboratoire | données + crédits | |
+| Atelier | crédits | cadence de fabrication, qualité des objets, ciblage |
+| Quartiers | crédits | + XP de tout l'équipage au travail |
+| Soute | crédits | coffre hors ligne plus long, meilleur rendement |
+
+- Niveaux de salle 1 à 30 (+6 % par niveau, coût ×1,75 par niveau). Un équipier de la bonne classe travaille à +25 %, un spécialiste de la salle à +50 % (`specialty` dans `HEROES`).
+- L'Atelier fabrique des objets pour le capitaine : l'emplacement et l'affixe visés peuvent être choisis (chacun réduit la cadence de 15 %). La puissance de fabrication = niveau d'AFK + 3 × niveau d'Atelier ; elle règle le niveau d'objet et la chance de raretés élevées.
+- Migration : les anciens postes (Pilote/Ingénieur/Scientifique) deviennent les niveaux de salle correspondants, l'équipage est placé automatiquement.
+- Calibrage (4 profils, 120 jours) : niveau du capitaine à ±5 % de l'ancienne boucle (j7/j30/j90 casual 24/55/95, evening 27/59/109, regular 33/66/121, hardcore 36/74/139). Le niveau d'AFK affiché est environ 2× plus grand : 6 équipiers au travail au lieu de 3. Aucune période sans progrès de plus d'un jour.

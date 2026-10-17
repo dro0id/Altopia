@@ -46,6 +46,15 @@ func _give(amounts: Dictionary) -> void:
 
 
 ## Place les cartes données à leurs postes (la classe détermine le poste).
+## Place des équipiers au travail dans la Base : Pilote -> Mine, Ingénieur -> Centrale, Scientifique -> Labo.
+func _work(ids: Array) -> void:
+	for rid in Data.ROOM_ORDER:
+		_gs.room_crew[rid] = ""
+	var by_class := {"pilot": "mine", "engineer": "centrale", "scientist": "labo"}
+	for id in ids:
+		_gs.room_crew[by_class[Data.HEROES[id]["class"]]] = id
+
+
 func _crew(slot_i: int, ids: Array) -> void:
 	for id in ids:
 		_gs.set_squad_member(slot_i, Data.CREW_ORDER.find(Data.HEROES[id]["class"]), id)
@@ -250,18 +259,18 @@ func test_look_cycle() -> void:
 	_check(_gs.captain.look.style >= 0 and _gs.captain.look.style < Data.LOOK_STYLES, "la coupe reste valide")
 
 
-func test_crew_produces_only_when_stationed() -> void:
+func test_crew_produces_only_when_working_in_a_room() -> void:
 	_gs.give_hero("rex", 5)
 	_gs.give_hero("bolt", 5)
 	_gs.give_hero("lumi", 5)
 	var idle: Dictionary = _gs.production_per_sec()
-	_check(is_equal_approx(idle.minerals, 0.0) and is_equal_approx(idle.energy, 0.0) and idle.credits == 0.0, "sans poste, l'équipage ne produit rien")
-	_crew(0, ["rex"])
+	_check(is_equal_approx(idle.minerals, 0.0) and is_equal_approx(idle.energy, 0.0) and idle.credits == 0.0, "sans salle, l'équipage ne produit rien")
+	_work(["rex"])
 	var one: Dictionary = _gs.production_per_sec()
-	_check(one.minerals > 0.0 and is_equal_approx(one.energy, 0.0) and one.credits > 0.0, "le Pilote produit des minerais et des crédits")
-	_crew(0, ["bolt", "lumi"])
+	_check(one.minerals > 0.0 and is_equal_approx(one.energy, 0.0) and one.credits > 0.0, "à la Mine : minerais et crédits")
+	_work(["rex", "bolt", "lumi"])
 	var all: Dictionary = _gs.production_per_sec()
-	_check(all.energy > 0.0 and all.data > Data.BASE_DATA_RATE, "l'Ingénieur produit de l'énergie, le Scientifique des données")
+	_check(all.energy > 0.0 and all.data > Data.BASE_DATA_RATE, "la Centrale produit de l'énergie, le Labo des données")
 	_check(all.minerals > one.minerals, "la synergie des 3 classes augmente la production")
 	var before: float = _gs.res["minerals"]
 	_gs.tick(3600.0)
@@ -271,12 +280,12 @@ func test_crew_produces_only_when_stationed() -> void:
 func test_production_scales_with_level_rarity_stars() -> void:
 	_gs.give_hero("rex", 1)
 	_gs.give_hero("nova", 1, 2)
-	_crew(0, ["rex"])
+	_work(["rex"])
 	var p1: float = _gs.production_per_sec().minerals
-	_crew(0, ["nova"])
-	_check(_gs.production_per_sec().minerals > p1 * 1.5, "rare + étoiles produisent plus qu'un commun")
+	_work(["nova"])
+	_check(_gs.production_per_sec().minerals > p1 * 1.2, "rare + étoiles produisent plus qu'un commun, même face à un spécialiste")
 	_gs.heroes["nova"].level = 10
-	_check(_gs.production_per_sec().minerals > p1 * 8.0, "le niveau multiplie la production")
+	_check(_gs.production_per_sec().minerals > p1 * 5.0, "le niveau multiplie la production")
 
 
 func test_offline_efficiency_and_cap() -> void:
@@ -284,11 +293,11 @@ func test_offline_efficiency_and_cap() -> void:
 	_check(is_equal_approx(_gs.offline_cap_seconds(), Data.OFFLINE_BASE_HOURS * 3600.0), "durée de base hors ligne")
 	_gs.give_hero("rex", 10)
 	_gs.give_hero("bolt", 10)
-	_crew(0, ["rex", "bolt"])
-	_check(_gs.offline_efficiency() > Data.OFFLINE_BASE_EFFICIENCY, "l'équipage placé améliore le rendement")
+	_work(["rex", "bolt"])
+	_check(_gs.offline_efficiency() > Data.OFFLINE_BASE_EFFICIENCY, "l'équipage au travail améliore le rendement")
 	_check(_gs.offline_cap_seconds() > Data.OFFLINE_BASE_HOURS * 3600.0, "les Ingénieurs allongent la durée hors ligne")
 	_gs.give_hero("lumi", 200)
-	_crew(0, ["lumi"])
+	_work(["lumi"])
 	_check(_gs.offline_efficiency() <= Data.OFFLINE_EFF_MAX and _gs.offline_cap_seconds() <= Data.OFFLINE_MAX_HOURS * 3600.0, "plafonds respectés")
 	var it := _item("gloves", "rare", 5, [{"k": "offline_pct", "v": 8.0}])
 	var eff0: float = _gs.offline_efficiency()
@@ -444,22 +453,19 @@ func test_crew_gains_xp_by_working_at_stations() -> void:
 	_check(_gs.heroes["rex"].level > lv0, "et ça continue hors ligne")
 
 
-func test_afk_work_makes_items_for_the_captain() -> void:
+func test_atelier_makes_items_for_the_captain() -> void:
 	_gs.new_game()
 	_gs.auto_recycle = -1
 	var items0: int = _gs.items.size()
 	_gs.tick(3600.0 * 10.0)
-	_check(_gs.items.size() >= items0 + 8, "10 h de travail AFK : des objets pour le Capitaine (%d)" % (_gs.items.size() - items0))
-	_gs.reset()
+	_check(_gs.items.size() >= items0 + 8, "10 h d'AFK : l'Atelier fabrique des objets (%d)" % (_gs.items.size() - items0))
 	_gs.new_game()
 	_gs.auto_recycle = -1
-	for i in _gs.slot_count():
-		for k in Data.CREW_ORDER.size():
-			_gs.slots[i].squad[k] = ""
+	for rid in Data.ROOM_ORDER:
+		_gs.room_crew[rid] = ""
 	var n0: int = _gs.items.size()
-	_gs._afk_loot_clock = 0.0
 	_gs.tick(3600.0 * 10.0)
-	_check(_gs.items.size() == n0, "sans équipage aux postes, rien n'est fabriqué")
+	_check(_gs.items.size() >= n0 + 5, "même sans équipier, l'Atelier tourne à cadence de base (%d)" % (_gs.items.size() - n0))
 
 
 func test_afk_level_raises_loot_quality() -> void:
@@ -468,9 +474,9 @@ func test_afk_level_raises_loot_quality() -> void:
 	var l0: int = _gs.loot_level()
 	_gs.give_hero("nova", 60)
 	_gs.give_hero("tess", 60)
-	_gs.give_hero("zara", 60)
-	_crew(0, ["nova", "tess", "zara"])
-	_gs.upgrade_levels["st_pilot"] = 20
+	_gs.give_hero("quark", 60)
+	_work(["nova", "tess", "quark"])
+	_gs.room_levels["mine"] = 20
 	_check(_gs.afk_level() > 100, "niveau d'AFK (%d)" % _gs.afk_level())
 	var w1: Dictionary = _gs.drop_weights(1)
 	var share0: float = w0["legendary"] / (w0["common"] + w0["uncommon"] + w0["rare"] + w0["epic"] + w0["legendary"])
@@ -616,14 +622,19 @@ func test_save_load_roundtrip() -> void:
 	_gs.save_path = _gs.SAVE_PATH
 
 
-func test_station_upgrade_boosts_production() -> void:
+func test_room_upgrade_boosts_production() -> void:
 	_gs.new_game()
 	var before: float = _gs.production_per_sec().credits
 	_gs.res["credits"] = 1.0e6
 	_gs.res["minerals"] = 1.0e4
-	_check(_gs.buy_upgrade("st_pilot"), "amélioration du poste Pilote achetée")
+	_check(_gs.buy_room_upgrade("mine"), "Mine améliorée")
 	var after: float = _gs.production_per_sec().credits
-	_check(after > before * 1.05, "la production augmente (%.4f -> %.4f)" % [before, after])
+	_check(after > before * 1.02 and _gs.room_level("mine") == 2, "la production augmente (%.4f -> %.4f)" % [before, after])
+	var c1: float = _gs.room_upgrade_cost("mine")["credits"]
+	_gs.room_levels["mine"] = 10
+	_check(_gs.room_upgrade_cost("mine")["credits"] > c1 * 10.0, "le coût monte vite avec le niveau")
+	_gs.room_levels["mine"] = Data.ROOM_MAX_LEVEL
+	_check(not _gs.buy_room_upgrade("mine"), "niveau maximum de salle")
 
 
 func test_goals() -> void:
@@ -754,3 +765,132 @@ func test_research_auto_fills_free_slot() -> void:
 	_gs.research_active.clear()
 	_gs.tick(100.0)
 	_check(_gs.research_active.is_empty(), "automatique coupé : rien ne démarre")
+
+
+func test_room_crew_rules() -> void:
+	_gs.new_game()
+	_gs.give_hero("nova")
+	_check(_gs.set_room_crew("quartiers", "nova"), "Nova aux Quartiers")
+	_check(_gs.set_room_crew("mine", "nova") and _gs.room_worker("quartiers") == "" and _gs.room_worker("mine") == "nova", "un équipier ne travaille que dans une salle")
+	_check(not _gs.set_room_crew("mine", "inconnu") and not _gs.set_room_crew("salon", "nova"), "carte ou salle inconnue refusée")
+	_check(_gs.set_room_crew("mine", "") and _gs.hero_room("nova") == "", "salle vidée")
+
+
+func test_room_affinity_and_specialty() -> void:
+	_gs.new_game()
+	_gs.give_hero("rex", 1)
+	_gs.give_hero("zara", 1)
+	var base: float = _gs.crew_prod_mult("rex")
+	_check(is_equal_approx(_gs.room_hero_mult("mine", "rex"), base * 1.25 * 1.5), "Rex : classe Pilote (+25 %) et spécialité Mine (+50 %)")
+	_check(is_equal_approx(_gs.room_hero_mult("quartiers", "rex"), base * 1.25), "Rex aux Quartiers : affinité de classe seulement")
+	_check(is_equal_approx(_gs.room_hero_mult("centrale", "rex"), base), "Rex à la Centrale : aucun bonus")
+
+
+func test_auto_rooms_places_everyone_sensibly() -> void:
+	_gs.new_game()
+	for id in ["nova", "zara", "tess", "gorn", "lumi", "quark", "elara"]:
+		_gs.give_hero(id)
+	_gs.auto_rooms()
+	var workers := {}
+	for rid in Data.ROOM_ORDER:
+		var w: String = _gs.room_worker(rid)
+		_check(w != "", "la salle %s a un équipier" % rid)
+		_check(not workers.has(w), "%s n'est placé qu'une fois" % w)
+		workers[w] = true
+	_check(_gs.room_worker("mine") == "zara", "la Mine reçoit la meilleure Pilote (Zara, épique)")
+
+
+func test_atelier_targeting() -> void:
+	_gs.new_game()
+	_gs.auto_recycle = -1
+	_gs.room_levels["atelier"] = 20      # puissance de fabrication élevée : des objets à bonus
+	_gs.atelier_slot = "helmet"
+	_gs.atelier_focus = "crit"
+	var all_helmets := true
+	var all_crit := true
+	var fancy := 0
+	for i in 300:
+		var it: Dictionary = _gs.roll_afk_drop()
+		if it.is_empty():
+			continue
+		all_helmets = all_helmets and it.slot == "helmet"
+		if it.affixes.size() > 0:
+			fancy += 1
+			var has_crit := false
+			for a in it.affixes:
+				has_crit = has_crit or a.k == "crit"
+			all_crit = all_crit and has_crit
+	_check(all_helmets, "l'emplacement visé est respecté")
+	_check(fancy > 20 and all_crit, "le bonus visé est garanti sur tous les objets à bonus (%d objets)" % fancy)
+	_gs.atelier_slot = ""
+	_gs.atelier_focus = ""
+	var free: float = _gs.afk_drops_per_hour()
+	_gs.atelier_slot = "helmet"
+	_check(is_equal_approx(_gs.afk_drops_per_hour(), free * Data.ATELIER_TARGET_FACTOR), "cibler l'emplacement coûte 15 % de cadence")
+	_gs.atelier_focus = "crit"
+	_check(is_equal_approx(_gs.afk_drops_per_hour(), free * Data.ATELIER_TARGET_FACTOR * Data.ATELIER_TARGET_FACTOR), "cibler le bonus aussi")
+
+
+func test_atelier_level_and_staff_raise_cadence_and_quality() -> void:
+	_gs.new_game()
+	for rid in Data.ROOM_ORDER:
+		_gs.room_crew[rid] = ""
+	var c0: float = _gs.afk_drops_per_hour()
+	var q0: int = _gs.craft_power()
+	_gs.room_levels["atelier"] = 11
+	_check(_gs.afk_drops_per_hour() > c0 * 1.5, "le niveau de l'Atelier accélère la fabrication")
+	_check(_gs.craft_power() >= q0 + 30, "et améliore la qualité des objets")
+	var c1: float = _gs.afk_drops_per_hour()
+	_gs.give_hero("tess", 30)
+	_gs.set_room_crew("atelier", "tess")
+	_check(_gs.afk_drops_per_hour() > c1 * 1.5, "un équipier (spécialiste) accélère encore")
+
+
+func test_quarters_and_soute_effects() -> void:
+	_gs.new_game()
+	var x0: float = _gs.crew_xp_mult()
+	_check(is_equal_approx(x0, 1.0), "Quartiers niveau 1 : pas de bonus d'XP")
+	_gs.room_levels["quartiers"] = 11
+	_check(_gs.crew_xp_mult() > 1.25, "Quartiers niveau 11 : environ +30 % d'XP")
+	var lv0: int = _gs.heroes["rex"].level
+	var xp_rate: float = _gs.crew_xp_per_sec("rex")
+	_check(xp_rate > 0.0, "un équipier au travail gagne de l'XP")
+	var cap0: float = _gs.offline_cap_seconds()
+	var eff0: float = _gs.offline_efficiency()
+	_gs.room_levels["soute"] = 11
+	_check(_gs.offline_cap_seconds() > cap0 + 3.0 * 3600.0, "la Soute allonge le coffre hors ligne")
+	_check(_gs.offline_efficiency() > eff0 + 0.05, "et améliore le rendement")
+	_check(lv0 >= 1, "niveau cohérent")
+
+
+func test_old_save_migrates_stations_to_rooms() -> void:
+	_gs.save_path = "user://test_old_save.json"
+	var old := {"version": 5, "res": {"credits": 123.0}, "data_total": 0.0, "captain": {"level": 3, "xp": 0, "name": "Capitaine", "look": {"suit": 0, "hair": 0, "style": 0}},
+		"items": [], "equipped": {}, "heroes": {"rex": {"level": 7, "xp": 0, "stars": 0}, "bolt": {"level": 4, "xp": 0, "stars": 0}},
+		"hero_order": ["rex", "bolt"], "upgrades": {"laser": 2, "st_pilot": 5, "st_engineer": 2, "st_scientist": 0}, "slots": [], "last_seen": 0}
+	var f := FileAccess.open(_gs.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement de l'ancienne sauvegarde")
+	_check(_gs.room_level("mine") == 6 and _gs.room_level("quartiers") == 6 and _gs.room_level("centrale") == 3 and _gs.room_level("labo") == 1, "les niveaux de postes deviennent des niveaux de salles (par affinité)")
+	_check(_gs.room_worker("mine") == "rex" and _gs.room_worker("centrale") == "bolt", "placement automatique à la migration")
+	_check(_gs.upgrade_levels["laser"] == 2 and not _gs.upgrade_levels.has("st_pilot"), "les autres améliorations restent")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_old_save.json"))
+	_gs.save_path = _gs.SAVE_PATH
+
+
+func test_base_save_load_roundtrip() -> void:
+	_gs.save_path = "user://test_base.json"
+	_gs.new_game()
+	_gs.room_levels["atelier"] = 7
+	_gs.atelier_slot = "boots"
+	_gs.atelier_focus = "xp_pct"
+	_gs.give_hero("tess", 12)
+	_gs.set_room_crew("atelier", "tess")
+	_gs.save_game()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement")
+	_check(_gs.room_level("atelier") == 7 and _gs.atelier_slot == "boots" and _gs.atelier_focus == "xp_pct" and _gs.room_worker("atelier") == "tess", "Base restaurée")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_base.json"))
+	_gs.save_path = _gs.SAVE_PATH

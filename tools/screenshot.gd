@@ -54,6 +54,7 @@ func _initialize() -> void:
 	for e in [["weapon", "rare", 12], ["helmet", "legendary", 15], ["boots", "epic", 13], ["gloves", "common", 3], ["suit", "rare", 10]]:
 		gs.items.append(gs.make_item(e[0], e[1], e[2]))
 	gs.auto_squad(0)
+	gs.auto_rooms()
 	gs.add_res("credits", 650.0)
 	gs.add_res("data", 40.0)
 	gs.add_res("minerals", 60.0)

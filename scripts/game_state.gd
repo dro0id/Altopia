@@ -32,7 +32,11 @@ var auto_recycle := Data.AUTO_RECYCLE_MAX   # recycle les objets peu utiles dès
 var heroes := {}
 var hero_order: Array = []
 var recruits := 0
-var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0, "st_pilot": 0, "st_engineer": 0, "st_scientist": 0}
+var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0}
+var room_levels := {}             # niveau de chaque salle de la Base (1 au départ)
+var room_crew := {}               # salle -> équipier qui y travaille ("" = personne)
+var atelier_slot := ""            # emplacement visé par l'Atelier ("" = au hasard)
+var atelier_focus := ""           # bonus visé par l'Atelier ("" = au hasard)
 var goals_claimed: Array = []
 var research_levels := {}
 var research_active: Array = []   # [{id, remaining, total}] : recherches en cours
@@ -56,7 +60,8 @@ var last_recruit := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
-var _afk_loot_clock := 0.0      # objets en cours de fabrication par le travail AFK
+var _afk_loot_clock := 0.0      # avancement du prochain objet fabriqué par l'Atelier (0 à 1)
+var last_crafted := {}          # dernier objet fabriqué (avec "kept" : gardé ou recyclé automatiquement)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
@@ -100,6 +105,11 @@ func reset() -> void:
 	recruits = 0
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
+	for rid in Data.ROOM_ORDER:
+		room_levels[rid] = 1
+		room_crew[rid] = ""
+	atelier_slot = ""
+	atelier_focus = ""
 	goals_claimed = []
 	research_levels = {}
 	for rid in Data.RESEARCH_ORDER:
@@ -128,6 +138,7 @@ func new_game() -> void:
 	for id in Data.STARTER_HEROES:
 		give_hero(id)
 	auto_squad(0)
+	auto_rooms()
 	for s in ["weapon", "suit"]:
 		var it := make_item(s, "common", 1)
 		items.append(it)
@@ -247,7 +258,7 @@ func drone_stats(slot_i: int) -> Dictionary:
 
 ## --- Équipement : du loot comme dans un vrai RPG ---
 
-func make_item(slot: String, rarity: String, ilvl: int, with_affixes: bool = true) -> Dictionary:
+func make_item(slot: String, rarity: String, ilvl: int, with_affixes: bool = true, forced_affix: String = "") -> Dictionary:
 	var names: Array = Data.EQUIP[slot].names
 	var nm: String = names[rng.randi() % names.size()]
 	if rarity == "epic" or rarity == "legendary":
@@ -256,13 +267,22 @@ func make_item(slot: String, rarity: String, ilvl: int, with_affixes: bool = tru
 	next_item_id += 1
 	if with_affixes:
 		var pool: Array = Data.AFFIX_ORDER.duplicate()
-		for i in int(Data.ITEM_RARITY[rarity].affixes):
+		var n: int = int(Data.ITEM_RARITY[rarity].affixes)
+		if forced_affix != "" and n > 0 and pool.has(forced_affix):     # bonus visé à l'Atelier : garanti
+			item.affixes.append({"k": forced_affix, "v": _affix_value(forced_affix, ilvl)})
+			pool.erase(forced_affix)
+			n -= 1
+		for i in n:
 			var k: String = pool[rng.randi() % pool.size()]
 			pool.erase(k)
-			var a: Dictionary = Data.AFFIXES[k]
-			var v: float = lerpf(a.min, a.max, rng.randf()) * (1.0 + Data.ITEM_ILVL_AFFIX * (ilvl - 1))
-			item.affixes.append({"k": k, "v": snappedf(v, 0.1)})
+			item.affixes.append({"k": k, "v": _affix_value(k, ilvl)})
 	return item
+
+
+func _affix_value(k: String, ilvl: int) -> float:
+	var a: Dictionary = Data.AFFIXES[k]
+	var v: float = lerpf(a.min, a.max, rng.randf()) * (1.0 + Data.ITEM_ILVL_AFFIX * (ilvl - 1))
+	return snappedf(v, 0.1)
 
 
 ## Stats plates de l'objet (selon son emplacement, sa rareté et son niveau d'objet).
@@ -407,24 +427,31 @@ func _receive(item: Dictionary) -> Dictionary:
 	return item
 
 
-## Niveau d'AFK : équipage aux postes + améliorations de postes et de vaisseau.
+## Niveau d'AFK : équipage au travail dans les salles + niveaux de salles + améliorations de vaisseau.
 func afk_level() -> int:
 	var n := 0
 	for id in stationed_ids():
 		n += heroes[id].level
-	for id in ["st_pilot", "st_engineer", "st_scientist", "laser", "solar", "scanner", "engines"]:
+	for rid in Data.ROOM_ORDER:
+		n += int((room_level(rid) - 1) / 2)
+	for id in ["laser", "solar", "scanner", "engines"]:
 		n += upgrade_levels[id]
 	return n
 
 
+## Puissance de fabrication de l'Atelier : le niveau d'AFK, plus l'apport de l'Atelier lui-même.
+func craft_power() -> int:
+	return afk_level() + int(Data.ATELIER_QUALITY_PER_LEVEL * (room_level("atelier") - 1))
+
+
 func loot_level() -> int:
-	return 3 + int(afk_level() / Data.AFK_ILVL_DIV)
+	return 3 + int(craft_power() / Data.AFK_ILVL_DIV)
 
 
-## Poids de tirage de chaque rareté : le niveau d'AFK fait monter les raretés élevées.
+## Poids de tirage de chaque rareté : la puissance de fabrication fait monter les raretés élevées.
 func drop_weights(tier: int) -> Dictionary:
 	var out := {}
-	var lvl := float(afk_level())
+	var lvl := float(craft_power())
 	for i in Data.ITEM_RARITY_ORDER.size():
 		var r: String = Data.ITEM_RARITY_ORDER[i]
 		var w: float = Data.ITEM_RARITY[r].weight
@@ -435,7 +462,8 @@ func drop_weights(tier: int) -> Dictionary:
 	return out
 
 
-## Tire un objet de butin pour le Capitaine : rareté et niveau selon le niveau d'AFK. Retourne {} s'il est recyclé.
+## Fabrique un objet pour le Capitaine : rareté et niveau selon la puissance de fabrication, emplacement et bonus
+## selon les ordres de l'Atelier. Retourne {} s'il est recyclé.
 func roll_afk_drop() -> Dictionary:
 	var weights := drop_weights(1)
 	var total := 0.0
@@ -448,8 +476,12 @@ func roll_afk_drop() -> Dictionary:
 		if roll < 0.0:
 			rarity = r
 			break
-	var slot: String = Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
-	return _receive(make_item(slot, rarity, loot_level()))
+	var slot: String = atelier_slot if Data.EQUIP.has(atelier_slot) else Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
+	var made := make_item(slot, rarity, loot_level(), true, atelier_focus)
+	var kept := _receive(made)
+	last_crafted = made.duplicate()
+	last_crafted["kept"] = not kept.is_empty()
+	return kept
 
 
 ## --- Équipage (cartes) ---
@@ -539,14 +571,109 @@ func gain_xp(id: String, amount: float) -> int:
 	return gained
 
 
-## --- L'équipage, c'est la partie AFK : production et bonus, même hors ligne ---
+## --- La Base : l'équipage au travail dans les salles (le jeu AFK, même hors ligne) ---
 
-## Les équipiers placés à un poste d'un vaisseau actif.
+## Les équipiers qui travaillent dans une salle de la Base.
 func stationed_ids() -> Array:
 	var out: Array = []
-	for i in slot_count():
-		out.append_array(squad_ids(i))
+	for rid in Data.ROOM_ORDER:
+		var w := room_worker(rid)
+		if w != "" and heroes.has(w) and not out.has(w):
+			out.append(w)
 	return out
+
+
+func room_level(id: String) -> int:
+	return int(room_levels.get(id, 1))
+
+
+func room_level_factor(id: String) -> float:
+	return 1.0 + Data.ROOM_LEVEL_GAIN * (room_level(id) - 1)
+
+
+func room_worker(id: String) -> String:
+	return String(room_crew.get(id, ""))
+
+
+func hero_room(hero_id: String) -> String:
+	for rid in Data.ROOM_ORDER:
+		if room_worker(rid) == hero_id:
+			return rid
+	return ""
+
+
+## Force d'un équipier dans une salle : sa force de travail, +25 % si sa classe correspond, +50 % si c'est sa spécialité.
+func room_hero_mult(room_id: String, hero_id: String) -> float:
+	var m := crew_prod_mult(hero_id)
+	if Data.HEROES[hero_id]["class"] == Data.ROOMS[room_id].affinity:
+		m *= 1.0 + Data.ROOM_AFFINITY_BONUS
+	if Data.HEROES[hero_id].get("specialty", "") == room_id:
+		m *= 1.0 + Data.ROOM_SPECIALTY_BONUS
+	return m
+
+
+## Bonus d'équipier pour les salles à effet (Atelier, Quartiers, Soute) : x1 sans équipier, la salle marche déjà.
+func room_crew_boost(room_id: String) -> float:
+	var w := room_worker(room_id)
+	if w == "" or not heroes.has(w):
+		return 1.0
+	return 1.0 + room_hero_mult(room_id, w) / Data.ROOM_CREW_REF
+
+
+func room_maxed(id: String) -> bool:
+	return room_level(id) >= Data.ROOM_MAX_LEVEL
+
+
+func room_upgrade_cost(id: String) -> Dictionary:
+	var base: Dictionary = Data.ROOMS[id].cost
+	var out := {}
+	for r in base:
+		out[r] = ceil(base[r] * pow(Data.ROOM_COST_GROWTH, room_level(id) - 1))
+	return out
+
+
+func buy_room_upgrade(id: String) -> bool:
+	if not Data.ROOMS.has(id) or room_maxed(id):
+		return false
+	var cost := room_upgrade_cost(id)
+	if not can_afford(cost):
+		return false
+	pay(cost)
+	room_levels[id] = room_level(id) + 1
+	changed.emit()
+	return true
+
+
+## Place (ou retire, avec "") un équipier dans une salle ; un équipier ne travaille que dans une salle.
+func set_room_crew(room_id: String, hero_id: String) -> bool:
+	if not Data.ROOMS.has(room_id) or (hero_id != "" and not heroes.has(hero_id)):
+		return false
+	if hero_id != "":
+		for rid in Data.ROOM_ORDER:
+			if room_worker(rid) == hero_id:
+				room_crew[rid] = ""
+	room_crew[room_id] = hero_id
+	changed.emit()
+	return true
+
+
+## Placement automatique : les salles de production d'abord, chacune reçoit le meilleur équipier disponible.
+func auto_rooms() -> void:
+	for rid in Data.ROOM_ORDER:
+		room_crew[rid] = ""
+	var free: Array = hero_order.duplicate()
+	for rid in Data.ROOM_ORDER:
+		var best := ""
+		var best_m := -1.0
+		for id in free:
+			var m := room_hero_mult(rid, id)
+			if m > best_m:
+				best = id
+				best_m = m
+		if best != "":
+			room_crew[rid] = best
+			free.erase(best)
+	changed.emit()
 
 
 func stationed_levels() -> Dictionary:
@@ -558,7 +685,7 @@ func stationed_levels() -> Dictionary:
 	return out
 
 
-## Synergie des classes présentes aux postes : paires +10 %, les 3 classes +25 %.
+## Synergie des classes présentes dans la Base : paires +10 %, les 3 classes +25 %.
 func synergy_multiplier() -> float:
 	var lv := stationed_levels()
 	var mult: float = 1.0
@@ -579,16 +706,18 @@ func crew_prod_mult(id: String) -> float:
 	return pow(float(h.level), Data.PROD_LEVEL_EXP) * Data.RARITY[Data.HEROES[id].rarity].prod * (1.0 + Data.STAR_BONUS * h.stars)
 
 
-## Production par seconde de toutes les ressources (équipage aux postes + capteurs de bord).
+## Production par seconde de toutes les ressources (équipage au travail dans les salles + capteurs de bord).
 func production_per_sec() -> Dictionary:
 	var out := {"credits": 0.0, "data": Data.BASE_DATA_RATE, "minerals": 0.0, "energy": 0.0}
 	var syn := synergy_multiplier()
-	for id in stationed_ids():
-		var cls: String = Data.HEROES[id]["class"]
-		var prod: Dictionary = Data.CREW_PROD[cls]
-		var station: float = 1.0 + Data.STATION_GAIN * upgrade_levels["st_" + cls]
+	for rid in Data.ROOM_ORDER:
+		var w := room_worker(rid)
+		if w == "" or not heroes.has(w):
+			continue
+		var prod: Dictionary = Data.ROOMS[rid].prod
+		var m := room_hero_mult(rid, w) * room_level_factor(rid) * syn / 3600.0
 		for r in prod:
-			out[r] += prod[r] * crew_prod_mult(id) * syn * station / 3600.0
+			out[r] += prod[r] * m
 	out.credits *= credit_mult()
 	var pm := 1.0 + research_bonus("prod_pct") / 100.0
 	for r in out:
@@ -615,12 +744,14 @@ func offline_efficiency() -> float:
 	for c in lv:
 		total += lv[c]
 	var eff: float = Data.OFFLINE_BASE_EFFICIENCY + Data.OFFLINE_EFF_PER_LEVEL * total + equipped_bonus("offline_pct") / 100.0 + research_bonus("offline_eff") / 100.0
+	eff += Data.SOUTE_EFF_GAIN * (room_level("soute") - 1) * room_crew_boost("soute")
 	return clampf(eff, Data.OFFLINE_BASE_EFFICIENCY, Data.OFFLINE_EFF_MAX)
 
 
 ## Durée maximale comptabilisée hors ligne : les Ingénieurs l'allongent.
 func offline_cap_seconds() -> float:
 	var hours: float = Data.OFFLINE_BASE_HOURS + Data.OFFLINE_HOURS_PER_ENGINEER_LEVEL * stationed_levels()["engineer"] + research_bonus("offline_hours")
+	hours += Data.SOUTE_HOURS_GAIN * (room_level("soute") - 1) * room_crew_boost("soute")
 	return minf(hours, Data.OFFLINE_MAX_HOURS) * 3600.0
 
 
@@ -910,10 +1041,10 @@ func goal_progress(g: Dictionary) -> float:
 				if it.rarity == "epic" or it.rarity == "legendary":
 					return 1.0
 			return 0.0
-		"station_levels":
+		"room_levels":
 			var n := 0
-			for c in Data.CREW_ORDER:
-				n += upgrade_levels["st_" + c]
+			for rid in Data.ROOM_ORDER:
+				n += room_level(rid)
 			return float(n)
 		"crew_level_sum":
 			var n := 0
@@ -1143,16 +1274,35 @@ func crew_xp_per_sec(id: String) -> float:
 	return float(Data.xp_needed(lv)) / ((Data.AFK_XP_HOURS_BASE + Data.AFK_XP_HOURS_PER_LEVEL * lv) * 3600.0)
 
 
+## Cadence de l'Atelier (objets par heure) : niveau de salle, équipier, ciblage et bonus de butin.
 func afk_drops_per_hour() -> float:
-	return Data.AFK_DROPS_PER_HOUR * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0)
+	var f := 1.0
+	if atelier_slot != "":
+		f *= Data.ATELIER_TARGET_FACTOR
+	if atelier_focus != "":
+		f *= Data.ATELIER_TARGET_FACTOR
+	return Data.ATELIER_BASE_PER_HOUR * room_level_factor("atelier") * room_crew_boost("atelier") * f \
+		* (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0)
+
+
+## Avancement du prochain objet de l'Atelier (0 à 1) et temps restant estimé en secondes.
+func atelier_progress() -> float:
+	return clampf(_afk_loot_clock, 0.0, 1.0)
+
+
+func atelier_next_in() -> float:
+	return (1.0 - atelier_progress()) / maxf(0.001, afk_drops_per_hour()) * 3600.0
+
+
+## XP des équipiers au travail : les Quartiers l'augmentent.
+func crew_xp_mult() -> float:
+	return 1.0 + Data.QUARTERS_XP_GAIN * (room_level("quartiers") - 1) * room_crew_boost("quartiers")
 
 
 func _afk_work(seconds: float) -> void:
-	var ids := stationed_ids()
-	if ids.is_empty():
-		return
-	for id in ids:
-		gain_xp(id, crew_xp_per_sec(id) * seconds * _gain_scale)
+	var xm := crew_xp_mult()
+	for id in stationed_ids():
+		gain_xp(id, crew_xp_per_sec(id) * seconds * _gain_scale * xm)
 	_afk_loot_clock += seconds * _gain_scale / 3600.0 * afk_drops_per_hour()
 	var guard := 0
 	while _afk_loot_clock >= 1.0 and guard < 400:
@@ -1321,7 +1471,8 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": captain,
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "goals": goals_claimed, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+		"upgrades": upgrade_levels, "goals": goals_claimed,
+		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1398,6 +1549,26 @@ func load_game() -> bool:
 	for rid in saved_rs.get("queue", []):
 		if Data.RESEARCH.has(String(rid)):
 			research_queue.append(String(rid))
+	var saved_base: Dictionary = parsed.get("base", {})
+	if saved_base.is_empty():          # ancienne sauvegarde : les postes deviennent des salles, placement automatique
+		for rid in Data.ROOM_ORDER:
+			room_levels[rid] = 1 + int(saved_up.get("st_" + Data.ROOMS[rid].affinity, 0))
+		atelier_slot = ""
+		atelier_focus = ""
+		auto_rooms()
+	else:
+		var sl: Dictionary = saved_base.get("levels", {})
+		var sc: Dictionary = saved_base.get("crew", {})
+		for rid in Data.ROOM_ORDER:
+			room_levels[rid] = clampi(int(sl.get(rid, 1)), 1, Data.ROOM_MAX_LEVEL)
+			var hid := String(sc.get(rid, ""))
+			room_crew[rid] = hid if heroes.has(hid) else ""
+		atelier_slot = String(saved_base.get("slot", ""))
+		if not Data.EQUIP.has(atelier_slot):
+			atelier_slot = ""
+		atelier_focus = String(saved_base.get("focus", ""))
+		if not Data.AFFIXES.has(atelier_focus):
+			atelier_focus = ""
 	var saved_an: Dictionary = parsed.get("anomaly", {})
 	anomaly_max = int(saved_an.get("max", 0))
 	anomaly_charges = clampf(float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX)), 0.0, float(Data.ANOMALY_CHARGES_MAX))

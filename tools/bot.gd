@@ -61,6 +61,7 @@ func spend() -> void:
 			if not launched:
 				gs.launch(i, "asteroids")
 	gs.auto_squad(0)
+	gs.auto_rooms()
 	gs.auto_squad(1) if gs.slot_count() > 1 else null
 	for a in gs.research_active.duplicate():       # accélère quand l'énergie est largement suffisante
 		if gs.research_boost_cost(a.id) > 0.0 and gs.res.energy > gs.research_boost_cost(a.id) * 8.0:
@@ -89,6 +90,11 @@ func spend() -> void:
 				continue
 			if gs.can_afford(gs.upgrade_cost(id)) and gs.res.credits > gs.upgrade_cost(id).credits * 1.5:
 				bought = gs.buy_upgrade(id) or bought
+		var rooms: Array = Data.ROOM_ORDER.duplicate()
+		rooms.sort_custom(func(a, b): return gs.room_upgrade_cost(a).credits < gs.room_upgrade_cost(b).credits)
+		for rid in rooms:
+			if not gs.room_maxed(rid) and gs.can_afford(gs.room_upgrade_cost(rid)) and gs.res.credits > gs.room_upgrade_cost(rid).credits * 1.5:
+				bought = gs.buy_room_upgrade(rid) or bought
 		if gs.hero_order.size() < Data.HEROES.size() and gs.res.credits >= gs.recruit_cost() * 2.0:
 			gs.recruit()
 			bought = true
