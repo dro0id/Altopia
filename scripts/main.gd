@@ -39,6 +39,13 @@ var _inv_sig := ""
 var _recycle_btn: Button
 var _useless_btn: Button
 var _afk_label: Label
+var _afk_rates := {}
+const UPGRADE_ICONS := {"laser": "minerals", "solar": "energy", "scanner": "data", "engines": "exp", "docks": "ship",
+	"st_pilot": "captain", "st_engineer": "crew", "st_scientist": "crew"}
+const UpgradeColors := {"laser": Color(0.8, 0.7, 0.62), "solar": Color(0.75, 0.55, 1.0), "scanner": Color(0.5, 0.95, 1.0),
+	"engines": Color(0.43, 1.0, 0.61), "docks": Color(1.0, 0.82, 0.35), "st_pilot": Color(0.35, 0.85, 1.0),
+	"st_engineer": Color(1.0, 0.65, 0.3), "st_scientist": Color(0.5, 1.0, 0.6)}
+const DEST_ICONS := {"asteroids": "minerals", "star": "energy", "planet": "data"}
 var _goal_title: Label
 var _goal_bar: ProgressBar
 var _goal_info: Label
@@ -146,7 +153,7 @@ func _build_header(parent: Control) -> void:
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
 	parent.add_child(grid)
-	var colors := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
+	var colors: Dictionary = UiTheme.RES_COLORS
 	for id in Data.RES_ORDER:
 		var chip := PanelContainer.new()
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -249,7 +256,7 @@ func _build_captain_page(page: VBoxContainer) -> void:
 		b.add_theme_font_size_override("font_size", 19)
 		b.pressed.connect(_tap(func(): GameState.cycle_look(entry[0])))
 
-	_label(page, "Équipement", 28, COL_ACCENT)
+	_section(page, "Équipement")
 	for slot in Data.EQUIP_SLOTS:
 		var panel := _rarity_panel(page, COL_TEXT_DIM)
 		var row := HBoxContainer.new()
@@ -280,7 +287,7 @@ func _build_captain_page(page: VBoxContainer) -> void:
 	_useless_btn = _button(page, "Recycler tous les objets inutiles", 62)
 	_useless_btn.add_theme_font_size_override("font_size", 19)
 	_useless_btn.pressed.connect(_tap(func(): GameState.recycle_useless()))
-	_inv_title = _label(page, "", 28, COL_ACCENT)
+	_inv_title = _section(page, "")
 	_inv_box = VBoxContainer.new()
 	_inv_box.add_theme_constant_override("separation", 10)
 	_inv_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -288,19 +295,32 @@ func _build_captain_page(page: VBoxContainer) -> void:
 
 
 func _build_crew_page(page: VBoxContainer) -> void:
-	_collection_label = _label(page, "", 30, COL_ACCENT)
+	_collection_label = _section(page, "")
 	_synergy_label = _label(page, "", 21, COL_TEXT_DIM)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var afk_card := _card(page)
-	_afk_label = _label(afk_card, "", 20, COL_GOOD)
+	_label(afk_card, "AFK : l'équipage aux postes travaille même hors ligne", 21, COL_GOOD)
+	var afk_grid := GridContainer.new()
+	afk_grid.columns = 2
+	afk_grid.add_theme_constant_override("h_separation", 10)
+	afk_grid.add_theme_constant_override("v_separation", 8)
+	afk_card.add_child(afk_grid)
+	for id in Data.RES_ORDER:
+		_afk_rates[id] = _rate_chip(afk_grid, id)
+	_afk_label = _label(afk_card, "", 19, COL_TEXT_DIM)
 	_afk_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_recruit_btn = _button(page, "", 100)
+	UiTheme.style_primary(_recruit_btn)
 	_recruit_btn.add_theme_font_size_override("font_size", 26)
 	_recruit_btn.pressed.connect(_tap(func(): GameState.recruit()))
 	_recruit_label = _label(page, "", 22, COL_ACCENT)
 	_recruit_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for id in Data.HERO_ORDER:
-		var card := _card_h(page)
+		var panel := _rarity_panel(page, COL_TEXT_DIM)
+		var card := HBoxContainer.new()
+		card.add_theme_constant_override("separation", 14)
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(card)
 		var portrait: Control = Chibi.new()
 		portrait.custom_minimum_size = Vector2(112, 112)
 		portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -318,12 +338,13 @@ func _build_crew_page(page: VBoxContainer) -> void:
 		var train := _button(right, "", 62)
 		train.add_theme_font_size_override("font_size", 21)
 		train.pressed.connect(_tap(func(): GameState.train(id)))
-		_hero_ui[id] = {"portrait": portrait, "name": name_l, "stats": stats_l, "xp": xp,
+		UiTheme.style_primary(train)
+		_hero_ui[id] = {"panel": panel, "portrait": portrait, "name": name_l, "stats": stats_l, "xp": xp,
 			"where": where_l, "train": train}
 
 
 func _build_expedition_page(page: VBoxContainer) -> void:
-	_label(page, "Expéditions", 30, COL_ACCENT)
+	_section(page, "Expéditions")
 	for i in Data.MAX_SLOTS:
 		var card := _card(page)
 		var view := SpaceView.new()
@@ -378,11 +399,19 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 			if not GameState.slots[i].battle.is_empty():
 				bv.play(GameState.slots[i].battle)))
 		var recall := _button(card, "Rappeler le vaisseau", 70)
+		UiTheme.style_danger(recall)
 		recall.pressed.connect(_tap(func(): GameState.recall(i)))
 		var dest_btns := {}
 		for d in Data.DEST_ORDER:
-			var b := _button(card, "", 120)
+			var b := _button(card, "", 130)
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			var role_col: Color = Data.CREW[Data.DEST[d].role].color
+			UiTheme.style_card_button(b, role_col)
+			b.icon = UiIcons.icon(DEST_ICONS[d], 56, role_col)
+			b.expand_icon = false
+			b.add_theme_constant_override("icon_max_width", 56)
+			b.add_theme_constant_override("h_separation", 16)
+			b.add_theme_font_size_override("font_size", 21)
 			b.pressed.connect(_tap(func(): GameState.launch(i, d)))
 			dest_btns[d] = b
 		var last := _label(card, "", 20, COL_ACCENT)
@@ -399,14 +428,28 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 
 
 func _build_ship_page(page: VBoxContainer) -> void:
-	_label(page, "Vaisseau", 30, COL_ACCENT)
+	_section(page, "Vaisseau")
 	for id in Data.UPGRADE_ORDER:
-		var card := _card(page)
-		var name_l := _label(card, "", 27)
-		var desc_l := _label(card, "", 21, COL_TEXT_DIM)
-		var b := _button(card, "", 100)
+		var icon_name: String = UPGRADE_ICONS[id]
+		var color: Color = UpgradeColors.get(id, UiTheme.ACCENT)
+		var panel := _rarity_panel(page, color)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		_icon_tile(row, icon_name, color, 84)
+		var card := VBoxContainer.new()
+		card.add_theme_constant_override("separation", 6)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(card)
+		var name_l := _label(card, "", 26)
+		var lvl_bar := _bar(card, 10, color)
+		var desc_l := _label(card, "", 20, COL_TEXT_DIM)
+		var b := _button(card, "", 76)
+		UiTheme.style_primary(b)
 		b.pressed.connect(_tap(func(): GameState.buy_upgrade(id)))
-		_upgrade_ui[id] = {"name": name_l, "desc": desc_l, "btn": b}
+		_upgrade_ui[id] = {"name": name_l, "desc": desc_l, "btn": b, "bar": lvl_bar}
 
 
 ## ---------- Helpers de widgets ----------
@@ -456,6 +499,51 @@ func _panel(parent: Node) -> PanelContainer:
 	p.mouse_filter = Control.MOUSE_FILTER_PASS    # laisse le doigt faire défiler la page
 	parent.add_child(p)
 	return p
+
+
+## Titre de section : texte en gras suivi d'un filet cyan.
+func _section(parent: Node, text: String) -> Label:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(box)
+	var l := _label(box, text, 32, COL_ACCENT)
+	l.add_theme_font_override("font", UiTheme.font(true))
+	var line := ColorRect.new()
+	line.color = Color(0.22, 0.9, 1.0, 0.45)
+	line.custom_minimum_size = Vector2(0, 2)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(line)
+	return l
+
+
+## Puce « icône + valeur » pour une ressource ; retourne le Label de la valeur.
+func _rate_chip(parent: Node, id: String) -> Label:
+	var chip := PanelContainer.new()
+	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var color: Color = UiTheme.RES_COLORS[id]
+	var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.3), 5, 1, 8)
+	sb.border_width_bottom = 2
+	sb.border_color = color
+	chip.add_theme_stylebox_override("panel", sb)
+	parent.add_child(chip)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(row)
+	var ic := TextureRect.new()
+	ic.texture = UiIcons.icon(id, 30, color)
+	ic.custom_minimum_size = Vector2(26, 26)
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(ic)
+	var l := _label(row, "", 24, UiTheme.GOOD)
+	l.add_theme_font_override("font", UiTheme.mono())
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	return l
 
 
 ## Panneau à cadre de rareté : filet épais à gauche, fin tout autour, teinte de fond légère.
@@ -685,10 +773,10 @@ func _refresh_crew() -> void:
 	_collection_label.text = "Équipage : %d / %d cartes" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
 	_synergy_label.text = "L'équipage, ce sont des objets à placer aux postes de vos vaisseaux : ils renforcent le Capitaine et rapportent des crédits. Synergie x%.2f (paires de classes +10 %%, les 3 classes +25 %%)." % GameState.synergy_multiplier()
 	var prod := GameState.production_per_sec()
-	_afk_label.text = "AFK — l'équipage aux postes travaille même hors ligne\n+%s crédits/h   +%s minerais/h\n+%s énergie/h   +%s données/h\nRendement hors ligne : %d %%   ·   Durée max comptée : %s" % [
-		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
-		Data.fmt(prod.data * 3600.0), int(round(GameState.offline_efficiency() * 100.0)),
-		Data.fmt_time(GameState.offline_cap_seconds())]
+	for id in Data.RES_ORDER:
+		_afk_rates[id].text = "+%s /h" % Data.fmt(prod[id] * 3600.0)
+	_afk_label.text = "Rendement hors ligne : %d %%   ·   Durée max comptée : %s" % [
+		int(round(GameState.offline_efficiency() * 100.0)), Data.fmt_time(GameState.offline_cap_seconds())]
 	var cost := GameState.recruit_cost()
 	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost
@@ -709,6 +797,7 @@ func _refresh_crew() -> void:
 			u.name.text = "???  —  %s %s" % [Data.RARITY[tpl.rarity].name, cls.name]
 			u.name.add_theme_color_override("font_color", COL_TEXT_DIM)
 			u.stats.text = "Carte non recrutée"
+			_set_rarity_style(u.panel, Data.RARITY[tpl.rarity].color.darkened(0.55))
 			u.xp.visible = false
 			u.where.text = ""
 			u.train.visible = false
@@ -716,8 +805,9 @@ func _refresh_crew() -> void:
 		var h: Dictionary = GameState.heroes[id]
 		var st := Data.hero_stats(id, h.level, h.stars)
 		u.portrait.setup_crew(id, h.stars)
-		u.name.text = "%s  —  niv. %d" % [tpl.name, h.level]
+		u.name.text = "%s  —  niv. %d  %s" % [tpl.name, h.level, "★".repeat(h.stars)]
 		u.name.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
+		_set_rarity_style(u.panel, Data.RARITY[tpl.rarity].color)
 		u.stats.text = "%s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
 			cls.name, Data.RARITY[tpl.rarity].name, st.hp, st.atk, st.def, st.spd]
 		u.xp.visible = true
@@ -846,7 +936,8 @@ func _refresh_ship() -> void:
 		var up: Dictionary = Data.UPGRADES[id]
 		var u: Dictionary = _upgrade_ui[id]
 		var lvl: int = GameState.upgrade_levels[id]
-		u.name.text = "%s  —  niveau %d/%d" % [up.name, lvl, up.max]
+		u.name.text = "%s   %d/%d" % [up.name, lvl, up.max]
+		u.bar.value = float(lvl) / float(up.max)
 		u.desc.text = up.desc
 		if GameState.upgrade_maxed(id):
 			u.btn.text = "Niveau maximum"
@@ -888,7 +979,7 @@ func _show_offline_report(r: Dictionary) -> void:
 	var sub := _label(box, "Absent %s  ·  comptés %s  ·  rendement %d %%" % [
 		Data.fmt_time(r.away), Data.fmt_time(r.seconds), int(round(r.efficiency * 100.0))], 21, COL_TEXT_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var colors := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
+	var colors: Dictionary = UiTheme.RES_COLORS
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 10)

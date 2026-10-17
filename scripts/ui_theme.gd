@@ -11,6 +11,8 @@ const GOOD := Color(0.43, 1.0, 0.61)
 const WARN := Color(1.0, 0.7, 0.42)
 const MAGENTA := Color(1.0, 0.61, 0.93)
 
+const RES_COLORS := {"credits": Color(1.0, 0.82, 0.35), "data": Color(0.5, 0.95, 1.0), "minerals": Color(0.8, 0.7, 0.62), "energy": Color(0.75, 0.55, 1.0)}
+
 static var _theme: Theme
 
 
@@ -83,3 +85,33 @@ static func build() -> Theme:
 	t.set_stylebox("scroll", "VScrollBar", box(Color(0, 0, 0, 0.0), Color(0, 0, 0, 0), 4, 0, 0))
 	_theme = t
 	return t
+
+
+## Bouton d'action principale : plein, cyan.
+static func style_primary(b: Button) -> void:
+	b.add_theme_stylebox_override("normal", box(Color(0.1, 0.5, 0.62, 0.96), ACCENT, 6, 2, 10))
+	b.add_theme_stylebox_override("hover", box(Color(0.13, 0.58, 0.72, 0.98), Color.WHITE, 6, 2, 10))
+	b.add_theme_stylebox_override("pressed", box(Color(0.2, 0.7, 0.85, 1.0), Color.WHITE, 6, 2, 10))
+	b.add_theme_stylebox_override("disabled", box(Color(0.06, 0.12, 0.18, 0.85), Color(0.3, 0.4, 0.5, 0.3), 6, 1, 10))
+
+
+## Bouton d'action risquée (rappeler, recycler…) : contour orange.
+static func style_danger(b: Button) -> void:
+	b.add_theme_stylebox_override("normal", box(Color(0.2, 0.1, 0.07, 0.9), WARN, 6, 1, 10))
+	b.add_theme_stylebox_override("hover", box(Color(0.28, 0.13, 0.08, 0.95), WARN, 6, 2, 10))
+	b.add_theme_stylebox_override("pressed", box(Color(0.4, 0.2, 0.1, 0.98), WARN, 6, 2, 10))
+
+
+## Bouton « carte » à filet de couleur à gauche (destinations).
+static func style_card_button(b: Button, color: Color) -> void:
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var fill := Color(0.05, 0.15, 0.24, 0.92) if st != "disabled" else Color(0.04, 0.07, 0.11, 0.85)
+		if st == "hover":
+			fill = Color(0.08, 0.21, 0.32, 0.95)
+		if st == "pressed" or st == "hover_pressed":
+			fill = Color(0.12, 0.34, 0.48, 0.98)
+		var line := color if st != "disabled" else color.darkened(0.6)
+		var sb := box(fill, LINE, 6, 1, 14)
+		sb.border_width_left = 6
+		sb.border_color = line
+		b.add_theme_stylebox_override(st, sb)
