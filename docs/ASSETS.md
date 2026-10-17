@@ -21,3 +21,7 @@ Aperçu : `docs/style/assets_reels.png` (4 scènes, ambiances R1 à gauche et R2
 - https://sketchfab.com/3d-models/none-e2c4b146e58141e4b87917456a9970b1 (Animated Floating Astronaut, LasquetiSpice)
 - https://sketchfab.com/3d-models/none-4221cf7fea944ae6852d752514b5b4bb (Lunar Space Astronaut, Ali Raza)
 - https://sketchfab.com/3d-models/none-de876bfdce1c47a4aa67670faee7208e (Sci-Fi Soldier, ART_LOLL)
+
+## Proposition R2 avec le pack Kenney
+Aperçu : `docs/style/kenney_r2.png` (scène three.js : `docs/style/kenney_r2_scene.html`).
+La licence CC0 permet de modifier le pack. La retouche remplace les matières par nom (metal, metalDark, dark, metalRed, skin, crystal, rock) : acier nuit, accents cyan émissifs, visière teintée, cristaux magenta. Les formes ne changent pas.

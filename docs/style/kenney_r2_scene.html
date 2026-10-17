@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./lib/three.module.js","three/addons/":"./lib/addons/"}}</script></head><body>
+<canvas id="c"></canvas>
+<script type="module">
+import * as W from './world.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const { THREE } = W;
+const q = new URLSearchParams(location.search);
+const scn = q.get('s') || 'lineup', MOD = q.get('mod') !== '0';
+const Wd = +(q.get('w') || 780), Hd = +(q.get('h') || 440);
+const bloom = { strength: 0.35, radius: 0.5, threshold: 0.95, exposure: 1.05, env: 1.3, envWarm: 0xb8d0ff, envRim: 0xff4fd8, envCool: 0x37b6ff };
+const cv = document.getElementById('c'); cv.width = Wd; cv.height = Hd;
+const S = W.stage(cv, Wd, Hd, { ...bloom, fov: 30 });
+const { scene, cam, comp } = S;
+const nb = W.nebulaTexture({ deep: [3, 4, 22], mid: [20, 36, 112], bright: [70, 214, 240], dust: 0.6 }, 8); nb.mapping = THREE.EquirectangularReflectionMapping; scene.background = nb; scene.backgroundIntensity = 0.9;
+W.addStars(scene, 1800, 5, 1.7);
+const k = new THREE.DirectionalLight(0xdfeaff, 4.2); k.position.set(-4, 3, 5); k.castShadow = true; scene.add(k);
+const r = new THREE.DirectionalLight(0xff4fd8, 5.5); r.position.set(5, 2, -4); scene.add(r);
+const f = new THREE.DirectionalLight(0x37b6ff, 1.2); f.position.set(3, -1, 4); scene.add(f);
+
+/* Retouche des matériaux Kenney : palette R2 (acier nuit, accents cyan, cristaux magenta) */
+const REMAP = {
+  metal: { c: 0x6a7a94, m: 0.7, r: 0.4 }, metalDark: { c: 0x2c3646, m: 0.8, r: 0.45 }, dark: { c: 0x0e131e, m: 0.6, r: 0.5 },
+  metalRed: { c: 0x0b4a5c, e: 0x37e6ff, ei: 0.55, m: 0.4, r: 0.3 }, skin: { c: 0x0a1c2a, e: 0x1a88b8, ei: 0.25, m: 0.9, r: 0.08 },
+  crystal: { c: 0x8a2a78, e: 0xff4fd8, ei: 0.7, m: 0.2, r: 0.2 }, rock: { c: 0x4a4e60, m: 0.1, r: 0.95 }, rockDark: { c: 0x2a2d3c, m: 0.1, r: 0.95 },
+  rockTrack: { c: 0x555a6e, m: 0.1, r: 0.95 },
+};
+const retouch = (o, over = {}) => o.traverse(m => { if (!m.isMesh) return; m.castShadow = m.receiveShadow = true;
+  m.material = (Array.isArray(m.material) ? m.material : [m.material]).map(mt => {
+    const key = mt.name, d = { ...(REMAP[key] || {}), ...(over[key] || {}) }; if (!MOD || !REMAP[key]) return mt;
+    const n = new THREE.MeshStandardMaterial({ color: d.c, metalness: d.m, roughness: d.r, flatShading: false });
+    if (d.e !== undefined) { n.emissive = new THREE.Color(d.e); n.emissiveIntensity = d.ei; }
+    return n; })[0]; });
+const loader = new GLTFLoader();
+const model = async (name, size, pos, ry, over) => { const g = await loader.loadAsync(`assets/kenney/${name}.glb`); const o = g.scene; retouch(o, over);
+  const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()); const s = size / Math.max(sz.x, sz.y, sz.z);
+  o.scale.setScalar(s); o.position.copy(pos).sub(c.multiplyScalar(s)); o.rotation.y = ry; scene.add(o); return o; };
+const ground = (y) => { const m = new THREE.Mesh(new THREE.CircleGeometry(14, 64), new THREE.MeshStandardMaterial({ color: 0x0d1424, metalness: 0.6, roughness: 0.45 })); m.rotation.x = -Math.PI / 2; m.position.y = y; m.receiveShadow = true; scene.add(m);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.66, 96), new THREE.MeshBasicMaterial({ color: 0x37e6ff, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = y + 0.01; scene.add(ring); };
+const beam = (a, b, color, wd) => { const dir = b.clone().sub(a); const m = new THREE.Mesh(new THREE.CylinderGeometry(wd, wd, dir.length(), 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.copy(a.clone().add(b).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(m); };
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+if (scn === 'lineup') { // capitaine + équipage + ennemi
+  ground(-1.7);
+  await model('astronautA', 3.0, V(-2.6, -0.2, 0), 0.5);
+  await model('astronautB', 2.5, V(-0.5, -0.45, 0.6), 0.2);
+  await model('astronautA', 2.5, V(1.3, -0.45, 0.3), -0.1, { metal: { c: 0x7a4a98, m: 0.7, r: 0.4 } });
+  await model('alien', 2.8, V(3.4, -0.3, -0.4), -0.7);
+  cam.position.set(0, 0.5, 9.2); cam.lookAt(0, -0.2, 0);
+} else if (scn === 'fleet') {
+  ground(-1.8);
+  await model('craft_speederA', 2.7, V(-3.2, 0.1, 0), 0.6); await model('craft_speederD', 2.7, V(0.0, 0.6, 0.5), 0.3);
+  await model('craft_miner', 2.5, V(3.1, -0.3, 0), -0.5); await model('craft_racer', 1.9, V(-1.2, -1.0, 2.6), 0.9);
+  cam.position.set(0, 0.8, 9.5); cam.lookAt(0, -0.2, 0);
+} else if (scn === 'field') { // astéroïdes + cristaux
+  await model('rock_crystalsLargeA', 3.2, V(-2.8, -0.4, 0), 0.4); await model('meteor_detailed', 2.8, V(2.6, 0.5, -1), 0.7);
+  await model('rock_crystals', 1.6, V(0.4, -1.1, 1.8), 1.2); await model('meteor', 1.3, V(-0.6, 1.4, -2), 2.0); await model('craft_speederA', 1.6, V(0.8, 0.4, 3.2), 2.6);
+  cam.position.set(0, 0.4, 9.5); cam.lookAt(0, 0, 0);
+} else if (scn === 'combat') {
+  ground(-1.7);
+  await model('astronautA', 3.4, V(-3.2, -0.2, 0.4), 1.3); await model('astronautB', 2.9, V(-1.5, -0.4, 1.4), 1.1);
+  await model('alien', 4.2, V(3.0, 0.2, 0), -1.4);
+  const muz = V(-1.6, 0.7, 0.9), hit = V(2.4, 0.9, 0.2);
+  beam(muz, hit, 0x6fe8ff, 0.04); scene.add(W.glowAt(0x6fe8ff, 1.5, 1, hit)); scene.add(W.glowAt(0x6fe8ff, 0.9, 1, muz));
+  beam(V(-0.4, 0.3, 1.7), V(2.4, 0.5, 0.3), 0x6fe8ff, 0.022);
+  cam.position.set(0, 0.4, 8.2); cam.lookAt(0, -0.2, 0);
+}
+cam.updateProjectionMatrix(); comp.render(); setInterval(() => comp.render(), 500); document.title = 'ready';
+</script></body></html>
