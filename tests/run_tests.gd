@@ -210,6 +210,35 @@ func test_victory_pays_and_gives_xp() -> void:
 	_check(_gs.dest_wins["asteroids"] == 1, "victoire comptée")
 
 
+func test_battle_events_replayable() -> void:
+	var a := [Battle.make_unit("A", 100, 20, 5, 10), Battle.make_unit("B", 100, 15, 5, 8)]
+	var e := [Battle.make_unit("E1", 40, 5, 0, 5), Battle.make_unit("E2", 40, 5, 0, 4)]
+	var r: Dictionary = Battle.simulate(a, e)
+	_check(r.events.size() > 0, "des coups sont enregistrés")
+	var hp := {"0:0": 100.0, "0:1": 100.0, "1:0": 40.0, "1:1": 40.0}
+	var kos := 0
+	for ev in r.events:
+		var key := "%d:%d" % [1 - ev.s, ev.t]
+		hp[key] -= ev.d
+		if ev.ko:
+			kos += 1
+			_check(hp[key] <= 0.0, "un K.O. correspond à 0 PV")
+	_check(hp["1:0"] <= 0.0 and hp["1:1"] <= 0.0 and r.win, "rejouer les événements retrouve le résultat")
+	_check(kos == 2, "2 ennemis K.O.")
+
+
+func test_slot_keeps_last_battle() -> void:
+	_gs.give_hero("rex", 10)
+	_gs.give_hero("bolt", 10)
+	_squad(0, ["rex", "bolt"])
+	_gs.slots[0].auto = false
+	_gs.launch(0, "asteroids")
+	_gs._advance_expeditions(500.0)
+	var b: Dictionary = _gs.slots[0].battle
+	_check(not b.is_empty() and b.allies.size() == 2 and b.enemies.size() == 2, "dernier combat mémorisé")
+	_check(b.events.size() > 0 and b.win, "avec ses coups et son résultat")
+
+
 func test_defeat_reduces_loot() -> void:
 	_gs.give_hero("rex", 1)
 	_squad(0, ["rex"])

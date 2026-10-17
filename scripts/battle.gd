@@ -26,11 +26,16 @@ static func _first_alive(units: Array) -> Dictionary:
 static func simulate(allies: Array, enemies: Array) -> Dictionary:
 	var a: Array = []
 	var e: Array = []
-	for u in allies:
-		a.append(u.duplicate())
-	for u in enemies:
-		e.append(u.duplicate())
+	for i in allies.size():
+		var u: Dictionary = allies[i].duplicate()
+		u["idx"] = i
+		a.append(u)
+	for i in enemies.size():
+		var u: Dictionary = enemies[i].duplicate()
+		u["idx"] = i
+		e.append(u)
 	var log: Array[String] = []
+	var events: Array = []    # chaque coup : {s: camp de l'attaquant (0 allié), a, t: indices, d: dégâts, ko}
 	var rounds := 0
 	while rounds < Data.BATTLE_MAX_ROUNDS and _alive(a) and _alive(e):
 		rounds += 1
@@ -54,10 +59,11 @@ static func simulate(allies: Array, enemies: Array) -> Dictionary:
 				break
 			var dmg := maxf(1.0, u.atk - target.def * 0.5)
 			target.hp -= dmg
+			events.append({"s": o.side, "a": o.i, "t": target.idx, "d": dmg, "ko": target.hp <= 0.0})
 			if log.size() < 10:
 				log.append("%s frappe %s (-%d)%s" % [u.name, target.name, int(dmg),
 					" — K.O." if target.hp <= 0.0 else ""])
 	return {
 		"win": _alive(a) and not _alive(e),
-		"rounds": rounds, "allies": a, "enemies": e, "log": log,
+		"rounds": rounds, "allies": a, "enemies": e, "log": log, "events": events,
 	}

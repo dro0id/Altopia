@@ -4,7 +4,8 @@
 - [x] **Étape 1 — Prototype** : boucle idle, 3 rôles, gains hors-ligne, sauvegarde.
 - [x] **V1 jouable** : expéditions (astéroïdes, étoile, planète), améliorations du vaisseau, hors-ligne, fond d'étoiles.
 - [x] **V1 RPG + 2D/3D** : 9 héros (classes, raretés, niveaux, étoiles), recrutement aléatoire, escouades, combats automatiques, scène 3D des destinations ([détails](V1.md)).
-- [ ] **Prochaine** : animation des combats, équipements, boss de secteur, événements de planète, vrais assets graphiques.
+- [x] **Combats animés** : coups, barres de vie, dégâts, bandeau de résultat, rejouable.
+- [ ] **Prochaine** : équipements, boss de secteur, événements de planète, vrais assets graphiques.
 - [ ] **Étape 2 — Univers** : fond spatial parallaxe, carte des secteurs, premiers boss.
 - [ ] **Étape 2b — Exploration** : système d'expéditions (destination + équipage + durée), puis les 3 types :
   - [ ] Astéroïdes (le plus simple : minage automatique)

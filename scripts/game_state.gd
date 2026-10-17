@@ -3,6 +3,7 @@ extends Node
 ## Enregistré en autoload sous le nom "GameState" (voir project.godot).
 
 signal changed
+signal battle_finished(slot_i: int)
 
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
@@ -87,7 +88,7 @@ func _new_slot() -> Dictionary:
 	var squad: Array = []
 	for i in Data.SQUAD_SIZE:
 		squad.append("")
-	return {"dest": "", "remaining": 0.0, "auto": true, "squad": squad, "last": "", "log": []}
+	return {"dest": "", "remaining": 0.0, "auto": true, "squad": squad, "last": "", "log": [], "battle": {}}
 
 
 ## --- Ressources ---
@@ -473,6 +474,16 @@ func _complete(slot_i: int) -> void:
 	if levels_gained > 0:
 		slot.last += "  |  %d niveau(x) gagné(s) !" % levels_gained
 	slot.log = battle.log
+	var ids: Array = squad_ids(slot_i)
+	var allies_info: Array = []
+	for k in battle.allies.size():
+		var u: Dictionary = battle.allies[k]
+		allies_info.append({"id": ids[k], "name": u.name, "max_hp": u.max_hp, "stars": heroes[ids[k]].stars})
+	var enemies_info: Array = []
+	for u in battle.enemies:
+		enemies_info.append({"name": u.name, "max_hp": u.max_hp})
+	slot.battle = {"win": battle.win, "dest": dest, "allies": allies_info, "enemies": enemies_info, "events": battle.events}
+	battle_finished.emit(slot_i)
 	if slot.auto and launch_block_reason(dest, slot_i) == "":
 		slot.remaining = duration_of(dest, slot_i)
 	else:
@@ -513,9 +524,20 @@ func save_game() -> void:
 		"version": SAVE_VERSION,
 		"res": res, "data_total": data_total,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "slots": slots, "dest_wins": dest_wins,
+		"upgrades": upgrade_levels, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
+
+
+## Les combats rejouables (volumineux) ne sont pas sauvegardés.
+func _slots_for_save() -> Array:
+	var out: Array = []
+	for s in slots:
+		var c: Dictionary = s.duplicate()
+		c.erase("battle")
+		c.erase("log")
+		out.append(c)
+	return out
 
 
 ## Retourne false si aucune sauvegarde compatible n'existe (nouvelle partie).
@@ -558,7 +580,7 @@ func load_game() -> bool:
 			"dest": dest if Data.DEST.has(dest) else "",
 			"remaining": float(s.get("remaining", 0.0)),
 			"auto": bool(s.get("auto", true)),
-			"squad": squad, "last": String(s.get("last", "")), "log": [],
+			"squad": squad, "last": String(s.get("last", "")), "log": [], "battle": {},
 		}
 	expeditions_done = int(parsed.get("done", 0))
 	last_seen = int(parsed.get("last_seen", 0))

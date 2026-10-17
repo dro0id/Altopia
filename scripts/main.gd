@@ -5,6 +5,7 @@ const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
 const Portrait = preload("res://scripts/portrait.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
+const BattleView = preload("res://scripts/battle_view.gd")
 
 const COL_CARD := Color(0.07, 0.10, 0.22, 0.88)
 const COL_TEXT_DIM := Color(0.62, 0.70, 0.88)
@@ -26,12 +27,14 @@ var _upgrade_ui := {}
 var _dirty := true
 var _timer := 0.0
 var _press_pos := Vector2.ZERO
+var _pending_battle := {}   # emplacement -> un combat vient de se terminer, à animer
 var _dragged := false       # le doigt a glissé : le relâchement ne doit rien acheter
 
 
 func _ready() -> void:
 	_build_ui()
 	GameState.changed.connect(func(): _dirty = true)
+	GameState.battle_finished.connect(_on_battle_finished)
 	_show_tab("heroes")
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
@@ -199,6 +202,9 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		var card := _card(page)
 		var view := SpaceView.new()
 		card.add_child(view)
+		var bv := BattleView.new()
+		bv.visible = false
+		card.add_child(bv)
 		var title := _label(card, "", 26)
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(0, 30)
@@ -238,6 +244,11 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		auto.add_theme_font_size_override("font_size", 22)
 		auto.toggled.connect(func(v: bool): GameState.set_auto(i, v))
 		card.add_child(auto)
+		var replay := _button(card, "Revoir le dernier combat", 62)
+		replay.add_theme_font_size_override("font_size", 21)
+		replay.pressed.connect(_tap(func():
+			if not GameState.slots[i].battle.is_empty():
+				bv.play(GameState.slots[i].battle)))
 		var recall := _button(card, "Rappeler le vaisseau", 70)
 		recall.pressed.connect(_tap(func(): GameState.recall(i)))
 		var dest_btns := {}
@@ -251,7 +262,7 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		var log := _label(card, "", 18, COL_TEXT_DIM)
 		log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_slot_ui.append({
-			"card": card, "view": view, "title": title, "bar": bar, "status": status,
+			"card": card, "view": view, "bv": bv, "replay": replay, "title": title, "bar": bar, "status": status,
 			"members": members, "sig": "", "auto": auto, "auto_sq": auto_sq, "recall": recall, "dest": dest_btns,
 			"last": last, "log": log,
 		})
@@ -331,6 +342,11 @@ func _show_tab(tab: String) -> void:
 	for id in _pages:
 		_pages[id].get_meta("scroll").visible = (id == tab)
 	_tab_buttons[tab].button_pressed = true
+
+
+func _on_battle_finished(slot_i: int) -> void:
+	# On n'anime que si le joueur regarde l'onglet Expéditions.
+	_pending_battle[slot_i] = _pages["exp"].get_meta("scroll").visible
 
 
 func _on_squad_pick(index: int, slot_i: int, member_i: int) -> void:
@@ -416,6 +432,12 @@ func _refresh_expeditions() -> void:
 		var slot: Dictionary = GameState.slots[i]
 		var busy: bool = slot.dest != ""
 		u.view.set_dest(slot.dest)
+		if _pending_battle.get(i, false) and not u.bv.playing and not slot.battle.is_empty():
+			u.bv.play(slot.battle)
+		_pending_battle[i] = false
+		u.view.visible = not u.bv.playing
+		u.bv.visible = u.bv.playing
+		u.replay.visible = not slot.battle.is_empty() and not u.bv.playing
 		u.title.text = "Vaisseau %d" % (i + 1)
 		u.auto.set_pressed_no_signal(slot.auto)
 		u.recall.visible = busy

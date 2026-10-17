@@ -47,8 +47,31 @@ func _initialize() -> void:
 	gs.launch(0, "planet")
 	gs.tick(30.0)
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_planet.png")
+	# Combat animé : on termine une expédition pendant que l'onglet Expéditions est visible.
+	gs.recall(0)
+	gs.slots[0].auto = false
+	gs.launch(0, "asteroids")
+	main._show_tab("exp")
+	await process_frame
+	gs.tick(500.0)
+	main._refresh()
+	var bv = main._slot_ui[0].bv
+	_advance(bv, 1.6)
+	main._slot_ui[0].view.visible = false
+	await _shot_tab(main, "exp", out_dir + "/shot_battle_mid.png")
+	while bv._ev_i < bv._events.size():
+		bv.advance(0.05)
+	_advance(bv, 0.4)      # juste après le dernier coup : le bandeau de résultat s'affiche
+	await _shot_tab(main, "exp", out_dir + "/shot_battle_late.png")
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
 	quit()
+
+
+func _advance(bv: Node, seconds: float) -> void:
+	var t := 0.0
+	while t < seconds:
+		bv.advance(0.05)
+		t += 0.05
 
 
 func _shot_tab(main: Node, tab: String, path: String) -> void:
