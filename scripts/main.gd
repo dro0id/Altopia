@@ -39,6 +39,17 @@ var _inv_sig := ""
 var _recycle_btn: Button
 var _useless_btn: Button
 var _afk_label: Label
+var _afk_loot: Label
+# Anomalies
+var _an_sel := 1
+var _an_info: Label
+var _an_label: Label
+var _an_preview: Label
+var _an_view: Control
+var _an_result: Label
+var _an_btn: Button
+var _an_minus: Button
+var _an_plus: Button
 var _afk_rates := {}
 const UPGRADE_ICONS := {"laser": "minerals", "solar": "energy", "scanner": "data", "engines": "exp", "docks": "ship",
 	"st_pilot": "pilot", "st_engineer": "engineer", "st_scientist": "scientist"}
@@ -63,6 +74,7 @@ var _next_label: Label
 var _upgrade_ui := {}
 # Labo
 var _lab_info: Label
+var _lab_auto: CheckButton
 var _lab_slots: Array = []
 var _lab_queue_box: VBoxContainer
 var _lab_queue_rows: Array = []
@@ -74,6 +86,7 @@ func _ready() -> void:
 	_build_ui()
 	GameState.changed.connect(func(): _dirty = true)
 	GameState.battle_finished.connect(_on_battle_finished)
+	GameState.anomaly_finished.connect(_on_anomaly_finished)
 	_show_tab("captain")
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
@@ -264,6 +277,34 @@ func _build_captain_page(page: VBoxContainer) -> void:
 		b.add_theme_font_size_override("font_size", 19)
 		b.pressed.connect(_tap(func(): GameState.cycle_look(entry[0])))
 
+	_section(page, "Anomalies")
+	var an := _card(page)
+	_label(an, "Le contenu actif du Capitaine : XP et crédits. Une défaite rend la charge.", 19, COL_TEXT_DIM).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_an_info = _label(an, "", 22, UiTheme.MAGENTA)
+	var sel := HBoxContainer.new()
+	sel.add_theme_constant_override("separation", 10)
+	an.add_child(sel)
+	_an_minus = _button(sel, "−", 70)
+	_an_minus.custom_minimum_size = Vector2(90, 70)
+	_an_minus.pressed.connect(_tap(func(): _an_sel = maxi(1, _an_sel - 1); _dirty = true))
+	_an_label = _label(sel, "", 30)
+	_an_label.add_theme_font_override("font", UiTheme.font(true))
+	_an_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_an_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_an_plus = _button(sel, "+", 70)
+	_an_plus.custom_minimum_size = Vector2(90, 70)
+	_an_plus.pressed.connect(_tap(func(): _an_sel = mini(GameState.anomaly_unlocked_max(), _an_sel + 1); _dirty = true))
+	_an_view = BattleView.new()
+	_an_view.visible = false
+	an.add_child(_an_view)
+	_an_preview = _label(an, "", 20, COL_TEXT_DIM)
+	_an_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_an_result = _label(an, "", 21, COL_ACCENT)
+	_an_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_an_btn = _button(an, "", 84)
+	UiTheme.style_primary(_an_btn)
+	_an_btn.add_theme_font_size_override("font_size", 26)
+	_an_btn.pressed.connect(_tap(func(): if not _an_view.playing: GameState.enter_anomaly(_an_sel)))
 	_section(page, "Équipement")
 	for slot in Data.EQUIP_SLOTS:
 		var panel := _rarity_panel(page, COL_TEXT_DIM)
@@ -317,6 +358,8 @@ func _build_crew_page(page: VBoxContainer) -> void:
 		_afk_rates[id] = _rate_chip(afk_grid, id)
 	_afk_label = _label(afk_card, "", 19, COL_TEXT_DIM)
 	_afk_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_afk_loot = _label(afk_card, "", 19, UiTheme.MAGENTA)
+	_afk_loot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_recruit_btn = _button(page, "", 100)
 	UiTheme.style_primary(_recruit_btn)
 	_recruit_btn.add_theme_font_size_override("font_size", 26)
@@ -450,6 +493,11 @@ func _build_lab_page(page: VBoxContainer) -> void:
 	_section(page, "Laboratoire")
 	_lab_info = _label(page, "", 20, COL_TEXT_DIM)
 	_lab_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lab_auto = CheckButton.new()
+	_lab_auto.text = "Recherche automatique (poste libre : la plus courte abordable)"
+	_lab_auto.add_theme_font_size_override("font_size", 19)
+	_lab_auto.toggled.connect(func(v: bool): GameState.set_research_auto(v))
+	page.add_child(_lab_auto)
 	for i in 3:
 		var card := _card(page)
 		var title := _label(card, "", 24)
@@ -746,22 +794,59 @@ func _refresh_goal() -> void:
 	_goal_btn.text = "Récupérer la récompense" if ready else "En cours…"
 
 
+func _on_anomaly_finished() -> void:
+	var a: Dictionary = GameState.last_anomaly
+	if a.win and a.first:
+		_an_sel = GameState.anomaly_unlocked_max()
+	_an_view.play(a)
+	_dirty = true
+
+
+func _refresh_anomalies() -> void:
+	_an_sel = clampi(_an_sel, 1, GameState.anomaly_unlocked_max())
+	var ch := GameState.anomaly_charges
+	var nxt := GameState.anomaly_next_charge_in()
+	_an_info.text = "Charges : %d / %d%s" % [int(floor(ch)), Data.ANOMALY_CHARGES_MAX, ("   (prochaine dans %s)" % Data.fmt_time(nxt)) if nxt > 0.0 else "   (pleines)"]
+	_an_label.text = "Faille %d" % _an_sel
+	_an_minus.disabled = _an_sel <= 1 or _an_view.playing
+	_an_plus.disabled = _an_sel >= GameState.anomaly_unlocked_max() or _an_view.playing
+	_an_view.visible = _an_view.playing
+	var prev := GameState.anomaly_preview(_an_sel)
+	var left := int(100.0 * maxf(0.0, prev.allies[0].hp) / prev.allies[0].max_hp)
+	var first := _an_sel > GameState.anomaly_max
+	var best: int = int(GameState.anomaly_best.get(_an_sel, 0))
+	_an_preview.text = "Ennemis niv. %d  ·  %s\nRécompense : +%s XP  +%s crédits%s\n%s" % [
+		GameState.anomaly_enemy_level(_an_sel),
+		("victoire probable (il vous resterait ~%d %% de PV)" % left) if prev.win else "DÉFAITE probable (la charge serait rendue)",
+		Data.fmt(GameState.anomaly_xp(_an_sel, first)), Data.fmt(GameState.anomaly_credits(_an_sel)),
+		"  +ressources (1re réussite)" if first else "",
+		("Record : %d tours" % best) if best > 0 else "Pas encore de record"]
+	var la: Dictionary = GameState.last_anomaly
+	if la.is_empty() or _an_view.playing:
+		_an_result.text = ""
+	elif la.win:
+		_an_result.text = "Faille %d réussie en %d tours : +%s XP, +%s crédits%s%s%s" % [la.n, la.rounds, Data.fmt(la.xp), Data.fmt(la.credits),
+			"  —  %d niveau(x) !" % la.levels if la.levels > 0 else "", "  —  NOUVEAU RECORD !" if la.record else "",
+			("  —  " + Data.fmt_amounts(la.found)) if not la.found.is_empty() else ""]
+	else:
+		_an_result.text = "Faille %d : défaite. La charge vous est rendue." % la.n
+	_an_btn.text = "Entrer dans la faille %d" % _an_sel if ch >= 1.0 else "Aucune charge (prochaine dans %s)" % Data.fmt_time(nxt)
+	_an_btn.disabled = ch < 1.0 or _an_view.playing
+
+
 func _refresh_captain() -> void:
 	var cap: Dictionary = GameState.captain
 	_cap_chibi.setup_captain(cap.look)
 	_cap_name.text = cap.name
-	_cap_level.text = "Niveau %d / %d" % [cap.level, GameState.captain_cap()] + ("  (plafond : Académie des capitaines, au Labo)" if cap.level >= GameState.captain_cap() and cap.level < Data.CAPTAIN_MAX_LEVEL else "")
+	_cap_level.text = "Niveau %d   ·   XP : anomalies" % cap.level
 	_cap_xp.value = float(cap.xp) / float(Data.xp_needed(cap.level))
 	var cs := GameState.captain_stats(0)
 	_cap_stats.text = "PV %d   ATQ %d\nDÉF %d   VIT %d\nÉquipement : %s\nÉquipage : %s" % [
 		cs.hp, cs.atk, cs.def, cs.spd, _stat_text(cs.gear, "+"), _stat_text(cs.crew, "+")]
-	if cap.level >= GameState.captain_cap():
-		_cap_train.text = "Niveau maximum" if cap.level >= Data.CAPTAIN_MAX_LEVEL else "Plafond atteint : relevez-le au Labo"
-		_cap_train.disabled = true
-	else:
-		var tc := GameState.captain_train_cost()
-		_cap_train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
-		_cap_train.disabled = GameState.res["credits"] < tc
+	var tc := GameState.captain_train_cost()
+	_cap_train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
+	_cap_train.disabled = GameState.res["credits"] < tc
+	_refresh_anomalies()
 	for slot in Data.EQUIP_SLOTS:
 		var u: Dictionary = _slot_cards[slot]
 		var it := GameState.equipped_item(slot)
@@ -859,6 +944,16 @@ func _refresh_crew() -> void:
 		_afk_rates[id].text = "+%s /h" % Data.fmt(prod[id] * 3600.0)
 	_afk_label.text = "Rendement hors ligne : %d %%   ·   Durée max comptée : %s" % [
 		int(round(GameState.offline_efficiency() * 100.0)), Data.fmt_time(GameState.offline_cap_seconds())]
+	var w := GameState.drop_weights(2)
+	var wsum := 0.0
+	for r in w:
+		wsum += w[r]
+	var parts: Array[String] = []
+	for r in Data.ITEM_RARITY_ORDER:
+		if Data.ITEM_RARITY_ORDER.find(r) >= 2:
+			parts.append("%s %s %%" % [Data.ITEM_RARITY[r].name, String.num(100.0 * w[r] / wsum, 1)])
+	_afk_loot.text = "Niveau d'AFK : %d  →  butin du Capitaine (objets niv. ~%d). Chances : %s. Montez l'équipage et les postes pour du butin plus puissant." % [
+		GameState.afk_level(), GameState.loot_level("star"), "  ·  ".join(parts)]
 	var cost := GameState.recruit_cost()
 	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost
@@ -887,7 +982,7 @@ func _refresh_crew() -> void:
 		var h: Dictionary = GameState.heroes[id]
 		var st := Data.hero_stats(id, h.level, h.stars)
 		u.portrait.setup_crew(id, h.stars)
-		u.name.text = "%s  —  niv. %d/%d  %s" % [tpl.name, h.level, GameState.hero_cap(id), "★".repeat(h.stars)]
+		u.name.text = "%s  —  niv. %d  %s" % [tpl.name, h.level, "★".repeat(h.stars)]
 		u.name.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
 		_set_rarity_style(u.panel, Data.RARITY[tpl.rarity].color)
 		u.stats.text = "%s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
@@ -897,8 +992,8 @@ func _refresh_crew() -> void:
 		var slot := GameState.hero_slot(id)
 		u.where.text = ("Au poste (vaisseau %d) : %s" % [slot + 1, _hero_prod_text(id)]) if slot >= 0 else "Au repos : placez-le à un poste pour produire (%s)" % _hero_prod_text(id)
 		u.train.visible = true
-		if h.level >= GameState.hero_cap(id):
-			u.train.text = "Niveau maximum" if h.level >= Data.MAX_LEVEL else "Plafond atteint : Académie de l'équipage (Labo)"
+		if h.level >= Data.MAX_LEVEL:
+			u.train.text = "Niveau maximum"
 			u.train.disabled = true
 		else:
 			var tc := GameState.train_cost(id)
@@ -940,9 +1035,9 @@ func _refresh_expeditions() -> void:
 		u.bv.visible = u.bv.playing
 		u.replay.visible = not slot.battle.is_empty() and not u.bv.playing
 		if i == 0:
-			u.title.text = "Vaisseau amiral — %s (niv. %d)" % [GameState.captain.name, GameState.captain.level]
+			u.title.text = "Vaisseau 1 — l'équipage combat seul"
 		else:
-			u.title.text = "Drone d'exploration (équipage seul, sans Capitaine)"
+			u.title.text = "Vaisseau 2 (baie d'amarrage) — l'équipage combat seul"
 		u.auto.set_pressed_no_signal(slot.auto)
 		u.recall.visible = busy
 		u.auto_sq.visible = not busy
@@ -1022,6 +1117,7 @@ func _effect_text(id: String, lvl: int) -> String:
 
 func _refresh_lab() -> void:
 	var slots_n := GameState.research_slots()
+	_lab_auto.set_pressed_no_signal(GameState.research_auto)
 	var q := GameState.research_queue
 	_lab_info.text = "Les recherches avancent même hors ligne, jusqu'au bout. Postes : %d  ·  File d'attente : %d / %d (payée d'avance, annulable)." % [
 		slots_n, q.size(), Data.RESEARCH_QUEUE_MAX]

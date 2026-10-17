@@ -38,15 +38,14 @@ const STARTER_HEROES := ["rex", "bolt"]
 
 ## --- Capitaine (le joueur) ---
 const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
-const CAPTAIN_MAX_LEVEL := 100   # plafond absolu ; le plafond du moment se relève au Labo
-const CAPTAIN_BASE_CAP := 30
+const CAPTAIN_MAX_LEVEL := 999   # pas de plafond pratique : la courbe d'XP ralentit d'elle-même
 const CAPTAIN_LEVEL_BONUS := 0.15
 const CAPTAIN_TRAIN_BASE := 40.0
-const CAPTAIN_TRAIN_GROWTH := 1.35
+const CAPTAIN_TRAIN_GROWTH := 1.4
 const CREW_STAT_SHARE := 0.35    # part des stats de l'équipage ajoutée au Capitaine
 const CREW_SPD_SHARE := 0.20
-const DRONE_ATK_SHARE := 0.6     # drone (vaisseau 2, sans capitaine) : stats de l'équipage réduites
-const DRONE_DEF_SHARE := 0.4
+const DRONE_ATK_SHARE := 1.0     # vaisseau AFK : l'équipage combat seul, le Capitaine n'y participe pas
+const DRONE_DEF_SHARE := 0.7
 const LOOK_SUITS := [Color(0.35, 0.75, 1.0), Color(1.0, 0.55, 0.25), Color(0.5, 0.9, 0.55),
 	Color(0.78, 0.5, 1.0), Color(1.0, 0.4, 0.45), Color(0.92, 0.94, 1.0)]
 const LOOK_HAIRS := [Color(0.18, 0.12, 0.1), Color(0.95, 0.8, 0.35), Color(0.9, 0.35, 0.35),
@@ -77,8 +76,8 @@ const ITEM_RARITY := {
 	"common": {"name": "Commun", "color": Color(0.72, 0.77, 0.88), "mult": 1.0, "affixes": 0, "weight": 60.0},
 	"uncommon": {"name": "Peu commun", "color": Color(0.45, 0.9, 0.5), "mult": 1.25, "affixes": 1, "weight": 25.0},
 	"rare": {"name": "Rare", "color": Color(0.35, 0.65, 1.0), "mult": 1.6, "affixes": 2, "weight": 11.0},
-	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "mult": 2.1, "affixes": 3, "weight": 3.5},
-	"legendary": {"name": "Légendaire", "color": Color(1.0, 0.65, 0.15), "mult": 2.8, "affixes": 4, "weight": 0.5},
+	"epic": {"name": "Épique", "color": Color(0.78, 0.42, 1.0), "mult": 2.1, "affixes": 3, "weight": 1.5},
+	"legendary": {"name": "Légendaire", "color": Color(1.0, 0.65, 0.15), "mult": 2.8, "affixes": 4, "weight": 0.08},
 }
 ## Bonus aléatoires (affixes) : valeur tirée entre min et max, puis augmentée avec le niveau d'objet.
 const AFFIX_ORDER := ["atk_pct", "hp_pct", "def_pct", "spd", "crit", "lifesteal", "xp_pct", "credits_pct", "drop_pct", "offline_pct"]
@@ -101,7 +100,12 @@ const EPITHETS := ["du Cratère Ardent", "de l'Aube Stellaire", "du Vide", "de H
 const ITEM_ILVL_BONUS := 0.10    # +10 % de stats par niveau d'objet
 const ITEM_ILVL_AFFIX := 0.04    # les affixes montent aussi avec le niveau d'objet
 const CRIT_MULT := 1.5           # un coup critique fait x1,5 (moyenne déterministe dans les combats)
-const DROP_CHANCE := 0.35
+const DROP_CHANCE := 0.004       # par victoire AFK (des milliers par jour : ~30 objets/jour)
+## Niveau d'AFK = niveaux de l'équipage aux postes + améliorations de postes et de vaisseau. Plus il est haut,
+## plus le butin du Capitaine est puissant : rareté (poids ci-dessous par rang de rareté) et niveau d'objet.
+const AFK_RARITY_RATE := 0.005
+const AFK_RARITY_RANK_FACTOR := [0.0, 0.0, 1.0, 2.5, 5.0]
+const AFK_ILVL_DIV := 8.0
 const INVENTORY_MAX := 60
 const AUTO_RECYCLE_MAX := 2      # 0 = communs, 1 = jusqu'à peu commun, 2 = jusqu'à rare ; -1 = désactivé
 
@@ -122,35 +126,38 @@ const OFFLINE_BULK_MIN := 40             # au-delà, les expéditions hors ligne
 const OFFLINE_BULK_CHUNK := 25
 
 const SQUAD_SIZE := 3
-const MAX_LEVEL := 80            # plafond absolu des cartes
-const CREW_BASE_CAP := 25
+const MAX_LEVEL := 999           # pas de plafond pratique
 const MAX_STARS := 5
 const LEVEL_BONUS := 0.15        # +15 % de stats par niveau
 const STAR_BONUS := 0.20         # +20 % de stats par étoile (doublon)
 const RECRUIT_BASE := 50.0
 const RECRUIT_GROWTH := 1.2
 const TRAIN_BASE := 30.0
-const TRAIN_GROWTH := 1.32
+const TRAIN_GROWTH := 1.38
 const LOSS_REWARD := 0.25        # part du butin conservée en cas de défaite
-const ENEMY_LEVEL_STEP := 8      # victoires nécessaires pour +1 niveau d'ennemis
-const ENEMY_LEVEL_MAX := 60      # plafond : évite une inflation sans fin du butin et des ennemis
+## Niveau des ennemis AFK = 1 + (victoires / ENEMY_WINS_REF) ^ ENEMY_WINS_EXP : il ne monte que sur victoire et ralentit,
+## comme la progression de l'équipage (la défaite ne le fait jamais monter).
+const ENEMY_WINS_REF := 150.0
+const ENEMY_WINS_EXP := 0.65
+const ENEMY_DEFEAT_DECAY := 0.9   # chaque défaite fait redescendre le compteur de victoires de 10 % : les ennemis s'adaptent
+const ENEMY_LEVEL_MAX := 250
 const ENEMY_SCALE := 0.12
 const BATTLE_MAX_ROUNDS := 60
 
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
-		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 5,
+		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "xp": 10,
 		"enemy": {"kind": "asteroids", "name": "Foreur rebelle", "count": 2, "hp": 120.0, "atk": 18.0, "def": 6.0, "spd": 9.0},
 		"rewards": {"minerals": 5.0, "credits": 6.0, "data": 3.0},
 	},
 	"star": {
-		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 12,
+		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "xp": 24,
 		"enemy": {"kind": "star", "name": "Sentinelle solaire", "count": 2, "hp": 220.0, "atk": 26.0, "def": 12.0, "spd": 10.0},
 		"rewards": {"energy": 8.0, "credits": 12.0, "data": 6.0},
 	},
 	"planet": {
-		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 24,
+		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "xp": 48,
 		"enemy": {"kind": "planet", "name": "Créature xéno", "count": 3, "hp": 300.0, "atk": 34.0, "def": 16.0, "spd": 11.0},
 		"rewards": {"data": 16.0, "credits": 36.0, "minerals": 3.0, "energy": 2.0},
 	},
@@ -216,13 +223,11 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 	return {"hp": h.hp * m, "atk": h.atk * m, "def": h.def * m, "spd": h.spd}
 
 
-## L'XP d'une victoire grandit avec le niveau des ennemis (sinon les hauts niveaux seraient infinis).
-static func xp_level_scale(enemy_level: int) -> float:
-	return 1.0 + 0.12 * float(enemy_level - 1)
+const XP_PER_LEVEL := 6500.0     # XP pour passer du niveau L à L+1 : XP_PER_LEVEL x L (courbe douce, sans plafond)
 
 
 static func xp_needed(level: int) -> int:
-	return int(20.0 * pow(level, 1.95))
+	return int(XP_PER_LEVEL * level)
 
 
 static func fmt(n: float) -> String:
@@ -258,7 +263,7 @@ static func fmt_amounts(d: Dictionary) -> String:
 ## Règles : toujours une recherche courte disponible, plusieurs recherches en parallèle, tout se termine
 ## même hors ligne, une file d'attente payée d'avance, annulation remboursée.
 const RESEARCH_BASE_SLOTS := 1
-const RESEARCH_QUEUE_MAX := 3
+const RESEARCH_QUEUE_MAX := 5
 ## Accélération : retire 25 % de la durée totale d'une recherche, 2 fois au plus (le rythme reste prévisible).
 const RESEARCH_BOOST_FRACTION := 0.25
 const RESEARCH_BOOST_MAX := 2
@@ -269,7 +274,7 @@ const RESEARCH_SPEED_MIN := 0.4               # les durées ne descendent pas so
 
 ## Pour chaque ressource et pour la durée : [valeur au niveau 1, valeur au dernier niveau] (progression géométrique).
 const RESEARCH_ORDER := ["calibrage", "cartographie", "entrainement", "propulsion", "protocoles", "soute", "butin",
-	"labo_vitesse", "labo_annexe", "academie_capitaine", "academie_equipage",
+	"labo_vitesse", "labo_annexe",
 	"calibrage_ii", "cartographie_ii", "entrainement_ii", "propulsion_ii", "butin_ii",
 	"calibrage_iii", "cartographie_iii", "entrainement_iii", "propulsion_iii", "butin_iii"]
 const RESEARCH := {
@@ -300,12 +305,6 @@ const RESEARCH := {
 	"labo_annexe": {"name": "Laboratoire annexe", "icon": "scientist", "color": Color(0.5, 1.0, 0.6), "max": 2,
 		"effect": {"key": "research_slots", "per": 1.0, "unit": " poste de recherche en plus"},
 		"cost": {"credits": [20000.0, 2000000.0], "minerals": [200.0, 4500000.0]}, "time": [14400.0, 518400.0], "requires": {"calibrage": 6, "cartographie": 4}},
-	"academie_capitaine": {"name": "Académie des capitaines", "icon": "book", "color": Color(0.35, 0.85, 1.0), "max": 7,
-		"effect": {"key": "cap_captain", "per": 10.0, "unit": " niveaux de plafond du Capitaine"},
-		"cost": {"credits": [5000.0, 60000000.0], "data": [200.0, 12000000.0]}, "time": [21600.0, 1728000.0], "requires": {"calibrage": 3}},
-	"academie_equipage": {"name": "Académie de l'équipage", "icon": "book", "color": Color(1.0, 0.65, 0.3), "max": 5,
-		"effect": {"key": "cap_crew", "per": 11.0, "unit": " niveaux de plafond de l'équipage"},
-		"cost": {"credits": [4000.0, 30000000.0], "minerals": [100.0, 6000000.0]}, "time": [43200.0, 1296000.0], "requires": {"calibrage": 3}},
 	"calibrage_ii": {"name": "Calibrage des systèmes II", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
 		"effect": {"key": "prod_pct", "per": 3.0, "unit": "% de production"},
 		"cost": {"credits": [100000.0, 2400000.0]}, "time": [17280.0, 345600.0], "requires": {"calibrage": 25}},
@@ -349,3 +348,18 @@ static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
 	if max_lvl <= 1:
 		return range_[0]
 	return range_[0] * pow(range_[1] / range_[0], float(lvl) / float(max_lvl - 1))
+
+
+## --- Anomalies : le contenu actif du Capitaine (XP, crédits, records) ---
+## Une faille n : 2 sentinelles et 1 gardien, niveau d'ennemi 2 x n. Entrée = 1 charge (recharge lente, perdue jamais :
+## une défaite rend la charge). L'XP du Capitaine ne vient que d'ici.
+const ANOMALY_CHARGES_MAX := 20
+const ANOMALY_REGEN_SECONDS := 3600.0
+const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 4.0
+const ANOMALY_BASE := {"hp": 70.0, "atk": 11.0, "def": 4.0, "spd": 11.0}
+const ANOMALY_BOSS_HP := 2.2
+const ANOMALY_BOSS_ATK := 1.4
+const ANOMALY_REF_LEVEL_PER_FAILLE := 2.5
+const ANOMALY_RECORD_BONUS := 0.5         # +50 % de crédits quand on bat son record de tours
+const ANOMALY_CREDITS := 40.0
+const ANOMALY_FIRST_RES := {"data": 30.0, "minerals": 15.0, "energy": 10.0}

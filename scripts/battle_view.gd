@@ -68,7 +68,7 @@ func play(b: Dictionary) -> void:
 			cn.setup_crew(cid, 0)
 			_crew_nodes.append(cn)
 	for info in b.enemies:
-		var node := _make_node(UNIT * 1.3)
+		var node := _make_node(UNIT * (1.3 if b.enemies.size() <= 2 else 1.05))
 		node.setup_enemy(info.kind)
 		_enemies.append({"node": node, "ally": false, "base": Vector2.ZERO, "off": Vector2.ZERO, "hp": info.max_hp,
 			"shown": info.max_hp, "max": info.max_hp, "alive": true, "flash": 0.0})
@@ -92,7 +92,8 @@ func _layout() -> void:
 	for i in _crew_nodes.size():
 		_crew_nodes[i].position = Vector2(size.x * 0.06, size.y * (0.1 + 0.28 * i))
 	for i in _enemies.size():
-		_enemies[i].base = Vector2(size.x * 0.8, size.y * (0.27 + 0.27 * i))
+		var many := _enemies.size() > 2
+		_enemies[i].base = Vector2(size.x * 0.8, size.y * ((0.2 + 0.25 * i) if many else (0.27 + 0.27 * i)))
 	_sync_nodes()
 
 
@@ -172,6 +173,7 @@ func _draw() -> void:
 	for f in _floats:
 		var u: Dictionary = f.unit
 		var p: Vector2 = u.base + Vector2(0, -u.node.size.y * 0.5 - 4.0) + Vector2(0, -40.0 * f.t)
+		p.y = maxf(p.y, 34.0)
 		var col: Color = f.col
 		col.a = 1.0 - f.t / 0.9
 		var txt: String = "-" + String(f.text)

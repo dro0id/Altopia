@@ -5,6 +5,7 @@ extends Node
 
 signal changed
 signal battle_finished(slot_i: int)
+signal anomaly_finished
 
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
@@ -37,6 +38,13 @@ var research_levels := {}
 var research_active: Array = []   # [{id, remaining, total}] : recherches en cours
 var research_queue: Array = []    # ids en attente (déjà payées)
 var research_done_log: Array = [] # noms terminés depuis le dernier rapport
+var research_auto := false        # lance tout seul la recherche abordable la plus courte quand un poste se libère
+var anomaly_charges := float(Data.ANOMALY_CHARGES_MAX)
+var anomaly_max := 0              # plus haute faille réussie
+var anomaly_best := {}            # faille -> meilleur nombre de tours
+var last_anomaly := {}            # dernier combat d'anomalie (pour l'animer)
+var afk_wins := 0                 # compteurs d'équilibrage (non sauvegardés)
+var afk_defeats := 0
 ## Un emplacement de vaisseau : dest "" = libre ; squad = un poste par classe (ids, "" = vide).
 ## Vaisseau 0 = vaisseau amiral (avec le Capitaine) ; vaisseau 1 = drone (équipage seul).
 var slots: Array = []
@@ -48,7 +56,6 @@ var last_recruit := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
-var stats := {"xp_gained": 0.0, "xp_wasted": 0.0}   # mesures d'équilibrage (non sauvegardées)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
@@ -99,6 +106,11 @@ func reset() -> void:
 	research_active = []
 	research_queue = []
 	research_done_log = []
+	research_auto = false
+	anomaly_charges = float(Data.ANOMALY_CHARGES_MAX)
+	anomaly_max = 0
+	anomaly_best = {}
+	last_anomaly = {}
 	slots = []
 	for i in Data.MAX_SLOTS:
 		slots.append(_new_slot())
@@ -157,23 +169,7 @@ func captain_train_cost() -> float:
 	return ceil(Data.CAPTAIN_TRAIN_BASE * pow(Data.CAPTAIN_TRAIN_GROWTH, captain.level - 1))
 
 
-## Plafond de niveau du Capitaine : relevé par l'Académie ; on ne descend jamais sous le niveau actuel.
-func captain_cap() -> int:
-	var cap := mini(Data.CAPTAIN_BASE_CAP + int(research_bonus("cap_captain")), Data.CAPTAIN_MAX_LEVEL)
-	return maxi(cap, captain.level)
-
-
-func crew_cap() -> int:
-	return mini(Data.CREW_BASE_CAP + int(research_bonus("cap_crew")), Data.MAX_LEVEL)
-
-
-func hero_cap(id: String) -> int:
-	return maxi(crew_cap(), heroes[id].level if heroes.has(id) else 0)
-
-
 func train_captain() -> bool:
-	if captain.level >= captain_cap():
-		return false
 	var cost := captain_train_cost()
 	if res["credits"] < cost:
 		return false
@@ -186,16 +182,11 @@ func train_captain() -> bool:
 ## Ajoute de l'XP au Capitaine ; retourne le nombre de niveaux gagnés.
 func gain_captain_xp(amount: int) -> int:
 	var gained := 0
-	stats.xp_gained += amount
 	captain.xp += amount
-	while captain.level < captain_cap() and captain.xp >= Data.xp_needed(captain.level):
+	while captain.xp >= Data.xp_needed(captain.level):
 		captain.xp -= Data.xp_needed(captain.level)
 		captain.level += 1
 		gained += 1
-	if captain.level >= captain_cap():     # l'XP est mise de côté : le niveau tombe dès que le plafond monte
-		var kept := mini(captain.xp, Data.xp_needed(captain.level))
-		stats.xp_wasted += captain.xp - kept
-		captain.xp = kept
 	return gained
 
 
@@ -415,8 +406,32 @@ func _receive(item: Dictionary) -> Dictionary:
 	return item
 
 
+## Niveau d'AFK : équipage aux postes + améliorations de postes et de vaisseau.
+func afk_level() -> int:
+	var n := 0
+	for id in stationed_ids():
+		n += heroes[id].level
+	for id in ["st_pilot", "st_engineer", "st_scientist", "laser", "solar", "scanner", "engines"]:
+		n += upgrade_levels[id]
+	return n
+
+
 func loot_level(dest: String) -> int:
-	return dest_tier(dest) * 4 + enemy_level(dest)
+	return dest_tier(dest) * 3 + int(afk_level() / Data.AFK_ILVL_DIV)
+
+
+## Poids de tirage de chaque rareté : le niveau d'AFK fait monter les raretés élevées.
+func drop_weights(tier: int) -> Dictionary:
+	var out := {}
+	var lvl := float(afk_level())
+	for i in Data.ITEM_RARITY_ORDER.size():
+		var r: String = Data.ITEM_RARITY_ORDER[i]
+		var w: float = Data.ITEM_RARITY[r].weight
+		if i >= 2:
+			w *= 1.0 + 0.25 * (tier - 1)
+		w *= 1.0 + lvl * Data.AFK_RARITY_RATE * Data.AFK_RARITY_RANK_FACTOR[i]
+		out[r] = w
+	return out
 
 
 ## Tire un objet de butin ou {} (pas de chance / recyclé). Les destinations élevées donnent mieux.
@@ -424,14 +439,10 @@ func roll_drop(dest: String) -> Dictionary:
 	var tier := dest_tier(dest)
 	if rng.randf() > Data.DROP_CHANCE * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0):
 		return {}
+	var weights := drop_weights(tier)
 	var total := 0.0
-	var weights := {}
-	for r in Data.ITEM_RARITY_ORDER:
-		var w: float = Data.ITEM_RARITY[r].weight
-		if Data.ITEM_RARITY_ORDER.find(r) >= 2:
-			w *= 1.0 + 0.25 * (tier - 1)
-		weights[r] = w
-		total += w
+	for r in weights:
+		total += weights[r]
 	var roll := rng.randf() * total
 	var rarity := "common"
 	for r in Data.ITEM_RARITY_ORDER:
@@ -507,7 +518,7 @@ func train_cost(id: String) -> float:
 
 
 func train(id: String) -> bool:
-	if not heroes.has(id) or heroes[id].level >= hero_cap(id):
+	if not heroes.has(id):
 		return false
 	var cost := train_cost(id)
 	if res["credits"] < cost:
@@ -522,16 +533,11 @@ func train(id: String) -> bool:
 func gain_xp(id: String, amount: int) -> int:
 	var h: Dictionary = heroes[id]
 	var gained := 0
-	stats.xp_gained += amount
 	h.xp += amount
-	while h.level < hero_cap(id) and h.xp >= Data.xp_needed(h.level):
+	while h.xp >= Data.xp_needed(h.level):
 		h.xp -= Data.xp_needed(h.level)
 		h.level += 1
 		gained += 1
-	if h.level >= hero_cap(id):
-		var kept_h := mini(h.xp, Data.xp_needed(h.level))
-		stats.xp_wasted += h.xp - kept_h
-		h.xp = kept_h
 	return gained
 
 
@@ -764,6 +770,32 @@ func boost_research(id: String) -> bool:
 func _promote_queue() -> void:
 	while research_active.size() < research_slots() and not research_queue.is_empty():
 		_begin_research(research_queue.pop_front())
+	# recherche automatique : un poste libre et rien en file -> la recherche abordable la plus courte
+	while research_auto and research_active.size() < research_slots():
+		var pick := _auto_research_pick()
+		if pick == "":
+			break
+		pay(research_cost(pick))
+		_begin_research(pick)
+
+
+func _auto_research_pick() -> String:
+	var best := ""
+	var best_t := 1e30
+	for id in Data.RESEARCH_ORDER:
+		if research_block_reason(id) != "" or not can_afford(research_cost(id)):
+			continue
+		var t := research_duration(id)
+		if t < best_t:
+			best = id
+			best_t = t
+	return best
+
+
+func set_research_auto(v: bool) -> void:
+	research_auto = v
+	_promote_queue()
+	changed.emit()
 
 
 ## Fait avancer les recherches de `seconds` (exact, même sur de longues absences).
@@ -788,14 +820,7 @@ func _advance_research(seconds: float) -> void:
 		for a in finished:
 			research_levels[a.id] = research_level(a.id) + 1
 			research_done_log.append("%s niv. %d" % [Data.RESEARCH[a.id].name, research_level(a.id)])
-		_on_research_completed()
 
-
-## Un plafond de niveau a pu monter : l'XP mise de côté est convertie en niveaux.
-func _on_research_completed() -> void:
-	gain_captain_xp(0)
-	for id in hero_order:
-		gain_xp(id, 0)
 
 
 ## --- Postes ---
@@ -1005,7 +1030,7 @@ func rewards_of(dest: String, slot_i: int) -> Dictionary:
 
 
 func enemy_level(dest: String) -> int:
-	return mini(1 + dest_wins[dest] / Data.ENEMY_LEVEL_STEP, Data.ENEMY_LEVEL_MAX)
+	return mini(1 + int(pow(float(dest_wins[dest]) / Data.ENEMY_WINS_REF, Data.ENEMY_WINS_EXP)), Data.ENEMY_LEVEL_MAX)
 
 
 func make_enemies(dest: String) -> Array:
@@ -1017,13 +1042,10 @@ func make_enemies(dest: String) -> Array:
 	return out
 
 
-## Le combattant du vaisseau : le Capitaine (amiral) ou le drone (vaisseau 2).
+## Le combattant du vaisseau : l'équipage seul (le Capitaine ne participe pas à l'AFK).
 func make_allies(slot_i: int) -> Array:
-	if slot_i == 0:
-		var s := captain_stats(0)
-		return [Battle.make_unit(captain.name, s.hp, s.atk, s.def, s.spd, s.crit, s.lifesteal)]
 	var d := drone_stats(slot_i)
-	return [Battle.make_unit("Drone", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
+	return [Battle.make_unit("Équipage", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
 
 
 ## Aperçu : le vaisseau battrait-il les ennemis actuels de cette destination ?
@@ -1064,19 +1086,20 @@ func _complete(slot_i: int, times: int = 1) -> void:
 	var levels_gained := 0
 	var loot := {}
 	if battle.win:
+		afk_wins += times
 		dest_wins[dest] += times
-		var xp := int(round(Data.DEST[dest].xp * (1.0 + (equipped_bonus("xp_pct") + research_bonus("xp_pct")) / 100.0) * _gain_scale * times * Data.xp_level_scale(enemy_level(dest))))
+		var xp := int(round(Data.DEST[dest].xp * (1.0 + (equipped_bonus("xp_pct") + research_bonus("xp_pct")) / 100.0) * _gain_scale * times))
 		for id in squad_ids(slot_i):
 			levels_gained += gain_xp(id, xp)
-		if slot_i == 0:
-			levels_gained += gain_captain_xp(xp)
-			for k in times:
-				if _offline_calc and rng.randf() > _gain_scale:
-					continue      # hors ligne, une partie du butin est perdue (rendement)
-				var drop := roll_drop(dest)
-				if not drop.is_empty():
-					loot = drop
+		for k in times:      # le butin est pour le Capitaine : il dépend du niveau d'AFK
+			if _offline_calc and rng.randf() > _gain_scale:
+				continue      # hors ligne, une partie du butin est perdue (rendement)
+			var drop := roll_drop(dest)
+			if not drop.is_empty():
+				loot = drop
 	else:
+		afk_defeats += times
+		dest_wins[dest] = int(float(dest_wins[dest]) * pow(Data.ENEMY_DEFEAT_DECAY, float(mini(times, 5))))   # les ennemis s'adaptent
 		for r in rewards:
 			rewards[r] *= Data.LOSS_REWARD
 	for r in rewards:
@@ -1093,7 +1116,7 @@ func _complete(slot_i: int, times: int = 1) -> void:
 	var ally: Dictionary = battle.allies[0]
 	slot.battle = {
 		"win": battle.win, "dest": dest, "events": battle.events, "loot": loot,
-		"allies": [{"id": "captain" if slot_i == 0 else "drone", "name": ally.name, "max_hp": ally.max_hp,
+		"allies": [{"id": "drone", "name": ally.name, "max_hp": ally.max_hp,
 			"look": captain.look.duplicate(), "crew": squad_ids(slot_i)}],
 		"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
 	}
@@ -1135,6 +1158,7 @@ func tick(seconds: float) -> void:
 	_advance_expeditions(seconds)
 	if not _skip_research:
 		_advance_research(seconds)
+		_regen_anomaly(seconds)
 	changed.emit()
 
 
@@ -1154,6 +1178,7 @@ func simulate_offline(away: float) -> Dictionary:
 	_offline_calc = false
 	_gain_scale = 1.0
 	_advance_research(away)       # les recherches vont jusqu'au bout, sans plafond de durée
+	_regen_anomaly(away)          # les charges d'anomalie aussi
 	var gains := {}
 	for id in res:
 		gains[id] = res[id] - before[id]
@@ -1166,6 +1191,106 @@ func simulate_offline(away: float) -> Dictionary:
 		"efficiency": offline_efficiency(), "loot_kept": _loot_log.size(), "loot_best": best,
 		"recycled": _recycled_credits, "research_done": research_done_log.duplicate(),
 	}
+
+
+## --- Anomalies : le contenu actif du Capitaine ---
+
+func anomaly_enemy_level(n: int) -> int:
+	return 1 + int(round(Data.ANOMALY_ENEMY_LEVEL_PER_FAILLE * (n - 1)))
+
+
+func make_anomaly_enemies(n: int) -> Array:
+	var m: float = 1.0 + Data.ENEMY_SCALE * (anomaly_enemy_level(n) - 1)
+	var b: Dictionary = Data.ANOMALY_BASE
+	return [
+		Battle.make_unit("Sentinelle de faille 1", b.hp * m, b.atk * m, b.def * m, b.spd),
+		Battle.make_unit("Sentinelle de faille 2", b.hp * m, b.atk * m, b.def * m, b.spd),
+		Battle.make_unit("Gardien de faille", b.hp * m * Data.ANOMALY_BOSS_HP, b.atk * m * Data.ANOMALY_BOSS_ATK, b.def * m, b.spd + 1.0),
+	]
+
+
+func captain_unit() -> Dictionary:
+	var s := captain_stats(0)
+	return Battle.make_unit(captain.name, s.hp, s.atk, s.def, s.spd, s.crit, s.lifesteal)
+
+
+func anomaly_preview(n: int) -> Dictionary:
+	return Battle.simulate([captain_unit()], make_anomaly_enemies(n))
+
+
+## XP d'une victoire : xp_needed(niveau) / (3 + niveau/2.5) (soit 3 victoires par niveau au début, ~35 vers le niveau 80),
+## modulée par la difficulté de la faille par rapport au niveau du Capitaine (de x0,5 à x1) : pas de bonus à la 1re réussite,
+## on ne monte pas en niveau en grimpant les failles, seulement en jouant.
+func anomaly_xp(n: int, first: bool) -> int:
+	var lv: int = captain.level
+	var runs_per_level: float = 3.0 + float(lv) / 2.5
+	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(lv), 0.5, 1.0)
+	var xp: float = float(Data.xp_needed(lv)) / runs_per_level * diff
+	xp *= 1.0 + equipped_bonus("xp_pct") / 100.0       # seul l'équipement joue : les recherches d'XP sont pour l'équipage
+	return maxi(1, int(round(xp)))
+
+
+func anomaly_credits(n: int) -> float:
+	return ceil(Data.ANOMALY_CREDITS * (1.0 + Data.ENEMY_SCALE * (anomaly_enemy_level(n) - 1)) * credit_mult())
+
+
+## Failles accessibles : de 1 à la plus haute réussie + 1.
+func anomaly_unlocked_max() -> int:
+	return anomaly_max + 1
+
+
+func _regen_anomaly(seconds: float) -> void:
+	if anomaly_charges < Data.ANOMALY_CHARGES_MAX:
+		anomaly_charges = minf(float(Data.ANOMALY_CHARGES_MAX), anomaly_charges + seconds / Data.ANOMALY_REGEN_SECONDS)
+
+
+## Seconde avant la prochaine charge (0 si pleines).
+func anomaly_next_charge_in() -> float:
+	if anomaly_charges >= Data.ANOMALY_CHARGES_MAX:
+		return 0.0
+	return (1.0 - (anomaly_charges - floor(anomaly_charges))) * Data.ANOMALY_REGEN_SECONDS
+
+
+## Entre dans la faille n : un combat du Capitaine seul. Une défaite rend la charge.
+func enter_anomaly(n: int) -> bool:
+	if n < 1 or n > anomaly_unlocked_max() or anomaly_charges < 1.0:
+		return false
+	anomaly_charges -= 1.0
+	var b := Battle.simulate([captain_unit()], make_anomaly_enemies(n))
+	var first: bool = n > anomaly_max
+	var xp := 0
+	var credits := 0.0
+	var levels := 0
+	var record := false
+	var found := {}
+	if b.win:
+		xp = anomaly_xp(n, first)
+		levels = gain_captain_xp(xp)
+		credits = anomaly_credits(n)
+		var prev: int = int(anomaly_best.get(n, 0))
+		if prev > 0 and b.rounds < prev:
+			record = true
+			credits = ceil(credits * (1.0 + Data.ANOMALY_RECORD_BONUS))
+		if prev == 0 or b.rounds < prev:
+			anomaly_best[n] = b.rounds
+		add_res("credits", credits)
+		if first:
+			anomaly_max = n
+			for r in Data.ANOMALY_FIRST_RES:
+				found[r] = ceil(Data.ANOMALY_FIRST_RES[r] * (1.0 + 0.1 * n))
+				add_res(r, found[r])
+	else:
+		anomaly_charges += 1.0
+	var kind: String = Data.DEST_ORDER[(n - 1) % Data.DEST_ORDER.size()]
+	last_anomaly = {
+		"n": n, "win": b.win, "rounds": b.rounds, "xp": xp, "levels": levels, "credits": credits, "record": record,
+		"first": first, "found": found, "events": b.events,
+		"allies": [{"id": "captain", "name": captain.name, "max_hp": b.allies[0].max_hp, "look": captain.look.duplicate(), "crew": squad_ids(0)}],
+		"enemies": b.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": kind}),
+	}
+	anomaly_finished.emit()
+	changed.emit()
+	return true
 
 
 ## --- Sauvegarde ---
@@ -1181,7 +1306,8 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": captain,
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "goals": goals_claimed, "research": {"levels": research_levels, "active": research_active, "queue": research_queue}, "slots": _slots_for_save(), "dest_wins": dest_wins,
+		"upgrades": upgrade_levels, "goals": goals_claimed, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
 
@@ -1252,10 +1378,17 @@ func load_game() -> bool:
 	for a in saved_rs.get("active", []):
 		if Data.RESEARCH.has(String(a.get("id", ""))):
 			research_active.append({"id": String(a.id), "remaining": float(a.get("remaining", 0.0)), "total": float(a.get("total", 1.0)), "boosts": int(a.get("boosts", 0))})
+	research_auto = bool(saved_rs.get("auto", false))
 	research_queue = []
 	for rid in saved_rs.get("queue", []):
 		if Data.RESEARCH.has(String(rid)):
 			research_queue.append(String(rid))
+	var saved_an: Dictionary = parsed.get("anomaly", {})
+	anomaly_max = int(saved_an.get("max", 0))
+	anomaly_charges = clampf(float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX)), 0.0, float(Data.ANOMALY_CHARGES_MAX))
+	anomaly_best = {}
+	for k in saved_an.get("best", {}):
+		anomaly_best[int(k)] = int(saved_an.best[k])
 	goals_claimed = []
 	for gid in parsed.get("goals", []):
 		goals_claimed.append(String(gid))
@@ -1286,4 +1419,5 @@ func load_game() -> bool:
 		last_offline_report = simulate_offline(float(away))
 	elif away > 0:
 		_advance_research(float(away))
+		_regen_anomaly(float(away))
 	return true

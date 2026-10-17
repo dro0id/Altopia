@@ -62,7 +62,17 @@ func _initialize() -> void:
 	root.add_child(main)
 	await process_frame
 	await _shot_tab(main, "captain", out_dir + "/shot_captain.png")
-	await _shot_tab(main, "captain", out_dir + "/shot_captain_inv.png", 640)
+	await _shot_tab(main, "captain", out_dir + "/shot_anomalies.png", 560)
+	gs.anomaly_max = 6
+	gs.enter_anomaly(7)
+	main._refresh()
+	for i in 12:
+		main._an_view.advance(0.05)
+	await _shot_tab(main, "captain", out_dir + "/shot_anomaly_fight.png", 560)
+	while main._an_view.playing:
+		main._an_view.advance(0.1)
+	await _shot_tab(main, "captain", out_dir + "/shot_anomaly_result.png", 560)
+	await _shot_tab(main, "captain", out_dir + "/shot_captain_inv.png", 1500)
 	await _shot_tab(main, "crew", out_dir + "/shot_crew.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_idle.png")
 	gs.launch(0, "star")
@@ -98,7 +108,7 @@ func _initialize() -> void:
 	gs.add_res("credits", 2.0e6)
 	gs.add_res("data", 5.0e5)
 	gs.add_res("minerals", 1.0e5)
-	gs.start_research("academie_capitaine")
+	gs.start_research("propulsion")
 	gs.start_research("protocoles")
 	gs.tick(3000.0)
 	await _shot_tab(main, "lab", out_dir + "/shot_lab.png")

@@ -1,5 +1,7 @@
 # Boucle AFK : progression et équilibrage
 
+> **Mise à jour (architecture « deux jeux »)** : le Capitaine ne participe plus à l'AFK et les plafonds de niveau n'existent plus. Voir la section « Deux jeux, un cercle » ci-dessous ; les passages plus bas sur les plafonds et académies sont historiques.
+
 Objectif : un jeu qui dure **environ 3 mois** avant sa première « fin », **sans frustrer** le joueur.
 Ce document décrit le socle de durée (Labo, plafonds de niveau) et les résultats du simulateur.
 
@@ -18,6 +20,47 @@ Ce document décrit le socle de durée (Labo, plafonds de niveau) et les résult
 - **Accélérer** : retire 25 % de la durée totale contre de l'énergie, 2 fois par recherche au plus (le rythme reste prévisible).
 - **21 recherches** : production, gains d'expédition, XP, vitesse, rendement et coffre hors ligne, butin, automatisation du labo, postes de recherche, et deux **académies** qui relèvent les plafonds de niveau. Les lignes de base ont des paliers II et III qui s'ouvrent quand la précédente est terminée.
 
+## Deux jeux, un cercle
+- **L'AFK, c'est l'équipage.** Les cartes aux postes produisent, combattent **seules** en expédition (le Capitaine n'y participe pas) et gagnent l'XP. Il n'y a **plus de plafond de niveau** : la courbe d'XP (XP_PER_LEVEL x niveau) ralentit toute seule.
+- **Le RPG, c'est le Capitaine.** Son XP ne vient **que des anomalies** (contenu actif). Il garde 35 % des stats de l'équipage du vaisseau 1 et son équipement.
+- **Le pont : l'AFK fabrique l'équipement du Capitaine.** Chaque victoire AFK a une chance de faire tomber un objet. Le **niveau d'AFK** (niveaux de l'équipage aux postes + améliorations de postes et de vaisseau) fait monter la rareté (surtout épique et légendaire) et le niveau des objets. Le but : monter son AFK pour équiper un Capitaine plus fort et pousser plus loin dans les anomalies. Les chances sont affichées dans l'onglet Équipage.
+
+## Anomalies (Capitaine, onglet Capitaine)
+- Faille n : 2 sentinelles et 1 gardien, niveau d'ennemi 1 + 4 x (n-1). La faille n+1 s'ouvre quand on réussit la n.
+- **Charges** : 20 au maximum, 1 de plus par heure (aussi hors ligne). Une défaite **rend la charge**.
+- XP d'une victoire : xp_needed(niveau) / (3 + niveau/2,5), modulée de x0,5 à x1 selon la difficulté de la faille (pas de bonus de 1re réussite : on ne monte pas en niveau en grimpant seulement). Crédits à chaque victoire ; bonus de ressources à la 1re réussite ; record de tours (+50 % de crédits quand on le bat).
+- Le combat est animé, comme les expéditions.
+
+## Règles d'économie
+- Niveau des ennemis AFK = 1 + (victoires / 150)^0,65 ; **chaque défaite fait redescendre le compteur de 10 %** : les ennemis s'adaptent, l'équipage gagne presque toujours (99 % en simulation).
+- Butin : 0,4 % par victoire AFK (~30 objets par jour) ; niveau d'objet = 3 x tier + niveau d'AFK / 8.
+- Vitesse d'expédition : bonus additifs plafonnés à x2,5. Gains du rôle requis en niveau^0,7.
+
+## Le Labo
+Recherches en temps réel (voir plus bas), file de 5 recherches payées d'avance, **recherche automatique** (un poste libre lance la plus courte recherche abordable). Les académies de plafond ont disparu avec les plafonds ; les recherches d'XP ne concernent plus que l'équipage.
+
+## Résultats du simulateur (120 jours, robot)
+| Profil | Capitaine j7 / j30 / j90 | Faille max j90 | Niveau d'AFK j90 | Équipement j90 | Victoires AFK |
+|---|---|---|---|---|---|
+| casual (1 x 5 min/jour) | 27 / 56 / 98 | 180 | 634 | niv. 75, 3 légendaires | 99 % |
+| evening (1 x 15 min) | 28 / 60 / 102 | 188 | 512 | niv. 59, 5 légendaires | 99 % |
+| regular (3 x 8 min) | 35 / 64 / 110 | 176 | 545 | niv. 65, 5 légendaires | 99 % |
+| hardcore (6 x 10 min) | 37 / 70 / 119 | 271 | 689 | niv. 84, 4 légendaires | 99 % |
+
+- Aucune période sans progrès de plus d'**1 jour**. Le joueur occasionnel progresse à chaque session ; le premier objet épique arrive vers le jour 7-14, les premiers légendaires vers le jour 14-30.
+- XP perdue : **0** (plus de plafond). Défaites en anomalie : 0 (le robot ne tente que les failles qu'il peut gagner ; un joueur peut tenter plus haut, la charge lui est rendue).
+- Postes de recherche vides au début d'une session : 37 % (casual), 33 % (evening), 8 % (regular), 2 % (hardcore) **sans** la recherche automatique, qui règle ce cas.
+
+### Limites connues
+- Le robot dépense au mieux : un vrai joueur sera plus lent. Les chiffres donnent la direction.
+- L'AFK ne présente presque plus de défi (99 % de victoires) : le défi est dans les anomalies. À voir selon les retours.
+- Le rythme de l'équipement (premiers légendaires entre le jour 14 et 30) et du Capitaine (niveau ~100 au jour 90) est à confirmer par des tests réels.
+- Garanties de butin et de recrutement, missions du jour : pas encore faites.
+
+Lancer : `godot --headless --path . -s tools/balance.gd -- <casual|evening|regular|hardcore> <jours> [--detail]`
+
+---
+## Historique : socle de durée et analyse de frustration (avant la refonte)
 ## Plafonds de niveau
 - Capitaine : **30** au départ, **+10 par niveau de l'Académie des capitaines** (jusqu'à 100). Équipage : **25**, **+11 par niveau de l'Académie de l'équipage** (jusqu'à 80).
 - Au plafond, l'XP est **mise de côté** (un niveau) : le niveau tombe dès que le plafond monte. Un joueur déjà au-dessus d'un plafond ne perd jamais de niveau.

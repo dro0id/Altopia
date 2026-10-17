@@ -196,12 +196,14 @@ func test_drops_distribution() -> void:
 	_gs.auto_recycle = -1
 	var got := 0
 	var ranks := {}
-	for i in 600:
+	var tries := 40000
+	for i in tries:
 		var it: Dictionary = _gs.roll_drop("planet")
 		if not it.is_empty():
 			got += 1
 			ranks[it.rarity] = ranks.get(it.rarity, 0) + 1
-	_check(got > 150 and got < 270, "environ 35 %% de butin (obtenu %d/600)" % got)
+	var expected: float = tries * Data.DROP_CHANCE
+	_check(got > expected * 0.7 and got < expected * 1.3, "taux de butin conforme (%d obtenus, ~%d attendus)" % [got, int(expected)])
 	_check(ranks.get("common", 0) > ranks.get("uncommon", 0) and ranks.get("uncommon", 0) > ranks.get("rare", 0), "communs > peu communs > rares")
 	_check(ranks.has("epic"), "des épiques tombent")
 	_check(_gs.loot_level("planet") > _gs.loot_level("asteroids"), "les destinations élevées donnent des objets de plus haut niveau")
@@ -335,13 +337,14 @@ func test_xp_credits_drop_affixes() -> void:
 	_gs.equip(it.id)
 	_check(_gs.credit_mult() > base_credit + 0.19, "affixe crédits")
 	_check(is_equal_approx(_gs.equipped_bonus("xp_pct"), 10.0), "affixe XP")
-	var sched := {}
-	_gs.captain.level = 30
+	_gs.give_hero("rex", 10)
+	_crew(0, ["rex"])
 	_gs.slots[0].auto = false
 	_gs.launch(0, "asteroids")
-	var xp_before: int = _gs.captain.xp
+	var xp_before: int = _gs.heroes["rex"].xp
+	var lv_before: int = _gs.heroes["rex"].level
 	_gs._advance_expeditions(500.0)
-	_check(_gs.captain.xp != xp_before or _gs.captain.level > 30, "le Capitaine gagne de l'XP")
+	_check(_gs.heroes["rex"].xp != xp_before or _gs.heroes["rex"].level > lv_before, "l'équipage gagne de l'XP en AFK")
 
 
 func test_station_rules() -> void:
@@ -390,7 +393,7 @@ func test_victory_pays_and_levels() -> void:
 	_check(_gs.heroes["rex"].xp > 0 or _gs.heroes["rex"].level > 10, "l'équipage gagne de l'XP")
 	_check(_gs.dest_wins["asteroids"] == 1, "victoire comptée")
 	var b: Dictionary = _gs.slots[0].battle
-	_check(not b.is_empty() and b.allies.size() == 1 and b.allies[0].id == "captain" and b.events.size() > 0, "combat mémorisé (Capitaine)")
+	_check(not b.is_empty() and b.allies.size() == 1 and b.allies[0].id == "drone" and b.events.size() > 0, "combat mémorisé (équipage seul)")
 
 
 func test_defeat_reduces_loot() -> void:
@@ -407,20 +410,106 @@ func test_defeat_reduces_loot() -> void:
 	_check(_gs.captain.level == 1 and _gs.captain.xp == 0 and _gs.items.size() == items_before, "pas d'XP ni d'objet en cas de défaite")
 
 
-func test_drone_has_no_captain() -> void:
+func test_afk_is_crew_only_and_gives_no_captain_xp() -> void:
 	_gs.give_hero("rex", 10)
 	_gs.give_hero("bolt", 10)
 	_gs.give_hero("lumi", 10)
 	_gs.upgrade_levels["docks"] = 1
-	_crew(1, ["rex", "bolt", "lumi"])
-	_gs.slots[1].auto = false
-	var ally: Dictionary = _gs.make_allies(1)[0]
-	_check(ally.name == "Drone", "le vaisseau 2 envoie un drone")
+	for i in 2:
+		_crew(i, ["rex", "bolt", "lumi"] if i == 1 else ["rex"])
+		_gs.slots[i].auto = false
+		_check(_gs.make_allies(i)[0].name == "Équipage", "vaisseau %d : l'équipage combat seul" % (i + 1))
+	_gs.launch(0, "asteroids")
 	_gs.launch(1, "asteroids")
 	var xp_before: int = _gs.captain.xp
 	_gs._advance_expeditions(500.0)
-	_check(_gs.captain.xp == xp_before and _gs.captain.level == 1, "le drone ne fait pas progresser le Capitaine")
-	_check(_gs.slots[1].battle.allies[0].id == "drone", "combat du drone mémorisé")
+	_check(_gs.captain.xp == xp_before and _gs.captain.level == 1, "l'AFK ne fait pas progresser le Capitaine")
+	_check(_gs.slots[1].battle.allies[0].id == "drone", "combat mémorisé")
+
+
+func test_afk_level_raises_loot_quality() -> void:
+	_gs.new_game()
+	var w0: Dictionary = _gs.drop_weights(1)
+	var l0: int = _gs.loot_level("asteroids")
+	_gs.give_hero("nova", 60)
+	_gs.give_hero("tess", 60)
+	_gs.give_hero("zara", 60)
+	_crew(0, ["nova", "tess", "zara"])
+	_gs.upgrade_levels["st_pilot"] = 20
+	_check(_gs.afk_level() > 100, "niveau d'AFK (%d)" % _gs.afk_level())
+	var w1: Dictionary = _gs.drop_weights(1)
+	var share0: float = w0["legendary"] / (w0["common"] + w0["uncommon"] + w0["rare"] + w0["epic"] + w0["legendary"])
+	var share1: float = w1["legendary"] / (w1["common"] + w1["uncommon"] + w1["rare"] + w1["epic"] + w1["legendary"])
+	_check(share1 > share0 * 3.0, "la part de légendaires explose avec le niveau d'AFK (%.3f -> %.3f)" % [share0, share1])
+	_check(_gs.loot_level("asteroids") > l0 + 8, "le niveau d'objet monte aussi")
+	_check(w1["common"] / w0["common"] < 1.01, "les communs ne bénéficient pas du niveau d'AFK")
+
+
+func test_afk_drops_come_from_any_ship() -> void:
+	_gs.new_game()
+	_gs.heroes["rex"].level = 20
+	_gs.upgrade_levels["docks"] = 1
+	_crew(1, ["rex"])
+	_gs.slots[1].auto = false
+	_gs.auto_recycle = -1
+	var found := 0
+	for i in 1500:
+		_gs.slots[1].dest = "asteroids"
+		_gs.slots[1].remaining = 0.0
+		_gs._complete(1)
+		found = _gs.items.size()
+	_check(found > 6, "le vaisseau 2 aussi rapporte du butin pour le Capitaine (%d objets)" % found)
+
+
+func test_anomalies_basics() -> void:
+	_gs.new_game()
+	_check(_gs.anomaly_unlocked_max() == 1 and _gs.anomaly_charges >= 7.9, "failles : la 1re est ouverte, charges pleines")
+	_check(not _gs.enter_anomaly(2), "la faille 2 est fermée")
+	var xp0: int = _gs.captain.xp
+	var c0: float = _gs.res["credits"]
+	_check(_gs.enter_anomaly(1), "entrée dans la faille 1")
+	_check(_gs.last_anomaly.win, "victoire au niveau 1")
+	_check(_gs.anomaly_max == 1 and _gs.anomaly_unlocked_max() == 2, "la faille 2 s'ouvre")
+	_check(_gs.captain.xp > xp0 or _gs.captain.level > 1, "le Capitaine gagne de l'XP")
+	_check(_gs.res["credits"] > c0 and _gs.anomaly_best.has(1), "crédits et record enregistrés")
+	_check(is_equal_approx(_gs.anomaly_charges, Data.ANOMALY_CHARGES_MAX - 1.0), "une charge dépensée")
+	_check(_gs.last_anomaly.first and not _gs.last_anomaly.found.is_empty(), "1re réussite : bonus de ressources")
+	_check(_gs.enter_anomaly(1) and not _gs.last_anomaly.first, "refaire la faille 1")
+
+
+func test_anomaly_defeat_refunds_charge() -> void:
+	_gs.new_game()
+	_gs.anomaly_max = 60
+	var ch: float = _gs.anomaly_charges
+	_check(_gs.enter_anomaly(61), "entrée dans une faille trop forte")
+	_check(not _gs.last_anomaly.win, "défaite")
+	_check(is_equal_approx(_gs.anomaly_charges, ch), "la charge est rendue")
+	_check(_gs.anomaly_max == 60 and _gs.last_anomaly.xp == 0, "aucun progrès, aucune perte")
+
+
+func test_anomaly_charges_regen_and_limits() -> void:
+	_gs.new_game()
+	_gs.anomaly_charges = 0.0
+	_check(not _gs.enter_anomaly(1), "sans charge, pas d'entrée")
+	_gs.tick(Data.ANOMALY_REGEN_SECONDS * 2.0)
+	_check(is_equal_approx(_gs.anomaly_charges, 2.0), "recharge en temps réel")
+	_gs.simulate_offline(Data.ANOMALY_REGEN_SECONDS * 100.0)
+	_check(is_equal_approx(_gs.anomaly_charges, float(Data.ANOMALY_CHARGES_MAX)), "recharge hors ligne, plafonnée au maximum")
+
+
+func test_anomaly_record_bonus_and_save() -> void:
+	_gs.save_path = "user://test_anomaly.json"
+	_gs.new_game()
+	_gs.anomaly_max = 3
+	_gs.anomaly_best[2] = 99
+	_gs.captain.level = 40
+	_check(_gs.enter_anomaly(2) and _gs.last_anomaly.win and _gs.last_anomaly.record, "record battu")
+	_gs.save_game()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement")
+	_check(_gs.anomaly_max == 3 and _gs.anomaly_best.get(2, 0) < 99 and _gs.anomaly_charges < float(Data.ANOMALY_CHARGES_MAX) + 0.001, "anomalies restaurées")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_anomaly.json"))
+	_gs.save_path = _gs.SAVE_PATH
 
 
 func test_auto_squad_and_autoplace() -> void:
@@ -581,42 +670,41 @@ func test_research_completes_and_applies() -> void:
 
 func test_research_offline_runs_to_the_end() -> void:
 	_gs.new_game()
-	_give({"credits": 1.0e7, "data": 1.0e5, "minerals": 1.0e5})
-	# trois recherches enchaînées, durées cumulées bien supérieures au plafond hors ligne (4 h)
-	for id in ["academie_capitaine"]:
-		_gs.research_levels["calibrage"] = 3
-		_check(_gs.start_research(id), "académie lancée")
+	_give({"credits": 1.0e7, "data": 1.0e5, "minerals": 1.0e5, "energy": 1.0e5})
+	_gs.research_levels["calibrage"] = 3
+	_check(_gs.start_research("propulsion"), "propulsion lancée")
 	var total: float = _gs.research_active[0].remaining
 	_gs.simulate_offline(total + 10.0)
-	_check(_gs.research_level("academie_capitaine") == 1, "terminée hors ligne même au-delà du plafond de coffre")
-	_check(_gs.captain_cap() == Data.CAPTAIN_BASE_CAP + 10, "plafond du Capitaine relevé")
+	_check(_gs.research_level("propulsion") == 1, "terminée hors ligne")
+	_check(not _gs.research_done_log.is_empty(), "la recherche terminée est notée pour le rapport")
 
 
-func test_level_cap_banks_xp_then_levels_up() -> void:
+func test_no_level_cap() -> void:
 	_gs.new_game()
-	_gs.captain.level = Data.CAPTAIN_BASE_CAP
+	_gs.captain.level = 100
 	_gs.captain.xp = 0
-	_gs.gain_captain_xp(Data.xp_needed(Data.CAPTAIN_BASE_CAP) * 3)
-	_check(_gs.captain.level == Data.CAPTAIN_BASE_CAP, "plafond : pas de niveau en plus")
-	_check(_gs.captain.xp == Data.xp_needed(Data.CAPTAIN_BASE_CAP), "l'XP est mise de côté (un niveau)")
-	_check(not _gs.train_captain(), "entraînement refusé au plafond")
-	_gs.research_levels["academie_capitaine"] = 1
-	_gs._on_research_completed()
-	_check(_gs.captain.level == Data.CAPTAIN_BASE_CAP + 1, "le plafond monte : le niveau tombe tout de suite")
+	var gained: int = _gs.gain_captain_xp(Data.xp_needed(100) * 3)
+	_check(gained >= 2 and _gs.captain.level >= 102, "pas de plafond : l'XP continue de donner des niveaux (%d)" % _gs.captain.level)
+	_gs.give_hero("rex", 90)
+	var lv: int = _gs.heroes["rex"].level
+	_gs.gain_xp("rex", Data.xp_needed(lv) + 1)
+	_check(_gs.heroes["rex"].level == lv + 1, "équipage : pas de plafond non plus")
 
 
 func test_research_boost_costs_energy_and_is_limited() -> void:
 	_gs.new_game()
 	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4})
 	_gs.research_levels["calibrage"] = 3
-	_check(_gs.start_research("academie_capitaine"), "lancée")
+	_give({"energy": 1000.0})
+	_check(_gs.start_research("propulsion"), "lancée")
 	var total: float = _gs.research_active[0].total
-	_check(not _gs.boost_research("academie_capitaine"), "pas assez d'énergie")
+	_gs.res["energy"] = 0.0
+	_check(not _gs.boost_research("propulsion"), "pas assez d'énergie")
 	_give({"energy": 1.0e9})
-	_check(_gs.boost_research("academie_capitaine"), "1re accélération")
+	_check(_gs.boost_research("propulsion"), "1re accélération")
 	_check(is_equal_approx(_gs.research_active[0].remaining, total * 0.75), "−25 % de la durée totale")
-	_check(_gs.boost_research("academie_capitaine"), "2e accélération")
-	_check(not _gs.boost_research("academie_capitaine") and _gs.research_level("academie_capitaine") == 0, "3e refusée : la recherche n'est pas terminée d'un coup")
+	_check(_gs.boost_research("propulsion"), "2e accélération")
+	_check(not _gs.boost_research("propulsion") and _gs.research_level("propulsion") == 0, "3e refusée : la recherche n'est pas terminée d'un coup")
 
 
 func test_research_save_load() -> void:
@@ -624,10 +712,25 @@ func test_research_save_load() -> void:
 	_gs.new_game()
 	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4})
 	_gs.research_levels["calibrage"] = 4
-	_check(_gs.start_research("academie_equipage"), "lancée")
+	_check(_gs.start_research("cartographie"), "lancée")
 	_gs.save_game()
 	_gs.reset()
 	_check(_gs.load_game(), "chargement")
-	_check(_gs.research_level("calibrage") == 4 and _gs.research_active.size() == 1 and _gs.research_active[0].id == "academie_equipage", "recherches restaurées")
+	_check(_gs.research_level("calibrage") == 4 and _gs.research_active.size() == 1 and _gs.research_active[0].id == "cartographie", "recherches restaurées")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_research.json"))
 	_gs.save_path = _gs.SAVE_PATH
+
+
+func test_research_auto_fills_free_slot() -> void:
+	_gs.new_game()
+	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4, "energy": 1.0e4})
+	_check(_gs.research_active.is_empty(), "rien en cours")
+	_gs.set_research_auto(true)
+	_check(_gs.research_active.size() == 1, "le poste libre est rempli tout seul")
+	var first: String = _gs.research_active[0].id
+	_gs.tick(_gs.research_active[0].remaining + 1.0)
+	_check(_gs.research_level(first) >= 1 and _gs.research_active.size() == 1, "à la fin, la suivante démarre toute seule")
+	_gs.set_research_auto(false)
+	_gs.research_active.clear()
+	_gs.tick(100.0)
+	_check(_gs.research_active.is_empty(), "automatique coupé : rien ne démarre")
