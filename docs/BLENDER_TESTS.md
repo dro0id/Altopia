@@ -27,3 +27,9 @@ KENNEY_GLB="<dossier GLTF format>" OUT=assets/kenney_r2/ python tools/blender/ba
 - Sous Blender 5, un clip NLA vide en première piste fait disparaître le canal de l'objet à l'export : ne créer que des pistes non vides.
 - L'avant d'un modèle glTF est +Y dans Blender.
 - Le capitaine animé garde les couleurs d'origine du pack (construit avant la recoloration) : à repasser dans `batch_r2.py`.
+
+## Test : capitaine style Astroneer
+Script : `tools/blender/captain_astro.py` (source : `captain_astro.blend`, export : `assets/kenney_r2/captain_astro.glb`). Aperçu : `docs/style/captain_astroneer.png`.
+Méthode : soudure des sommets puis subdivision des pièces Kenney (look gonflé), casque sphérique + visière, sac dorsal arrondi avec antenne, bottes et gants ronds. Animations Walk, Idle et Shoot conservées.
+Pièges : les sommets non soudés de Kenney donnent des bulles à la subdivision (souder d'abord) ; le nœud racine du pack est décalé (2, -1.5) : le remettre à zéro avant l'export.
+Limites : mouvements rigides (sans squelette), casque trop gros à ajuster, couleurs non repassées dans `batch_r2.py`.
