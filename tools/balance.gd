@@ -27,6 +27,10 @@ var _last_caps := Vector2i.ZERO
 var _day := 0
 var _last_progress_day := 0
 var _worst_gap_days := 0
+var _idle_starts := 0          # sessions commencées avec un poste de recherche libre et rien en file
+var _capped_sessions := 0      # sessions commencées avec le Capitaine au plafond (plafond relevable)
+var _capped_crew_sessions := 0
+var _bulk_losses := 0
 
 
 func _initialize() -> void:
@@ -53,6 +57,7 @@ func _initialize() -> void:
 				else:
 					gs.tick(away)
 				clock = start
+			_session_start_stats()
 			_play(float(s[1]) * 60.0)
 			clock += float(s[1]) * 60.0
 			_day = day + 1
@@ -61,9 +66,32 @@ func _initialize() -> void:
 			_report(day + 1)
 			cp += 1
 	print("Plafonds : ", " · ".join(_cap_log))
+	print("FRUSTRATION | taux de victoire global %d %% | XP perdue au plafond %d %% | sessions avec poste de recherche vide au début %d/%d | sessions au plafond (Capitaine) %d/%d, (équipage) %d/%d" % [
+		int(_win_rate() * 100.0), int(100.0 * gs.stats.xp_wasted / maxf(1.0, gs.stats.xp_gained)), _idle_starts, _sessions,
+		_capped_sessions, _sessions, _capped_crew_sessions, _sessions])
 	_worst_gap_days = maxi(_worst_gap_days, days - _last_progress_day)
 	print("Sessions avec progrès : %d/%d, pire série sans progrès : %d sessions, plus longue période sans aucun progrès : %d jour(s)" % [_sessions_with_progress, _sessions, _worst_no_progress, _worst_gap_days])
 	quit()
+
+
+func _session_start_stats() -> void:
+	if gs.research_active.size() < gs.research_slots() and gs.research_queue.is_empty():
+		_idle_starts += 1
+	if gs.captain.level >= gs.captain_cap() and gs.captain.level < Data.CAPTAIN_MAX_LEVEL:
+		_capped_sessions += 1
+	var crew_capped := false
+	for id in gs.hero_order:
+		if gs.heroes[id].level >= gs.hero_cap(id) and gs.heroes[id].level < Data.MAX_LEVEL:
+			crew_capped = true
+	if crew_capped:
+		_capped_crew_sessions += 1
+
+
+func _win_rate() -> float:
+	var wins := 0
+	for d in Data.DEST_ORDER:
+		wins += gs.dest_wins[d]
+	return float(wins) / maxf(1.0, float(gs.expeditions_done))
 
 
 func _play(seconds: float) -> void:
@@ -116,9 +144,13 @@ func _spend() -> void:
 	gs.claim_goal()
 	for i in gs.slot_count():
 		if gs.slots[i].dest == "":
+			var launched := false
 			for d in ["planet", "star", "asteroids"]:
-				if gs.launch_block_reason(d, i) == "" and gs.launch(i, d):
+				if gs.launch_block_reason(d, i) == "" and gs.preview_battle(d, i).win and gs.launch(i, d):
+					launched = true
 					break
+			if not launched:
+				gs.launch(i, "asteroids")
 	gs.auto_squad(0)
 	for a in gs.research_active.duplicate():       # accélère quand l'énergie est largement suffisante
 		if gs.research_boost_cost(a.id) > 0.0 and gs.res.energy > gs.research_boost_cost(a.id) * 8.0:
@@ -155,7 +187,18 @@ func _spend() -> void:
 	gs.auto_equip()
 
 
+func _saving_for_academy() -> String:
+	if not OS.get_cmdline_user_args().has("--saver"):
+		return ""
+	for id in ["academie_capitaine", "academie_equipage"]:
+		var blocked_by_cap: bool = (id == "academie_capitaine" and gs.captain.level >= gs.captain_cap() - 3) or (id == "academie_equipage" and gs.crew_cap() <= 80)
+		if blocked_by_cap and gs.research_block_reason(id) == "" and not gs.can_afford(gs.research_cost(id)):
+			return id
+	return ""
+
+
 func _pick_research() -> String:
+	var saving := _saving_for_academy()
 	var cap_close: bool = gs.captain.level >= gs.captain_cap() - 3
 	var crew_close := false
 	for id in gs.hero_order:
@@ -166,6 +209,8 @@ func _pick_research() -> String:
 			continue
 		if id == "academie_equipage" and not crew_close:
 			continue
+		if saving != "" and id != saving and gs.research_cost(id).has("credits"):
+			continue       # on garde ses crédits pour l'académie qui bloque
 		if gs.research_block_reason(id) == "" and gs.can_afford(gs.research_cost(id)):
 			return id
 	return ""
@@ -190,11 +235,22 @@ func _report(day: int) -> void:
 	var rec := 0
 	for v in _recent:
 		rec += v
+	var probs := []
+	for d in Data.DEST_ORDER:
+		if gs.is_unlocked(d) and gs.launch_block_reason(d, 0) == "":
+			probs.append("%s %s (niv. %d)" % [d, "OK" if gs.preview_battle(d, 0).win else "DÉFAITE", gs.enemy_level(d)])
+	print("      combats : ", ", ".join(probs), " | victoires cumulées %d %%" % int(_win_rate() * 100.0))
 	print("%5d | %3d (%3d) | %4d / %3d | %3d/%3d | %3d | %3d | %9s | %9s | %2d/%d | %2d/%2d | %d" % [
 		day, gs.captain.level, gs.captain_cap(), crew_lv, gs.crew_cap() * gs.hero_order.size(), rs, rs_max, ships, st,
 		Data.fmt(prod.credits * 3600.0), Data.fmt(gs.data_total), gs.goals_claimed.size(), Data.GOALS.size(),
 		rec, _recent.size(), _worst_no_progress])
 	if OS.get_cmdline_user_args().has("--detail"):
+		for aid in ["academie_capitaine", "academie_equipage"]:
+			var c: Dictionary = gs.research_cost(aid)
+			var parts := []
+			for r in c:
+				parts.append("%s %s/%s" % [r, Data.fmt(gs.res[r]), Data.fmt(c[r])])
+			print("      %s niv. %d  durée %s  coût(stock/besoin) %s  bloqué: %s  en cours: %s" % [aid, gs.research_level(aid), Data.fmt_time(gs.research_duration(aid)), ", ".join(parts), gs.research_block_reason(aid), str(gs.research_is_busy(aid))])
 		print("      revenus/h  cr %s  min %s  én %s  don %s   |  stock  cr %s  min %s  én %s  don %s" % [
 			Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0), Data.fmt(prod.data * 3600.0),
 			Data.fmt(gs.res.credits), Data.fmt(gs.res.minerals), Data.fmt(gs.res.energy), Data.fmt(gs.res.data)])

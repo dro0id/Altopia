@@ -48,6 +48,7 @@ var last_recruit := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
+var stats := {"xp_gained": 0.0, "xp_wasted": 0.0}   # mesures d'équilibrage (non sauvegardées)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
 var _loot_log: Array = []       # objets gardés pendant un calcul hors ligne
@@ -185,13 +186,16 @@ func train_captain() -> bool:
 ## Ajoute de l'XP au Capitaine ; retourne le nombre de niveaux gagnés.
 func gain_captain_xp(amount: int) -> int:
 	var gained := 0
+	stats.xp_gained += amount
 	captain.xp += amount
 	while captain.level < captain_cap() and captain.xp >= Data.xp_needed(captain.level):
 		captain.xp -= Data.xp_needed(captain.level)
 		captain.level += 1
 		gained += 1
 	if captain.level >= captain_cap():     # l'XP est mise de côté : le niveau tombe dès que le plafond monte
-		captain.xp = mini(captain.xp, Data.xp_needed(captain.level))
+		var kept := mini(captain.xp, Data.xp_needed(captain.level))
+		stats.xp_wasted += captain.xp - kept
+		captain.xp = kept
 	return gained
 
 
@@ -518,13 +522,16 @@ func train(id: String) -> bool:
 func gain_xp(id: String, amount: int) -> int:
 	var h: Dictionary = heroes[id]
 	var gained := 0
+	stats.xp_gained += amount
 	h.xp += amount
 	while h.level < hero_cap(id) and h.xp >= Data.xp_needed(h.level):
 		h.xp -= Data.xp_needed(h.level)
 		h.level += 1
 		gained += 1
 	if h.level >= hero_cap(id):
-		h.xp = mini(h.xp, Data.xp_needed(h.level))
+		var kept_h := mini(h.xp, Data.xp_needed(h.level))
+		stats.xp_wasted += h.xp - kept_h
+		h.xp = kept_h
 	return gained
 
 

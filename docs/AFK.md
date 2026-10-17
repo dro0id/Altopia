@@ -50,3 +50,32 @@ Niveau du Capitaine (plafond), recherches terminées sur 314 niveaux :
 - Les garanties de recrutement et de butin et les missions du jour ne sont pas encore faites.
 
 Lancer : `godot --headless --path . -s tools/balance.gd -- <casual|evening|regular|hardcore> <jours> [--detail]`
+
+
+## Analyse de la frustration (simulateur, 120 jours, 8 variantes)
+Mesures ajoutées au simulateur : XP perdue au plafond, sessions au plafond, postes de recherche vides au début d'une session, taux de victoire, plus longue période sans progrès. Deux comportements : « naïf » (dépense au fil de l'eau) et « économe » (garde ses crédits pour l'académie qui bloque).
+
+| Mesure | casual | evening | regular | hardcore |
+|---|---|---|---|---|
+| XP perdue au plafond | 97 % | 97 % | 97 % | 98 % |
+| Sessions avec le Capitaine au plafond | 105/120 | 106/120 | 344/360 | 690/720 |
+| Poste de recherche vide au début de session (naïf / économe) | 20 % / 50 % | 18 % / 68 % | 5 % / 54 % | 2 % / 63 % |
+| Jour où le plafond Capitaine passe à 90 (naïf) | 39 | 47 | 52 | 51 |
+| Jour où le plafond équipage passe à 80 (naïf) | 94 | 108 | 92 | 94 |
+| Taux de victoire global (naïf) | 69 % | 69 % | 69 % | 85 % |
+| Plus longue période sans progrès (naïf / économe) | 2 j / 3 j | 3 j / 7 j | 2 j / 3 j | 3 j / 6 j |
+
+### Points de frustration, par gravité
+1. **L'XP est perdue presque tout le temps (97 %).** Passé les premières semaines, le joueur est au plafond dans 88 à 96 % des sessions : les combats ne font plus monter personne.
+2. **Les plafonds sont bloqués par le coût en crédits, pas par le temps.** L'académie niveau 6 demande environ 12 M de crédits ; le joueur en a 3 à 4 M et en gagne un peu plus d'1 M par jour tout en finançant le reste. Résultat : 40 à 100 jours au même plafond, avec 5 à 10 M d'énergie et des millions de données inutilisés.
+3. **Les postes de recherche restent vides.** 20 % des sessions d'un joueur occasionnel commencent avec un poste libre (du temps de labo perdu). Quand le joueur économise pour une académie, c'est 50 à 68 %.
+4. **Les ennemis continuent de monter alors que le joueur est plafonné.** Avec la relance automatique, 15 à 31 % des combats sont perdus (butin réduit à 25 %, aucune XP).
+5. **Périodes sans aucun progrès** de 2 à 7 jours, surtout en fin de parcours et chez les joueurs assidus.
+6. Le jour 1 reste lent pour une session de 5 minutes (Capitaine niveau 3).
+
+### Corrections proposées
+- **Ne jamais perdre l'XP** : mise de côté jusqu'à +10 niveaux (un cran d'académie) ; le plafond qui monte donne alors les 10 niveaux d'un coup. Le surplus au-delà devient une ressource.
+- **Payer les académies avec les ressources en surplus** (énergie, données) et ramener la part en crédits à ~3 jours de revenus. Afficher « il vous manque X (≈ N jours) ».
+- **Recherche automatique** : un réglage qui lance la prochaine recherche abordable dès qu'un poste se libère ; file portée à 5.
+- **Difficulté adaptative** : le niveau des ennemis ne monte plus quand la victoire devient incertaine ; la relance automatique repasse à la destination inférieure plutôt que d'enchaîner les défaites.
+- **Contenu actif** pour combler les périodes calmes : secteurs, boss, missions d'équipage (étapes suivantes).
