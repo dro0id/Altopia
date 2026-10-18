@@ -154,3 +154,13 @@ L'AFK est le gameplay de l'équipage : chaque équipier travaille dans une salle
 
 La chaîne d'objectifs passe de 12 à 22 paliers. Les 10 nouveaux suivent l'AFK : niveau d'AFK (400, 900, 1 500, 2 200), niveau de l'Atelier, objets fabriqués (1 500, 15 000), niveau minimal des 6 salles (10, 18, 24). Leurs récompenses incluent un objet garanti (épique, puis légendaire) au niveau de fabrication de l'Atelier. Rythme simulé (regular) : environ 12 objectifs à 7 jours, 15 à 30 jours, 18 à 60 jours, 20 à 90 jours.
 Une recrue est placée d'office dans la salle vide où elle travaille le mieux.
+
+## Refonte de la Base (prestige)
+
+But : allonger la durée de vie de la boucle AFK sans frustrer. Ce n'est pas un accélérateur.
+- Débloquée à 90 niveaux de salles cumulés (environ 3-4 semaines de jeu). Toujours volontaire, avec confirmation en deux appuis.
+- Remet à zéro : salles (elles repartent au niveau 1, plus haut avec « Fondations »), améliorations du vaisseau (sauf les docks), ressources, expéditions en cours (rappelées). Conservés : équipage et ses niveaux, Capitaine, équipement, cartes, recherches, objectifs.
+- Éclats gagnés au total = (niveaux de salles cumulés / 30)^2,5. La refonte ne donne que la différence avec les éclats déjà gagnés : refaire la même Base ne rapporte rien (pas de farm), il faut dépasser son record. Le niveau maximal des salles monte de 5 par refonte.
+- Cinq bonus permanents (15 niveaux, coût x1,45 par niveau) : Rendement (+12 % production), Formation (+12 % XP équipage), Fabrication (+10 % cadence de l'Atelier), Qualité (+20 puissance de fabrication), Fondations (salles repartent 2 niveaux plus haut).
+- Simulation regular, 150 jours, refonte quand elle promet au moins 20 éclats (2 refontes) : niveau d'AFK +19 %, équipement +21 %, faille +30 %, capitaine −5 % par rapport à sans refonte. Aucune période sans progrès de plus d'un jour.
+- Leçons de la conception : remettre à zéro les niveaux d'équipage rendait la refonte perdante à tous les seuils testés (niveau d'AFK à 120 jours divisé par 2). Une refonte qui paie à chaque fois sans condition est exploitable (boucles de refontes) : d'où la règle « seulement du nouveau ».
