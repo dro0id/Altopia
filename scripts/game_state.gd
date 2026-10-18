@@ -1666,7 +1666,7 @@ func captain_run_xp(diff: float) -> float:
 func anomaly_xp(n: int, first: bool) -> int:
 	if captain_maxed():
 		return 0         # niveau maximum : plus d'XP à gagner
-	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(captain_p()), 0.5, 1.0)
+	var diff := clampf(float(anomaly_enemy_level(n)) / float(captain_p()), 0.5, 1.0)
 	return maxi(1, int(round(captain_run_xp(diff))))
 
 

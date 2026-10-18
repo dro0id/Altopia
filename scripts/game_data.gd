@@ -140,10 +140,10 @@ const TRAIN_GROWTH := 1.38
 const LOSS_REWARD := 0.25        # part du butin conservée en cas de défaite
 ## Niveau des ennemis AFK = 1 + (victoires / ENEMY_WINS_REF) ^ ENEMY_WINS_EXP : il ne monte que sur victoire et ralentit,
 ## comme la progression de l'équipage (la défaite ne le fait jamais monter).
-const ENEMY_WINS_REF := 40.0
-const ENEMY_WINS_EXP := 0.8
+const ENEMY_WINS_REF := 4.0
+const ENEMY_WINS_EXP := 1.0
 const ENEMY_DEFEAT_LOSS := 4      # chaque défaite retire 4 victoires du compteur : les ennemis s'adaptent, et un joueur qui pousse gagne environ 80 % du temps
-const ENEMY_LEVEL_MAX := 250
+const ENEMY_LEVEL_MAX := 2500
 const ENEMY_SCALE := 0.12
 const BATTLE_MAX_ROUNDS := 60
 
@@ -415,7 +415,7 @@ static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
 const ANOMALY_CHARGES_MAX := 100       # réserve de charges
 const ANOMALY_COST := 10.0             # charges consommées par une entrée en faille (donc 10 entrées en réserve)
 const ANOMALY_REGEN_SECONDS := 150.0   # +1 charge par tranche de 2 min 30 (24 charges par heure : une entrée toutes les 25 min)
-const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 2.0
+const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 0.35
 const ANOMALY_BASE := {"hp": 70.0, "atk": 11.0, "def": 4.0, "spd": 11.0}
 const ANOMALY_BOSS_HP := 2.2
 const ANOMALY_BOSS_ATK := 1.4
