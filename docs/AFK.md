@@ -229,3 +229,5 @@ Résultats, joueur naïf, 60 jours :
 | hardcore | 78 % | 82 % |
 
 Limites : le combat reste déterministe (aperçu exact), donc un échec n'arrive que si le joueur ignore l'aperçu. En casual, peu d'expéditions sont lancées : les ennemis ne rattrapent pas l'équipe et le taux reste proche de 100 %.
+
+Rythme sur un an après réglage (joueur prudent, avec refontes) : le Capitaine garde le même rythme (regular : niveau 15 / 26 / 39 / 50 aux jours 30 / 90 / 180 / 300 ; casual : 8 / 15 / 22 / 29). Numéro de faille atteint : environ 800 au jour 30 et 6 000 au jour 300 en regular. Expéditions : 85 % de réussite en regular, 92 % en casual, même avec le choix prudent (le repli sur les astéroïdes peut perdre).
