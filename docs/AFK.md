@@ -207,5 +207,5 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 
 ## Anomalies : réserve de 100 charges
 
-- Réserve de 100 charges, 10 consommées par entrée en faille (10 entrées en réserve), recharge de 10 charges par heure (1 charge toutes les 6 min) : une entrée par heure comme avant. Une défaite rend les 10 charges. Les anciennes sauvegardes sont converties (x10).
+- Réserve de 100 charges, 10 consommées par entrée en faille (10 entrées en réserve), recharge de +1 charge par tranche de 2 min 30 (24 charges par heure : une entrée toutes les 25 min, réserve pleine en 4 h 10). Une défaite rend les 10 charges. Les anciennes sauvegardes sont converties (x10).
 - Le combat étant déterministe et l'issue annoncée à l'avance, le robot ne perd jamais ; le taux de réussite minimum de 80 % visé pour les anomalies et les expéditions sera réglé avec les futures boucles de gameplay.

@@ -521,7 +521,16 @@ func test_anomaly_cost_and_old_saves() -> void:
 	_check(_gs.anomaly_next_run_in() > 0.0 and is_equal_approx(_gs.anomaly_next_run_in(), Data.ANOMALY_REGEN_SECONDS), "il manque 1 charge : 6 min d'attente")
 	_gs.anomaly_charges = 10.0
 	_check(_gs.enter_anomaly(1) and is_equal_approx(_gs.anomaly_charges, 0.0), "10 charges : une entrée, réserve vide")
-	_check(is_equal_approx(Data.ANOMALY_REGEN_SECONDS * 10.0, 3600.0), "10 charges par heure : une entrée par heure comme avant")
+	_check(is_equal_approx(Data.ANOMALY_REGEN_SECONDS, 150.0), "+1 charge par tranche de 2 min 30")
+	_gs.anomaly_charges = 0.0
+	_gs.anomaly_regen_acc = 0.0
+	_gs.tick(149.0)
+	_check(is_equal_approx(_gs.anomaly_charges, 0.0), "rien avant la fin de la tranche")
+	_gs.tick(2.0)
+	_check(is_equal_approx(_gs.anomaly_charges, 1.0), "un point entier à 2 min 30")
+	_gs.tick(300.0)
+	_check(is_equal_approx(_gs.anomaly_charges, 3.0), "puis un point par tranche")
+	_check(is_equal_approx(_gs.anomaly_next_run_in(), 6.0 * 150.0 + 149.0), "temps avant la prochaine entrée : 7 points à regagner")
 	_gs.save_path = "user://test_old_charges.json"
 	var old := {"version": 5, "res": {"credits": 10.0}, "data_total": 0.0, "captain": {"level": 1, "xp": 0, "name": "Capitaine", "look": {"suit": 0, "hair": 0, "style": 0}},
 		"items": [], "equipped": {}, "heroes": {}, "hero_order": [], "upgrades": {}, "slots": [], "last_seen": Time.get_unix_time_from_system(),

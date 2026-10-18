@@ -46,6 +46,7 @@ var crystals := 0                 # monnaie spéciale : non obtenable en jeu pou
 var premium_unlocks := {}         # déblocages payés en Cristaux : "lab_slot", "lab_auto"
 var research_auto := false        # lance tout seul la recherche abordable la plus courte quand un poste se libère
 var anomaly_charges := float(Data.ANOMALY_CHARGES_MAX)
+var anomaly_regen_acc := 0.0       # secondes écoulées dans la tranche de recharge en cours
 var anomaly_max := 0              # plus haute faille réussie
 var anomaly_best := {}            # faille -> meilleur nombre de tours
 var last_anomaly := {}            # dernier combat d'anomalie (pour l'animer)
@@ -137,6 +138,7 @@ func reset() -> void:
 	crystals = 0
 	premium_unlocks = {}
 	anomaly_charges = float(Data.ANOMALY_CHARGES_MAX)
+	anomaly_regen_acc = 0.0
 	anomaly_max = 0
 	anomaly_best = {}
 	last_anomaly = {}
@@ -1677,9 +1679,18 @@ func anomaly_unlocked_max() -> int:
 	return anomaly_max + 1
 
 
+## La réserve se recharge d'un point entier à chaque tranche de ANOMALY_REGEN_SECONDS.
 func _regen_anomaly(seconds: float) -> void:
-	if anomaly_charges < Data.ANOMALY_CHARGES_MAX:
-		anomaly_charges = minf(float(Data.ANOMALY_CHARGES_MAX), anomaly_charges + seconds / Data.ANOMALY_REGEN_SECONDS)
+	if anomaly_charges >= float(Data.ANOMALY_CHARGES_MAX):
+		anomaly_regen_acc = 0.0
+		return
+	anomaly_regen_acc += seconds
+	var n := int(floor(anomaly_regen_acc / Data.ANOMALY_REGEN_SECONDS))
+	if n > 0:
+		anomaly_charges = minf(float(Data.ANOMALY_CHARGES_MAX), floorf(anomaly_charges) + float(n))
+		anomaly_regen_acc -= float(n) * Data.ANOMALY_REGEN_SECONDS
+	if anomaly_charges >= float(Data.ANOMALY_CHARGES_MAX):
+		anomaly_regen_acc = 0.0
 
 
 ## Entrées en faille possibles avec la réserve actuelle.
@@ -1691,14 +1702,15 @@ func anomaly_runs_available() -> int:
 func anomaly_next_run_in() -> float:
 	if anomaly_charges >= Data.ANOMALY_COST:
 		return 0.0
-	return (Data.ANOMALY_COST - anomaly_charges) * Data.ANOMALY_REGEN_SECONDS
+	var missing := ceilf(Data.ANOMALY_COST - anomaly_charges)
+	return (missing - 1.0) * Data.ANOMALY_REGEN_SECONDS + (Data.ANOMALY_REGEN_SECONDS - anomaly_regen_acc)
 
 
 ## Seconde avant la prochaine charge (0 si pleines).
 func anomaly_next_charge_in() -> float:
 	if anomaly_charges >= Data.ANOMALY_CHARGES_MAX:
 		return 0.0
-	return (1.0 - (anomaly_charges - floor(anomaly_charges))) * Data.ANOMALY_REGEN_SECONDS
+	return Data.ANOMALY_REGEN_SECONDS - anomaly_regen_acc
 
 
 ## Entre dans la faille n : un combat du Capitaine seul. Une défaite rend la charge.
@@ -1759,7 +1771,7 @@ func save_game() -> void:
 		"upgrades": upgrade_levels, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total, "log": craft_log,
 			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
-		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
+		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "regen": anomaly_regen_acc, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
 
@@ -1894,6 +1906,7 @@ func load_game() -> bool:
 	if saved_an.has("charges") and not saved_an.has("cost_scale"):
 		saved_charges *= 10.0          # ancienne sauvegarde : 1 charge = 1 entrée, maintenant 10 charges = 1 entrée
 	anomaly_charges = clampf(saved_charges, 0.0, float(Data.ANOMALY_CHARGES_MAX))
+	anomaly_regen_acc = clampf(float(saved_an.get("regen", 0.0)), 0.0, Data.ANOMALY_REGEN_SECONDS)
 	anomaly_best = {}
 	for k in saved_an.get("best", {}):
 		anomaly_best[int(k)] = int(saved_an.best[k])
