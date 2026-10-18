@@ -534,6 +534,7 @@ func recruit() -> Dictionary:
 	if result.new:
 		give_hero(id)
 		_autoplace(id)
+		_autoplace_room(id)
 	elif heroes[id].stars < Data.MAX_STARS:
 		heroes[id].stars += 1
 	else:
@@ -998,6 +999,21 @@ func _autoplace(id: String) -> void:
 		if slot.dest == "" and slot.squad[idx] == "":
 			slot.squad[idx] = id
 			return
+
+
+## Une nouvelle recrue prend la salle vide où elle travaille le mieux (elle ne remplace jamais personne).
+func _autoplace_room(id: String) -> void:
+	var best := ""
+	var best_m := -1.0
+	for rid in Data.ROOM_ORDER:
+		if room_worker(rid) != "":
+			continue
+		var m := room_hero_mult(rid, id)
+		if m > best_m:
+			best = rid
+			best_m = m
+	if best != "":
+		room_crew[best] = id
 
 
 ## Place la meilleure carte disponible à chaque poste du vaisseau.

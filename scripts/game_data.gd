@@ -107,7 +107,7 @@ const AFK_XP_HOURS_PER_LEVEL := 0.25
 ## plus le butin du Capitaine est puissant : rareté (poids ci-dessous par rang de rareté) et niveau d'objet.
 const AFK_RARITY_RATE := 0.003
 const AFK_RARITY_RANK_FACTOR := [0.0, 0.0, 1.0, 2.5, 5.0]
-const AFK_ILVL_DIV := 16.0
+const AFK_ILVL_DIV := 17.5
 const INVENTORY_MAX := 60
 const AUTO_RECYCLE_MAX := 2      # 0 = communs, 1 = jusqu'à peu commun, 2 = jusqu'à rare ; -1 = désactivé
 
@@ -357,7 +357,7 @@ static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
 ## une défaite rend la charge). L'XP du Capitaine ne vient que d'ici.
 const ANOMALY_CHARGES_MAX := 20
 const ANOMALY_REGEN_SECONDS := 3600.0
-const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 4.0
+const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 5.5
 const ANOMALY_BASE := {"hp": 70.0, "atk": 11.0, "def": 4.0, "spd": 11.0}
 const ANOMALY_BOSS_HP := 2.2
 const ANOMALY_BOSS_ATK := 1.4

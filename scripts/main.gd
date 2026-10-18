@@ -1318,6 +1318,12 @@ func _room_effect_text(rid: String) -> String:
 func _refresh_ship() -> void:
 	_base_info.text = "Niveau d'AFK : %d  ·  Puissance de fabrication : %d (objets niv. ~%d). L'équipage travaille aussi hors ligne." % [
 		GameState.afk_level(), GameState.craft_power(), GameState.loot_level()]
+	var empty := 0
+	for rid in Data.ROOM_ORDER:
+		if GameState.room_worker(rid) == "":
+			empty += 1
+	if empty > 0:
+		_base_info.text += "\n%d salle(s) sans équipier : elle(s) ne produisent rien." % empty
 	var sig_parts: Array[String] = [str(GameState.hero_order)]
 	for rid in Data.ROOM_ORDER:
 		sig_parts.append("%s=%s" % [rid, GameState.room_worker(rid)])
