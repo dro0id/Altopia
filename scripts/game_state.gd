@@ -61,6 +61,7 @@ var last_recruit := {}
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
 var _afk_loot_clock := 0.0      # avancement du prochain objet fabriqué par l'Atelier (0 à 1)
+var crafted_total := 0           # objets fabriqués par l'Atelier depuis le début
 var last_crafted := {}          # dernier objet fabriqué (avec "kept" : gardé ou recyclé automatiquement)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
 var _offline_calc := false      # calcul d'absence en cours : les cycles d'expédition sont regroupés
@@ -110,6 +111,7 @@ func reset() -> void:
 		room_crew[rid] = ""
 	atelier_slot = ""
 	atelier_focus = ""
+	crafted_total = 0
 	goals_claimed = []
 	research_levels = {}
 	for rid in Data.RESEARCH_ORDER:
@@ -480,6 +482,7 @@ func roll_afk_drop() -> Dictionary:
 	var slot: String = atelier_slot if Data.EQUIP.has(atelier_slot) else Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
 	var made := make_item(slot, rarity, loot_level(), true, atelier_focus)
 	var kept := _receive(made)
+	crafted_total += 1
 	last_crafted = made.duplicate()
 	last_crafted["kept"] = not kept.is_empty()
 	return kept
@@ -1063,6 +1066,19 @@ func goal_progress(g: Dictionary) -> float:
 			for rid in Data.ROOM_ORDER:
 				n += room_level(rid)
 			return float(n)
+		"afk_level": return float(afk_level())
+		"atelier_level": return float(room_level("atelier"))
+		"crafted": return float(crafted_total)
+		"rooms_min":
+			var lo := 999
+			for rid in Data.ROOM_ORDER:
+				lo = mini(lo, room_level(rid))
+			return float(lo)
+		"legendary_item":
+			for it in items:
+				if it.rarity == "legendary":
+					return 1.0
+			return 0.0
 		"crew_level_sum":
 			var n := 0
 			for id in hero_order:
@@ -1079,6 +1095,14 @@ func next_goal() -> Dictionary:
 	return {}
 
 
+## Récompense d'objectif : un objet de la rareté donnée, au niveau de fabrication de l'Atelier, sur un emplacement au hasard.
+func _goal_item(rarity: String) -> void:
+	var slot: String = Data.EQUIP_SLOTS[rng.randi() % Data.EQUIP_SLOTS.size()]
+	var made := make_item(slot, rarity, loot_level() + 2, true)
+	last_crafted = made.duplicate()
+	last_crafted["kept"] = not _receive(made).is_empty()
+
+
 func goal_ready(g: Dictionary) -> bool:
 	return not g.is_empty() and goal_progress(g) >= float(g.target)
 
@@ -1088,7 +1112,10 @@ func claim_goal() -> bool:
 	if not goal_ready(g):
 		return false
 	for r in g.reward:
-		add_res(r, g.reward[r])
+		if r == "item":
+			_goal_item(String(g.reward[r]))
+		else:
+			add_res(r, g.reward[r])
 	goals_claimed.append(g.id)
 	changed.emit()
 	return true
@@ -1491,7 +1518,7 @@ func save_game() -> void:
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
-		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1588,6 +1615,7 @@ func load_game() -> bool:
 		atelier_focus = String(saved_base.get("focus", ""))
 		if not Data.AFFIXES.has(atelier_focus):
 			atelier_focus = ""
+	crafted_total = int(parsed.get("base", {}).get("crafted", 0))
 	var saved_an: Dictionary = parsed.get("anomaly", {})
 	anomaly_max = int(saved_an.get("max", 0))
 	anomaly_charges = clampf(float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX)), 0.0, float(Data.ANOMALY_CHARGES_MAX))

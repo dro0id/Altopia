@@ -180,7 +180,8 @@ const UPGRADES := {
 }
 
 ## Objectifs : un palier à atteindre, une récompense à récupérer. Ils donnent un but à chaque retour.
-## kind : captain_level, crew_count, data_total, expeditions, epic_item, room_levels, docks, crew_level_sum
+## kind : captain_level, crew_count, data_total, expeditions, epic_item, room_levels, docks, crew_level_sum,
+## afk_level, atelier_level, crafted, rooms_min, legendary_item. Récompense "item" : un objet de cette rareté.
 const GOALS := [
 	{"id": "g1", "name": "Capitaine niveau 5", "kind": "captain_level", "target": 5, "reward": {"credits": 400.0}},
 	{"id": "g2", "name": "Posséder 4 cartes d'équipage", "kind": "crew_count", "target": 4, "reward": {"credits": 600.0, "minerals": 30.0}},
@@ -192,8 +193,18 @@ const GOALS := [
 	{"id": "g8", "name": "Obtenir un objet épique", "kind": "epic_item", "target": 1, "reward": {"credits": 6000.0, "minerals": 150.0}},
 	{"id": "g9", "name": "Accumuler 1 500 données", "kind": "data_total", "target": 1500, "reward": {"credits": 12000.0, "energy": 200.0}},
 	{"id": "g10", "name": "Équipage : niveaux cumulés 40", "kind": "crew_level_sum", "target": 40, "reward": {"credits": 20000.0, "minerals": 300.0}},
-	{"id": "g11", "name": "Base : niveaux de salles cumulés 90", "kind": "room_levels", "target": 90, "reward": {"credits": 40000.0, "data": 400.0}},
+	{"id": "g11", "name": "Base : niveaux de salles cumulés 60", "kind": "room_levels", "target": 60, "reward": {"credits": 40000.0, "data": 400.0}},
 	{"id": "g12", "name": "Capitaine niveau 30", "kind": "captain_level", "target": 30, "reward": {"credits": 80000.0, "energy": 500.0}},
+	{"id": "g13", "name": "Niveau d'AFK 400", "kind": "afk_level", "target": 400, "reward": {"credits": 150000.0, "item": "epic"}},
+	{"id": "g14", "name": "Atelier niveau 8", "kind": "atelier_level", "target": 8, "reward": {"credits": 250000.0, "item": "epic"}},
+	{"id": "g15", "name": "Fabriquer 1 500 objets à l'Atelier", "kind": "crafted", "target": 1500, "reward": {"credits": 400000.0, "data": 800.0}},
+	{"id": "g16", "name": "Niveau d'AFK 900", "kind": "afk_level", "target": 900, "reward": {"credits": 1.5e6, "item": "legendary"}},
+	{"id": "g17", "name": "Toutes les salles niveau 10", "kind": "rooms_min", "target": 10, "reward": {"credits": 3.0e6, "item": "epic"}},
+	{"id": "g18", "name": "Fabriquer 15 000 objets à l'Atelier", "kind": "crafted", "target": 15000, "reward": {"credits": 6.0e6, "item": "legendary"}},
+	{"id": "g19", "name": "Niveau d'AFK 1500", "kind": "afk_level", "target": 1500, "reward": {"credits": 2.0e7, "item": "legendary"}},
+	{"id": "g20", "name": "Toutes les salles niveau 18", "kind": "rooms_min", "target": 18, "reward": {"credits": 5.0e7, "item": "legendary"}},
+	{"id": "g21", "name": "Niveau d'AFK 2200", "kind": "afk_level", "target": 2200, "reward": {"credits": 2.0e8, "item": "legendary"}},
+	{"id": "g22", "name": "Toutes les salles niveau 24", "kind": "rooms_min", "target": 24, "reward": {"credits": 5.0e8, "item": "legendary"}},
 ]
 
 const SYNERGY_PAIR := 0.10
@@ -258,6 +269,8 @@ static func fmt_amounts(d: Dictionary) -> String:
 	for id in RES_ORDER:
 		if d.has(id) and d[id] > 0.0:
 			parts.append("+%s %s" % [fmt(d[id]), String(RES_NAMES[id]).to_lower()])
+	if d.has("item"):
+		parts.append("+ 1 objet %s" % String(ITEM_RARITY[d["item"]].name).to_lower())
 	return "  ".join(parts)
 
 

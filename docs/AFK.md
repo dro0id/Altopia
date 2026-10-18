@@ -149,3 +149,8 @@ L'AFK est le gameplay de l'équipage : chaque équipier travaille dans une salle
 
 - Une salle sans équipier ne produit rien et n'a aucun effet (l'Atelier est à l'arrêt, Quartiers et Soute inactifs, la salle ne compte pas dans le niveau d'AFK).
 - L'interface sépare la **Base** (salles, Atelier) du **Vaisseau** (améliorations laser, collecteur, scanner, moteurs, docks).
+
+## Objectifs de long terme (Base)
+
+La chaîne d'objectifs passe de 12 à 22 paliers. Les 10 nouveaux suivent l'AFK : niveau d'AFK (400, 900, 1 500, 2 200), niveau de l'Atelier, objets fabriqués (1 500, 15 000), niveau minimal des 6 salles (10, 18, 24). Leurs récompenses incluent un objet garanti (épique, puis légendaire) au niveau de fabrication de l'Atelier. Rythme simulé (regular) : environ 12 objectifs à 7 jours, 15 à 30 jours, 18 à 60 jours, 20 à 90 jours.
+Une recrue est placée d'office dans la salle vide où elle travaille le mieux.

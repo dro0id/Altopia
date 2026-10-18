@@ -639,6 +639,38 @@ func test_room_upgrade_boosts_production() -> void:
 	_check(not _gs.buy_room_upgrade("mine"), "niveau maximum de salle")
 
 
+func test_base_goals_reward_items_and_persist() -> void:
+	_gs.new_game()
+	_gs.auto_recycle = -1
+	var g13 := {}
+	for g in Data.GOALS:
+		if g.id == "g13":
+			g13 = g
+	_check(not g13.is_empty() and g13.reward.get("item", "") == "epic", "un objectif de Base donne un objet épique")
+	_gs.goals_claimed = []
+	for g in Data.GOALS:
+		if g.id != "g13":
+			_gs.goals_claimed.append(g.id)
+	var n0: int = _gs.items.size()
+	_check(not _gs.claim_goal(), "objectif d'AFK : pas encore atteint")
+	for rid in Data.ROOM_ORDER:
+		_gs.room_levels[rid] = 300
+	_gs.give_hero("tess", 1)
+	_gs.give_hero("gorn", 1)
+	_gs.give_hero("zara", 1)
+	_gs.give_hero("nova", 1)
+	_gs.give_hero("quark", 1)
+	_gs.give_hero("lumi", 1)
+	_gs.auto_rooms()
+	_check(_gs.claim_goal() and _gs.items.size() == n0 + 1 and _gs.items[_gs.items.size() - 1].rarity == "epic", "récupéré : l'objet épique arrive")
+	_gs.crafted_total = 77
+	_gs.save_path = "user://test_crafted.json"
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(_gs.crafted_total == 77, "le compteur d'objets fabriqués est sauvegardé")
+
+
 func test_goals() -> void:
 	_gs.new_game()
 	var g: Dictionary = _gs.next_goal()

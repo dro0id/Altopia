@@ -127,6 +127,12 @@ func _report(day: int, recent: Array) -> void:
 	var rec := 0
 	for v in recent:
 		rec += v
+	var rmin := 999
+	var rmax := 0
+	for rid in Data.ROOM_ORDER:
+		rmin = mini(rmin, gs.room_level(rid))
+		rmax = maxi(rmax, gs.room_level(rid))
+	print("      salles %d-%d, atelier %d, fabriqués %d, objectifs %d/%d" % [rmin, rmax, gs.room_level("atelier"), gs.crafted_total, gs.goals_claimed.size(), Data.GOALS.size()])
 	print("%5d | niv %3d | %3d | %4d | %5d | niv. %3d, %d/6 épiques+, %d légend. | %3d/%3d | %3d %% | %2d/%2d | %d" % [
 		day, gs.captain.level, gs.anomaly_max, gs.afk_level(), crew_lv, ilvl_sum / maxi(1, n_items), epic_plus, legend, rs, rs_max,
 		int(100.0 * wins / maxf(1.0, float(gs.afk_wins + gs.afk_defeats))), rec, recent.size(), _worst_gap_days])
