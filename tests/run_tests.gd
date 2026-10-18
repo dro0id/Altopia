@@ -247,7 +247,7 @@ func test_train_captain_and_crew() -> void:
 	_check(_gs.train("rex") and _gs.heroes["rex"].level == 2, "carte : niveau +1")
 	_check(_gs.train_captain() and _gs.captain.level == 2, "Capitaine : niveau +1")
 	var lv: int = _gs.captain.level
-	_check(_gs.gain_captain_xp(Data.xp_needed(lv) + 1) == 1 and _gs.captain.level == lv + 1, "assez d'XP : niveau +1")
+	_check(_gs.gain_captain_xp(Data.captain_xp_needed(lv) + 1) == 1 and _gs.captain.level == lv + 1, "assez d'XP : niveau +1")
 
 
 func test_look_cycle() -> void:
@@ -487,7 +487,7 @@ func test_afk_level_raises_loot_quality() -> void:
 	_check(share1 > share0 * 1.5, "la part de légendaires explose avec le niveau d'AFK (%.3f -> %.3f)" % [share0, share1])
 	_check(_gs.loot_level() > l0 + 8, "le niveau d'objet monte aussi")
 	_gs.captain.level = 10
-	_check(_gs.loot_level() <= 3 + int(10 * Data.AFK_ILVL_CAP_RATIO), "mais il reste borné par le niveau du Capitaine")
+	_check(_gs.loot_level() <= 3 + int(_gs.captain_p() * Data.AFK_ILVL_CAP_RATIO), "mais il reste borné par le niveau du Capitaine")
 	_check(w1["common"] / w0["common"] < 1.01, "les communs ne bénéficient pas du niveau d'AFK")
 
 
@@ -799,11 +799,42 @@ func test_research_offline_runs_to_the_end() -> void:
 	_check(not _gs.research_done_log.is_empty(), "la recherche terminée est notée pour le rapport")
 
 
+func test_captain_levels_are_compressed() -> void:
+	_gs.new_game()
+	_check(_gs.captain_p() == 1, "niveau 1 : puissance 1")
+	_gs.captain.level = 11
+	_check(_gs.captain_p() == 51, "niveau 11 : puissance 51 (5 niveaux de puissance par niveau)")
+	var m: float = 1.0 + Data.CAPTAIN_LEVEL_BONUS * 50.0
+	_check(is_equal_approx(_gs.captain_stats(0).base.atk, Data.CAPTAIN_BASE.atk * m), "les stats suivent la puissance, pas le niveau affiché")
+	var sum_old := 0
+	for p in range(51, 56):
+		sum_old += Data.xp_needed(p)
+	_check(abs(Data.captain_xp_needed(11) - sum_old) <= 1, "un niveau coûte l'XP cumulée de ses 5 niveaux de puissance (%d / %d)" % [Data.captain_xp_needed(11), sum_old])
+	var old_run: float = Data.XP_PER_LEVEL * 53.0 / (3.0 + 53.0 / 2.5)
+	_check(abs(_gs.captain_run_xp(1.0) - old_run) < 1.0, "une victoire rapporte autant qu'avant")
+
+
+func test_old_captain_save_is_converted() -> void:
+	_gs.save_path = "user://test_old_captain.json"
+	var old := {"version": 5, "res": {"credits": 10.0}, "data_total": 0.0, "captain": {"level": 47, "xp": 100, "name": "Capitaine", "look": {"suit": 0, "hair": 0, "style": 0}},
+		"items": [], "equipped": {}, "heroes": {}, "hero_order": [], "upgrades": {}, "slots": [], "last_seen": 0}
+	var f := FileAccess.open(_gs.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement de l'ancienne sauvegarde")
+	_check(_gs.captain.level == 10 and _gs.captain.xp == 100 + Data.xp_needed(46), "ancien niveau 47 = niveau 10 + le reste en XP")
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(_gs.captain.level == 10, "la sauvegarde convertie ne l'est pas deux fois")
+
+
 func test_no_level_cap() -> void:
 	_gs.new_game()
 	_gs.captain.level = 100
 	_gs.captain.xp = 0
-	var gained: int = _gs.gain_captain_xp(Data.xp_needed(100) * 3)
+	var gained: int = _gs.gain_captain_xp(Data.captain_xp_needed(100) * 3)
 	_check(gained >= 2 and _gs.captain.level >= 102, "pas de plafond : l'XP continue de donner des niveaux (%d)" % _gs.captain.level)
 	_gs.give_hero("rex", 90)
 	var lv: int = _gs.heroes["rex"].level

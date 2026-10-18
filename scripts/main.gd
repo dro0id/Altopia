@@ -1030,7 +1030,7 @@ func _refresh_captain() -> void:
 	_cap_chibi.setup_captain(cap.look)
 	_cap_name.text = cap.name
 	_cap_level.text = "Niveau %d   ·   XP : anomalies" % cap.level
-	_cap_xp.value = float(cap.xp) / float(Data.xp_needed(cap.level))
+	_cap_xp.value = float(cap.xp) / float(Data.captain_xp_needed(cap.level))
 	var cs := GameState.captain_stats(0)
 	_cap_stats.text = "PV %d   ATQ %d\nDÉF %d   VIT %d\nÉquipement : %s\nÉquipage : %s" % [
 		cs.hp, cs.atk, cs.def, cs.spd, _stat_text(cs.gear, "+"), _stat_text(cs.crew, "+")]

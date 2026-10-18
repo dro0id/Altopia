@@ -39,7 +39,10 @@ const STARTER_HEROES := ["rex", "bolt"]
 ## --- Capitaine (le joueur) ---
 const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
 const CAPTAIN_MAX_LEVEL := 999   # pas de plafond pratique : la courbe d'XP ralentit d'elle-même
-const CAPTAIN_LEVEL_BONUS := 0.15
+## Les niveaux du Capitaine sont espacés : un niveau vaut CAPTAIN_LEVEL_SPAN « niveaux de puissance » (le niveau 50 correspond
+## à peu près à l'ancien niveau 240). La courbe de puissance, donc la difficulté, ne change pas : seul le nombre de niveaux est compressé.
+const CAPTAIN_LEVEL_SPAN := 5
+const CAPTAIN_LEVEL_BONUS := 0.15   # par niveau de puissance (x CAPTAIN_LEVEL_SPAN par niveau affiché)
 const CAPTAIN_TRAIN_BASE := 40.0
 const CAPTAIN_TRAIN_GROWTH := 1.4
 const CREW_STAT_SHARE := 0.35    # part des stats de l'équipage ajoutée au Capitaine
@@ -185,18 +188,18 @@ const UPGRADES := {
 ## kind : captain_level, crew_count, data_total, expeditions, epic_item, room_levels, docks, crew_level_sum,
 ## afk_level, atelier_level, crafted, rooms_min, legendary_item. Récompense "item" : un objet de cette rareté.
 const GOALS := [
-	{"id": "g1", "name": "Capitaine niveau 5", "kind": "captain_level", "target": 5, "reward": {"credits": 400.0}},
+	{"id": "g1", "name": "Capitaine niveau 2", "kind": "captain_level", "target": 2, "reward": {"credits": 400.0}},
 	{"id": "g2", "name": "Posséder 4 cartes d'équipage", "kind": "crew_count", "target": 4, "reward": {"credits": 600.0, "minerals": 30.0}},
 	{"id": "g3", "name": "Accumuler 100 données", "kind": "data_total", "target": 100, "reward": {"credits": 800.0, "energy": 40.0}},
 	{"id": "g4", "name": "Améliorer la Base (niveaux de salles cumulés : 12)", "kind": "room_levels", "target": 12, "reward": {"credits": 1200.0, "data": 20.0}},
 	{"id": "g5", "name": "Lancer 25 expéditions", "kind": "expeditions", "target": 25, "reward": {"credits": 1500.0, "minerals": 60.0}},
 	{"id": "g6", "name": "Débloquer le 2e vaisseau", "kind": "docks", "target": 1, "reward": {"credits": 2500.0, "energy": 80.0}},
-	{"id": "g7", "name": "Capitaine niveau 15", "kind": "captain_level", "target": 15, "reward": {"credits": 5000.0, "data": 80.0}},
+	{"id": "g7", "name": "Capitaine niveau 4", "kind": "captain_level", "target": 4, "reward": {"credits": 5000.0, "data": 80.0}},
 	{"id": "g8", "name": "Obtenir un objet épique", "kind": "epic_item", "target": 1, "reward": {"credits": 6000.0, "minerals": 150.0}},
 	{"id": "g9", "name": "Accumuler 1 500 données", "kind": "data_total", "target": 1500, "reward": {"credits": 12000.0, "energy": 200.0}},
 	{"id": "g10", "name": "Équipage : niveaux cumulés 40", "kind": "crew_level_sum", "target": 40, "reward": {"credits": 20000.0, "minerals": 300.0}},
 	{"id": "g11", "name": "Base : niveaux de salles cumulés 60", "kind": "room_levels", "target": 60, "reward": {"credits": 40000.0, "data": 400.0}},
-	{"id": "g12", "name": "Capitaine niveau 30", "kind": "captain_level", "target": 30, "reward": {"credits": 80000.0, "energy": 500.0}},
+	{"id": "g12", "name": "Capitaine niveau 7", "kind": "captain_level", "target": 7, "reward": {"credits": 80000.0, "energy": 500.0}},
 	{"id": "g13", "name": "Niveau d'AFK 400", "kind": "afk_level", "target": 400, "reward": {"credits": 150000.0, "item": "epic"}},
 	{"id": "g14", "name": "Atelier niveau 8", "kind": "atelier_level", "target": 8, "reward": {"credits": 250000.0, "item": "epic"}},
 	{"id": "g15", "name": "Fabriquer 1 500 objets à l'Atelier", "kind": "crafted", "target": 1500, "reward": {"credits": 400000.0, "data": 800.0}},
@@ -233,6 +236,12 @@ static func hero_stats(id: String, level: int, stars: int) -> Dictionary:
 
 
 const XP_PER_LEVEL := 6500.0     # XP pour passer du niveau L à L+1 : XP_PER_LEVEL x L (courbe douce, sans plafond)
+
+
+## XP pour passer du niveau L à L+1 du Capitaine : la somme de celle des CAPTAIN_LEVEL_SPAN niveaux de puissance qu'il contient.
+static func captain_xp_needed(level: int) -> int:
+	var k := CAPTAIN_LEVEL_SPAN
+	return int(XP_PER_LEVEL * k * (k * (level - 1) + (k + 1) / 2.0))
 
 
 static func xp_needed(level: int) -> int:

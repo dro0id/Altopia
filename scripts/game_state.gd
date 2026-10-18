@@ -187,8 +187,15 @@ func pay(cost: Dictionary) -> void:
 
 ## --- Capitaine ---
 
+## Niveau de puissance du Capitaine : un niveau affiché en vaut CAPTAIN_LEVEL_SPAN. C'est lui qui règle les stats et les plafonds liés au niveau.
+func captain_p() -> int:
+	return Data.CAPTAIN_LEVEL_SPAN * (captain.level - 1) + 1
+
+
 func captain_train_cost() -> float:
-	return ceil(Data.CAPTAIN_TRAIN_BASE * pow(Data.CAPTAIN_TRAIN_GROWTH, captain.level - 1))
+	var g: float = Data.CAPTAIN_TRAIN_GROWTH
+	var span_sum: float = (pow(g, Data.CAPTAIN_LEVEL_SPAN) - 1.0) / (g - 1.0)     # somme des coûts des niveaux de puissance du niveau
+	return ceil(Data.CAPTAIN_TRAIN_BASE * span_sum * pow(g, captain_p() - 1))
 
 
 func train_captain() -> bool:
@@ -205,11 +212,17 @@ func train_captain() -> bool:
 func gain_captain_xp(amount: int) -> int:
 	var gained := 0
 	captain.xp += amount
-	while captain.xp >= Data.xp_needed(captain.level):
-		captain.xp -= Data.xp_needed(captain.level)
+	while captain.xp >= Data.captain_xp_needed(captain.level):
+		captain.xp -= Data.captain_xp_needed(captain.level)
 		captain.level += 1
 		gained += 1
 	return gained
+
+
+func _captain_for_save() -> Dictionary:
+	var out := captain.duplicate(true)
+	out["span"] = Data.CAPTAIN_LEVEL_SPAN
+	return out
 
 
 func cycle_look(part: String) -> void:
@@ -220,7 +233,7 @@ func cycle_look(part: String) -> void:
 
 ## Stats du Capitaine pour un vaisseau : base + équipement + équipage, puis bonus en %.
 func captain_stats(slot_i: int = 0) -> Dictionary:
-	var m: float = 1.0 + Data.CAPTAIN_LEVEL_BONUS * (captain.level - 1)
+	var m: float = 1.0 + Data.CAPTAIN_LEVEL_BONUS * (captain_p() - 1)
 	var base := {"hp": Data.CAPTAIN_BASE.hp * m, "atk": Data.CAPTAIN_BASE.atk * m,
 		"def": Data.CAPTAIN_BASE.def * m, "spd": Data.CAPTAIN_BASE.spd}
 	var gear := {"hp": 0.0, "atk": 0.0, "def": 0.0, "spd": 0.0}
@@ -458,7 +471,7 @@ func craft_power() -> int:
 ## Niveau des objets de l'Atelier : monte avec la puissance de fabrication, mais reste borné par le niveau du Capitaine.
 func loot_level() -> int:
 	var by_power := 3 + int(craft_power() / Data.AFK_ILVL_DIV)
-	return mini(by_power, 3 + int(float(captain.level) * Data.AFK_ILVL_CAP_RATIO))
+	return mini(by_power, 3 + int(float(captain_p()) * Data.AFK_ILVL_CAP_RATIO))
 
 
 ## Poids de tirage de chaque rareté : la puissance de fabrication fait monter les raretés élevées.
@@ -1522,17 +1535,18 @@ func anomaly_preview(n: int) -> Dictionary:
 	return Battle.simulate([captain_unit()], make_anomaly_enemies(n))
 
 
-## XP de base d'une victoire du Capitaine : xp_needed(niveau) / (3 + niveau/2,5) (3 victoires par niveau au début,
-## ~35 vers le niveau 80), multipliée par `diff` (difficulté de l'activité). Les expéditions n'en donnent qu'une fraction.
+## XP de base d'une victoire du Capitaine : l'ancienne formule xp_needed(p) / (3 + p/2,5) évaluée au niveau de puissance moyen p du
+## niveau (une victoire rapporte donc autant qu'avant), multipliée par `diff` (difficulté de l'activité). Les expéditions n'en donnent qu'une fraction.
 func captain_run_xp(diff: float) -> float:
-	var lv: int = captain.level
-	var runs_per_level: float = 3.0 + float(lv) / 2.5
-	return float(Data.xp_needed(lv)) / runs_per_level * diff * (1.0 + equipped_bonus("xp_pct") / 100.0)
+	var p_mid: float = float(captain_p()) + float(Data.CAPTAIN_LEVEL_SPAN - 1) / 2.0      # milieu des niveaux de puissance du niveau
+	var runs_per_level: float = 3.0 + p_mid / 2.5
+	return Data.XP_PER_LEVEL * p_mid / runs_per_level * diff * (1.0 + equipped_bonus("xp_pct") / 100.0)
+
 
 
 ## Anomalie : modulée de x0,5 à x1 selon la difficulté de la faille par rapport au niveau du Capitaine.
 func anomaly_xp(n: int, first: bool) -> int:
-	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(captain.level), 0.5, 1.0)
+	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(captain_p()), 0.5, 1.0)
 	return maxi(1, int(round(captain_run_xp(diff))))
 
 
@@ -1609,7 +1623,7 @@ func save_game() -> void:
 		return
 	f.store_string(JSON.stringify({
 		"version": SAVE_VERSION,
-		"res": res, "data_total": data_total, "captain": captain,
+		"res": res, "data_total": data_total, "captain": _captain_for_save(),
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
@@ -1645,8 +1659,16 @@ func load_game() -> bool:
 	data_total = float(parsed.get("data_total", 0.0))
 	var cap: Dictionary = parsed.get("captain", {})
 	var look: Dictionary = cap.get("look", {})
+	var cap_level := int(cap.get("level", 1))
+	var cap_xp := int(cap.get("xp", 0))
+	if not cap.has("span"):         # ancienne sauvegarde : niveaux non compressés
+		var k: int = Data.CAPTAIN_LEVEL_SPAN
+		var old_level := cap_level
+		cap_level = 1 + (old_level - 1) / k
+		for p in range(k * (cap_level - 1) + 1, old_level):      # les niveaux de puissance restants deviennent de l'XP
+			cap_xp += Data.xp_needed(p)
 	captain = {
-		"name": String(cap.get("name", "Capitaine")), "level": int(cap.get("level", 1)), "xp": int(cap.get("xp", 0)),
+		"name": String(cap.get("name", "Capitaine")), "level": cap_level, "xp": cap_xp,
 		"look": {"suit": int(look.get("suit", 0)), "hair": int(look.get("hair", 0)), "style": int(look.get("style", 0))},
 	}
 	items = []
