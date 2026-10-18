@@ -181,3 +181,7 @@ Principes : l'AFK n'a pas de fin, mais il aide le Capitaine sans remplacer la bo
 Un niveau du Capitaine vaut 5 « niveaux de puissance » (`CAPTAIN_LEVEL_SPAN`). Stats, XP par victoire et ennemis suivent la même courbe qu'avant : la difficulté est inchangée, seuls les numéros de niveau sont ~5x plus espacés (stats +75 % par niveau, XP par niveau ≈ celle de 5 anciens niveaux). Les anciennes sauvegardes sont converties (ancien niveau 47 = niveau 10 + le reste en XP).
 - Simulation regular : niveau 7 / 10 / 15 / 20 / 28 / 39 / 44 aux jours 7 / 14 / 30 / 60 / 120 / 240 / 300, soit environ 50 vers le jour 365. Casual : 5 / 8 / 12 / 17 / 23 / 35 / 38.
 - Limite : en fin d'année un niveau tombe tous les 7 à 10 jours ; la barre d'XP reste le retour de progression entre deux niveaux.
+
+## Recherches de palier IV
+
+Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : le palier III au maximum, durées jusqu'à 12 à 72 jours par niveau). Entraînement n'en a pas, pour ne pas accélérer l'XP du Capitaine. Simulation regular sur 480 jours : recherches 302/372 au jour 240, 325/372 au jour 365, 347/372 au jour 480, capitaine niveau 51 au jour 365 et 56 au jour 480. En fin de boucle, moins de la moitié des sessions montrent un gain visible (niveau, recherche terminée) : le suivi passe par les barres de progression.
