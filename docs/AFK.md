@@ -210,16 +210,22 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 - Réserve de 100 charges, 10 consommées par entrée en faille (10 entrées en réserve), recharge de +1 charge par tranche de 2 min 30 (24 charges par heure : une entrée toutes les 25 min, réserve pleine en 4 h 10). Une défaite rend les 10 charges. Les anciennes sauvegardes sont converties (x10).
 - Le combat étant déterministe et l'issue annoncée à l'avance, le robot ne perd jamais ; le taux de réussite minimum de 80 % visé pour les anomalies et les expéditions sera réglé avec les futures boucles de gameplay.
 
-## Test du taux de réussite minimum (80 %)
+## Taux de réussite minimum (80 %) : tests et réglages
 
-Simulateur : `tools/balance.gd -- <profil> <jours> <refonte> push` fait jouer un joueur « naïf » qui fonce toujours sur le contenu le plus dur (faille la plus haute ouverte, expédition la plus difficile), sans regarder l'aperçu du combat. Sans `push`, le joueur prudent choisit ce qu'il peut gagner. 90 jours, résultats :
+Simulateur : `tools/balance.gd -- <profil> <jours> <refonte> push` fait jouer un joueur « naïf » qui fonce toujours sur le contenu le plus dur (faille la plus haute ouverte, expédition la plus difficile), sans regarder l'aperçu du combat ; il s'arrête après une défaite d'anomalie. Sans `push`, le joueur prudent choisit ce qu'il peut gagner.
 
-| Profil | Anomalies, joueur prudent | Anomalies, joueur naïf | Expéditions, prudent | Expéditions, naïf |
-|---|---|---|---|---|
-| casual | 100 % | 1 % | 100 % | 99 % |
-| regular | 100 % | 0 % | 100 % | 100 % |
-| hardcore | 100 % | 0 % | 100 % | 100 % |
+Avant réglage (90 jours) : anomalies 0 à 1 % (29 % / 14 % en casual / regular une fois la boucle de réessais retirée), expéditions 99 à 100 %.
 
-- Anomalies : la faille « suivante » est hors de portée tant que le Capitaine n'a pas progressé, donc un joueur qui insiste dessus perd presque tout le temps (les charges sont rendues, mais il stagne : niveau 10 au lieu de 28 à 90 jours en regular). Le palier entre deux failles est trop raide pour viser 80 % de réussite en poussant.
-- Expéditions : 99 à 100 % même en poussant : il reste de la marge pour les durcir jusqu'à environ 80-85 % sans sortir de la limite acceptée.
-- À régler avec les futures boucles de gameplay.
+Réglages :
+- Expéditions : le niveau des ennemis monte vite avec les victoires (`1 + victoires / 4`, plafond 2 500) et chaque défaite retire 4 victoires (`ENEMY_DEFEAT_LOSS`) : un joueur qui pousse hovère autour de 80 % de réussite. Les récompenses ne dépendent pas du niveau des ennemis.
+- Anomalies : palier d'une faille à la suivante réduit (`ANOMALY_ENEMY_LEVEL_PER_FAILLE` = 0,35, contre 5,5) pour que la faille suivante reste à portée ; l'XP d'une victoire se module par le niveau des ennemis relatif à celui du Capitaine. Les numéros de faille montent beaucoup plus haut (environ 1 300 à 60 jours en regular) : c'est un numéro, pas une difficulté.
+
+Résultats, joueur naïf, 60 jours :
+
+| Profil | Anomalies | Expéditions |
+|---|---|---|
+| casual | 100 % | 99 % |
+| regular | 90 % | 85 % |
+| hardcore | 78 % | 82 % |
+
+Limites : le combat reste déterministe (aperçu exact), donc un échec n'arrive que si le joueur ignore l'aperçu. En casual, peu d'expéditions sont lancées : les ennemis ne rattrapent pas l'équipe et le taux reste proche de 100 %.
