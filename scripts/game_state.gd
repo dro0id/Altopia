@@ -61,6 +61,9 @@ var last_recruit := {}
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
 var _afk_loot_clock := 0.0      # avancement du prochain objet fabriqué par l'Atelier (0 à 1)
+var prestige_count := 0           # refontes de la Base effectuées
+var prestige_points := 0          # éclats non dépensés
+var prestige_perks := {}          # bonus permanents : id -> niveau
 var crafted_total := 0           # objets fabriqués par l'Atelier depuis le début
 var last_crafted := {}          # dernier objet fabriqué (avec "kept" : gardé ou recyclé automatiquement)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
@@ -112,6 +115,9 @@ func reset() -> void:
 	atelier_slot = ""
 	atelier_focus = ""
 	crafted_total = 0
+	prestige_count = 0
+	prestige_points = 0
+	prestige_perks = {}
 	goals_claimed = []
 	research_levels = {}
 	for rid in Data.RESEARCH_ORDER:
@@ -444,7 +450,7 @@ func afk_level() -> int:
 
 ## Puissance de fabrication de l'Atelier : le niveau d'AFK, plus l'apport de l'Atelier lui-même.
 func craft_power() -> int:
-	return afk_level() + int(Data.ATELIER_QUALITY_PER_LEVEL * (room_level("atelier") - 1))
+	return afk_level() + int(Data.ATELIER_QUALITY_PER_LEVEL * (room_level("atelier") - 1)) + int(perk_level("craft") * Data.PRESTIGE_PERKS["craft"].gain)
 
 
 func loot_level() -> int:
@@ -486,6 +492,81 @@ func roll_afk_drop() -> Dictionary:
 	last_crafted = made.duplicate()
 	last_crafted["kept"] = not kept.is_empty()
 	return kept
+
+
+## --- Refonte de la Base (prestige) ---
+
+func perk_level(id: String) -> int:
+	return int(prestige_perks.get(id, 0))
+
+
+## Multiplicateur d'un bonus permanent de pourcentage (Rendement, Formation, Fabrication).
+func perk_mult(id: String) -> float:
+	return 1.0 + Data.PRESTIGE_PERKS[id].gain * perk_level(id)
+
+
+func perk_cost(id: String) -> int:
+	return int(ceil(pow(Data.PRESTIGE_COST_GROWTH, perk_level(id))))
+
+
+func perk_maxed(id: String) -> bool:
+	return perk_level(id) >= Data.PRESTIGE_PERK_MAX
+
+
+func buy_perk(id: String) -> bool:
+	if not Data.PRESTIGE_PERKS.has(id) or perk_maxed(id) or prestige_points < perk_cost(id):
+		return false
+	prestige_points -= perk_cost(id)
+	prestige_perks[id] = perk_level(id) + 1
+	changed.emit()
+	return true
+
+
+## Puissance de la Base : somme des niveaux de salle. C'est ce que la refonte remet à zéro, donc ce qu'elle récompense.
+func base_power() -> int:
+	var n := 0
+	for rid in Data.ROOM_ORDER:
+		n += room_level(rid)
+	return n
+
+
+func prestige_gain() -> int:
+	return int(floor(pow(float(base_power()) / Data.PRESTIGE_DIV, Data.PRESTIGE_POW)))
+
+
+## Niveau auquel les salles repartent après une refonte (bonus « Fondations »).
+func prestige_start_level() -> int:
+	return mini(Data.ROOM_MAX_LEVEL, 1 + int(Data.PRESTIGE_PERKS["found"].gain * perk_level("found")))
+
+
+## Raison pour laquelle la refonte n'est pas possible ("" si elle l'est).
+func prestige_block_reason() -> String:
+	if base_power() < Data.PRESTIGE_MIN_POWER:
+		return "Niveaux de salles cumulés %d requis" % Data.PRESTIGE_MIN_POWER
+	return ""
+
+
+## Refonte : les salles, les améliorations du vaisseau (sauf les docks) et les ressources sont remises à zéro.
+## L'équipage, le Capitaine, l'équipement, les recherches et les objectifs sont conservés.
+func do_prestige() -> int:
+	if prestige_block_reason() != "":
+		return 0
+	var gain := prestige_gain()
+	for i in slots.size():
+		recall(i)        # les expéditions en cours sont rappelées (sans gain)
+	prestige_points += gain
+	prestige_count += 1
+	for rid in Data.ROOM_ORDER:
+		room_levels[rid] = prestige_start_level()
+	for id in upgrade_levels:
+		if id != "docks":
+			upgrade_levels[id] = 0
+	for id in res:
+		res[id] = 0.0
+	res["credits"] = Data.START_CREDITS
+	_afk_loot_clock = 0.0
+	changed.emit()
+	return gain
 
 
 ## --- Équipage (cartes) ---
@@ -724,7 +805,7 @@ func production_per_sec() -> Dictionary:
 		for r in prod:
 			out[r] += prod[r] * m
 	out.credits *= credit_mult()
-	var pm := 1.0 + research_bonus("prod_pct") / 100.0
+	var pm := (1.0 + research_bonus("prod_pct") / 100.0) * perk_mult("prod")
 	for r in out:
 		out[r] *= pm
 	return out
@@ -1327,7 +1408,7 @@ func afk_drops_per_hour() -> float:
 		f *= Data.ATELIER_TARGET_FACTOR
 	if atelier_focus != "":
 		f *= Data.ATELIER_TARGET_FACTOR
-	return Data.ATELIER_BASE_PER_HOUR * room_level_factor("atelier") * room_crew_boost("atelier") * f \
+	return Data.ATELIER_BASE_PER_HOUR * perk_mult("atelier") * room_level_factor("atelier") * room_crew_boost("atelier") * f \
 		* (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0)
 
 
@@ -1342,7 +1423,7 @@ func atelier_next_in() -> float:
 
 ## XP des équipiers au travail : les Quartiers l'augmentent.
 func crew_xp_mult() -> float:
-	return 1.0 + Data.QUARTERS_XP_GAIN * (room_level("quartiers") - 1) * room_crew_boost("quartiers")
+	return (1.0 + Data.QUARTERS_XP_GAIN * (room_level("quartiers") - 1) * room_crew_boost("quartiers")) * perk_mult("xp")
 
 
 func _afk_work(seconds: float) -> void:
@@ -1518,7 +1599,8 @@ func save_game() -> void:
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
-		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total,
+			"prestige": {"count": prestige_count, "points": prestige_points, "perks": prestige_perks}}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1616,6 +1698,13 @@ func load_game() -> bool:
 		if not Data.AFFIXES.has(atelier_focus):
 			atelier_focus = ""
 	crafted_total = int(parsed.get("base", {}).get("crafted", 0))
+	var saved_pr: Dictionary = parsed.get("base", {}).get("prestige", {})
+	prestige_count = int(saved_pr.get("count", 0))
+	prestige_points = int(saved_pr.get("points", 0))
+	prestige_perks = {}
+	for k in saved_pr.get("perks", {}):
+		if Data.PRESTIGE_PERKS.has(k):
+			prestige_perks[k] = clampi(int(saved_pr.perks[k]), 0, Data.PRESTIGE_PERK_MAX)
 	var saved_an: Dictionary = parsed.get("anomaly", {})
 	anomaly_max = int(saved_an.get("max", 0))
 	anomaly_charges = clampf(float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX)), 0.0, float(Data.ANOMALY_CHARGES_MAX))

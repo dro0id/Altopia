@@ -10,7 +10,7 @@ const PROFILES := {
 	"regular": [[8.0, 8.0], [12.5, 8.0], [19.0, 8.0]],
 	"hardcore": [[7.0, 10.0], [10.0, 10.0], [13.0, 10.0], [16.0, 10.0], [19.0, 10.0], [22.0, 10.0]],
 }
-const CHECK_DAYS := [1, 3, 7, 14, 21, 30, 45, 60, 75, 90, 120]
+const CHECK_DAYS := [1, 3, 7, 14, 21, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300]
 const Bot = preload("res://tools/bot.gd")
 var gs: Node
 var bot
@@ -34,6 +34,7 @@ func _initialize() -> void:
 	gs.new_game()
 	gs.rng.seed = 12345
 	bot = Bot.new(gs)
+	bot.prestige_at = int(args[2]) if args.size() > 2 else 0
 	var sessions: Array = PROFILES[profile]
 	print("Profil : %s, %d jours" % [profile, days])
 	print(" jour | capitaine | faille max | niveau AFK | équipage niv. | équipement (niv. moy., épiques+, légend.) | recherches | AFK victoires | sessions avec progrès (14 dern.) | pire écart")
@@ -64,6 +65,7 @@ func _initialize() -> void:
 	print("FRUSTRATION | sessions avec progrès %d/%d | plus longue période sans progrès %d j | postes de recherche vides au début %d/%d | charges d'anomalie pleines au début (recharge perdue) %d/%d | défaites en anomalie %d/%d | sessions sans charge %d" % [
 		_sessions_with_progress, _sessions, _worst_gap_days, _idle_research_starts, _sessions, _full_charge_starts, _sessions,
 		bot.anomaly_defeats, bot.anomaly_runs, bot.no_charge_sessions])
+	print("REFONTES (niveau d'AFK atteint, éclats) : ", bot.prestige_log)
 	quit()
 
 

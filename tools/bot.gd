@@ -9,6 +9,8 @@ var gs: Node
 var anomaly_runs := 0
 var anomaly_defeats := 0
 var no_charge_sessions := 0
+var prestige_at := 0          # niveaux de salles cumulés à partir desquels le robot lance une refonte (0 : jamais)
+var prestige_log: Array = []
 
 
 func _init(game_state: Node) -> void:
@@ -51,6 +53,18 @@ func anomalies() -> void:
 ## Politique d'achat du robot.
 func spend() -> void:
 	gs.claim_goal()
+	if prestige_at > 0 and gs.base_power() >= prestige_at and gs.prestige_block_reason() == "":
+		var lvl: int = gs.base_power()
+		var got: int = gs.do_prestige()
+		prestige_log.append([lvl, got])
+	var cheapest := "x"
+	while cheapest != "":
+		cheapest = ""
+		for id in Data.PRESTIGE_PERK_ORDER:
+			if not gs.perk_maxed(id) and gs.prestige_points >= gs.perk_cost(id) and (cheapest == "" or gs.perk_cost(id) < gs.perk_cost(cheapest)):
+				cheapest = id
+		if cheapest != "":
+			gs.buy_perk(cheapest)
 	for i in gs.slot_count():
 		if gs.slots[i].dest == "":
 			var launched := false

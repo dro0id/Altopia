@@ -398,6 +398,22 @@ const ROOMS := {
 	"soute": {"name": "Soute", "desc": "Coffre hors ligne plus long et plus rentable", "affinity": "scientist", "icon": "chest", "color": Color(1.0, 0.82, 0.35),
 		"prod": {"credits": 8.5}, "cost": {"credits": 350.0, "energy": 10.0}},
 }
+## --- Refonte de la Base (prestige) : on remet les salles à zéro pour des bonus permanents plus forts ---
+const PRESTIGE_MIN_POWER := 90            # niveaux de salles cumulés minimum pour lancer une refonte
+const PRESTIGE_ADVISED_POWER := 120       # valeur indicative à partir de laquelle la refonte vaut vraiment le coup
+const PRESTIGE_DIV := 30.0                # éclats gagnés = (niveaux de salles cumulés / 30) ^ 2
+const PRESTIGE_POW := 2.0
+const PRESTIGE_COST_GROWTH := 1.45        # coût d'un niveau de bonus : 1 éclat au départ, puis x1,45 par niveau
+const PRESTIGE_PERK_MAX := 15
+const PRESTIGE_PERK_ORDER := ["prod", "xp", "atelier", "craft", "found"]
+const PRESTIGE_PERKS := {
+	"prod": {"name": "Rendement", "desc": "+12 % de production des salles par niveau", "gain": 0.12, "icon": "credits"},
+	"xp": {"name": "Formation", "desc": "+12 % d'XP de l'équipage par niveau", "gain": 0.12, "icon": "crew"},
+	"atelier": {"name": "Fabrication", "desc": "+10 % de cadence de l'Atelier par niveau", "gain": 0.10, "icon": "engineer"},
+	"craft": {"name": "Qualité", "desc": "+20 de puissance de fabrication par niveau", "gain": 20.0, "icon": "chest"},
+	"found": {"name": "Fondations", "desc": "Les salles repartent 2 niveaux plus haut par niveau", "gain": 2.0, "icon": "base"},
+}
+
 const ROOM_MAX_LEVEL := 30
 const ROOM_COST_GROWTH := 1.75
 const ROOM_LEVEL_GAIN := 0.06          # +8 % de production / d'effet par niveau de salle

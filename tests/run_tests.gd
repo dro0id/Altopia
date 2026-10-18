@@ -671,6 +671,51 @@ func test_base_goals_reward_items_and_persist() -> void:
 	_check(_gs.crafted_total == 77, "le compteur d'objets fabriqués est sauvegardé")
 
 
+func test_prestige_rules() -> void:
+	_gs.new_game()
+	_check(_gs.prestige_block_reason() != "" and _gs.do_prestige() == 0, "refonte impossible tant que les salles sont trop basses")
+	for rid in Data.ROOM_ORDER:
+		_gs.room_levels[rid] = 20
+	_gs.heroes["rex"].level = 40
+	_gs.upgrade_levels["laser"] = 5
+	_gs.upgrade_levels["docks"] = 1
+	_gs.res["credits"] = 5.0e6
+	_gs.launch(0, "asteroids")
+	var gain: int = _gs.prestige_gain()
+	_check(_gs.base_power() == 120 and gain == 16, "120 niveaux de salles promettent 16 éclats (%d)" % gain)
+	var cap_before: float = _gs.captain_stats(0).atk
+	_check(_gs.do_prestige() == gain and _gs.prestige_points == gain and _gs.prestige_count == 1, "la refonte donne les éclats")
+	_check(_gs.room_level("mine") == 1 and _gs.upgrade_levels["laser"] == 0, "salles et améliorations remises à zéro")
+	_check(_gs.upgrade_levels["docks"] == 1, "le 2e vaisseau est conservé")
+	_check(_gs.heroes["rex"].level == 40, "les niveaux d'équipage sont conservés")
+	_check(is_equal_approx(_gs.res.credits, Data.START_CREDITS), "ressources remises au départ")
+	_check(_gs.slots[0].dest == "", "l'expédition en cours est rappelée")
+	_check(is_equal_approx(_gs.captain_stats(0).atk, cap_before), "le Capitaine n'est pas affaibli")
+	_check(_gs.prestige_block_reason() != "" and _gs.do_prestige() == 0, "pas de refonte en boucle : il faut remonter les salles")
+
+
+func test_prestige_perks() -> void:
+	_gs.new_game()
+	var p0: float = _gs.production_per_sec().credits
+	_gs.prestige_points = 10
+	_check(_gs.perk_cost("prod") == 1 and _gs.buy_perk("prod"), "premier niveau de Rendement : 1 éclat")
+	_check(_gs.perk_cost("prod") == 2, "le coût monte")
+	_check(_gs.production_per_sec().credits > p0 * 1.1, "Rendement augmente la production")
+	var x0: float = _gs.crew_xp_mult()
+	_gs.buy_perk("xp")
+	_check(_gs.crew_xp_mult() > x0 * 1.1, "Formation augmente l'XP")
+	_gs.buy_perk("found")
+	_check(_gs.prestige_start_level() == 3, "Fondations : les salles repartent au niveau 3")
+	_gs.prestige_points = 0
+	_check(not _gs.buy_perk("xp"), "pas assez d'éclats")
+	_gs.prestige_points = 5
+	_gs.save_path = "user://test_prestige.json"
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(_gs.prestige_points == 5 and _gs.perk_level("prod") == 1 and _gs.perk_level("found") == 1, "refonte sauvegardée et rechargée")
+
+
 func test_goals() -> void:
 	_gs.new_game()
 	var g: Dictionary = _gs.next_goal()

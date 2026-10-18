@@ -74,6 +74,10 @@ var _upgrade_ui := {}
 # Base
 var _base_info: Label
 var _room_ui := {}
+var _perk_ui := {}
+var _pr_info: Label
+var _pr_btn: Button
+var _pr_armed_at := -100000
 var _room_sig := ""
 var _at_rate: Label
 var _at_bar: ProgressBar
@@ -659,6 +663,79 @@ func _build_base_page(page: VBoxContainer) -> void:
 	_at_last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_at_chances = _label(atv, "", 19, UiTheme.MAGENTA)
 	_at_chances.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_build_prestige_section(page)
+
+
+func _build_prestige_section(page: VBoxContainer) -> void:
+	_label(page, "Refonte de la Base", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
+	var pan := _rarity_panel(page, UiTheme.MAGENTA)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pan.add_child(col)
+	_pr_info = _label(col, "", 20, COL_TEXT)
+	_pr_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_pr_btn = _button(col, "", 72)
+	UiTheme.style_primary(_pr_btn)
+	_pr_btn.pressed.connect(_tap(_on_prestige_pressed))
+	for id in Data.PRESTIGE_PERK_ORDER:
+		var perk: Dictionary = Data.PRESTIGE_PERKS[id]
+		var panel := _rarity_panel(page, UiTheme.MAGENTA)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		_icon_tile(row, perk.icon, UiTheme.MAGENTA, 70)
+		var c := VBoxContainer.new()
+		c.add_theme_constant_override("separation", 5)
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(c)
+		var name_l := _label(c, "", 24)
+		var desc_l := _label(c, perk.desc, 18, COL_TEXT_DIM)
+		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _button(c, "", 60)
+		b.add_theme_font_size_override("font_size", 20)
+		b.pressed.connect(_tap(func(): GameState.buy_perk(id)))
+		_perk_ui[id] = {"name": name_l, "btn": b}
+
+
+func _on_prestige_pressed() -> void:
+	if GameState.prestige_block_reason() != "":
+		return
+	var now := Time.get_ticks_msec()
+	if now - _pr_armed_at > 6000:
+		_pr_armed_at = now          # premier appui : on demande confirmation
+		_refresh_prestige()
+		return
+	_pr_armed_at = -100000
+	GameState.do_prestige()
+
+
+func _refresh_prestige() -> void:
+	var gain := GameState.prestige_gain()
+	var reason := GameState.prestige_block_reason()
+	var txt := "Rang de Base : %d  ·  Éclats : %d\n" % [GameState.prestige_count, GameState.prestige_points]
+	txt += "Une refonte remet à zéro les salles (elles repartent au niveau %d), les améliorations du vaisseau et les ressources, et rappelle les expéditions en cours. L'équipage, le Capitaine, l'équipement, les cartes, les recherches et les objectifs sont conservés.\n" % GameState.prestige_start_level()
+	txt += "Niveaux de salles cumulés : %d  ·  conseillé à partir de %d." % [GameState.base_power(), Data.PRESTIGE_ADVISED_POWER]
+	_pr_info.text = txt
+	var armed := Time.get_ticks_msec() - _pr_armed_at <= 6000
+	if reason != "":
+		_pr_btn.text = reason
+		_pr_btn.disabled = true
+	else:
+		_pr_btn.disabled = false
+		_pr_btn.text = ("Confirmer la refonte (+%d éclats) ?" if armed else "Lancer la refonte (+%d éclats)") % gain
+	for id in Data.PRESTIGE_PERK_ORDER:
+		var u: Dictionary = _perk_ui[id]
+		var lvl := GameState.perk_level(id)
+		u.name.text = "%s   %d/%d" % [Data.PRESTIGE_PERKS[id].name, lvl, Data.PRESTIGE_PERK_MAX]
+		if GameState.perk_maxed(id):
+			u.btn.text = "Niveau maximum"
+			u.btn.disabled = true
+		else:
+			u.btn.text = "Améliorer — %d éclat(s)" % GameState.perk_cost(id)
+			u.btn.disabled = GameState.prestige_points < GameState.perk_cost(id)
 
 
 func _build_ship_page(page: VBoxContainer) -> void:
@@ -1389,6 +1466,7 @@ func _refresh_ship() -> void:
 		if Data.ITEM_RARITY_ORDER.find(k) >= 2:
 			parts.append("%s %s %%" % [Data.ITEM_RARITY[k].name, String.num(100.0 * w[k] / wsum, 1)])
 	_at_chances.text = "Chances par objet : " + "  ·  ".join(parts)
+	_refresh_prestige()
 	for id in Data.UPGRADE_ORDER:
 		var up: Dictionary = Data.UPGRADES[id]
 		var u: Dictionary = _upgrade_ui[id]
