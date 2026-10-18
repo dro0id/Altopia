@@ -164,3 +164,14 @@ But : allonger la durée de vie de la boucle AFK sans frustrer. Ce n'est pas un 
 - Cinq bonus permanents (15 niveaux, coût x1,45 par niveau) : Rendement (+12 % production), Formation (+12 % XP équipage), Fabrication (+10 % cadence de l'Atelier), Qualité (+20 puissance de fabrication), Fondations (salles repartent 2 niveaux plus haut).
 - Simulation regular, 150 jours, refonte quand elle promet au moins 20 éclats (2 refontes) : niveau d'AFK +19 %, équipement +21 %, faille +30 %, capitaine −5 % par rapport à sans refonte. Aucune période sans progrès de plus d'un jour.
 - Leçons de la conception : remettre à zéro les niveaux d'équipage rendait la refonte perdante à tous les seuils testés (niveau d'AFK à 120 jours divisé par 2). Une refonte qui paie à chaque fois sans condition est exploitable (boucles de refontes) : d'où la règle « seulement du nouveau ».
+
+## AFK : une aide, pas une triche ; boucle sur un an
+
+Principes : l'AFK n'a pas de fin, mais il aide le Capitaine sans remplacer la boucle RPG.
+- Le niveau des objets de l'Atelier est borné à 70 % du niveau du Capitaine (`AFK_ILVL_CAP_RATIO`) : pour que l'AFK serve, il faut monter le Capitaine (anomalies, expéditions). Les légendaires de l'Atelier sont plus rares.
+- La montée de niveau de l'équipage ralentit de plus en plus : heures par niveau = 1 + 0,25 L + 0,002 L² (`AFK_XP_HOURS_QUAD`).
+- Simulation sur 365 jours avec refontes (conseillées à partir de 20 éclats promis), profils regular / casual :
+  - Début de partie inchangé : regular jour 7 / 14 / 30 : capitaine 32 / 45 / 67, équipement niv. 19 / 30 / 45.
+  - Jour 300 : regular capitaine 238, équipement niv. 159, niveau d'AFK 3 194 ; casual capitaine 191, équipement niv. 130, niveau d'AFK 3 043.
+  - 3 refontes sur l'année, plus longue période sans progrès 1 à 2 jours, aucune défaite en anomalie.
+- Limite connue : les recherches du Labo sont presque toutes finies vers le jour 300 (290/302 en regular). Il faudra de nouvelles recherches (paliers) pour tenir au-delà.
