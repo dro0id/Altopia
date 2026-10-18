@@ -51,6 +51,8 @@ func anomalies() -> void:
 		anomaly_runs += 1
 		if not gs.last_anomaly.win:
 			anomaly_defeats += 1
+			if push:
+				break          # un vrai joueur s'arrête après une défaite (« défaite probable » affichée) au lieu de réessayer en boucle
 	if gs.anomaly_charges < Data.ANOMALY_COST:
 		no_charge_sessions += 1
 
