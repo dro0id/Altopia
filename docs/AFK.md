@@ -185,3 +185,8 @@ Un niveau du Capitaine vaut 5 « niveaux de puissance » (`CAPTAIN_LEVEL_SPAN`).
 ## Recherches de palier IV
 
 Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : le palier III au maximum, durées jusqu'à 12 à 72 jours par niveau). Entraînement n'en a pas, pour ne pas accélérer l'XP du Capitaine. Simulation regular sur 480 jours : recherches 302/372 au jour 240, 325/372 au jour 365, 347/372 au jour 480, capitaine niveau 51 au jour 365 et 56 au jour 480. En fin de boucle, moins de la moitié des sessions montrent un gain visible (niveau, recherche terminée) : le suivi passe par les barres de progression.
+
+## Règle : le Capitaine plafonne au niveau 50 ; objectifs de refonte
+
+- Le Capitaine ne peut jamais dépasser le niveau 50 (`CAPTAIN_MAX_LEVEL`) : l'XP en trop est perdue, l'entraînement payant est refusé, l'anomalie ne donne plus d'XP. La puissance vient ensuite de l'équipement (les objets de l'Atelier restent bornés par le niveau du Capitaine). Les anciennes sauvegardes au-delà sont ramenées à 50.
+- Chaîne d'objectifs de refonte (6 paliers, indépendante de la chaîne principale) : 1, 3 et 5 refontes, 10 et 30 niveaux de bonus cumulés, 150 éclats gagnés par des refontes. Récompenses : éclats et objets épiques puis légendaires. Les éclats d'objectif ne réduisent pas les gains des futures refontes.

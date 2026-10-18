@@ -38,7 +38,7 @@ const STARTER_HEROES := ["rex", "bolt"]
 
 ## --- Capitaine (le joueur) ---
 const CAPTAIN_BASE := {"hp": 120.0, "atk": 14.0, "def": 6.0, "spd": 10.0}
-const CAPTAIN_MAX_LEVEL := 999   # pas de plafond pratique : la courbe d'XP ralentit d'elle-même
+const CAPTAIN_MAX_LEVEL := 50    # règle : rien ne fait dépasser le niveau 50 (la puissance vient ensuite de l'équipement)
 ## Les niveaux du Capitaine sont espacés : un niveau vaut CAPTAIN_LEVEL_SPAN « niveaux de puissance » (le niveau 50 correspond
 ## à peu près à l'ancien niveau 240). La courbe de puissance, donc la difficulté, ne change pas : seul le nombre de niveaux est compressé.
 const CAPTAIN_LEVEL_SPAN := 5
@@ -212,6 +212,17 @@ const GOALS := [
 	{"id": "g22", "name": "Toutes les salles niveau 24", "kind": "rooms_min", "target": 24, "reward": {"credits": 5.0e8, "item": "legendary"}},
 ]
 
+## Objectifs de refonte : une chaîne à part, accessible dès la première refonte (la chaîne principale peut encore être en cours).
+## kind : prestige_count, perk_levels (niveaux de bonus cumulés), prestige_earned (éclats gagnés au total). Récompense "shards" : éclats.
+const PRESTIGE_GOALS := [
+	{"id": "pg1", "name": "Réaliser une refonte de la Base", "kind": "prestige_count", "target": 1, "reward": {"shards": 3, "item": "epic"}},
+	{"id": "pg2", "name": "Bonus permanents : 10 niveaux cumulés", "kind": "perk_levels", "target": 10, "reward": {"shards": 4, "item": "epic"}},
+	{"id": "pg3", "name": "Réaliser 3 refontes", "kind": "prestige_count", "target": 3, "reward": {"shards": 8, "item": "legendary"}},
+	{"id": "pg4", "name": "Bonus permanents : 30 niveaux cumulés", "kind": "perk_levels", "target": 30, "reward": {"shards": 10, "item": "legendary"}},
+	{"id": "pg5", "name": "Réaliser 5 refontes", "kind": "prestige_count", "target": 5, "reward": {"shards": 15, "item": "legendary"}},
+	{"id": "pg6", "name": "Gagner 150 éclats par des refontes", "kind": "prestige_earned", "target": 150, "reward": {"shards": 20, "item": "legendary"}},
+]
+
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
@@ -280,6 +291,8 @@ static func fmt_amounts(d: Dictionary) -> String:
 	for id in RES_ORDER:
 		if d.has(id) and d[id] > 0.0:
 			parts.append("+%s %s" % [fmt(d[id]), String(RES_NAMES[id]).to_lower()])
+	if d.has("shards"):
+		parts.append("+%d éclats" % int(d["shards"]))
 	if d.has("item"):
 		parts.append("+ 1 objet %s" % String(ITEM_RARITY[d["item"]].name).to_lower())
 	return "  ".join(parts)

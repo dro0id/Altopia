@@ -726,6 +726,20 @@ func test_prestige_perks() -> void:
 	_check(_gs.prestige_points == 5 and _gs.perk_level("prod") == 1 and _gs.perk_level("found") == 1, "refonte sauvegardée et rechargée")
 
 
+func test_prestige_goals() -> void:
+	_gs.new_game()
+	_gs.auto_recycle = -1
+	_check(_gs.next_prestige_goal().id == "pg1" and not _gs.claim_prestige_goal(), "objectif de refonte : pas avant la première refonte")
+	var earned0: int = _gs.prestige_earned
+	_gs.prestige_count = 1
+	var n0: int = _gs.items.size()
+	_check(_gs.claim_prestige_goal() and _gs.prestige_points == 3 and _gs.items.size() == n0 + 1, "1re refonte : 3 éclats et un objet épique")
+	_check(_gs.prestige_earned == earned0, "les éclats d'objectif ne réduisent pas les gains de refonte")
+	_check(_gs.next_prestige_goal().id == "pg2" and _gs.next_goal().id == "g1", "la chaîne de refonte est indépendante de la chaîne principale")
+	_gs.prestige_perks = {"prod": 6, "xp": 4}
+	_check(_gs.claim_prestige_goal() and _gs.next_prestige_goal().id == "pg3", "10 niveaux de bonus : objectif suivant")
+
+
 func test_goals() -> void:
 	_gs.new_game()
 	var g: Dictionary = _gs.next_goal()
@@ -830,16 +844,20 @@ func test_old_captain_save_is_converted() -> void:
 	_check(_gs.captain.level == 10, "la sauvegarde convertie ne l'est pas deux fois")
 
 
-func test_no_level_cap() -> void:
+func test_captain_level_cap() -> void:
 	_gs.new_game()
-	_gs.captain.level = 100
+	_gs.captain.level = Data.CAPTAIN_MAX_LEVEL - 1
 	_gs.captain.xp = 0
-	var gained: int = _gs.gain_captain_xp(Data.captain_xp_needed(100) * 3)
-	_check(gained >= 2 and _gs.captain.level >= 102, "pas de plafond : l'XP continue de donner des niveaux (%d)" % _gs.captain.level)
+	var gained: int = _gs.gain_captain_xp(Data.captain_xp_needed(Data.CAPTAIN_MAX_LEVEL - 1) * 5)
+	_check(gained == 1 and _gs.captain.level == 50 and _gs.captain.xp == 0, "niveau 50 atteint : l'XP en trop est perdue (%d)" % _gs.captain.level)
+	_check(_gs.gain_captain_xp(1000000) == 0 and _gs.captain.level == 50, "rien ne fait passer au-dessus du niveau 50")
+	_gs.res["credits"] = 1.0e30
+	_check(not _gs.train_captain() and _gs.captain.level == 50, "l'entraînement est refusé au niveau maximum")
+	_check(_gs.anomaly_xp(10, false) == 0, "plus d'XP d'anomalie au niveau maximum")
 	_gs.give_hero("rex", 90)
 	var lv: int = _gs.heroes["rex"].level
 	_gs.gain_xp("rex", Data.xp_needed(lv) + 1)
-	_check(_gs.heroes["rex"].level == lv + 1, "équipage : pas de plafond non plus")
+	_check(_gs.heroes["rex"].level == lv + 1, "l'équipage n'a pas de plafond")
 
 
 func test_research_boost_costs_energy_and_is_limited() -> void:

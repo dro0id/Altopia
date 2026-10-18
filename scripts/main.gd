@@ -78,6 +78,10 @@ var _perk_ui := {}
 var _pr_info: Label
 var _pr_btn: Button
 var _pr_armed_at := -100000
+var _pg_title: Label
+var _pg_bar: ProgressBar
+var _pg_info: Label
+var _pg_btn: Button
 var _room_sig := ""
 var _at_rate: Label
 var _at_bar: ProgressBar
@@ -678,6 +682,14 @@ func _build_prestige_section(page: VBoxContainer) -> void:
 	_pr_btn = _button(col, "", 72)
 	UiTheme.style_primary(_pr_btn)
 	_pr_btn.pressed.connect(_tap(_on_prestige_pressed))
+	_pg_title = _label(col, "", 22, UiTheme.MAGENTA)
+	_pg_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_pg_bar = _bar(col, 14, UiTheme.MAGENTA)
+	_pg_info = _label(col, "", 19, COL_TEXT_DIM)
+	_pg_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_pg_btn = _button(col, "", 60)
+	_pg_btn.add_theme_font_size_override("font_size", 21)
+	_pg_btn.pressed.connect(_tap(func(): GameState.claim_prestige_goal()))
 	for id in Data.PRESTIGE_PERK_ORDER:
 		var perk: Dictionary = Data.PRESTIGE_PERKS[id]
 		var panel := _rarity_panel(page, UiTheme.MAGENTA)
@@ -726,6 +738,21 @@ func _refresh_prestige() -> void:
 	else:
 		_pr_btn.disabled = false
 		_pr_btn.text = ("Confirmer la refonte (+%d éclats) ?" if armed else "Lancer la refonte (+%d éclats)") % gain
+	var pg: Dictionary = GameState.next_prestige_goal()
+	if pg.is_empty():
+		_pg_title.text = "Objectifs de refonte : tous accomplis"
+		_pg_bar.value = 1.0
+		_pg_info.text = ""
+		_pg_btn.visible = false
+	else:
+		var prog: float = GameState.goal_progress(pg)
+		var target := float(pg.target)
+		_pg_title.text = "Objectif de refonte : %s" % pg.name
+		_pg_bar.value = clampf(prog / target, 0.0, 1.0)
+		_pg_info.text = "%s / %s   —   Récompense : %s" % [Data.fmt(minf(prog, target)), Data.fmt(target), Data.fmt_amounts(pg.reward)]
+		_pg_btn.visible = true
+		_pg_btn.disabled = not GameState.goal_ready(pg)
+		_pg_btn.text = "Récupérer" if GameState.goal_ready(pg) else "En cours"
 	for id in Data.PRESTIGE_PERK_ORDER:
 		var u: Dictionary = _perk_ui[id]
 		var lvl := GameState.perk_level(id)
@@ -1029,14 +1056,22 @@ func _refresh_captain() -> void:
 	var cap: Dictionary = GameState.captain
 	_cap_chibi.setup_captain(cap.look)
 	_cap_name.text = cap.name
-	_cap_level.text = "Niveau %d   ·   XP : anomalies" % cap.level
-	_cap_xp.value = float(cap.xp) / float(Data.captain_xp_needed(cap.level))
+	if GameState.captain_maxed():
+		_cap_level.text = "Niveau %d (maximum)" % cap.level
+		_cap_xp.value = 1.0
+	else:
+		_cap_level.text = "Niveau %d   ·   XP : anomalies" % cap.level
+		_cap_xp.value = float(cap.xp) / float(Data.captain_xp_needed(cap.level))
 	var cs := GameState.captain_stats(0)
 	_cap_stats.text = "PV %d   ATQ %d\nDÉF %d   VIT %d\nÉquipement : %s\nÉquipage : %s" % [
 		cs.hp, cs.atk, cs.def, cs.spd, _stat_text(cs.gear, "+"), _stat_text(cs.crew, "+")]
 	var tc := GameState.captain_train_cost()
-	_cap_train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
-	_cap_train.disabled = GameState.res["credits"] < tc
+	if GameState.captain_maxed():
+		_cap_train.text = "Niveau maximum"
+		_cap_train.disabled = true
+	else:
+		_cap_train.text = "Entraîner (+1 niveau) — %s crédits" % Data.fmt(tc)
+		_cap_train.disabled = GameState.res["credits"] < tc
 	_refresh_anomalies()
 	for slot in Data.EQUIP_SLOTS:
 		var u: Dictionary = _slot_cards[slot]

@@ -198,9 +198,13 @@ func captain_train_cost() -> float:
 	return ceil(Data.CAPTAIN_TRAIN_BASE * span_sum * pow(g, captain_p() - 1))
 
 
+func captain_maxed() -> bool:
+	return captain.level >= Data.CAPTAIN_MAX_LEVEL
+
+
 func train_captain() -> bool:
 	var cost := captain_train_cost()
-	if res["credits"] < cost:
+	if captain_maxed() or res["credits"] < cost:
 		return false
 	res["credits"] -= cost
 	captain.level += 1
@@ -211,11 +215,16 @@ func train_captain() -> bool:
 ## Ajoute de l'XP au Capitaine ; retourne le nombre de niveaux gagnés.
 func gain_captain_xp(amount: int) -> int:
 	var gained := 0
+	if captain_maxed():
+		captain.xp = 0
+		return 0
 	captain.xp += amount
-	while captain.xp >= Data.captain_xp_needed(captain.level):
+	while not captain_maxed() and captain.xp >= Data.captain_xp_needed(captain.level):
 		captain.xp -= Data.captain_xp_needed(captain.level)
 		captain.level += 1
 		gained += 1
+	if captain_maxed():
+		captain.xp = 0
 	return gained
 
 
@@ -1173,6 +1182,13 @@ func goal_progress(g: Dictionary) -> float:
 			for rid in Data.ROOM_ORDER:
 				n += room_level(rid)
 			return float(n)
+		"prestige_count": return float(prestige_count)
+		"perk_levels":
+			var n := 0
+			for k in prestige_perks:
+				n += int(prestige_perks[k])
+			return float(n)
+		"prestige_earned": return float(prestige_earned)
 		"afk_level": return float(afk_level())
 		"atelier_level": return float(room_level("atelier"))
 		"crafted": return float(crafted_total)
@@ -1218,11 +1234,35 @@ func claim_goal() -> bool:
 	var g := next_goal()
 	if not goal_ready(g):
 		return false
+	_give_goal_reward(g)
+	goals_claimed.append(g.id)
+	changed.emit()
+	return true
+
+
+func _give_goal_reward(g: Dictionary) -> void:
 	for r in g.reward:
 		if r == "item":
 			_goal_item(String(g.reward[r]))
+		elif r == "shards":
+			prestige_points += int(g.reward[r])      # (hors prestige_earned : ça ne réduit pas les éclats des prochaines refontes)
 		else:
 			add_res(r, g.reward[r])
+
+
+## Premier objectif de refonte non récupéré ({} si tous faits).
+func next_prestige_goal() -> Dictionary:
+	for g in Data.PRESTIGE_GOALS:
+		if not goals_claimed.has(g.id):
+			return g
+	return {}
+
+
+func claim_prestige_goal() -> bool:
+	var g := next_prestige_goal()
+	if not goal_ready(g):
+		return false
+	_give_goal_reward(g)
 	goals_claimed.append(g.id)
 	changed.emit()
 	return true
@@ -1546,6 +1586,8 @@ func captain_run_xp(diff: float) -> float:
 
 ## Anomalie : modulée de x0,5 à x1 selon la difficulté de la faille par rapport au niveau du Capitaine.
 func anomaly_xp(n: int, first: bool) -> int:
+	if captain_maxed():
+		return 0         # niveau maximum : plus d'XP à gagner
 	var diff := clampf(Data.ANOMALY_REF_LEVEL_PER_FAILLE * n / float(captain_p()), 0.5, 1.0)
 	return maxi(1, int(round(captain_run_xp(diff))))
 
@@ -1668,7 +1710,7 @@ func load_game() -> bool:
 		for p in range(k * (cap_level - 1) + 1, old_level):      # les niveaux de puissance restants deviennent de l'XP
 			cap_xp += Data.xp_needed(p)
 	captain = {
-		"name": String(cap.get("name", "Capitaine")), "level": cap_level, "xp": cap_xp,
+		"name": String(cap.get("name", "Capitaine")), "level": mini(cap_level, Data.CAPTAIN_MAX_LEVEL), "xp": 0 if cap_level >= Data.CAPTAIN_MAX_LEVEL else cap_xp,
 		"look": {"suit": int(look.get("suit", 0)), "hair": int(look.get("hair", 0)), "style": int(look.get("style", 0))},
 	}
 	items = []

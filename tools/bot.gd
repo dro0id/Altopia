@@ -54,6 +54,7 @@ func anomalies() -> void:
 ## Politique d'achat du robot.
 func spend() -> void:
 	gs.claim_goal()
+	gs.claim_prestige_goal()
 	if prestige_at > 0 and gs.prestige_block_reason() == "" and gs.prestige_gain() >= prestige_at:
 		var lvl: int = gs.base_power()
 		var got: int = gs.do_prestige()
