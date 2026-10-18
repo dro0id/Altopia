@@ -49,7 +49,8 @@ func _check_scroll(main: Node, tab: String, start: Vector2, label: String) -> vo
 	main._show_tab(tab)
 	await process_frame
 	await process_frame
-	var sc: ScrollContainer = main._pages[tab].get_meta("scroll")
+	var page: String = "base" if tab in ["salles", "atelier", "lab", "ship", "rang"] else tab
+	var sc: ScrollContainer = main._pages[page].get_meta("scroll")
 	sc.scroll_vertical = 0
 	await process_frame
 	var before := _snapshot()
@@ -98,9 +99,50 @@ func _initialize() -> void:
 	if popup_open or not same:
 		failures += 1
 	await _check_scroll(main, "exp", Vector2(360, 1060), "exp depuis un bouton")
-	await _check_scroll(main, "base", Vector2(360, 700), "base depuis une carte")
+	# Atelier : un glissement sur un emplacement visé ne doit pas le choisir ; un tap le choisit.
+	main._show_tab("atelier")
+	await process_frame
+	await process_frame
+	var chip: Button = main._base_ui._at_slot_btns["helmet"]
+	var cc := chip.get_global_rect().get_center()
+	await _drag(cc, cc + Vector2(0, -150))
+	var picked_by_drag: bool = gs.atelier_slot != ""
+	print(("ok   " if not picked_by_drag else "FAIL ") + "glissement sur un emplacement visé : choisi=%s" % picked_by_drag)
+	if picked_by_drag:
+		failures += 1
+	main._pages["base"].get_meta("scroll").scroll_vertical = 0
+	await process_frame
+	cc = chip.get_global_rect().get_center()
+	await _drag(cc, cc)
+	var picked_by_tap: bool = gs.atelier_slot == "helmet"
+	print(("ok   " if picked_by_tap else "FAIL ") + "tap sur un emplacement visé : choisi=%s" % picked_by_tap)
+	if not picked_by_tap:
+		failures += 1
+	gs.atelier_slot = ""
 	await _check_scroll(main, "ship", Vector2(360, 700), "vaisseau depuis une carte")
-	await _check_scroll(main, "lab", Vector2(360, 760), "labo depuis un bouton de recherche")
+	await _check_scroll(main, "lab", Vector2(360, 760), "labo depuis un bouton")
+	await _check_scroll(main, "rang", Vector2(360, 760), "rang depuis une carte")
+	# Une tuile de salle : un glissement ne l'ouvre pas, un simple tap ouvre la fiche.
+	main._show_tab("salles")
+	await process_frame
+	await process_frame
+	var tile: Button = main._base_ui._tiles["mine"].btn
+	var tc := tile.get_global_rect().get_center()
+	await _drag(tc, tc + Vector2(0, -200))
+	var opened_by_drag: bool = main._base_ui.sheet_open()
+	print(("ok   " if not opened_by_drag else "FAIL ") + "glissement sur une tuile de salle : fiche ouverte=%s" % opened_by_drag)
+	if opened_by_drag:
+		failures += 1
+	main._base_ui.close_sheet()
+	main._pages["base"].get_meta("scroll").scroll_vertical = 0
+	await process_frame
+	tc = tile.get_global_rect().get_center()
+	await _drag(tc, tc)
+	var opened_by_tap: bool = main._base_ui.sheet_open()
+	print(("ok   " if opened_by_tap else "FAIL ") + "tap sur une tuile de salle : fiche ouverte=%s" % opened_by_tap)
+	if not opened_by_tap:
+		failures += 1
+	main._base_ui.close_sheet()
 	# Un simple tap (sans glisser) doit toujours déclencher le bouton.
 	main._show_tab("crew")
 	await process_frame

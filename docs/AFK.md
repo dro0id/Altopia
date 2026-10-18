@@ -197,3 +197,10 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 - Le 3e poste et la recherche automatique ne s'obtiennent plus par le jeu : ils se débloquent avec une monnaie spéciale, les **Cristaux** (300 et 150), non obtenable en jeu pour le moment (`PREMIUM_OBTAINABLE = false`), prévue plus tard via un achat. L'interface les montre verrouillés.
 - Anciennes sauvegardes : ceux qui avaient déjà le 3e poste ou la recherche automatique les gardent (pas de perte).
 - Simulation d'un an avec 1 à 2 postes et sans recherche automatique (le robot relance ses recherches à chaque session) : recherches 319/371 (regular) et 302/371 (casual) au jour 365, contre 325/372 avant ; capitaine niveau 50 (regular) et 43 (casual) au jour 365. Les ressources limitent plus la recherche que le nombre de postes.
+
+## Interface de la Base (d'après la maquette validée)
+
+- 4 onglets en bas (Capitaine, Équipage, Expéditions, Base) ; la Base a un sous-menu Salles · Atelier · Labo · Vaisseau · Rang. Code : `scripts/base_ui.gd` (la maquette est dans l'artifact « Altopia — Refonte UX de la Base AFK »).
+- Salles : vue station (pouls de production, 6 tuiles, Atelier en direct, objectif), fiche de salle (équipiers avec l'effet du changement avant validation, amélioration avec gain et retour sur investissement).
+- Écarts assumés avec la maquette : cadre « pointillé » dessiné à la main, 5 raretés d'objets au lieu de 4, catalogue complet des recherches ajouté sous le Labo (il faut bien pouvoir lancer une recherche), les équipiers déjà en poste ailleurs ne sont pas sélectionnables (« occupé »).
+- Hors ligne : rendement fixe de 50 %, 70 % avec le déblocage en Cristaux (200). Les anciens bonus de rendement (équipage, recherche Protocoles, Soute, objets) sont retirés : Protocoles et Soute allongent désormais le coffre (durée comptée).
