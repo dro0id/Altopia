@@ -103,11 +103,13 @@ const CRIT_MULT := 1.5           # un coup critique fait x1,5 (moyenne détermin
 ## AFK : le travail aux postes fabrique le butin du Capitaine et fait gagner de l'XP à l'équipage (hors ligne compris).
 const AFK_XP_HOURS_BASE := 1.0      # heures de travail pour passer du niveau L à L+1 : base + par_niveau x L
 const AFK_XP_HOURS_PER_LEVEL := 0.25
+const AFK_XP_HOURS_QUAD := 0.002     # + quad x L² : la montée de l'équipage ralentit de plus en plus (boucle sur un an)
 ## Niveau d'AFK = niveaux de l'équipage aux postes + améliorations de postes et de vaisseau. Plus il est haut,
 ## plus le butin du Capitaine est puissant : rareté (poids ci-dessous par rang de rareté) et niveau d'objet.
 const AFK_RARITY_RATE := 0.003
-const AFK_RARITY_RANK_FACTOR := [0.0, 0.0, 1.0, 2.5, 5.0]
+const AFK_RARITY_RANK_FACTOR := [0.0, 0.0, 1.0, 2.0, 2.5]
 const AFK_ILVL_DIV := 17.5
+const AFK_ILVL_CAP_RATIO := 0.7     # l'Atelier ne dépasse jamais 70 % du niveau du Capitaine : l'AFK aide, il ne remplace pas le RPG
 const INVENTORY_MAX := 60
 const AUTO_RECYCLE_MAX := 2      # 0 = communs, 1 = jusqu'à peu commun, 2 = jusqu'à rare ; -1 = désactivé
 

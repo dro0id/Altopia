@@ -455,8 +455,10 @@ func craft_power() -> int:
 	return afk_level() + int(Data.ATELIER_QUALITY_PER_LEVEL * (room_level("atelier") - 1)) + int(perk_level("craft") * Data.PRESTIGE_PERKS["craft"].gain)
 
 
+## Niveau des objets de l'Atelier : monte avec la puissance de fabrication, mais reste borné par le niveau du Capitaine.
 func loot_level() -> int:
-	return 3 + int(craft_power() / Data.AFK_ILVL_DIV)
+	var by_power := 3 + int(craft_power() / Data.AFK_ILVL_DIV)
+	return mini(by_power, 3 + int(float(captain.level) * Data.AFK_ILVL_CAP_RATIO))
 
 
 ## Poids de tirage de chaque rareté : la puissance de fabrication fait monter les raretés élevées.
@@ -1407,7 +1409,8 @@ func _advance_expeditions(seconds: float) -> void:
 ## Le travail aux postes (AFK) : XP de l'équipage et butin pour le Capitaine.
 func crew_xp_per_sec(id: String) -> float:
 	var lv: int = heroes[id].level
-	return float(Data.xp_needed(lv)) / ((Data.AFK_XP_HOURS_BASE + Data.AFK_XP_HOURS_PER_LEVEL * lv) * 3600.0)
+	var hours: float = Data.AFK_XP_HOURS_BASE + Data.AFK_XP_HOURS_PER_LEVEL * lv + Data.AFK_XP_HOURS_QUAD * lv * lv
+	return float(Data.xp_needed(lv)) / (hours * 3600.0)
 
 
 ## Cadence de l'Atelier (objets par heure) : niveau de salle, équipier, ciblage et bonus de butin.

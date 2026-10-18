@@ -479,12 +479,15 @@ func test_afk_level_raises_loot_quality() -> void:
 	_gs.give_hero("quark", 60)
 	_work(["nova", "tess", "quark"])
 	_gs.room_levels["mine"] = 20
+	_gs.captain.level = 80
 	_check(_gs.afk_level() > 100, "niveau d'AFK (%d)" % _gs.afk_level())
 	var w1: Dictionary = _gs.drop_weights(1)
 	var share0: float = w0["legendary"] / (w0["common"] + w0["uncommon"] + w0["rare"] + w0["epic"] + w0["legendary"])
 	var share1: float = w1["legendary"] / (w1["common"] + w1["uncommon"] + w1["rare"] + w1["epic"] + w1["legendary"])
-	_check(share1 > share0 * 3.0, "la part de légendaires explose avec le niveau d'AFK (%.3f -> %.3f)" % [share0, share1])
+	_check(share1 > share0 * 1.5, "la part de légendaires explose avec le niveau d'AFK (%.3f -> %.3f)" % [share0, share1])
 	_check(_gs.loot_level() > l0 + 8, "le niveau d'objet monte aussi")
+	_gs.captain.level = 10
+	_check(_gs.loot_level() <= 3 + int(10 * Data.AFK_ILVL_CAP_RATIO), "mais il reste borné par le niveau du Capitaine")
 	_check(w1["common"] / w0["common"] < 1.01, "les communs ne bénéficient pas du niveau d'AFK")
 
 
