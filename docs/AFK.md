@@ -175,3 +175,9 @@ Principes : l'AFK n'a pas de fin, mais il aide le Capitaine sans remplacer la bo
   - Jour 300 : regular capitaine 238, équipement niv. 159, niveau d'AFK 3 194 ; casual capitaine 191, équipement niv. 130, niveau d'AFK 3 043.
   - 3 refontes sur l'année, plus longue période sans progrès 1 à 2 jours, aucune défaite en anomalie.
 - Limite connue : les recherches du Labo sont presque toutes finies vers le jour 300 (290/302 en regular). Il faudra de nouvelles recherches (paliers) pour tenir au-delà.
+
+## Niveaux du Capitaine compressés (niveau 50 en un an)
+
+Un niveau du Capitaine vaut 5 « niveaux de puissance » (`CAPTAIN_LEVEL_SPAN`). Stats, XP par victoire et ennemis suivent la même courbe qu'avant : la difficulté est inchangée, seuls les numéros de niveau sont ~5x plus espacés (stats +75 % par niveau, XP par niveau ≈ celle de 5 anciens niveaux). Les anciennes sauvegardes sont converties (ancien niveau 47 = niveau 10 + le reste en XP).
+- Simulation regular : niveau 7 / 10 / 15 / 20 / 28 / 39 / 44 aux jours 7 / 14 / 30 / 60 / 120 / 240 / 300, soit environ 50 vers le jour 365. Casual : 5 / 8 / 12 / 17 / 23 / 35 / 38.
+- Limite : en fin d'année un niveau tombe tous les 7 à 10 jours ; la barre d'XP reste le retour de progression entre deux niveaux.
