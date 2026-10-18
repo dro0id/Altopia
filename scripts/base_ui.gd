@@ -252,6 +252,7 @@ func _button(parent: Node, text: String, px: float, fill: Color, border: Color, 
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
+	b.clip_text = true                 # un texte long ne doit jamais élargir la page
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.add_theme_font_size_override("font_size", _f(px))
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
@@ -429,7 +430,7 @@ func _build_tile(grid: GridContainer, rid: String) -> void:
 	var r: Dictionary = Data.ROOMS[rid]
 	var color: Color = r.color
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(0, _g(112))
+	b.custom_minimum_size = Vector2(0, _g(100))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -448,10 +449,10 @@ func _build_tile(grid: GridContainer, rid: String) -> void:
 	b.add_child(inner)
 	var head := _hbox(inner, 8.0)
 	_icon(head, r.icon, color, 26.0)
-	var name_l := _label(head, String(TILE_NAMES.get(rid, r.name)), 18, TEXT, false, true)
+	var name_l := _label(head, String(TILE_NAMES.get(rid, r.name)), 15, TEXT, false, true)
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_l.clip_text = true
-	var lvl := _label(head, "", 12, DIM, true)
+	var lvl := _label(head, "", 11, DIM, true)
 	# équipier en poste
 	var who := _hbox(inner, 8.0)
 	var avatar_slot := HBoxContainer.new()
@@ -632,7 +633,11 @@ func _build_lab(sec: VBoxContainer) -> void:
 		var name_l := _label(top, "", 17, r.color, false, true)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_l.clip_text = true
-		var desc := _label(top, "", 13, TEXT, true)
+		name_l.custom_minimum_size = Vector2(_g(40), 0)
+		name_l.size_flags_stretch_ratio = 1.4
+		var desc := _wrap(_label(top, "", 13, TEXT, true))
+		desc.custom_minimum_size = Vector2(_g(40), 0)
+		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		var lb := _bar(col, 8.0, r.color)
 		var btn := _button(col, "", 15, BTN, ACCENT, TEXT, 44.0)
 		btn.pressed.connect(main._tap(func(): GameState.start_research(id)))
