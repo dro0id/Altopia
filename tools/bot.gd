@@ -9,6 +9,7 @@ const RESEARCH_PRIORITY := ["labo_annexe", "labo_vitesse", "calibrage", "protoco
 var gs: Node
 var anomaly_runs := 0
 var anomaly_defeats := 0
+var push := false             # joueur « naïf » : fonce toujours sur le contenu le plus dur, sans regarder l'aperçu du combat
 var no_charge_sessions := 0
 var prestige_at := 0          # éclats minimum promis pour que le robot lance une refonte (0 : jamais)
 var prestige_log: Array = []
@@ -37,10 +38,13 @@ func anomalies() -> void:
 	while gs.anomaly_charges >= Data.ANOMALY_COST and guard < 40:
 		guard += 1
 		var pick := 0
-		for n in range(gs.anomaly_unlocked_max(), 0, -1):
-			if gs.anomaly_preview(n).win:
-				pick = n
-				break
+		if push:
+			pick = gs.anomaly_unlocked_max()
+		else:
+			for n in range(gs.anomaly_unlocked_max(), 0, -1):
+				if gs.anomaly_preview(n).win:
+					pick = n
+					break
 		if pick == 0:
 			break
 		gs.enter_anomaly(pick)
@@ -71,7 +75,7 @@ func spend() -> void:
 		if gs.slots[i].dest == "":
 			var launched := false
 			for d in ["planet", "star", "asteroids"]:
-				if gs.launch_block_reason(d, i) == "" and gs.preview_battle(d, i).win and gs.launch(i, d):
+				if gs.launch_block_reason(d, i) == "" and (push or gs.preview_battle(d, i).win) and gs.launch(i, d):
 					launched = true
 					break
 			if not launched:
