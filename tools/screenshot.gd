@@ -1,4 +1,5 @@
 extends SceneTree
+const Data = preload("res://scripts/game_data.gd")
 ## Capture d'écran de l'UI (nécessite un affichage, p. ex. xvfb-run).
 ## godot --path . --resolution 720x1280 -s tools/screenshot.gd -- <dossier>
 ## Joue une courte partie scriptée et enregistre un PNG par écran.
@@ -25,7 +26,8 @@ func _shot_tab(main: Node, tab: String, path: String, scroll: int = 0) -> void:
 	main._show_tab(tab)
 	main._refresh()
 	await _frames(3)
-	main._pages[tab].get_meta("scroll").scroll_vertical = scroll
+	var page: String = "base" if tab in ["salles", "atelier", "lab", "ship", "rang"] else tab
+	main._pages[page].get_meta("scroll").scroll_vertical = scroll
 	await _shot(path)
 
 
@@ -112,15 +114,38 @@ func _initialize() -> void:
 	gs.start_research("propulsion")
 	gs.start_research("protocoles")
 	gs.tick(3000.0)
+	gs.auto_rooms()
+	gs.give_hero("tess", 20)
+	gs.give_hero("nova", 15)
+	gs.give_hero("quark", 12)
+	gs.give_hero("lumi", 18)
+	gs.auto_rooms()
+	gs.room_crew["soute"] = ""
+	for rid in ["mine", "centrale", "labo", "atelier", "quartiers"]:
+		gs.room_levels[rid] = 6 + gs.room_levels.size()
+	gs.atelier_slot = "weapon"
+	gs.atelier_focus = "crit"
+	gs.tick(2400.0)
+	await _shot_tab(main, "salles", out_dir + "/shot_base.png")
+	main._base_ui.open_room("mine")
+	await _shot(out_dir + "/shot_base_sheet.png")
+	main._base_ui.close_sheet()
+	await _shot_tab(main, "atelier", out_dir + "/shot_atelier.png")
+	await _shot_tab(main, "atelier", out_dir + "/shot_atelier_end.png", 900)
 	await _shot_tab(main, "lab", out_dir + "/shot_lab.png")
-	await _shot_tab(main, "lab", out_dir + "/shot_lab_list.png", 700)
-	await _shot_tab(main, "base", out_dir + "/shot_base.png")
-	await _shot_tab(main, "base", out_dir + "/shot_base_atelier.png", 1500)
-	await _shot_tab(main, "base", out_dir + "/shot_base_prestige.png", 3200)
+	await _shot_tab(main, "lab", out_dir + "/shot_lab_list.png", 1000)
+	gs.prestige_count = 2
+	gs.prestige_points = 7
+	gs.prestige_best = 132
+	gs.prestige_perks = {"prod": 3, "xp": 2, "atelier": 1, "found": 2}
+	for rid in Data.ROOM_ORDER:
+		gs.room_levels[rid] = 25
+	await _shot_tab(main, "rang", out_dir + "/shot_rang.png")
+	await _shot_tab(main, "rang", out_dir + "/shot_rang_end.png", 900)
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
 	gs.captain.level = 5
 	var rep: Dictionary = gs.simulate_offline(6.0 * 3600.0)
 	main._show_tab("captain")
-	main._show_offline_report(rep)
+	main._base_ui.show_offline_report(rep)
 	await _shot(out_dir + "/shot_offline.png")
 	quit()

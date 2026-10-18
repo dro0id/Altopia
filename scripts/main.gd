@@ -5,6 +5,7 @@ const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
+const BaseUI = preload("res://scripts/base_ui.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const UiIcons = preload("res://scripts/ui_icons.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
@@ -18,6 +19,9 @@ const COL_GOOD := UiTheme.GOOD
 var _res_labels := {}
 var _rate_label: Label
 var _pages := {}
+var _base_ui
+var _title: Label
+var _subnav: Control
 var _ship_info: Label
 var _tab_buttons := {}
 var _dirty := true
@@ -72,34 +76,7 @@ var _next_label: Label
 # Vaisseau
 var _upgrade_ui := {}
 # Base
-var _base_info: Label
-var _room_ui := {}
-var _perk_ui := {}
-var _pr_info: Label
-var _pr_btn: Button
-var _pr_armed_at := -100000
-var _lab_premium: Label
-var _lab_premium_btns := {}
-var _pg_title: Label
-var _pg_bar: ProgressBar
-var _pg_info: Label
-var _pg_btn: Button
-var _room_sig := ""
-var _at_rate: Label
-var _at_bar: ProgressBar
-var _at_next: Label
-var _at_slot: OptionButton
-var _at_focus: OptionButton
-var _at_last: Label
-var _at_chances: Label
 # Labo
-var _lab_info: Label
-var _lab_auto: CheckButton
-var _lab_slots: Array = []
-var _lab_queue_box: VBoxContainer
-var _lab_queue_rows: Array = []
-var _lab_ui := {}
-var _lab_sig := ""
 
 
 func _ready() -> void:
@@ -110,7 +87,7 @@ func _ready() -> void:
 	_show_tab("captain")
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
-		_show_offline_report(GameState.last_offline_report)
+		_base_ui.show_offline_report(GameState.last_offline_report)
 
 
 func _input(event: InputEvent) -> void:
@@ -168,58 +145,50 @@ func _build_ui() -> void:
 	root.add_theme_constant_override("separation", 14)
 	margin.add_child(root)
 
+	_base_ui = BaseUI.new(self)
 	_build_header(root)
+	_subnav = _base_ui.build_subnav(root)
 
 	var holder := Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(holder)
-	for id in ["captain", "crew", "exp", "lab", "base", "ship"]:
+	for id in ["captain", "crew", "exp", "base"]:
 		_pages[id] = _make_page(holder)
 	_build_captain_page(_pages["captain"])
 	_build_crew_page(_pages["crew"])
 	_build_expedition_page(_pages["exp"])
-	_build_lab_page(_pages["lab"])
-	_build_base_page(_pages["base"])
-	_build_ship_page(_pages["ship"])
+	_base_ui.build_sections(_pages["base"])
+	_build_ship_page(_base_ui.sections["ship"])
 
 	_build_tabs(root)
 
 
 func _build_header(parent: Control) -> void:
-	var title := _label(parent, "ALTOPIA", 46, COL_ACCENT)
-	title.add_theme_font_override("font", UiTheme.font(true))
-	title.add_theme_constant_override("outline_size", 0)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
-	parent.add_child(grid)
+	_title = _label(parent, "ALTOPIA", 46, COL_ACCENT)
+	_title.add_theme_font_override("font", UiTheme.font(true))
+	_title.add_theme_constant_override("outline_size", 0)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
 	var colors: Dictionary = UiTheme.RES_COLORS
-	for id in Data.RES_ORDER:
+	var short := {"credits": "cr", "minerals": "min", "data": "don", "energy": "én"}
+	for id in ["credits", "minerals", "data", "energy"]:
 		var chip := PanelContainer.new()
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.35), 5, 1, 6)
-		sb.border_width_bottom = 2
-		sb.border_color = colors[id]
-		chip.add_theme_stylebox_override("panel", sb)
-		grid.add_child(chip)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 5)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		chip.add_child(row)
-		var ic := TextureRect.new()
-		ic.texture = UiIcons.icon(id, 28, colors[id])
-		ic.custom_minimum_size = Vector2(24, 24)
-		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(ic)
-		var l := _label(row, "", 22, UiTheme.TEXT)
+		chip.add_theme_stylebox_override("panel", UiTheme.box(Color(0.04, 0.12, 0.2, 1.0), colors[id], 14, 1, 10))
+		row.add_child(chip)
+		var inner := HBoxContainer.new()
+		inner.add_theme_constant_override("separation", 6)
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(inner)
+		_label(inner, short[id], 23, colors[id])
+		var l := _label(inner, "", 23, UiTheme.TEXT)
 		l.add_theme_font_override("font", UiTheme.mono())
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.clip_text = true
 		_res_labels[id] = l
 	_rate_label = _label(parent, "", 20, COL_TEXT_DIM)
 	_rate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -243,7 +212,7 @@ func _build_tabs(parent: Control) -> void:
 	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 	var group := ButtonGroup.new()
-	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["base", "Base"], ["ship", "Vaisseau"]]:
+	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["base", "Base"]]:
 		var b := Button.new()
 		b.text = entry[1]
 		b.icon = UiIcons.icon(entry[0], 40, Color.WHITE)
@@ -254,7 +223,7 @@ func _build_tabs(parent: Control) -> void:
 		b.button_group = group
 		b.custom_minimum_size = Vector2(0, 104)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 17)
+		b.add_theme_font_size_override("font_size", 24)
 		b.add_theme_constant_override("icon_max_width", 40)
 		b.add_theme_constant_override("h_separation", 0)
 		b.pressed.connect(_show_tab.bind(entry[0]))
@@ -517,85 +486,6 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 	_next_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
-func _build_lab_page(page: VBoxContainer) -> void:
-	_section(page, "Laboratoire")
-	_lab_info = _label(page, "", 20, COL_TEXT_DIM)
-	_lab_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_lab_auto = CheckButton.new()
-	_lab_auto.text = "Recherche automatique (poste libre : la plus courte abordable)"
-	_lab_auto.add_theme_font_size_override("font_size", 19)
-	_lab_auto.mouse_filter = Control.MOUSE_FILTER_PASS
-	_lab_auto.toggled.connect(func(v: bool):
-		if _dragged:
-			_lab_auto.set_pressed_no_signal(not v)
-		else:
-			GameState.set_research_auto(v))
-	page.add_child(_lab_auto)
-	_lab_premium = _label(page, "", 19, UiTheme.MAGENTA)
-	_lab_premium.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	for pid in Data.PREMIUM_UNLOCKS:
-		var pb := _button(page, "", 56)
-		pb.add_theme_font_size_override("font_size", 19)
-		pb.pressed.connect(_tap(func(): GameState.buy_premium(pid)))
-		_lab_premium_btns[pid] = pb
-	for i in 3:
-		var card := _card(page)
-		var title := _label(card, "", 24)
-		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var bar := _bar(card, 22, UiTheme.ACCENT)
-		var status := _label(card, "", 20, COL_TEXT_DIM)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		card.add_child(row)
-		var rush := _button(row, "", 62)
-		rush.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		rush.add_theme_font_size_override("font_size", 19)
-		UiTheme.style_primary(rush)
-		var cancel := _button(row, "Annuler", 62)
-		cancel.add_theme_font_size_override("font_size", 19)
-		UiTheme.style_danger(cancel)
-		_lab_slots.append({"card": card, "title": title, "bar": bar, "status": status, "rush": rush, "cancel": cancel, "id": ""})
-		rush.pressed.connect(_tap(func(): GameState.boost_research(_lab_slots[i].id)))
-		cancel.pressed.connect(_tap(func(): GameState.cancel_research(_lab_slots[i].id)))
-	_lab_queue_box = VBoxContainer.new()
-	_lab_queue_box.add_theme_constant_override("separation", 8)
-	page.add_child(_lab_queue_box)
-	for i in Data.RESEARCH_QUEUE_MAX:
-		var qrow := HBoxContainer.new()
-		qrow.add_theme_constant_override("separation", 8)
-		_lab_queue_box.add_child(qrow)
-		var ql := _label(qrow, "", 20, COL_TEXT_DIM)
-		ql.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var qc := _button(qrow, "Annuler", 52)
-		qc.add_theme_font_size_override("font_size", 18)
-		UiTheme.style_danger(qc)
-		_lab_queue_rows.append({"row": qrow, "label": ql, "id": ""})
-		qc.pressed.connect(_tap(func(): GameState.cancel_research(_lab_queue_rows[i].id)))
-	_section(page, "Recherches")
-	for id in Data.RESEARCH_ORDER:
-		var r: Dictionary = Data.RESEARCH[id]
-		var panel := _rarity_panel(page, r.color)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 14)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_child(row)
-		_icon_tile(row, r.icon, r.color, 76)
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 5)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(col)
-		var name_l := _label(col, "", 24)
-		var lvl_bar := _bar(col, 8, r.color)
-		var desc_l := _label(col, "", 19, COL_TEXT_DIM)
-		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var b := _button(col, "", 68)
-		b.add_theme_font_size_override("font_size", 19)
-		UiTheme.style_primary(b)
-		b.pressed.connect(_tap(func(): GameState.start_research(id)))
-		_lab_ui[id] = {"name": name_l, "bar": lvl_bar, "desc": desc_l, "btn": b}
-
-
 func _drag_safe_option(opt: OptionButton) -> void:
 	opt.fit_to_longest_item = false
 	opt.clip_text = true
@@ -605,173 +495,6 @@ func _drag_safe_option(opt: OptionButton) -> void:
 	opt.get_popup().about_to_popup.connect(func():
 		if _dragged:     # le doigt a glissé : ce n'était pas un tap, on referme la liste
 			opt.get_popup().hide.call_deferred())
-
-
-func _build_base_page(page: VBoxContainer) -> void:
-	_section(page, "Base")
-	_base_info = _label(page, "", 20, UiTheme.MAGENTA)
-	_base_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label(page, "Salles", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
-	for rid in Data.ROOM_ORDER:
-		var r: Dictionary = Data.ROOMS[rid]
-		var panel := _rarity_panel(page, r.color)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 14)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_child(row)
-		_icon_tile(row, r.icon, r.color, 84)
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 5)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(col)
-		var name_l := _label(col, "", 26)
-		var lvl_bar := _bar(col, 10, r.color)
-		var desc_l := _label(col, "", 19, COL_TEXT_DIM)
-		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var opt := OptionButton.new()
-		opt.custom_minimum_size = Vector2(0, 62)
-		_drag_safe_option(opt)
-		opt.item_selected.connect(_on_room_pick.bind(rid))
-		col.add_child(opt)
-		var b := _button(col, "", 70)
-		b.add_theme_font_size_override("font_size", 19)
-		UiTheme.style_primary(b)
-		b.pressed.connect(_tap(func(): GameState.buy_room_upgrade(rid)))
-		_room_ui[rid] = {"name": name_l, "bar": lvl_bar, "desc": desc_l, "opt": opt, "btn": b, "ids": [""]}
-	# Atelier : ordres de fabrication
-	_label(page, "Atelier : ordres de fabrication", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
-	var at := _rarity_panel(page, Data.ROOMS["atelier"].color)
-	var atv := VBoxContainer.new()
-	atv.add_theme_constant_override("separation", 8)
-	atv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	at.add_child(atv)
-	_at_rate = _label(atv, "", 22)
-	_at_rate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_at_bar = _bar(atv, 18, Data.ROOMS["atelier"].color)
-	_at_next = _label(atv, "", 19, COL_TEXT_DIM)
-	_label(atv, "Emplacement visé", 19, COL_TEXT_DIM)
-	_at_slot = OptionButton.new()
-	_at_slot.custom_minimum_size = Vector2(0, 62)
-	_drag_safe_option(_at_slot)
-	_at_slot.add_item("Au hasard")
-	for sl in Data.EQUIP_SLOTS:
-		_at_slot.add_item(String(Data.EQUIP[sl].name))
-	_at_slot.item_selected.connect(func(i: int):
-		GameState.atelier_slot = "" if i == 0 else Data.EQUIP_SLOTS[i - 1]
-		GameState.changed.emit())
-	atv.add_child(_at_slot)
-	_label(atv, "Bonus visé (garanti sur les objets qui en ont)", 19, COL_TEXT_DIM)
-	_at_focus = OptionButton.new()
-	_at_focus.custom_minimum_size = Vector2(0, 62)
-	_drag_safe_option(_at_focus)
-	_at_focus.add_item("Au hasard")
-	for k in Data.AFFIX_ORDER:
-		_at_focus.add_item(String(Data.AFFIXES[k].name))
-	_at_focus.item_selected.connect(func(i: int):
-		GameState.atelier_focus = "" if i == 0 else Data.AFFIX_ORDER[i - 1]
-		GameState.changed.emit())
-	atv.add_child(_at_focus)
-	_at_last = _label(atv, "", 20, UiTheme.GOOD)
-	_at_last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_at_chances = _label(atv, "", 19, UiTheme.MAGENTA)
-	_at_chances.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_build_prestige_section(page)
-
-
-func _build_prestige_section(page: VBoxContainer) -> void:
-	_label(page, "Refonte de la Base", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
-	var pan := _rarity_panel(page, UiTheme.MAGENTA)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pan.add_child(col)
-	_pr_info = _label(col, "", 20, COL_TEXT)
-	_pr_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_pr_btn = _button(col, "", 72)
-	UiTheme.style_primary(_pr_btn)
-	_pr_btn.pressed.connect(_tap(_on_prestige_pressed))
-	_pg_title = _label(col, "", 22, UiTheme.MAGENTA)
-	_pg_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_pg_bar = _bar(col, 14, UiTheme.MAGENTA)
-	_pg_info = _label(col, "", 19, COL_TEXT_DIM)
-	_pg_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_pg_btn = _button(col, "", 60)
-	_pg_btn.add_theme_font_size_override("font_size", 21)
-	_pg_btn.pressed.connect(_tap(func(): GameState.claim_prestige_goal()))
-	for id in Data.PRESTIGE_PERK_ORDER:
-		var perk: Dictionary = Data.PRESTIGE_PERKS[id]
-		var panel := _rarity_panel(page, UiTheme.MAGENTA)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 14)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_child(row)
-		_icon_tile(row, perk.icon, UiTheme.MAGENTA, 70)
-		var c := VBoxContainer.new()
-		c.add_theme_constant_override("separation", 5)
-		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(c)
-		var name_l := _label(c, "", 24)
-		var desc_l := _label(c, perk.desc, 18, COL_TEXT_DIM)
-		desc_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var b := _button(c, "", 60)
-		b.add_theme_font_size_override("font_size", 20)
-		b.pressed.connect(_tap(func(): GameState.buy_perk(id)))
-		_perk_ui[id] = {"name": name_l, "btn": b}
-
-
-func _on_prestige_pressed() -> void:
-	if GameState.prestige_block_reason() != "":
-		return
-	var now := Time.get_ticks_msec()
-	if now - _pr_armed_at > 6000:
-		_pr_armed_at = now          # premier appui : on demande confirmation
-		_refresh_prestige()
-		return
-	_pr_armed_at = -100000
-	GameState.do_prestige()
-
-
-func _refresh_prestige() -> void:
-	var gain := GameState.prestige_gain()
-	var reason := GameState.prestige_block_reason()
-	var txt := "Rang de Base : %d  ·  Éclats : %d\n" % [GameState.prestige_count, GameState.prestige_points]
-	txt += "Une refonte remet à zéro les salles (elles repartent au niveau %d), les améliorations du vaisseau et les ressources, et rappelle les expéditions en cours. L'équipage, le Capitaine, l'équipement, les cartes, les recherches et les objectifs sont conservés.\n" % GameState.prestige_start_level()
-	txt += "Niveaux de salles cumulés : %d  ·  conseillé à partir de %d." % [GameState.base_power(), Data.PRESTIGE_ADVISED_POWER]
-	_pr_info.text = txt
-	var armed := Time.get_ticks_msec() - _pr_armed_at <= 6000
-	if reason != "":
-		_pr_btn.text = reason
-		_pr_btn.disabled = true
-	else:
-		_pr_btn.disabled = false
-		_pr_btn.text = ("Confirmer la refonte (+%d éclats) ?" if armed else "Lancer la refonte (+%d éclats)") % gain
-	var pg: Dictionary = GameState.next_prestige_goal()
-	if pg.is_empty():
-		_pg_title.text = "Objectifs de refonte : tous accomplis"
-		_pg_bar.value = 1.0
-		_pg_info.text = ""
-		_pg_btn.visible = false
-	else:
-		var prog: float = GameState.goal_progress(pg)
-		var target := float(pg.target)
-		_pg_title.text = "Objectif de refonte : %s" % pg.name
-		_pg_bar.value = clampf(prog / target, 0.0, 1.0)
-		_pg_info.text = "%s / %s   —   Récompense : %s" % [Data.fmt(minf(prog, target)), Data.fmt(target), Data.fmt_amounts(pg.reward)]
-		_pg_btn.visible = true
-		_pg_btn.disabled = not GameState.goal_ready(pg)
-		_pg_btn.text = "Récupérer" if GameState.goal_ready(pg) else "En cours"
-	for id in Data.PRESTIGE_PERK_ORDER:
-		var u: Dictionary = _perk_ui[id]
-		var lvl := GameState.perk_level(id)
-		u.name.text = "%s   %d/%d" % [Data.PRESTIGE_PERKS[id].name, lvl, Data.PRESTIGE_PERK_MAX]
-		if GameState.perk_maxed(id):
-			u.btn.text = "Niveau maximum"
-			u.btn.disabled = true
-		else:
-			u.btn.text = "Améliorer — %d éclat(s)" % GameState.perk_cost(id)
-			u.btn.disabled = GameState.prestige_points < GameState.perk_cost(id)
 
 
 func _build_ship_page(page: VBoxContainer) -> void:
@@ -799,13 +522,6 @@ func _build_ship_page(page: VBoxContainer) -> void:
 		UiTheme.style_primary(b)
 		b.pressed.connect(_tap(func(): GameState.buy_upgrade(id)))
 		_upgrade_ui[id] = {"name": name_l, "desc": desc_l, "btn": b, "bar": lvl_bar}
-
-
-func _on_room_pick(index: int, rid: String) -> void:
-	var ids: Array = _room_ui[rid].ids
-	if index < 0 or index >= ids.size():
-		return
-	GameState.set_room_crew(rid, ids[index])
 
 
 ## ---------- Helpers de widgets ----------
@@ -962,9 +678,25 @@ func _card_h(parent: Node) -> HBoxContainer:
 
 
 func _show_tab(tab: String) -> void:
+	var sub := ""
+	if tab in ["salles", "atelier", "lab", "ship", "rang"]:
+		sub = tab
+		tab = "base"
 	for id in _pages:
 		_pages[id].get_meta("scroll").visible = (id == tab)
 	_tab_buttons[tab].button_pressed = true
+	if sub != "":
+		_base_ui.show_section(sub)
+	_subnav.visible = (tab == "base")
+	_title.visible = (tab != "base")
+	_rate_label.visible = (tab != "base")
+	_dirty = true
+
+
+## Appelé par la Base quand on change de sous-page : on repart du haut de la page.
+func _base_section_changed(_id: String) -> void:
+	_pages["base"].get_meta("scroll").scroll_vertical = 0
+	_dirty = true
 
 
 func _on_battle_finished(slot_i: int) -> void:
@@ -990,7 +722,7 @@ func _refresh() -> void:
 	_refresh_captain()
 	_refresh_crew()
 	_refresh_expeditions()
-	_refresh_lab()
+	_base_ui.refresh()
 	_refresh_ship()
 
 
@@ -1241,8 +973,8 @@ func _hero_work_text(id: String) -> String:
 	var spec: String = Data.HEROES[id].get("specialty", "")
 	var spec_name: String = Data.ROOMS[spec].name if Data.ROOMS.has(spec) else "?"
 	if room != "":
-		return "Au travail : %s%s. %s" % [Data.ROOMS[room].name, " (sa spécialité !)" if room == spec else "", _room_effect_text(room)]
-	return "Au repos. Spécialité : %s. Placez-le dans une salle de la Base pour produire." % spec_name
+		return "Au travail : %s%s. %s" % [Data.ROOMS[room].name, " (sa spécialité !)" if room == spec else "", _base_ui._tile_output(room, id)]
+	return "Au repos. Spécialité : %s. Place-le dans une salle de la Base pour produire." % spec_name
 
 
 func _crew_signature() -> String:
@@ -1343,188 +1075,7 @@ func _refresh_stations(u: Dictionary, slot_i: int, sig: String) -> void:
 		opt.select(maxi(0, m.ids.find(cur)))
 
 
-func _effect_text(id: String, lvl: int) -> String:
-	var e: Dictionary = Data.RESEARCH[id].effect
-	var v: float = float(e.per) * lvl
-	var txt := String.num(v, 0) if is_equal_approx(v, round(v)) else String.num(v, 1)
-	return "+%s%s" % [txt, e.unit]
-
-
-func _refresh_lab() -> void:
-	var slots_n := GameState.research_slots()
-	_lab_auto.set_pressed_no_signal(GameState.research_auto)
-	var auto_ok := GameState.premium_unlocked("lab_auto")
-	_lab_auto.disabled = not auto_ok
-	_lab_auto.text = "Recherche automatique (poste libre : la plus courte abordable)" if auto_ok else "Recherche automatique : verrouillée"
-	_lab_premium.text = "%s : %d  ·  le 3e poste de recherche et la recherche automatique se débloquent avec des %s (pas encore disponibles)." % [
-		Data.PREMIUM_NAME, GameState.crystals, Data.PREMIUM_NAME]
-	for pid in _lab_premium_btns:
-		var pb: Button = _lab_premium_btns[pid]
-		var pu: Dictionary = Data.PREMIUM_UNLOCKS[pid]
-		if GameState.premium_unlocked(pid):
-			pb.text = "%s : débloqué" % pu.name
-			pb.disabled = true
-		else:
-			pb.text = "%s — %d %s" % [pu.name, pu.cost, Data.PREMIUM_NAME]
-			pb.disabled = GameState.crystals < pu.cost
-	var q := GameState.research_queue
-	_lab_info.text = "Les recherches avancent même hors ligne, jusqu'au bout. Postes : %d  ·  File d'attente : %d / %d (payée d'avance, annulable)." % [
-		slots_n, q.size(), Data.RESEARCH_QUEUE_MAX]
-	for i in _lab_slots.size():
-		var u: Dictionary = _lab_slots[i]
-		u.card.get_parent().visible = i < slots_n
-		if i >= slots_n:
-			continue
-		if i < GameState.research_active.size():
-			var a: Dictionary = GameState.research_active[i]
-			var r: Dictionary = Data.RESEARCH[a.id]
-			u.id = a.id
-			u.title.text = "%s → niv. %d" % [r.name, GameState.research_level(a.id) + 1]
-			u.title.add_theme_color_override("font_color", r.color)
-			u.bar.value = clampf(1.0 - a.remaining / maxf(a.total, 1.0), 0.0, 1.0)
-			u.status.text = "Reste %s" % Data.fmt_time(a.remaining)
-			u.status.visible = true
-			u.bar.visible = true
-			var rc := GameState.research_boost_cost(a.id)
-			u.rush.visible = true
-			if GameState.research_boost_seconds(a.id) <= 0.0:
-				u.rush.text = "Accélérations utilisées"
-				u.rush.disabled = true
-			else:
-				u.rush.text = "Accélérer −%s — %s énergie" % [Data.fmt_time(GameState.research_boost_seconds(a.id)), Data.fmt(rc)]
-				u.rush.disabled = GameState.res["energy"] < rc
-			u.cancel.visible = true
-		else:
-			u.id = ""
-			u.title.text = "Poste de recherche libre"
-			u.title.add_theme_color_override("font_color", COL_TEXT_DIM)
-			u.bar.visible = false
-			u.status.text = "Lancez une recherche ci-dessous : plus elle est courte, plus vite elle sert."
-			u.rush.visible = false
-			u.cancel.visible = false
-	for i in _lab_queue_rows.size():
-		var qr: Dictionary = _lab_queue_rows[i]
-		qr.row.visible = i < q.size()
-		if i < q.size():
-			qr.id = q[i]
-			qr.label.text = "En file : %s → niv. %d" % [Data.RESEARCH[q[i]].name, GameState.research_level(q[i]) + 1]
-	for id in Data.RESEARCH_ORDER:
-		var r: Dictionary = Data.RESEARCH[id]
-		var u: Dictionary = _lab_ui[id]
-		var lvl := GameState.research_level(id)
-		u.name.text = "%s   %d/%d" % [r.name, lvl, r.max]
-		u.bar.value = float(lvl) / float(r.max)
-		var now_t := _effect_text(id, lvl) if lvl > 0 else "aucun bonus"
-		u.desc.text = "%s  →  %s" % [now_t, _effect_text(id, mini(lvl + 1, r.max))] if lvl < r.max else "Actuel : %s" % now_t
-		var reason := GameState.research_block_reason(id)
-		if lvl >= r.max:
-			u.btn.text = "Niveau maximum"
-			u.btn.disabled = true
-		elif reason != "":
-			u.btn.text = reason
-			u.btn.disabled = true
-		else:
-			var cost := GameState.research_cost(id)
-			var verb := "Lancer" if GameState.research_active.size() < slots_n else "Mettre en file"
-			u.btn.text = "%s — %s · %s" % [verb, Data.fmt_time(GameState.research_duration(id)), _cost_text(cost)]
-			u.btn.disabled = not GameState.can_afford(cost)
-
-
-func _room_effect_text(rid: String) -> String:
-	var w := GameState.room_worker(rid)
-	match rid:
-		"atelier":
-			return "Fabrique %s objet(s) par heure." % String.num(GameState.afk_drops_per_hour(), 2)
-		"quartiers":
-			return "XP des équipiers au travail : +%d %%." % int(round((GameState.crew_xp_mult() - 1.0) * 100.0))
-		"soute":
-			return "Coffre hors ligne : %s, rendement %d %%." % [Data.fmt_time(GameState.offline_cap_seconds()), int(round(GameState.offline_efficiency() * 100.0))]
-	if w == "":
-		return "Aucun équipier : la salle ne produit rien."
-	var m := GameState.room_hero_mult(rid, w) * GameState.room_level_factor(rid) * GameState.synergy_multiplier()
-	var parts: Array[String] = []
-	var prod: Dictionary = Data.ROOMS[rid].prod
-	for r in prod:
-		var amount: float = prod[r] * m * (GameState.credit_mult() if r == "credits" else 1.0) * (1.0 + GameState.research_bonus("prod_pct") / 100.0)
-		parts.append("+%s %s/h" % [Data.fmt(amount), String(Data.RES_NAMES[r]).to_lower()])
-	return "  ".join(parts)
-
-
 func _refresh_ship() -> void:
-	_base_info.text = "Niveau d'AFK : %d  ·  Puissance de fabrication : %d (objets niv. ~%d). L'équipage travaille aussi hors ligne." % [
-		GameState.afk_level(), GameState.craft_power(), GameState.loot_level()]
-	var empty := 0
-	for rid in Data.ROOM_ORDER:
-		if GameState.room_worker(rid) == "":
-			empty += 1
-	if empty > 0:
-		_base_info.text += "\n%d salle(s) sans équipier : elle(s) ne produisent rien." % empty
-	var sig_parts: Array[String] = [str(GameState.hero_order)]
-	for rid in Data.ROOM_ORDER:
-		sig_parts.append("%s=%s" % [rid, GameState.room_worker(rid)])
-		sig_parts.append(str(GameState.heroes.get(GameState.room_worker(rid), {}).get("level", 0)))
-	var rebuild := ",".join(sig_parts) != _room_sig
-	_room_sig = ",".join(sig_parts)
-	for rid in Data.ROOM_ORDER:
-		var r: Dictionary = Data.ROOMS[rid]
-		var u: Dictionary = _room_ui[rid]
-		var lvl := GameState.room_level(rid)
-		u.name.text = "%s   niv. %d/%d" % [r.name, lvl, GameState.room_max_level()]
-		u.bar.value = float(lvl) / float(GameState.room_max_level())
-		u.desc.text = _room_effect_text(rid) if rid in ["atelier", "quartiers", "soute"] else "%s  —  %s" % [r.desc, _room_effect_text(rid)]
-		if GameState.room_maxed(rid):
-			u.btn.text = "Niveau maximum"
-			u.btn.disabled = true
-		else:
-			var cost := GameState.room_upgrade_cost(rid)
-			u.btn.text = "Améliorer — " + _cost_text(cost)
-			u.btn.disabled = not GameState.can_afford(cost)
-		if rebuild:
-			var opt: OptionButton = u.opt
-			opt.clear()
-			u.ids = [""]
-			opt.add_item("— personne —")
-			for id in GameState.hero_order:
-				var h: Dictionary = GameState.heroes[id]
-				var tpl: Dictionary = Data.HEROES[id]
-				var tags := ""
-				if tpl.get("specialty", "") == rid:
-					tags += " ✦"
-				if tpl["class"] == r.affinity:
-					tags += " ●"
-				var other := GameState.hero_room(id)
-				var where := "" if other == "" or other == rid else " (%s)" % String(Data.ROOMS[other].name)
-				u.ids.append(id)
-				opt.add_item("%s niv.%d%s%s" % [tpl.name, h.level, tags, where])
-			opt.select(maxi(0, u.ids.find(GameState.room_worker(rid))))
-	# Atelier
-	var per_hour := GameState.afk_drops_per_hour()
-	var penalties := (1 if GameState.atelier_slot != "" else 0) + (1 if GameState.atelier_focus != "" else 0)
-	if per_hour <= 0.0:
-		_at_rate.text = "À l'arrêt : affecte un équipier à l'Atelier."
-	else:
-		_at_rate.text = "Cadence : %s objet(s) par heure%s" % [String.num(per_hour, 2), ("  (ciblage : −%d %%)" % int(round((1.0 - pow(Data.ATELIER_TARGET_FACTOR, penalties)) * 100.0))) if penalties > 0 else ""]
-	_at_bar.value = GameState.atelier_progress()
-	_at_next.text = "" if per_hour <= 0.0 else "Prochain objet dans environ %s" % Data.fmt_time(GameState.atelier_next_in())
-	_at_slot.select(0 if GameState.atelier_slot == "" else 1 + Data.EQUIP_SLOTS.find(GameState.atelier_slot))
-	_at_focus.select(0 if GameState.atelier_focus == "" else 1 + Data.AFFIX_ORDER.find(GameState.atelier_focus))
-	var lc: Dictionary = GameState.last_crafted
-	if lc.is_empty():
-		_at_last.text = "Aucun objet fabriqué pour l'instant."
-	else:
-		var rar: Dictionary = Data.ITEM_RARITY[lc.rarity]
-		_at_last.text = "Dernier objet : %s (%s, niv. %d)%s" % [lc.name, rar.name, lc.ilvl, "" if lc.get("kept", true) else "  — recyclé automatiquement"]
-		_at_last.add_theme_color_override("font_color", rar.color)
-	var w := GameState.drop_weights(1)
-	var wsum := 0.0
-	for k in w:
-		wsum += w[k]
-	var parts: Array[String] = []
-	for k in Data.ITEM_RARITY_ORDER:
-		if Data.ITEM_RARITY_ORDER.find(k) >= 2:
-			parts.append("%s %s %%" % [Data.ITEM_RARITY[k].name, String.num(100.0 * w[k] / wsum, 1)])
-	_at_chances.text = "Chances par objet : " + "  ·  ".join(parts)
-	_refresh_prestige()
 	for id in Data.UPGRADE_ORDER:
 		var up: Dictionary = Data.UPGRADES[id]
 		var u: Dictionary = _upgrade_ui[id]
@@ -1549,70 +1100,3 @@ func _cost_text(cost: Dictionary) -> String:
 	return ", ".join(parts)
 
 
-func _show_offline_report(r: Dictionary) -> void:
-	var overlay := ColorRect.new()
-	overlay.color = Color(0.0, 0.02, 0.05, 0.82)
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(overlay)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(620, 0)
-	panel.add_theme_stylebox_override("panel", UiTheme.box(Color(0.03, 0.09, 0.15, 0.97), UiTheme.ACCENT, 8, 2, 24))
-	center.add_child(panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	panel.add_child(box)
-	var title := _label(box, "BON RETOUR, COMMANDANT !", 34, COL_ACCENT)
-	title.add_theme_font_override("font", UiTheme.font(true))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var sub := _label(box, "Absent %s  ·  comptés %s  ·  rendement %d %%" % [
-		Data.fmt_time(r.away), Data.fmt_time(r.seconds), int(round(r.efficiency * 100.0))], 21, COL_TEXT_DIM)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var colors: Dictionary = UiTheme.RES_COLORS
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	box.add_child(grid)
-	for id in Data.RES_ORDER:
-		var gain: float = r.gains.get(id, 0.0)
-		var chip := PanelContainer.new()
-		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var sb := UiTheme.box(Color(0.04, 0.12, 0.2, 0.9), Color(0.22, 0.9, 1.0, 0.3), 6, 1, 10)
-		sb.border_width_bottom = 3
-		sb.border_color = colors[id]
-		chip.add_theme_stylebox_override("panel", sb)
-		grid.add_child(chip)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		chip.add_child(row)
-		var ic := TextureRect.new()
-		ic.texture = UiIcons.icon(id, 36, colors[id])
-		ic.custom_minimum_size = Vector2(32, 32)
-		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		row.add_child(ic)
-		var l := _label(row, "+" + Data.fmt(gain), 30, UiTheme.GOOD if gain > 0.0 else COL_TEXT_DIM)
-		l.add_theme_font_override("font", UiTheme.mono())
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if not r.get("research_done", []).is_empty():
-		var rl := _label(box, "Recherches terminées : %s" % ", ".join(r.research_done), 21, UiTheme.GOOD)
-		rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if r.loot_kept > 0:
-		var best: Dictionary = r.loot_best
-		var rar: Dictionary = Data.ITEM_RARITY[best.rarity]
-		var lt := _label(box, "Butin : %d objet(s), meilleur : %s (%s)" % [r.loot_kept, best.name, rar.name], 21, rar.color)
-		lt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if r.recycled > 0.0:
-		_label(box, "Recyclage automatique : +%s crédits" % Data.fmt(r.recycled), 20, COL_TEXT_DIM)
-	if GameState.goal_ready(GameState.next_goal()):
-		var gl := _label(box, "Objectif accompli : récupérez votre récompense dans l'onglet Capitaine !", 21, UiTheme.MAGENTA)
-		gl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var ok := _button(box, "Continuer", 76)
-	ok.add_theme_font_size_override("font_size", 28)
-	ok.pressed.connect(func(): overlay.queue_free())

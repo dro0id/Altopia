@@ -83,7 +83,7 @@ const ITEM_RARITY := {
 	"legendary": {"name": "Légendaire", "color": Color(1.0, 0.65, 0.15), "mult": 2.8, "affixes": 4, "weight": 0.08},
 }
 ## Bonus aléatoires (affixes) : valeur tirée entre min et max, puis augmentée avec le niveau d'objet.
-const AFFIX_ORDER := ["atk_pct", "hp_pct", "def_pct", "spd", "crit", "lifesteal", "xp_pct", "credits_pct", "drop_pct", "offline_pct"]
+const AFFIX_ORDER := ["atk_pct", "hp_pct", "def_pct", "spd", "crit", "lifesteal", "xp_pct", "credits_pct", "drop_pct"]
 const AFFIXES := {
 	"atk_pct": {"name": "Attaque", "unit": "%", "min": 3.0, "max": 7.0},
 	"hp_pct": {"name": "PV", "unit": "%", "min": 4.0, "max": 9.0},
@@ -94,11 +94,10 @@ const AFFIXES := {
 	"xp_pct": {"name": "XP gagnée", "unit": "%", "min": 4.0, "max": 10.0},
 	"credits_pct": {"name": "Crédits", "unit": "%", "min": 5.0, "max": 12.0},
 	"drop_pct": {"name": "Butin", "unit": "%", "min": 4.0, "max": 10.0},
-	"offline_pct": {"name": "Gains hors ligne", "unit": "%", "min": 3.0, "max": 8.0},
 }
 ## Poids de chaque affixe pour comparer deux objets (puissance).
 const AFFIX_POWER := {"atk_pct": 3.0, "hp_pct": 2.0, "def_pct": 2.0, "spd": 3.0, "crit": 4.0, "lifesteal": 3.0,
-	"xp_pct": 0.5, "credits_pct": 0.5, "drop_pct": 0.5, "offline_pct": 0.8}
+	"xp_pct": 0.5, "credits_pct": 0.5, "drop_pct": 0.5}
 const EPITHETS := ["du Cratère Ardent", "de l'Aube Stellaire", "du Vide", "de Helios", "du Trou Noir", "des Anciens"]
 const ITEM_ILVL_BONUS := 0.10    # +10 % de stats par niveau d'objet
 const ITEM_ILVL_AFFIX := 0.04    # les affixes montent aussi avec le niveau d'objet
@@ -123,9 +122,8 @@ const CREW_PROD := {
 	"engineer": {"energy": 20.0, "credits": 100.0},
 	"scientist": {"data": 15.0, "credits": 100.0},
 }
-const OFFLINE_BASE_EFFICIENCY := 0.5      # rendement hors ligne de départ
-const OFFLINE_EFF_PER_LEVEL := 0.003      # +0,3 % par niveau d'équipier placé
-const OFFLINE_EFF_MAX := 1.5
+const OFFLINE_BASE_EFFICIENCY := 0.5      # rendement hors ligne : 50 %, fixe
+const OFFLINE_PREMIUM_EFFICIENCY := 0.7   # 70 % avec le déblocage en Cristaux
 const OFFLINE_BASE_HOURS := 4.0           # durée hors ligne comptabilisée
 const OFFLINE_HOURS_PER_ENGINEER_LEVEL := 0.1
 const OFFLINE_MAX_HOURS := 24.0
@@ -309,6 +307,7 @@ const PREMIUM_OBTAINABLE := false
 const PREMIUM_UNLOCKS := {
 	"lab_slot": {"name": "3e poste de recherche", "cost": 300},
 	"lab_auto": {"name": "Recherche automatique", "cost": 150},
+	"offline_boost": {"name": "Rendement hors ligne 70 %", "cost": 200},
 }
 const RESEARCH_QUEUE_MAX := 5
 ## Accélération : retire 25 % de la durée totale d'une recherche, 2 fois au plus (le rythme reste prévisible).
@@ -339,7 +338,7 @@ const RESEARCH := {
 		"effect": {"key": "speed_pct", "per": 3.0, "unit": "% de vitesse d'expédition"},
 		"cost": {"energy": [12.0, 3000000.0]}, "time": [120.0, 864000.0], "requires": {"calibrage": 3}},
 	"protocoles": {"name": "Protocoles de récupération", "icon": "data", "color": Color(0.75, 0.55, 1.0), "max": 15,
-		"effect": {"key": "offline_eff", "per": 2.0, "unit": " pts de rendement hors ligne"},
+		"effect": {"key": "offline_hours", "per": 0.5, "unit": " h de coffre hors ligne"},
 		"cost": {"data": [25.0, 9000000.0], "credits": [100.0, 200000.0]}, "time": [300.0, 1209600.0], "requires": {"calibrage": 4}},
 	"soute": {"name": "Soute étendue", "icon": "chest", "color": Color(0.8, 0.7, 0.62), "max": 20,
 		"effect": {"key": "offline_hours", "per": 1.0, "unit": " h de coffre hors ligne"},
@@ -473,4 +472,3 @@ const ATELIER_TARGET_FACTOR := 0.85
 const ATELIER_QUALITY_PER_LEVEL := 3.0     # niveaux d'AFK équivalents par niveau d'Atelier
 const QUARTERS_XP_GAIN := 0.03             # +3 % d'XP des équipiers par niveau de Quartiers
 const SOUTE_HOURS_GAIN := 0.4              # +0,4 h de coffre par niveau de Soute
-const SOUTE_EFF_GAIN := 0.008              # +0,8 point de rendement hors ligne par niveau de Soute

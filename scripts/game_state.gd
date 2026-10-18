@@ -67,6 +67,8 @@ var prestige_earned := 0          # éclats gagnés au total (la refonte ne rapp
 var prestige_count := 0           # refontes de la Base effectuées
 var prestige_points := 0          # éclats non dépensés
 var prestige_perks := {}          # bonus permanents : id -> niveau
+var craft_log: Array = []         # derniers objets fabriqués : {id, name, rarity, ilvl, kept}
+var prestige_best := 0            # meilleure somme de niveaux de salles au moment d'une refonte
 var crafted_total := 0           # objets fabriqués par l'Atelier depuis le début
 var last_crafted := {}          # dernier objet fabriqué (avec "kept" : gardé ou recyclé automatiquement)
 var _skip_research := false     # le calcul d'absence fait avancer les recherches séparément
@@ -118,6 +120,8 @@ func reset() -> void:
 	atelier_slot = ""
 	atelier_focus = ""
 	crafted_total = 0
+	craft_log = []
+	prestige_best = 0
 	prestige_count = 0
 	prestige_earned = 0
 	prestige_points = 0
@@ -521,6 +525,9 @@ func roll_afk_drop() -> Dictionary:
 	crafted_total += 1
 	last_crafted = made.duplicate()
 	last_crafted["kept"] = not kept.is_empty()
+	craft_log.push_front({"id": made.id, "name": made.name, "rarity": made.rarity, "ilvl": made.ilvl, "kept": not kept.is_empty()})
+	if craft_log.size() > 5:
+		craft_log.resize(5)
 	return kept
 
 
@@ -570,6 +577,47 @@ func room_max_level() -> int:
 	return Data.ROOM_MAX_LEVEL + Data.PRESTIGE_ROOM_CAP_PER_RANK * prestige_count
 
 
+## Effet d'un équipier dans une salle (hid == "" : salle vide), au niveau `lvl` de la salle (-1 : le niveau actuel).
+## Retourne {"value", "unit"} : la ressource principale par heure pour une salle de production, sinon l'effet propre de la salle.
+func room_metric(rid: String, hid: String, lvl: int = -1) -> Dictionary:
+	var level := room_level(rid) if lvl < 0 else lvl
+	var lf := 1.0 + Data.ROOM_LEVEL_GAIN * (level - 1)
+	var m := 0.0 if hid == "" else room_hero_mult(rid, hid)
+	var boost := 0.0 if hid == "" else 1.0 + m / Data.ROOM_CREW_REF
+	match rid:
+		"atelier":
+			var f := 1.0
+			if atelier_slot != "":
+				f *= Data.ATELIER_TARGET_FACTOR
+			if atelier_focus != "":
+				f *= Data.ATELIER_TARGET_FACTOR
+			var v := 0.0 if hid == "" else Data.ATELIER_BASE_PER_HOUR * perk_mult("atelier") * lf * boost * f * (1.0 + (equipped_bonus("drop_pct") + research_bonus("loot_pct")) / 100.0)
+			return {"value": v, "unit": "objet/h"}
+		"quartiers":
+			return {"value": Data.QUARTERS_XP_GAIN * (level - 1) * boost * 100.0, "unit": "% d'XP"}
+		"soute":
+			return {"value": Data.SOUTE_HOURS_GAIN * (level - 1) * boost, "unit": "h de coffre"}
+	var prod: Dictionary = Data.ROOMS[rid].prod
+	var main := "credits"
+	for r in prod:
+		if r != "credits":
+			main = r
+	var syn := synergy_multiplier()
+	var pm := (1.0 + research_bonus("prod_pct") / 100.0) * perk_mult("prod")
+	var amount: float = prod[main] * m * lf * syn * pm * (credit_mult() if main == "credits" else 1.0)
+	var short := {"credits": "cr", "minerals": "min", "energy": "én", "data": "don"}
+	return {"value": amount, "unit": "%s/h" % short[main], "res": main}
+
+
+## Crédits par heure d'une salle de production, pour estimer le retour sur investissement d'une amélioration.
+func room_credits_per_hour(rid: String, hid: String, lvl: int = -1) -> float:
+	if hid == "" or not Data.ROOMS[rid].prod.has("credits"):
+		return 0.0
+	var level := room_level(rid) if lvl < 0 else lvl
+	var lf := 1.0 + Data.ROOM_LEVEL_GAIN * (level - 1)
+	return Data.ROOMS[rid].prod.credits * room_hero_mult(rid, hid) * lf * synergy_multiplier() * credit_mult() * (1.0 + research_bonus("prod_pct") / 100.0) * perk_mult("prod")
+
+
 ## Niveau auquel les salles repartent après une refonte (bonus « Fondations »).
 func prestige_start_level() -> int:
 	return mini(room_max_level(), 1 + int(Data.PRESTIGE_PERKS["found"].gain * perk_level("found")))
@@ -594,6 +642,7 @@ func do_prestige() -> int:
 		recall(i)        # les expéditions en cours sont rappelées (sans gain)
 	prestige_points += gain
 	prestige_earned += gain
+	prestige_best = maxi(prestige_best, base_power())
 	prestige_count += 1
 	for rid in Data.ROOM_ORDER:
 		room_levels[rid] = prestige_start_level()
@@ -862,15 +911,9 @@ func data_per_sec() -> float:
 	return production_per_sec().data
 
 
-## Rendement des gains quand le joueur est absent : monte avec le niveau de l'équipage placé.
+## Rendement des gains quand le joueur est absent : 50 % fixe, 70 % avec le déblocage en Cristaux.
 func offline_efficiency() -> float:
-	var lv := stationed_levels()
-	var total := 0
-	for c in lv:
-		total += lv[c]
-	var eff: float = Data.OFFLINE_BASE_EFFICIENCY + Data.OFFLINE_EFF_PER_LEVEL * total + equipped_bonus("offline_pct") / 100.0 + research_bonus("offline_eff") / 100.0
-	eff += Data.SOUTE_EFF_GAIN * (room_level("soute") - 1) * room_crew_boost("soute")
-	return clampf(eff, Data.OFFLINE_BASE_EFFICIENCY, Data.OFFLINE_EFF_MAX)
+	return Data.OFFLINE_PREMIUM_EFFICIENCY if premium_unlocked("offline_boost") else Data.OFFLINE_BASE_EFFICIENCY
 
 
 ## Durée maximale comptabilisée hors ligne : les Ingénieurs l'allongent.
@@ -1547,6 +1590,10 @@ func simulate_offline(away: float) -> Dictionary:
 	var secs := minf(away, offline_cap_seconds())
 	var before := res.duplicate()
 	var done_before := expeditions_done
+	var crew_before := {}
+	for id in stationed_ids():
+		crew_before[id] = int(heroes[id].level)
+	var crafted_before := crafted_total
 	_loot_log = []
 	_recycled_credits = 0.0
 	_gain_scale = offline_efficiency()
@@ -1566,10 +1613,16 @@ func simulate_offline(away: float) -> Dictionary:
 	for it in _loot_log:
 		if best.is_empty() or item_power(it) > item_power(best):
 			best = it
+	var crew := []
+	for id in crew_before:
+		var h: Dictionary = heroes[id]
+		crew.append({"id": id, "from": crew_before[id], "to": int(h.level), "frac": float(h.xp) / float(Data.xp_needed(h.level))})
 	return {
 		"seconds": secs, "away": away, "gains": gains, "expeditions": expeditions_done - done_before,
 		"efficiency": offline_efficiency(), "loot_kept": _loot_log.size(), "loot_best": best,
 		"recycled": _recycled_credits, "research_done": research_done_log.duplicate(),
+		"crew": crew, "crafted": crafted_total - crafted_before, "charges_full": anomaly_charges >= float(Data.ANOMALY_CHARGES_MAX) - 0.01,
+		"charges": int(anomaly_charges),
 	}
 
 
@@ -1692,8 +1745,8 @@ func save_game() -> void:
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
-		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total,
-			"prestige": {"count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total, "log": craft_log,
+			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1810,8 +1863,13 @@ func load_game() -> bool:
 		if not Data.AFFIXES.has(atelier_focus):
 			atelier_focus = ""
 	crafted_total = int(parsed.get("base", {}).get("crafted", 0))
+	craft_log = []
+	for e in parsed.get("base", {}).get("log", []):
+		if Data.ITEM_RARITY.has(String(e.get("rarity", ""))):
+			craft_log.append({"id": int(e.get("id", 0)), "name": String(e.get("name", "")), "rarity": String(e.rarity), "ilvl": int(e.get("ilvl", 1)), "kept": bool(e.get("kept", false))})
 	var saved_pr: Dictionary = parsed.get("base", {}).get("prestige", {})
 	prestige_count = int(saved_pr.get("count", 0))
+	prestige_best = int(saved_pr.get("best", 0))
 	prestige_earned = int(saved_pr.get("earned", 0))
 	prestige_points = int(saved_pr.get("points", 0))
 	prestige_perks = {}

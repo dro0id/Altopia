@@ -289,21 +289,18 @@ func test_production_scales_with_level_rarity_stars() -> void:
 
 
 func test_offline_efficiency_and_cap() -> void:
-	_check(is_equal_approx(_gs.offline_efficiency(), Data.OFFLINE_BASE_EFFICIENCY), "rendement de base hors ligne")
+	_check(is_equal_approx(_gs.offline_efficiency(), 0.5), "rendement hors ligne : 50 %")
 	_check(is_equal_approx(_gs.offline_cap_seconds(), Data.OFFLINE_BASE_HOURS * 3600.0), "durée de base hors ligne")
 	_gs.give_hero("rex", 10)
 	_gs.give_hero("bolt", 10)
 	_work(["rex", "bolt"])
-	_check(_gs.offline_efficiency() > Data.OFFLINE_BASE_EFFICIENCY, "l'équipage au travail améliore le rendement")
+	_check(is_equal_approx(_gs.offline_efficiency(), 0.5), "le rendement ne dépend plus de l'équipage")
 	_check(_gs.offline_cap_seconds() > Data.OFFLINE_BASE_HOURS * 3600.0, "les Ingénieurs allongent la durée hors ligne")
 	_gs.give_hero("lumi", 200)
 	_work(["lumi"])
-	_check(_gs.offline_efficiency() <= Data.OFFLINE_EFF_MAX and _gs.offline_cap_seconds() <= Data.OFFLINE_MAX_HOURS * 3600.0, "plafonds respectés")
-	var it := _item("gloves", "rare", 5, [{"k": "offline_pct", "v": 8.0}])
-	var eff0: float = _gs.offline_efficiency()
-	_gs.add_item(it)
-	_gs.equip(it.id)
-	_check(_gs.offline_efficiency() >= eff0, "un affixe « gains hors ligne » ne baisse pas le rendement")
+	_check(_gs.offline_cap_seconds() <= Data.OFFLINE_MAX_HOURS * 3600.0, "plafond de durée respecté")
+	_gs.crystals = 200
+	_check(_gs.buy_premium("offline_boost") and is_equal_approx(_gs.offline_efficiency(), 0.7), "200 Cristaux : rendement hors ligne 70 %")
 
 
 func test_simulate_offline_uses_efficiency_and_cap() -> void:
@@ -607,7 +604,7 @@ func test_save_load_roundtrip() -> void:
 	_gs.captain.level = 12
 	_gs.captain.look.hair = 3
 	_gs.auto_recycle = 1
-	var it := _item("weapon", "epic", 9, [{"k": "atk_pct", "v": 6.5}, {"k": "crit", "v": 3.2}, {"k": "offline_pct", "v": 4.0}])
+	var it := _item("weapon", "epic", 9, [{"k": "atk_pct", "v": 6.5}, {"k": "crit", "v": 3.2}, {"k": "xp_pct", "v": 4.0}])
 	_gs.add_item(it)
 	_gs.equip(it.id)
 	_gs.launch(0, "asteroids")
@@ -1042,7 +1039,7 @@ func test_quarters_and_soute_effects() -> void:
 	_gs.give_hero("quark", 10)
 	_gs.set_room_crew("soute", "quark")
 	_check(_gs.offline_cap_seconds() > cap0 + 3.0 * 3600.0, "la Soute allonge le coffre hors ligne")
-	_check(_gs.offline_efficiency() > eff0 + 0.05, "et améliore le rendement")
+	_check(is_equal_approx(_gs.offline_efficiency(), eff0), "mais pas le rendement (fixe à 50 %)")
 	_check(lv0 >= 1, "niveau cohérent")
 
 
