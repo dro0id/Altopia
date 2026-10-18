@@ -9,7 +9,7 @@ var gs: Node
 var anomaly_runs := 0
 var anomaly_defeats := 0
 var no_charge_sessions := 0
-var prestige_at := 0          # niveaux de salles cumulés à partir desquels le robot lance une refonte (0 : jamais)
+var prestige_at := 0          # éclats minimum promis pour que le robot lance une refonte (0 : jamais)
 var prestige_log: Array = []
 
 
@@ -53,7 +53,7 @@ func anomalies() -> void:
 ## Politique d'achat du robot.
 func spend() -> void:
 	gs.claim_goal()
-	if prestige_at > 0 and gs.base_power() >= prestige_at and gs.prestige_block_reason() == "":
+	if prestige_at > 0 and gs.prestige_block_reason() == "" and gs.prestige_gain() >= prestige_at:
 		var lvl: int = gs.base_power()
 		var got: int = gs.do_prestige()
 		prestige_log.append([lvl, got])

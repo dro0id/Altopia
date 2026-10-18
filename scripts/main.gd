@@ -1411,8 +1411,8 @@ func _refresh_ship() -> void:
 		var r: Dictionary = Data.ROOMS[rid]
 		var u: Dictionary = _room_ui[rid]
 		var lvl := GameState.room_level(rid)
-		u.name.text = "%s   niv. %d/%d" % [r.name, lvl, Data.ROOM_MAX_LEVEL]
-		u.bar.value = float(lvl) / float(Data.ROOM_MAX_LEVEL)
+		u.name.text = "%s   niv. %d/%d" % [r.name, lvl, GameState.room_max_level()]
+		u.bar.value = float(lvl) / float(GameState.room_max_level())
 		u.desc.text = _room_effect_text(rid) if rid in ["atelier", "quartiers", "soute"] else "%s  —  %s" % [r.desc, _room_effect_text(rid)]
 		if GameState.room_maxed(rid):
 			u.btn.text = "Niveau maximum"

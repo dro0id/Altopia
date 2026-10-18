@@ -401,8 +401,9 @@ const ROOMS := {
 ## --- Refonte de la Base (prestige) : on remet les salles à zéro pour des bonus permanents plus forts ---
 const PRESTIGE_MIN_POWER := 90            # niveaux de salles cumulés minimum pour lancer une refonte
 const PRESTIGE_ADVISED_POWER := 120       # valeur indicative à partir de laquelle la refonte vaut vraiment le coup
-const PRESTIGE_DIV := 30.0                # éclats gagnés = (niveaux de salles cumulés / 30) ^ 2
-const PRESTIGE_POW := 2.0
+const PRESTIGE_DIV := 30.0                # éclats gagnés au total = (niveaux de salles cumulés / 30) ^ 2,5
+const PRESTIGE_POW := 2.5
+const PRESTIGE_ROOM_CAP_PER_RANK := 5     # niveau maximal des salles : +5 par refonte
 const PRESTIGE_COST_GROWTH := 1.45        # coût d'un niveau de bonus : 1 éclat au départ, puis x1,45 par niveau
 const PRESTIGE_PERK_MAX := 15
 const PRESTIGE_PERK_ORDER := ["prod", "xp", "atelier", "craft", "found"]

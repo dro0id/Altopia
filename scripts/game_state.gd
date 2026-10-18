@@ -61,6 +61,7 @@ var last_recruit := {}
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
 var _afk_loot_clock := 0.0      # avancement du prochain objet fabriqué par l'Atelier (0 à 1)
+var prestige_earned := 0          # éclats gagnés au total (la refonte ne rapporte que du nouveau)
 var prestige_count := 0           # refontes de la Base effectuées
 var prestige_points := 0          # éclats non dépensés
 var prestige_perks := {}          # bonus permanents : id -> niveau
@@ -116,6 +117,7 @@ func reset() -> void:
 	atelier_focus = ""
 	crafted_total = 0
 	prestige_count = 0
+	prestige_earned = 0
 	prestige_points = 0
 	prestige_perks = {}
 	goals_claimed = []
@@ -530,19 +532,27 @@ func base_power() -> int:
 	return n
 
 
+## Éclats promis : la valeur de la Base moins ce qui a déjà été gagné. Refaire la même Base ne rapporte rien.
 func prestige_gain() -> int:
-	return int(floor(pow(float(base_power()) / Data.PRESTIGE_DIV, Data.PRESTIGE_POW)))
+	return maxi(0, int(floor(pow(float(base_power()) / Data.PRESTIGE_DIV, Data.PRESTIGE_POW))) - prestige_earned)
+
+
+## Niveau maximal des salles : monte à chaque refonte.
+func room_max_level() -> int:
+	return Data.ROOM_MAX_LEVEL + Data.PRESTIGE_ROOM_CAP_PER_RANK * prestige_count
 
 
 ## Niveau auquel les salles repartent après une refonte (bonus « Fondations »).
 func prestige_start_level() -> int:
-	return mini(Data.ROOM_MAX_LEVEL, 1 + int(Data.PRESTIGE_PERKS["found"].gain * perk_level("found")))
+	return mini(room_max_level(), 1 + int(Data.PRESTIGE_PERKS["found"].gain * perk_level("found")))
 
 
 ## Raison pour laquelle la refonte n'est pas possible ("" si elle l'est).
 func prestige_block_reason() -> String:
 	if base_power() < Data.PRESTIGE_MIN_POWER:
 		return "Niveaux de salles cumulés %d requis" % Data.PRESTIGE_MIN_POWER
+	if prestige_gain() < 1:
+		return "Monte tes salles plus haut pour gagner des éclats"
 	return ""
 
 
@@ -555,6 +565,7 @@ func do_prestige() -> int:
 	for i in slots.size():
 		recall(i)        # les expéditions en cours sont rappelées (sans gain)
 	prestige_points += gain
+	prestige_earned += gain
 	prestige_count += 1
 	for rid in Data.ROOM_ORDER:
 		room_levels[rid] = prestige_start_level()
@@ -707,7 +718,7 @@ func room_crew_boost(room_id: String) -> float:
 
 
 func room_maxed(id: String) -> bool:
-	return room_level(id) >= Data.ROOM_MAX_LEVEL
+	return room_level(id) >= room_max_level()
 
 
 func room_upgrade_cost(id: String) -> Dictionary:
@@ -1600,7 +1611,7 @@ func save_game() -> void:
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total,
-			"prestige": {"count": prestige_count, "points": prestige_points, "perks": prestige_perks}}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+			"prestige": {"count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1688,7 +1699,7 @@ func load_game() -> bool:
 		var sl: Dictionary = saved_base.get("levels", {})
 		var sc: Dictionary = saved_base.get("crew", {})
 		for rid in Data.ROOM_ORDER:
-			room_levels[rid] = clampi(int(sl.get(rid, 1)), 1, Data.ROOM_MAX_LEVEL)
+			room_levels[rid] = clampi(int(sl.get(rid, 1)), 1, 999)
 			var hid := String(sc.get(rid, ""))
 			room_crew[rid] = hid if heroes.has(hid) else ""
 		atelier_slot = String(saved_base.get("slot", ""))
@@ -1700,6 +1711,7 @@ func load_game() -> bool:
 	crafted_total = int(parsed.get("base", {}).get("crafted", 0))
 	var saved_pr: Dictionary = parsed.get("base", {}).get("prestige", {})
 	prestige_count = int(saved_pr.get("count", 0))
+	prestige_earned = int(saved_pr.get("earned", 0))
 	prestige_points = int(saved_pr.get("points", 0))
 	prestige_perks = {}
 	for k in saved_pr.get("perks", {}):

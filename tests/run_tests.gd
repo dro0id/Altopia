@@ -682,7 +682,7 @@ func test_prestige_rules() -> void:
 	_gs.res["credits"] = 5.0e6
 	_gs.launch(0, "asteroids")
 	var gain: int = _gs.prestige_gain()
-	_check(_gs.base_power() == 120 and gain == 16, "120 niveaux de salles promettent 16 éclats (%d)" % gain)
+	_check(_gs.base_power() == 120 and gain == 32, "120 niveaux de salles promettent 32 éclats (%d)" % gain)
 	var cap_before: float = _gs.captain_stats(0).atk
 	_check(_gs.do_prestige() == gain and _gs.prestige_points == gain and _gs.prestige_count == 1, "la refonte donne les éclats")
 	_check(_gs.room_level("mine") == 1 and _gs.upgrade_levels["laser"] == 0, "salles et améliorations remises à zéro")
@@ -692,6 +692,13 @@ func test_prestige_rules() -> void:
 	_check(_gs.slots[0].dest == "", "l'expédition en cours est rappelée")
 	_check(is_equal_approx(_gs.captain_stats(0).atk, cap_before), "le Capitaine n'est pas affaibli")
 	_check(_gs.prestige_block_reason() != "" and _gs.do_prestige() == 0, "pas de refonte en boucle : il faut remonter les salles")
+	_check(_gs.room_max_level() == Data.ROOM_MAX_LEVEL + Data.PRESTIGE_ROOM_CAP_PER_RANK, "le niveau maximal des salles monte")
+	for rid in Data.ROOM_ORDER:
+		_gs.room_levels[rid] = 20
+	_check(_gs.prestige_gain() == 0, "la même Base ne rapporte rien de nouveau")
+	for rid in Data.ROOM_ORDER:
+		_gs.room_levels[rid] = 24
+	_check(_gs.prestige_gain() > 0, "une Base plus haute rapporte de nouveaux éclats")
 
 
 func test_prestige_perks() -> void:
