@@ -4,7 +4,8 @@ extends RefCounted
 const Data = preload("res://scripts/game_data.gd")
 const RESEARCH_PRIORITY := ["labo_annexe", "labo_vitesse", "calibrage", "protocoles", "soute", "entrainement", "cartographie",
 	"propulsion", "butin", "calibrage_ii", "entrainement_ii", "cartographie_ii", "propulsion_ii", "butin_ii",
-	"calibrage_iii", "entrainement_iii", "cartographie_iii", "propulsion_iii", "butin_iii"]
+	"calibrage_iii", "entrainement_iii", "cartographie_iii", "propulsion_iii", "butin_iii",
+	"calibrage_iv", "cartographie_iv", "propulsion_iv", "butin_iv"]
 var gs: Node
 var anomaly_runs := 0
 var anomaly_defeats := 0

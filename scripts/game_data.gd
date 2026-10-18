@@ -302,7 +302,8 @@ const RESEARCH_SPEED_MIN := 0.4               # les durées ne descendent pas so
 const RESEARCH_ORDER := ["calibrage", "cartographie", "entrainement", "propulsion", "protocoles", "soute", "butin",
 	"labo_vitesse", "labo_annexe",
 	"calibrage_ii", "cartographie_ii", "entrainement_ii", "propulsion_ii", "butin_ii",
-	"calibrage_iii", "cartographie_iii", "entrainement_iii", "propulsion_iii", "butin_iii"]
+	"calibrage_iii", "cartographie_iii", "entrainement_iii", "propulsion_iii", "butin_iii",
+	"calibrage_iv", "cartographie_iv", "propulsion_iv", "butin_iv"]
 const RESEARCH := {
 	"calibrage": {"name": "Calibrage des systèmes", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
 		"effect": {"key": "prod_pct", "per": 2.0, "unit": "% de production"},
@@ -361,6 +362,18 @@ const RESEARCH := {
 	"butin_iii": {"name": "Détecteur de butin III", "icon": "star", "color": Color(1.0, 0.61, 0.93), "max": 10,
 		"effect": {"key": "loot_pct", "per": 6.0, "unit": "% de chance de butin"},
 		"cost": {"minerals": [6750000.0, 135000000.0], "energy": [3375000.0, 67500000.0]}, "time": [207360.0, 3110400.0], "requires": {"butin_ii": 10}},
+	"calibrage_iv": {"name": "Calibrage des systèmes IV", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,
+		"effect": {"key": "prod_pct", "per": 5.0, "unit": "% de production"},
+		"cost": {"credits": [3000000.0, 60000000.0]}, "time": [69120.0, 1036800.0], "requires": {"calibrage_iii": 25}},
+	"cartographie_iv": {"name": "Cartographie stellaire IV", "icon": "exp", "color": Color(0.5, 0.95, 1.0), "max": 20,
+		"effect": {"key": "reward_pct", "per": 7.5, "unit": "% de gains d'expédition"},
+		"cost": {"data": [45000000.0, 900000000.0]}, "time": [276480.0, 4147200.0], "requires": {"cartographie_iii": 20}},
+	"propulsion_iv": {"name": "Propulsion ionique IV", "icon": "ship", "color": Color(0.43, 1.0, 0.61), "max": 15,
+		"effect": {"key": "speed_pct", "per": 7.5, "unit": "% de vitesse d'expédition"},
+		"cost": {"energy": [22500000.0, 450000000.0]}, "time": [345600.0, 5184000.0], "requires": {"propulsion_iii": 15}},
+	"butin_iv": {"name": "Détecteur de butin IV", "icon": "star", "color": Color(1.0, 0.61, 0.93), "max": 10,
+		"effect": {"key": "loot_pct", "per": 7.5, "unit": "% de chance de butin"},
+		"cost": {"minerals": [33750000.0, 675000000.0], "energy": [16875000.0, 337500000.0]}, "time": [414720.0, 6220800.0], "requires": {"butin_iii": 10}},
 }
 
 
