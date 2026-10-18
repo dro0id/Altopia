@@ -78,6 +78,8 @@ var _perk_ui := {}
 var _pr_info: Label
 var _pr_btn: Button
 var _pr_armed_at := -100000
+var _lab_premium: Label
+var _lab_premium_btns := {}
 var _pg_title: Label
 var _pg_bar: ProgressBar
 var _pg_info: Label
@@ -529,6 +531,13 @@ func _build_lab_page(page: VBoxContainer) -> void:
 		else:
 			GameState.set_research_auto(v))
 	page.add_child(_lab_auto)
+	_lab_premium = _label(page, "", 19, UiTheme.MAGENTA)
+	_lab_premium.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for pid in Data.PREMIUM_UNLOCKS:
+		var pb := _button(page, "", 56)
+		pb.add_theme_font_size_override("font_size", 19)
+		pb.pressed.connect(_tap(func(): GameState.buy_premium(pid)))
+		_lab_premium_btns[pid] = pb
 	for i in 3:
 		var card := _card(page)
 		var title := _label(card, "", 24)
@@ -1344,6 +1353,20 @@ func _effect_text(id: String, lvl: int) -> String:
 func _refresh_lab() -> void:
 	var slots_n := GameState.research_slots()
 	_lab_auto.set_pressed_no_signal(GameState.research_auto)
+	var auto_ok := GameState.premium_unlocked("lab_auto")
+	_lab_auto.disabled = not auto_ok
+	_lab_auto.text = "Recherche automatique (poste libre : la plus courte abordable)" if auto_ok else "Recherche automatique : verrouillée"
+	_lab_premium.text = "%s : %d  ·  le 3e poste de recherche et la recherche automatique se débloquent avec des %s (pas encore disponibles)." % [
+		Data.PREMIUM_NAME, GameState.crystals, Data.PREMIUM_NAME]
+	for pid in _lab_premium_btns:
+		var pb: Button = _lab_premium_btns[pid]
+		var pu: Dictionary = Data.PREMIUM_UNLOCKS[pid]
+		if GameState.premium_unlocked(pid):
+			pb.text = "%s : débloqué" % pu.name
+			pb.disabled = true
+		else:
+			pb.text = "%s — %d %s" % [pu.name, pu.cost, Data.PREMIUM_NAME]
+			pb.disabled = GameState.crystals < pu.cost
 	var q := GameState.research_queue
 	_lab_info.text = "Les recherches avancent même hors ligne, jusqu'au bout. Postes : %d  ·  File d'attente : %d / %d (payée d'avance, annulable)." % [
 		slots_n, q.size(), Data.RESEARCH_QUEUE_MAX]

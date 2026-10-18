@@ -190,3 +190,9 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 
 - Le Capitaine ne peut jamais dépasser le niveau 50 (`CAPTAIN_MAX_LEVEL`) : l'XP en trop est perdue, l'entraînement payant est refusé, l'anomalie ne donne plus d'XP. La puissance vient ensuite de l'équipement (les objets de l'Atelier restent bornés par le niveau du Capitaine). Les anciennes sauvegardes au-delà sont ramenées à 50.
 - Chaîne d'objectifs de refonte (6 paliers, indépendante de la chaîne principale) : 1, 3 et 5 refontes, 10 et 30 niveaux de bonus cumulés, 150 éclats gagnés par des refontes. Récompenses : éclats et objets épiques puis légendaires. Les éclats d'objectif ne réduisent pas les gains des futures refontes.
+
+## Labo : 1 poste, déblocages spéciaux
+
+- Un seul poste de recherche au départ. Le Laboratoire annexe (recherche, 1 niveau) donne le 2e poste.
+- Le 3e poste et la recherche automatique ne s'obtiennent plus par le jeu : ils se débloquent avec une monnaie spéciale, les **Cristaux** (300 et 150), non obtenable en jeu pour le moment (`PREMIUM_OBTAINABLE = false`), prévue plus tard via un achat. L'interface les montre verrouillés.
+- Anciennes sauvegardes : ceux qui avaient déjà le 3e poste ou la recherche automatique les gardent (pas de perte).

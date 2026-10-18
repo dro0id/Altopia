@@ -740,6 +740,42 @@ func test_prestige_goals() -> void:
 	_check(_gs.claim_prestige_goal() and _gs.next_prestige_goal().id == "pg3", "10 niveaux de bonus : objectif suivant")
 
 
+func test_lab_slots_and_premium_unlocks() -> void:
+	_gs.new_game()
+	_check(_gs.research_slots() == 1, "un seul poste de recherche au départ")
+	_gs.research_levels["labo_annexe"] = 1
+	_check(_gs.research_slots() == 2, "le Laboratoire annexe donne le 2e poste")
+	_check(Data.RESEARCH["labo_annexe"].max == 1, "pas de 3e poste par la recherche")
+	_gs.set_research_auto(true)
+	_check(not _gs.research_auto, "la recherche automatique est verrouillée")
+	_check(not _gs.buy_premium("lab_slot") and not _gs.buy_premium("lab_auto"), "pas de Cristaux : achats impossibles")
+	_gs.crystals = 300
+	_check(_gs.buy_premium("lab_slot") and _gs.research_slots() == 3 and _gs.crystals == 0, "300 Cristaux : 3e poste débloqué")
+	_check(not _gs.buy_premium("lab_slot"), "déjà débloqué")
+	_gs.crystals = 150
+	_check(_gs.buy_premium("lab_auto"), "recherche automatique débloquée")
+	_gs.set_research_auto(true)
+	_check(_gs.research_auto, "elle peut alors être activée")
+	_gs.save_path = "user://test_premium.json"
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(_gs.research_slots() == 3 and _gs.research_auto and _gs.premium_unlocked("lab_auto"), "déblocages sauvegardés")
+
+
+func test_old_lab_unlocks_are_kept() -> void:
+	_gs.save_path = "user://test_old_lab.json"
+	var old := {"version": 5, "res": {"credits": 10.0}, "data_total": 0.0, "captain": {"level": 1, "xp": 0, "name": "Capitaine", "look": {"suit": 0, "hair": 0, "style": 0}},
+		"items": [], "equipped": {}, "heroes": {}, "hero_order": [], "upgrades": {}, "slots": [], "last_seen": 0,
+		"research": {"levels": {"labo_annexe": 2}, "active": [], "queue": [], "auto": true}}
+	var f := FileAccess.open(_gs.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	_gs.reset()
+	_check(_gs.load_game(), "chargement")
+	_check(_gs.research_slots() == 3 and _gs.research_auto, "une ancienne sauvegarde garde son 3e poste et la recherche auto")
+
+
 func test_goals() -> void:
 	_gs.new_game()
 	var g: Dictionary = _gs.next_goal()
@@ -894,6 +930,7 @@ func test_research_auto_fills_free_slot() -> void:
 	_gs.new_game()
 	_give({"credits": 1.0e6, "data": 1.0e4, "minerals": 1.0e4, "energy": 1.0e4})
 	_check(_gs.research_active.is_empty(), "rien en cours")
+	_gs.premium_unlocks["lab_auto"] = true
 	_gs.set_research_auto(true)
 	_check(_gs.research_active.size() == 1, "le poste libre est rempli tout seul")
 	var first: String = _gs.research_active[0].id

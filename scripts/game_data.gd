@@ -302,6 +302,14 @@ static func fmt_amounts(d: Dictionary) -> String:
 ## Règles : toujours une recherche courte disponible, plusieurs recherches en parallèle, tout se termine
 ## même hors ligne, une file d'attente payée d'avance, annulation remboursée.
 const RESEARCH_BASE_SLOTS := 1
+## Monnaie spéciale (« Cristaux ») : impossible à obtenir en jeu pour le moment, prévue pour un achat plus tard.
+## Elle débloque le 3e poste de recherche et la recherche automatique. Tant que PREMIUM_OBTAINABLE est faux, l'interface les montre verrouillés.
+const PREMIUM_NAME := "Cristaux"
+const PREMIUM_OBTAINABLE := false
+const PREMIUM_UNLOCKS := {
+	"lab_slot": {"name": "3e poste de recherche", "cost": 300},
+	"lab_auto": {"name": "Recherche automatique", "cost": 150},
+}
 const RESEARCH_QUEUE_MAX := 5
 ## Accélération : retire 25 % de la durée totale d'une recherche, 2 fois au plus (le rythme reste prévisible).
 const RESEARCH_BOOST_FRACTION := 0.25
@@ -342,7 +350,7 @@ const RESEARCH := {
 	"labo_vitesse": {"name": "Automatisation du labo", "icon": "hourglass", "color": Color(0.5, 0.95, 1.0), "max": 10,
 		"effect": {"key": "research_speed", "per": 3.0, "unit": "% de durée des recherches en moins"},
 		"cost": {"data": [40.0, 12000000.0], "energy": [20.0, 6000000.0]}, "time": [1800.0, 1728000.0], "requires": {"calibrage": 8}},
-	"labo_annexe": {"name": "Laboratoire annexe", "icon": "scientist", "color": Color(0.5, 1.0, 0.6), "max": 2,
+	"labo_annexe": {"name": "Laboratoire annexe", "icon": "scientist", "color": Color(0.5, 1.0, 0.6), "max": 1,
 		"effect": {"key": "research_slots", "per": 1.0, "unit": " poste de recherche en plus"},
 		"cost": {"credits": [20000.0, 2000000.0], "minerals": [200.0, 4500000.0]}, "time": [14400.0, 518400.0], "requires": {"calibrage": 6, "cartographie": 4}},
 	"calibrage_ii": {"name": "Calibrage des systèmes II", "icon": "module", "color": Color(1.0, 0.82, 0.35), "max": 25,

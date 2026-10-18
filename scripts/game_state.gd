@@ -42,6 +42,8 @@ var research_levels := {}
 var research_active: Array = []   # [{id, remaining, total}] : recherches en cours
 var research_queue: Array = []    # ids en attente (déjà payées)
 var research_done_log: Array = [] # noms terminés depuis le dernier rapport
+var crystals := 0                 # monnaie spéciale : non obtenable en jeu pour le moment (achat prévu plus tard)
+var premium_unlocks := {}         # déblocages payés en Cristaux : "lab_slot", "lab_auto"
 var research_auto := false        # lance tout seul la recherche abordable la plus courte quand un poste se libère
 var anomaly_charges := float(Data.ANOMALY_CHARGES_MAX)
 var anomaly_max := 0              # plus haute faille réussie
@@ -128,6 +130,8 @@ func reset() -> void:
 	research_queue = []
 	research_done_log = []
 	research_auto = false
+	crystals = 0
+	premium_unlocks = {}
 	anomaly_charges = float(Data.ANOMALY_CHARGES_MAX)
 	anomaly_max = 0
 	anomaly_best = {}
@@ -893,7 +897,24 @@ func research_bonus(key: String) -> float:
 
 
 func research_slots() -> int:
-	return Data.RESEARCH_BASE_SLOTS + int(research_bonus("research_slots"))
+	return Data.RESEARCH_BASE_SLOTS + int(research_bonus("research_slots")) + (1 if premium_unlocked("lab_slot") else 0)
+
+
+func premium_unlocked(id: String) -> bool:
+	return bool(premium_unlocks.get(id, false))
+
+
+## Achat d'un déblocage en Cristaux. Aucun moyen d'en gagner en jeu pour l'instant (PREMIUM_OBTAINABLE) : les tests ou un futur achat les créditent.
+func buy_premium(id: String) -> bool:
+	if not Data.PREMIUM_UNLOCKS.has(id) or premium_unlocked(id):
+		return false
+	var cost: int = Data.PREMIUM_UNLOCKS[id].cost
+	if crystals < cost:
+		return false
+	crystals -= cost
+	premium_unlocks[id] = true
+	changed.emit()
+	return true
 
 
 func research_maxed(id: String) -> bool:
@@ -1043,6 +1064,8 @@ func _auto_research_pick() -> String:
 
 
 func set_research_auto(v: bool) -> void:
+	if v and not premium_unlocked("lab_auto"):
+		return           # la recherche automatique se débloque avec des Cristaux
 	research_auto = v
 	_promote_queue()
 	changed.emit()
@@ -1670,7 +1693,7 @@ func save_game() -> void:
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
 		"upgrades": upgrade_levels, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total,
-			"prestige": {"count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
+			"prestige": {"count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
@@ -1750,7 +1773,18 @@ func load_game() -> bool:
 	for a in saved_rs.get("active", []):
 		if Data.RESEARCH.has(String(a.get("id", ""))):
 			research_active.append({"id": String(a.id), "remaining": float(a.get("remaining", 0.0)), "total": float(a.get("total", 1.0)), "boosts": int(a.get("boosts", 0))})
-	research_auto = bool(saved_rs.get("auto", false))
+	var saved_pm: Dictionary = parsed.get("base", {}).get("premium", parsed.get("premium", {}))
+	crystals = int(saved_pm.get("crystals", 0))
+	premium_unlocks = {}
+	for k in saved_pm.get("unlocks", {}):
+		if Data.PREMIUM_UNLOCKS.has(k) and bool(saved_pm.unlocks[k]):
+			premium_unlocks[k] = true
+	# anciennes sauvegardes : ceux qui avaient déjà le 3e poste ou la recherche automatique les gardent
+	if int(saved_levels.get("labo_annexe", 0)) >= 2:
+		premium_unlocks["lab_slot"] = true
+	if bool(saved_rs.get("auto", false)):
+		premium_unlocks["lab_auto"] = true
+	research_auto = bool(saved_rs.get("auto", false)) and premium_unlocked("lab_auto")
 	research_queue = []
 	for rid in saved_rs.get("queue", []):
 		if Data.RESEARCH.has(String(rid)):
