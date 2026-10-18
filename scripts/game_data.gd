@@ -412,8 +412,9 @@ static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
 ## --- Anomalies : le contenu actif du Capitaine (XP, crédits, records) ---
 ## Une faille n : 2 sentinelles et 1 gardien, niveau d'ennemi 2 x n. Entrée = 1 charge (recharge lente, perdue jamais :
 ## une défaite rend la charge). L'XP du Capitaine ne vient que d'ici.
-const ANOMALY_CHARGES_MAX := 20
-const ANOMALY_REGEN_SECONDS := 3600.0
+const ANOMALY_CHARGES_MAX := 100       # réserve de charges
+const ANOMALY_COST := 10.0             # charges consommées par une entrée en faille (donc 10 entrées en réserve)
+const ANOMALY_REGEN_SECONDS := 360.0   # 1 charge toutes les 6 min : 10 charges par heure, soit une entrée par heure comme avant
 const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 5.5
 const ANOMALY_BASE := {"hp": 70.0, "atk": 11.0, "def": 4.0, "spd": 11.0}
 const ANOMALY_BOSS_HP := 2.2

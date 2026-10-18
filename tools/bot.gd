@@ -34,7 +34,7 @@ func play(seconds: float) -> void:
 ## Le robot fait ses anomalies : la plus haute faille qu'il peut gagner (en visant la suivante si elle est jouable).
 func anomalies() -> void:
 	var guard := 0
-	while gs.anomaly_charges >= 1.0 and guard < 40:
+	while gs.anomaly_charges >= Data.ANOMALY_COST and guard < 40:
 		guard += 1
 		var pick := 0
 		for n in range(gs.anomaly_unlocked_max(), 0, -1):
@@ -47,7 +47,7 @@ func anomalies() -> void:
 		anomaly_runs += 1
 		if not gs.last_anomaly.win:
 			anomaly_defeats += 1
-	if gs.anomaly_charges < 1.0:
+	if gs.anomaly_charges < Data.ANOMALY_COST:
 		no_charge_sessions += 1
 
 

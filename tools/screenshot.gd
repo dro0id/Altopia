@@ -132,6 +132,16 @@ func _initialize() -> void:
 	main._base_ui.close_sheet()
 	await _shot_tab(main, "atelier", out_dir + "/shot_atelier.png")
 	await _shot_tab(main, "atelier", out_dir + "/shot_atelier_end.png", 900)
+	gs.research_levels["labo_annexe"] = 1
+	gs.add_res("credits", 5.0e6)
+	gs.add_res("data", 5.0e6)
+	gs.add_res("energy", 5.0e6)
+	gs.add_res("minerals", 5.0e6)
+	gs.start_research("calibrage")
+	gs.start_research("cartographie")
+	gs.start_research("entrainement")
+	gs.start_research("propulsion")
+	gs.tick(20.0)
 	await _shot_tab(main, "lab", out_dir + "/shot_lab.png")
 	await _shot_tab(main, "lab", out_dir + "/shot_lab_list.png", 1000)
 	gs.prestige_count = 2

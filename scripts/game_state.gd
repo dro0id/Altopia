@@ -1682,6 +1682,18 @@ func _regen_anomaly(seconds: float) -> void:
 		anomaly_charges = minf(float(Data.ANOMALY_CHARGES_MAX), anomaly_charges + seconds / Data.ANOMALY_REGEN_SECONDS)
 
 
+## Entrées en faille possibles avec la réserve actuelle.
+func anomaly_runs_available() -> int:
+	return int(floor(anomaly_charges / Data.ANOMALY_COST))
+
+
+## Secondes avant de pouvoir entrer dans une faille (0 si c'est déjà possible).
+func anomaly_next_run_in() -> float:
+	if anomaly_charges >= Data.ANOMALY_COST:
+		return 0.0
+	return (Data.ANOMALY_COST - anomaly_charges) * Data.ANOMALY_REGEN_SECONDS
+
+
 ## Seconde avant la prochaine charge (0 si pleines).
 func anomaly_next_charge_in() -> float:
 	if anomaly_charges >= Data.ANOMALY_CHARGES_MAX:
@@ -1691,9 +1703,9 @@ func anomaly_next_charge_in() -> float:
 
 ## Entre dans la faille n : un combat du Capitaine seul. Une défaite rend la charge.
 func enter_anomaly(n: int) -> bool:
-	if n < 1 or n > anomaly_unlocked_max() or anomaly_charges < 1.0:
+	if n < 1 or n > anomaly_unlocked_max() or anomaly_charges < Data.ANOMALY_COST:
 		return false
-	anomaly_charges -= 1.0
+	anomaly_charges -= Data.ANOMALY_COST
 	var b := Battle.simulate([captain_unit()], make_anomaly_enemies(n))
 	var first: bool = n > anomaly_max
 	var xp := 0
@@ -1718,7 +1730,7 @@ func enter_anomaly(n: int) -> bool:
 				found[r] = ceil(Data.ANOMALY_FIRST_RES[r] * (1.0 + 0.1 * n))
 				add_res(r, found[r])
 	else:
-		anomaly_charges += 1.0
+		anomaly_charges += Data.ANOMALY_COST
 	var kind: String = Data.DEST_ORDER[(n - 1) % Data.DEST_ORDER.size()]
 	last_anomaly = {
 		"n": n, "win": b.win, "rounds": b.rounds, "xp": xp, "levels": levels, "credits": credits, "record": record,
@@ -1747,7 +1759,7 @@ func save_game() -> void:
 		"upgrades": upgrade_levels, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total, "log": craft_log,
 			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
-		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges}, "slots": _slots_for_save(), "dest_wins": dest_wins,
+		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
 	}))
 
@@ -1878,7 +1890,10 @@ func load_game() -> bool:
 			prestige_perks[k] = clampi(int(saved_pr.perks[k]), 0, Data.PRESTIGE_PERK_MAX)
 	var saved_an: Dictionary = parsed.get("anomaly", {})
 	anomaly_max = int(saved_an.get("max", 0))
-	anomaly_charges = clampf(float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX)), 0.0, float(Data.ANOMALY_CHARGES_MAX))
+	var saved_charges := float(saved_an.get("charges", Data.ANOMALY_CHARGES_MAX))
+	if saved_an.has("charges") and not saved_an.has("cost_scale"):
+		saved_charges *= 10.0          # ancienne sauvegarde : 1 charge = 1 entrée, maintenant 10 charges = 1 entrée
+	anomaly_charges = clampf(saved_charges, 0.0, float(Data.ANOMALY_CHARGES_MAX))
 	anomaly_best = {}
 	for k in saved_an.get("best", {}):
 		anomaly_best[int(k)] = int(saved_an.best[k])

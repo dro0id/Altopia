@@ -765,7 +765,8 @@ func _refresh_anomalies() -> void:
 	_an_sel = clampi(_an_sel, 1, GameState.anomaly_unlocked_max())
 	var ch := GameState.anomaly_charges
 	var nxt := GameState.anomaly_next_charge_in()
-	_an_info.text = "Charges : %d / %d%s" % [int(floor(ch)), Data.ANOMALY_CHARGES_MAX, ("   (prochaine dans %s)" % Data.fmt_time(nxt)) if nxt > 0.0 else "   (pleines)"]
+	_an_info.text = "Charges : %d / %d  ·  %d par faille (%d entrées)%s" % [int(floor(ch)), Data.ANOMALY_CHARGES_MAX, int(Data.ANOMALY_COST),
+		GameState.anomaly_runs_available(), ("   (prochaine charge dans %s)" % Data.fmt_time(nxt)) if nxt > 0.0 else "   (pleines)"]
 	_an_label.text = "Faille %d" % _an_sel
 	_an_minus.disabled = _an_sel <= 1 or _an_view.playing
 	_an_plus.disabled = _an_sel >= GameState.anomaly_unlocked_max() or _an_view.playing
@@ -776,7 +777,7 @@ func _refresh_anomalies() -> void:
 	var best: int = int(GameState.anomaly_best.get(_an_sel, 0))
 	_an_preview.text = "Ennemis niv. %d  ·  %s\nRécompense : +%s XP  +%s crédits%s\n%s" % [
 		GameState.anomaly_enemy_level(_an_sel),
-		("victoire probable (il vous resterait ~%d %% de PV)" % left) if prev.win else "DÉFAITE probable (la charge serait rendue)",
+		("victoire probable (il vous resterait ~%d %% de PV)" % left) if prev.win else "DÉFAITE probable (les charges seraient rendues)",
 		Data.fmt(GameState.anomaly_xp(_an_sel, first)), Data.fmt(GameState.anomaly_credits(_an_sel)),
 		"  +ressources (1re réussite)" if first else "",
 		("Record : %d tours" % best) if best > 0 else "Pas encore de record"]
@@ -788,9 +789,10 @@ func _refresh_anomalies() -> void:
 			"  —  %d niveau(x) !" % la.levels if la.levels > 0 else "", "  —  NOUVEAU RECORD !" if la.record else "",
 			("  —  " + Data.fmt_amounts(la.found)) if not la.found.is_empty() else ""]
 	else:
-		_an_result.text = "Faille %d : défaite. La charge vous est rendue." % la.n
-	_an_btn.text = "Entrer dans la faille %d" % _an_sel if ch >= 1.0 else "Aucune charge (prochaine dans %s)" % Data.fmt_time(nxt)
-	_an_btn.disabled = ch < 1.0 or _an_view.playing
+		_an_result.text = "Faille %d : défaite. Les charges vous sont rendues." % la.n
+	var can_enter: bool = ch >= Data.ANOMALY_COST
+	_an_btn.text = "Entrer dans la faille %d  (−%d charges)" % [_an_sel, int(Data.ANOMALY_COST)] if can_enter else "Pas assez de charges (prochaine entrée dans %s)" % Data.fmt_time(GameState.anomaly_next_run_in())
+	_an_btn.disabled = ch < Data.ANOMALY_COST or _an_view.playing
 
 
 func _refresh_captain() -> void:

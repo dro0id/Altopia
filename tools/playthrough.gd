@@ -77,7 +77,7 @@ func _initialize() -> void:
 			await _shot(main, "exp", "%s/j%d_3_expeditions.png" % [out_dir, d])
 			await _shot(main, "lab", "%s/j%d_4_labo.png" % [out_dir, d])
 			if d == 30:       # un combat d'anomalie en cours
-				gs.anomaly_charges = 5.0
+				gs.anomaly_charges = 50.0
 				gs.enter_anomaly(clampi(gs.anomaly_max + 1, 1, gs.anomaly_unlocked_max()))
 				main._refresh()
 				for i in 10:

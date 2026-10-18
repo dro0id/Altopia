@@ -490,7 +490,7 @@ func test_afk_level_raises_loot_quality() -> void:
 
 func test_anomalies_basics() -> void:
 	_gs.new_game()
-	_check(_gs.anomaly_unlocked_max() == 1 and _gs.anomaly_charges >= 7.9, "failles : la 1re est ouverte, charges pleines")
+	_check(_gs.anomaly_unlocked_max() == 1 and _gs.anomaly_charges >= float(Data.ANOMALY_CHARGES_MAX) - 0.1 and _gs.anomaly_runs_available() == 10, "failles : la 1re est ouverte, charges pleines (10 entrées)")
 	_check(not _gs.enter_anomaly(2), "la faille 2 est fermée")
 	var xp0: int = _gs.captain.xp
 	var c0: float = _gs.res["credits"]
@@ -499,7 +499,7 @@ func test_anomalies_basics() -> void:
 	_check(_gs.anomaly_max == 1 and _gs.anomaly_unlocked_max() == 2, "la faille 2 s'ouvre")
 	_check(_gs.captain.xp > xp0 or _gs.captain.level > 1, "le Capitaine gagne de l'XP")
 	_check(_gs.res["credits"] > c0 and _gs.anomaly_best.has(1), "crédits et record enregistrés")
-	_check(is_equal_approx(_gs.anomaly_charges, Data.ANOMALY_CHARGES_MAX - 1.0), "une charge dépensée")
+	_check(is_equal_approx(_gs.anomaly_charges, Data.ANOMALY_CHARGES_MAX - Data.ANOMALY_COST), "10 charges dépensées par entrée")
 	_check(_gs.last_anomaly.first and not _gs.last_anomaly.found.is_empty(), "1re réussite : bonus de ressources")
 	_check(_gs.enter_anomaly(1) and not _gs.last_anomaly.first, "refaire la faille 1")
 
@@ -510,8 +510,31 @@ func test_anomaly_defeat_refunds_charge() -> void:
 	var ch: float = _gs.anomaly_charges
 	_check(_gs.enter_anomaly(61), "entrée dans une faille trop forte")
 	_check(not _gs.last_anomaly.win, "défaite")
-	_check(is_equal_approx(_gs.anomaly_charges, ch), "la charge est rendue")
+	_check(is_equal_approx(_gs.anomaly_charges, ch), "les charges sont rendues")
 	_check(_gs.anomaly_max == 60 and _gs.last_anomaly.xp == 0, "aucun progrès, aucune perte")
+
+
+func test_anomaly_cost_and_old_saves() -> void:
+	_gs.new_game()
+	_gs.anomaly_charges = 9.0
+	_check(not _gs.enter_anomaly(1) and _gs.anomaly_runs_available() == 0, "moins de 10 charges : pas d'entrée")
+	_check(_gs.anomaly_next_run_in() > 0.0 and is_equal_approx(_gs.anomaly_next_run_in(), Data.ANOMALY_REGEN_SECONDS), "il manque 1 charge : 6 min d'attente")
+	_gs.anomaly_charges = 10.0
+	_check(_gs.enter_anomaly(1) and is_equal_approx(_gs.anomaly_charges, 0.0), "10 charges : une entrée, réserve vide")
+	_check(is_equal_approx(Data.ANOMALY_REGEN_SECONDS * 10.0, 3600.0), "10 charges par heure : une entrée par heure comme avant")
+	_gs.save_path = "user://test_old_charges.json"
+	var old := {"version": 5, "res": {"credits": 10.0}, "data_total": 0.0, "captain": {"level": 1, "xp": 0, "name": "Capitaine", "look": {"suit": 0, "hair": 0, "style": 0}},
+		"items": [], "equipped": {}, "heroes": {}, "hero_order": [], "upgrades": {}, "slots": [], "last_seen": Time.get_unix_time_from_system(),
+		"anomaly": {"max": 3, "best": {}, "charges": 7.0}}
+	var f := FileAccess.open(_gs.save_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	_gs.reset()
+	_check(_gs.load_game() and absf(_gs.anomaly_charges - 70.0) < 1.0, "ancienne sauvegarde : 7 charges deviennent 70 (7 entrées)")
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(absf(_gs.anomaly_charges - 70.0) < 1.0, "la conversion n'est pas refaite")
 
 
 func test_anomaly_charges_regen_and_limits() -> void:
