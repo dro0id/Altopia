@@ -252,7 +252,6 @@ func _button(parent: Node, text: String, px: float, fill: Color, border: Color, 
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.clip_text = true                 # un texte long ne doit jamais élargir la page
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.add_theme_font_size_override("font_size", _f(px))
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
@@ -423,6 +422,7 @@ func _build_hub(sec: VBoxContainer) -> void:
 	_goal_count = _label(grow, "", 14, ACCENT, true)
 	_goal_bar = _bar(gv, 8.0, MAGENTA)
 	_goal_claim = _button(gv, "Récupérer la récompense", 16, BTN, ACCENT, TEXT, 44.0)
+	_goal_claim.clip_text = true
 	_goal_claim.pressed.connect(main._tap(func(): GameState.claim_goal()))
 
 
@@ -587,14 +587,20 @@ func _build_lab(sec: VBoxContainer) -> void:
 		var top := _hbox(v, 6.0)
 		var title := _label(top, "", 18, TEXT, false, true)
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		title.clip_text = true
-		var effect := _label(top, "", 14, TEXT, true)
+		title.size_flags_stretch_ratio = 1.5
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.custom_minimum_size = Vector2(_g(40), 0)
+		var effect := _wrap(_label(top, "", 13, TEXT, true))
+		effect.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		effect.custom_minimum_size = Vector2(_g(40), 0)
 		var bar := _bar(v, 10.0, ACCENT)
 		var bottom := _hbox(v, 8.0)
 		var remain := _wrap(_label(bottom, "", 13, DIM, true))
 		remain.custom_minimum_size = Vector2(_g(40), 0)
 		var rush := _button(bottom, "", 14, Color(0, 0, 0, 0), FAINT, DIM, 38.0)
+		rush.size_flags_horizontal = Control.SIZE_SHRINK_END
 		var cancel := _button(bottom, "Annuler", 14, Color(0, 0, 0, 0), Color(0.6, 0.3, 0.3), Color(1.0, 0.55, 0.5), 38.0)
+		cancel.size_flags_horizontal = Control.SIZE_SHRINK_END
 		var slot := {"card": card, "title": title, "effect": effect, "bar": bar, "remain": remain, "rush": rush, "cancel": cancel, "id": ""}
 		_lab_cards.append(slot)
 		rush.pressed.connect(main._tap(func(): GameState.boost_research(slot.id)))
@@ -640,6 +646,7 @@ func _build_lab(sec: VBoxContainer) -> void:
 		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		var lb := _bar(col, 8.0, r.color)
 		var btn := _button(col, "", 15, BTN, ACCENT, TEXT, 44.0)
+		btn.clip_text = true
 		btn.pressed.connect(main._tap(func(): GameState.start_research(id)))
 		_lab_catalog[id] = {"name": name_l, "desc": desc, "bar": lb, "btn": btn}
 	# déblocages en Cristaux
@@ -649,6 +656,7 @@ func _build_lab(sec: VBoxContainer) -> void:
 	_lab_crystals = _wrap(_label(pv, "", 14, MAGENTA))
 	for pid in Data.PREMIUM_UNLOCKS:
 		var pb := _button(pv, "", 15, Color(0, 0, 0, 0), MAGENTA, MAGENTA, 46.0)
+		pb.clip_text = true
 		pb.pressed.connect(main._tap(func(): GameState.buy_premium(pid)))
 		_lab_premium_btns[pid] = pb
 
@@ -726,6 +734,7 @@ func _build_rank(sec: VBoxContainer) -> void:
 			pip_bars.append(pb)
 		var buy := _button(prow, "", 14, Color(0, 0, 0, 0), MAGENTA, MAGENTA, 44.0)
 		buy.size_flags_horizontal = Control.SIZE_SHRINK_END
+		buy.custom_minimum_size.x = _g(86)
 		buy.pressed.connect(main._tap(func(): GameState.buy_perk(id)))
 		_rk_perks[id] = {"eff": peff, "pips": pip_bars, "buy": buy, "name": pname}
 	var g := _panel(sec, Color(0, 0, 0, 0), Color(MAGENTA.r, MAGENTA.g, MAGENTA.b, 0.5), 14.0, 9.0)
@@ -738,6 +747,7 @@ func _build_rank(sec: VBoxContainer) -> void:
 	_rk_goal_bar = _bar(gv, 8.0, MAGENTA)
 	_rk_goal_reward = _wrap(_label(gv, "", 12, DIM, true))
 	_rk_goal_btn = _button(gv, "Récupérer", 16, BTN, ACCENT, TEXT, 44.0)
+	_rk_goal_btn.clip_text = true
 	_rk_goal_btn.pressed.connect(main._tap(func(): GameState.claim_prestige_goal()))
 
 
@@ -1005,6 +1015,7 @@ func _fill_sheet(rid: String) -> void:
 	_sh["up_gain"] = _label(uh, "", 12, DIM, true)
 	_sh["up_main"] = _label(uv, "", 14, TEXT, true)
 	_sh["up_btn"] = _button(uv, "", 20, BTN, ACCENT, TEXT, 54.0, 12.0)
+	_sh["up_btn"].clip_text = true
 	_sh["up_btn"].pressed.connect(main._tap(func(): GameState.buy_room_upgrade(rid)))
 	_sh["up_roi"] = _wrap(_label(uv, "", 13, DIM))
 

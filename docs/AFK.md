@@ -204,3 +204,8 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 - Salles : vue station (pouls de production, 6 tuiles, Atelier en direct, objectif), fiche de salle (équipiers avec l'effet du changement avant validation, amélioration avec gain et retour sur investissement).
 - Écarts assumés avec la maquette : cadre « pointillé » dessiné à la main, 5 raretés d'objets au lieu de 4, catalogue complet des recherches ajouté sous le Labo (il faut bien pouvoir lancer une recherche), les équipiers déjà en poste ailleurs ne sont pas sélectionnables (« occupé »).
 - Hors ligne : rendement fixe de 50 %, 70 % avec le déblocage en Cristaux (200). Les anciens bonus de rendement (équipage, recherche Protocoles, Soute, objets) sont retirés : Protocoles et Soute allongent désormais le coffre (durée comptée).
+
+## Anomalies : réserve de 100 charges
+
+- Réserve de 100 charges, 10 consommées par entrée en faille (10 entrées en réserve), recharge de 10 charges par heure (1 charge toutes les 6 min) : une entrée par heure comme avant. Une défaite rend les 10 charges. Les anciennes sauvegardes sont converties (x10).
+- Le combat étant déterministe et l'issue annoncée à l'avance, le robot ne perd jamais ; le taux de réussite minimum de 80 % visé pour les anomalies et les expéditions sera réglé avec les futures boucles de gameplay.
