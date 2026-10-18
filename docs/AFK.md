@@ -146,3 +146,6 @@ L'AFK est le gameplay de l'équipage : chaque équipier travaille dans une salle
 - L'Atelier fabrique des objets pour le capitaine : l'emplacement et l'affixe visés peuvent être choisis (chacun réduit la cadence de 15 %). La puissance de fabrication = niveau d'AFK + 3 × niveau d'Atelier ; elle règle le niveau d'objet et la chance de raretés élevées.
 - Migration : les anciens postes (Pilote/Ingénieur/Scientifique) deviennent les niveaux de salle correspondants, l'équipage est placé automatiquement.
 - Calibrage (4 profils, 120 jours) : niveau du capitaine à ±5 % de l'ancienne boucle (j7/j30/j90 casual 24/55/95, evening 27/59/109, regular 33/66/121, hardcore 36/74/139). Le niveau d'AFK affiché est environ 2× plus grand : 6 équipiers au travail au lieu de 3. Aucune période sans progrès de plus d'un jour.
+
+- Une salle sans équipier ne produit rien et n'a aucun effet (l'Atelier est à l'arrêt, Quartiers et Soute inactifs, la salle ne compte pas dans le niveau d'AFK).
+- L'interface sépare la **Base** (salles, Atelier) du **Vaisseau** (améliorations laser, collecteur, scanner, moteurs, docks).

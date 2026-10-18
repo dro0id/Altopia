@@ -456,6 +456,8 @@ func test_crew_gains_xp_by_working_at_stations() -> void:
 func test_atelier_makes_items_for_the_captain() -> void:
 	_gs.new_game()
 	_gs.auto_recycle = -1
+	_gs.give_hero("tess", 10)
+	_gs.set_room_crew("atelier", "tess")
 	var items0: int = _gs.items.size()
 	_gs.tick(3600.0 * 10.0)
 	_check(_gs.items.size() >= items0 + 8, "10 h d'AFK : l'Atelier fabrique des objets (%d)" % (_gs.items.size() - items0))
@@ -465,7 +467,7 @@ func test_atelier_makes_items_for_the_captain() -> void:
 		_gs.room_crew[rid] = ""
 	var n0: int = _gs.items.size()
 	_gs.tick(3600.0 * 10.0)
-	_check(_gs.items.size() >= n0 + 5, "même sans équipier, l'Atelier tourne à cadence de base (%d)" % (_gs.items.size() - n0))
+	_check(_gs.items.size() == n0 and _gs.afk_drops_per_hour() == 0.0, "sans équipier, l'Atelier ne fabrique rien")
 
 
 func test_afk_level_raises_loot_quality() -> void:
@@ -837,13 +839,15 @@ func test_atelier_level_and_staff_raise_cadence_and_quality() -> void:
 		_gs.room_crew[rid] = ""
 	var c0: float = _gs.afk_drops_per_hour()
 	var q0: int = _gs.craft_power()
+	_gs.give_hero("tess", 1)
+	_gs.set_room_crew("atelier", "tess")
+	c0 = _gs.afk_drops_per_hour()
 	_gs.room_levels["atelier"] = 11
 	_check(_gs.afk_drops_per_hour() > c0 * 1.5, "le niveau de l'Atelier accélère la fabrication")
 	_check(_gs.craft_power() >= q0 + 30, "et améliore la qualité des objets")
 	var c1: float = _gs.afk_drops_per_hour()
-	_gs.give_hero("tess", 30)
-	_gs.set_room_crew("atelier", "tess")
-	_check(_gs.afk_drops_per_hour() > c1 * 1.5, "un équipier (spécialiste) accélère encore")
+	_gs.heroes["tess"].level = 30
+	_check(_gs.afk_drops_per_hour() > c1 * 1.4, "un équipier (spécialiste) accélère encore")
 
 
 func test_quarters_and_soute_effects() -> void:
@@ -851,6 +855,9 @@ func test_quarters_and_soute_effects() -> void:
 	var x0: float = _gs.crew_xp_mult()
 	_check(is_equal_approx(x0, 1.0), "Quartiers niveau 1 : pas de bonus d'XP")
 	_gs.room_levels["quartiers"] = 11
+	_check(is_equal_approx(_gs.crew_xp_mult(), 1.0), "Quartiers sans équipier : aucun effet")
+	_gs.give_hero("nova", 10)
+	_gs.set_room_crew("quartiers", "nova")
 	_check(_gs.crew_xp_mult() > 1.25, "Quartiers niveau 11 : environ +30 % d'XP")
 	var lv0: int = _gs.heroes["rex"].level
 	var xp_rate: float = _gs.crew_xp_per_sec("rex")
@@ -858,6 +865,9 @@ func test_quarters_and_soute_effects() -> void:
 	var cap0: float = _gs.offline_cap_seconds()
 	var eff0: float = _gs.offline_efficiency()
 	_gs.room_levels["soute"] = 11
+	_check(is_equal_approx(_gs.offline_cap_seconds(), cap0), "Soute sans équipier : aucun effet")
+	_gs.give_hero("quark", 10)
+	_gs.set_room_crew("soute", "quark")
 	_check(_gs.offline_cap_seconds() > cap0 + 3.0 * 3600.0, "la Soute allonge le coffre hors ligne")
 	_check(_gs.offline_efficiency() > eff0 + 0.05, "et améliore le rendement")
 	_check(lv0 >= 1, "niveau cohérent")

@@ -18,6 +18,7 @@ const COL_GOOD := UiTheme.GOOD
 var _res_labels := {}
 var _rate_label: Label
 var _pages := {}
+var _ship_info: Label
 var _tab_buttons := {}
 var _dirty := true
 var _timer := 0.0
@@ -162,12 +163,13 @@ func _build_ui() -> void:
 	var holder := Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(holder)
-	for id in ["captain", "crew", "exp", "lab", "ship"]:
+	for id in ["captain", "crew", "exp", "lab", "base", "ship"]:
 		_pages[id] = _make_page(holder)
 	_build_captain_page(_pages["captain"])
 	_build_crew_page(_pages["crew"])
 	_build_expedition_page(_pages["exp"])
 	_build_lab_page(_pages["lab"])
+	_build_base_page(_pages["base"])
 	_build_ship_page(_pages["ship"])
 
 	_build_tabs(root)
@@ -231,10 +233,10 @@ func _build_tabs(parent: Control) -> void:
 	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 	var group := ButtonGroup.new()
-	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["ship", "Base"]]:
+	for entry in [["captain", "Capitaine"], ["crew", "Équipage"], ["exp", "Expéditions"], ["lab", "Labo"], ["base", "Base"], ["ship", "Vaisseau"]]:
 		var b := Button.new()
 		b.text = entry[1]
-		b.icon = UiIcons.icon(entry[0], 44, Color.WHITE)
+		b.icon = UiIcons.icon(entry[0], 40, Color.WHITE)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.expand_icon = false
@@ -242,8 +244,8 @@ func _build_tabs(parent: Control) -> void:
 		b.button_group = group
 		b.custom_minimum_size = Vector2(0, 104)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 21)
-		b.add_theme_constant_override("icon_max_width", 44)
+		b.add_theme_font_size_override("font_size", 17)
+		b.add_theme_constant_override("icon_max_width", 40)
 		b.add_theme_constant_override("h_separation", 0)
 		b.pressed.connect(_show_tab.bind(entry[0]))
 		bar.add_child(b)
@@ -588,7 +590,7 @@ func _drag_safe_option(opt: OptionButton) -> void:
 			opt.get_popup().hide.call_deferred())
 
 
-func _build_ship_page(page: VBoxContainer) -> void:
+func _build_base_page(page: VBoxContainer) -> void:
 	_section(page, "Base")
 	_base_info = _label(page, "", 20, UiTheme.MAGENTA)
 	_base_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -657,8 +659,12 @@ func _build_ship_page(page: VBoxContainer) -> void:
 	_at_last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_at_chances = _label(atv, "", 19, UiTheme.MAGENTA)
 	_at_chances.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# améliorations du vaisseau (expéditions et revenus)
-	_label(page, "Améliorations du vaisseau", 28, COL_ACCENT).add_theme_font_override("font", UiTheme.font(true))
+
+
+func _build_ship_page(page: VBoxContainer) -> void:
+	_section(page, "Vaisseau")
+	_ship_info = _label(page, "Améliorations du vaisseau : expéditions et revenus.", 20, COL_TEXT_DIM)
+	_ship_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for id in Data.UPGRADE_ORDER:
 		var icon_name: String = UPGRADE_ICONS[id]
 		var color: Color = UpgradeColors.get(id, UiTheme.ACCENT)
@@ -1353,9 +1359,12 @@ func _refresh_ship() -> void:
 	# Atelier
 	var per_hour := GameState.afk_drops_per_hour()
 	var penalties := (1 if GameState.atelier_slot != "" else 0) + (1 if GameState.atelier_focus != "" else 0)
-	_at_rate.text = "Cadence : %s objet(s) par heure%s" % [String.num(per_hour, 2), ("  (ciblage : −%d %%)" % int(round((1.0 - pow(Data.ATELIER_TARGET_FACTOR, penalties)) * 100.0))) if penalties > 0 else ""]
+	if per_hour <= 0.0:
+		_at_rate.text = "À l'arrêt : affecte un équipier à l'Atelier."
+	else:
+		_at_rate.text = "Cadence : %s objet(s) par heure%s" % [String.num(per_hour, 2), ("  (ciblage : −%d %%)" % int(round((1.0 - pow(Data.ATELIER_TARGET_FACTOR, penalties)) * 100.0))) if penalties > 0 else ""]
 	_at_bar.value = GameState.atelier_progress()
-	_at_next.text = "Prochain objet dans environ %s" % Data.fmt_time(GameState.atelier_next_in())
+	_at_next.text = "" if per_hour <= 0.0 else "Prochain objet dans environ %s" % Data.fmt_time(GameState.atelier_next_in())
 	_at_slot.select(0 if GameState.atelier_slot == "" else 1 + Data.EQUIP_SLOTS.find(GameState.atelier_slot))
 	_at_focus.select(0 if GameState.atelier_focus == "" else 1 + Data.AFFIX_ORDER.find(GameState.atelier_focus))
 	var lc: Dictionary = GameState.last_crafted

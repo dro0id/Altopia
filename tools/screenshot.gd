@@ -114,8 +114,9 @@ func _initialize() -> void:
 	gs.tick(3000.0)
 	await _shot_tab(main, "lab", out_dir + "/shot_lab.png")
 	await _shot_tab(main, "lab", out_dir + "/shot_lab_list.png", 700)
+	await _shot_tab(main, "base", out_dir + "/shot_base.png")
+	await _shot_tab(main, "base", out_dir + "/shot_base_atelier.png", 1500)
 	await _shot_tab(main, "ship", out_dir + "/shot_ship.png")
-	await _shot_tab(main, "ship", out_dir + "/shot_ship_end.png", 900)
 	gs.captain.level = 5
 	var rep: Dictionary = gs.simulate_offline(6.0 * 3600.0)
 	main._show_tab("captain")

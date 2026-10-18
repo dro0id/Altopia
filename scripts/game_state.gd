@@ -433,7 +433,8 @@ func afk_level() -> int:
 	for id in stationed_ids():
 		n += heroes[id].level
 	for rid in Data.ROOM_ORDER:
-		n += int((room_level(rid) - 1) / 2)
+		if room_worker(rid) != "":
+			n += int((room_level(rid) - 1) / 2)
 	for id in ["laser", "solar", "scanner", "engines"]:
 		n += upgrade_levels[id]
 	return n
@@ -612,11 +613,11 @@ func room_hero_mult(room_id: String, hero_id: String) -> float:
 	return m
 
 
-## Bonus d'équipier pour les salles à effet (Atelier, Quartiers, Soute) : x1 sans équipier, la salle marche déjà.
+## Effet d'une salle à effet (Atelier, Quartiers, Soute) : nul sans équipier, croît avec sa force de travail.
 func room_crew_boost(room_id: String) -> float:
 	var w := room_worker(room_id)
 	if w == "" or not heroes.has(w):
-		return 1.0
+		return 0.0
 	return 1.0 + room_hero_mult(room_id, w) / Data.ROOM_CREW_REF
 
 
@@ -1276,6 +1277,8 @@ func crew_xp_per_sec(id: String) -> float:
 
 ## Cadence de l'Atelier (objets par heure) : niveau de salle, équipier, ciblage et bonus de butin.
 func afk_drops_per_hour() -> float:
+	if room_crew_boost("atelier") <= 0.0:
+		return 0.0       # sans équipier, l'Atelier ne fabrique rien
 	var f := 1.0
 	if atelier_slot != "":
 		f *= Data.ATELIER_TARGET_FACTOR
