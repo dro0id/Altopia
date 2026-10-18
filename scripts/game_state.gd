@@ -1483,7 +1483,7 @@ func _complete(slot_i: int, times: int = 1) -> void:
 			levels_gained += gain_captain_xp(xp_gain)
 	else:
 		afk_defeats += times
-		dest_wins[dest] = int(float(dest_wins[dest]) * pow(Data.ENEMY_DEFEAT_DECAY, float(mini(times, 5))))   # les ennemis s'adaptent
+		dest_wins[dest] = maxi(0, int(dest_wins[dest]) - Data.ENEMY_DEFEAT_LOSS * mini(times, 5))   # les ennemis s'adaptent
 		for r in rewards:
 			rewards[r] *= Data.LOSS_REWARD
 	for r in rewards:
