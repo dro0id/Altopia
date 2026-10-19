@@ -27,3 +27,4 @@
 - [ ] **Étape 5 — Équilibrage** : tableur des courbes de progression.
 - [ ] **Étape 6 — Android** : export, icône, tests fermés, Google Play (25 $ unique).
 - [ ] **Étape 7 — Monétisation** : pubs récompensées, achats intégrés.
+- [ ] Refonte des expéditions : trois modes tirés au hasard (combat en direct, dérive en grille, route), secteur du jour conservé, refonte des combats. Cahier des charges dans `docs/EXPEDITIONS.md`.
