@@ -1,5 +1,6 @@
 extends RefCounted
-## Combat automatique au tour par tour, entièrement déterministe (pas de hasard).
+## Combat automatique au tour par tour. Sans générateur aléatoire il est déterministe (aperçu) ; avec un générateur, les dégâts varient
+## et les critiques sont tirés au sort (vrais combats).
 ## Une unité : {name, hp, max_hp, atk, def, spd}.
 
 const Data = preload("res://scripts/game_data.gd")
@@ -25,7 +26,7 @@ static func _first_alive(units: Array) -> Dictionary:
 	return {}
 
 
-static func simulate(allies: Array, enemies: Array) -> Dictionary:
+static func simulate(allies: Array, enemies: Array, rng: RandomNumberGenerator = null) -> Dictionary:
 	var a: Array = []
 	var e: Array = []
 	for i in allies.size():
@@ -60,8 +61,13 @@ static func simulate(allies: Array, enemies: Array) -> Dictionary:
 			if target.is_empty():
 				break
 			var dmg := maxf(1.0, u.atk - target.def * 0.5)
-			# critique : valeur moyenne (déterministe) ; vol de vie : soigne l'attaquant
-			dmg *= 1.0 + clampf(u.get("crit", 0.0), 0.0, 0.8) * (Data.CRIT_MULT - 1.0)
+			var crit_chance := clampf(u.get("crit", 0.0), 0.0, 0.8)
+			if rng == null:
+				dmg *= 1.0 + crit_chance * (Data.CRIT_MULT - 1.0)         # aperçu : critique moyen
+			else:
+				dmg *= 1.0 + rng.randf_range(-Data.BATTLE_VARIANCE, Data.BATTLE_VARIANCE)
+				if rng.randf() < crit_chance:
+					dmg *= Data.CRIT_MULT
 			target.hp -= dmg
 			var heal := 0.0
 			if u.get("lifesteal", 0.0) > 0.0:

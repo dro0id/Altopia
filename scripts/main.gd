@@ -761,6 +761,13 @@ func _on_anomaly_finished() -> void:
 	_dirty = true
 
 
+## Chance de victoire lisible : « sûr » à partir de 80 % (risque d'échec ≤ 20 %), sinon « risqué ».
+func _chance_text(p: float, extra: String) -> String:
+	var pct := int(round(p * 100.0))
+	var label := "sûr" if p >= Data.WIN_CHANCE_SAFE else ("risqué" if p >= 0.5 else "très risqué")
+	return "chance de victoire ~%d %% (%s)%s" % [pct, label, (" · " + extra) if extra != "" else ""]
+
+
 func _refresh_anomalies() -> void:
 	_an_sel = clampi(_an_sel, 1, GameState.anomaly_unlocked_max())
 	var ch := GameState.anomaly_charges
@@ -777,7 +784,7 @@ func _refresh_anomalies() -> void:
 	var best: int = int(GameState.anomaly_best.get(_an_sel, 0))
 	_an_preview.text = "Ennemis niv. %d  ·  %s\nRécompense : +%s XP  +%s crédits%s\n%s" % [
 		GameState.anomaly_enemy_level(_an_sel),
-		("victoire probable (il vous resterait ~%d %% de PV)" % left) if prev.win else "DÉFAITE probable (les charges seraient rendues)",
+		_chance_text(GameState.anomaly_chance(_an_sel), "il vous resterait ~%d %% de PV" % left if prev.win else "la moitié des charges serait rendue"),
 		Data.fmt(GameState.anomaly_xp(_an_sel, first)), Data.fmt(GameState.anomaly_credits(_an_sel)),
 		"  +ressources (1re réussite)" if first else "",
 		("Record : %d tours" % best) if best > 0 else "Pas encore de record"]
@@ -789,7 +796,7 @@ func _refresh_anomalies() -> void:
 			"  —  %d niveau(x) !" % la.levels if la.levels > 0 else "", "  —  NOUVEAU RECORD !" if la.record else "",
 			("  —  " + Data.fmt_amounts(la.found)) if not la.found.is_empty() else ""]
 	else:
-		_an_result.text = "Faille %d : défaite. Les charges vous sont rendues." % la.n
+		_an_result.text = "Faille %d : défaite. La moitié des charges vous est rendue." % la.n
 	var can_enter: bool = ch >= Data.ANOMALY_COST
 	_an_btn.text = "Entrer dans la faille %d  (−%d charges)" % [_an_sel, int(Data.ANOMALY_COST)] if can_enter else "Pas assez de charges (prochaine entrée dans %s)" % Data.fmt_time(GameState.anomaly_next_run_in())
 	_an_btn.disabled = ch < Data.ANOMALY_COST or _an_view.playing
@@ -1036,7 +1043,7 @@ func _refresh_expeditions() -> void:
 				b.text = "%s — %s\n%s\nEnnemis niv. %d : %s" % [
 					info.name, Data.fmt_time(GameState.duration_of(d, i)),
 					Data.fmt_amounts(GameState.rewards_of(d, i)), GameState.enemy_level(d),
-					"victoire probable" if fight.win else "DÉFAITE probable"]
+					_chance_text(GameState.expedition_chance(d, i), "")]
 			b.disabled = busy or reason != ""
 			b.visible = not busy
 	var next := ""

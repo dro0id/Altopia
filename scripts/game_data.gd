@@ -146,6 +146,8 @@ const ENEMY_DEFEAT_LOSS := 4      # chaque défaite retire 4 victoires du compte
 const ENEMY_LEVEL_MAX := 2500
 const ENEMY_SCALE := 0.12
 const BATTLE_MAX_ROUNDS := 60
+const BATTLE_VARIANCE := 0.35     # chaque coup varie de ±35 % : les combats serrés peuvent basculer (risque d'échec réel)
+const WIN_CHANCE_SAFE := 0.8      # au-dessus de 80 % de chance de victoire, le contenu est « sûr » (risque d'échec ≤ 20 %)
 
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
@@ -413,6 +415,7 @@ static func research_curve(range_: Array, lvl: int, max_lvl: int) -> float:
 ## Une faille n : 2 sentinelles et 1 gardien, niveau d'ennemi 2 x n. Entrée = 1 charge (recharge lente, perdue jamais :
 ## une défaite rend la charge). L'XP du Capitaine ne vient que d'ici.
 const ANOMALY_CHARGES_MAX := 100       # réserve de charges
+const ANOMALY_DEFEAT_REFUND := 0.5     # une défaite rend la moitié des charges : l'échec coûte quelque chose
 const ANOMALY_COST := 10.0             # charges consommées par une entrée en faille (donc 10 entrées en réserve)
 const ANOMALY_REGEN_SECONDS := 150.0   # +1 charge par tranche de 2 min 30 (24 charges par heure : une entrée toutes les 25 min)
 const ANOMALY_ENEMY_LEVEL_PER_FAILLE := 0.35

@@ -1438,6 +1438,35 @@ func make_allies(slot_i: int) -> Array:
 	return [Battle.make_unit("Drone", maxf(1.0, d.hp), d.atk, d.def, d.spd)]
 
 
+## Chance de victoire (0 à 1) par tirages répétés ; mise en cache car l'interface la redemande souvent.
+var _chance_cache := {}
+
+
+func battle_chance(allies: Array, enemies: Array, samples: int = 40) -> float:
+	var key := str(allies) + str(enemies)
+	if _chance_cache.has(key):
+		return _chance_cache[key]
+	var r := RandomNumberGenerator.new()
+	r.seed = 7919
+	var wins := 0
+	for i in samples:
+		if Battle.simulate(allies, enemies, r).win:
+			wins += 1
+	var p := float(wins) / float(samples)
+	if _chance_cache.size() > 80:
+		_chance_cache.clear()
+	_chance_cache[key] = p
+	return p
+
+
+func expedition_chance(dest: String, slot_i: int) -> float:
+	return battle_chance(make_allies(slot_i), make_enemies(dest))
+
+
+func anomaly_chance(n: int) -> float:
+	return battle_chance([captain_unit()], make_anomaly_enemies(n))
+
+
 ## Aperçu : le vaisseau battrait-il les ennemis actuels de cette destination ?
 func preview_battle(dest: String, slot_i: int) -> Dictionary:
 	return Battle.simulate(make_allies(slot_i), make_enemies(dest))
@@ -1471,23 +1500,30 @@ func set_auto(slot_i: int, value: bool) -> void:
 func _complete(slot_i: int, times: int = 1) -> void:
 	var slot: Dictionary = slots[slot_i]
 	var dest: String = slot.dest
-	var battle := preview_battle(dest, slot_i)
+	var battle := Battle.simulate(make_allies(slot_i), make_enemies(dest), rng)     # vrai combat : le hasard joue
+	var wins := times if battle.win else 0
+	if times > 1:        # expéditions regroupées : on tire quelques combats pour estimer la part de victoires
+		var sample := mini(times, 8)
+		var w := 1 if battle.win else 0
+		for i in sample - 1:
+			if Battle.simulate(make_allies(slot_i), make_enemies(dest), rng).win:
+				w += 1
+		wins = int(round(float(w) / float(sample) * float(times)))
+	var losses := times - wins
 	var rewards: Dictionary = rewards_of(dest, slot_i)
 	var levels_gained := 0
 	var xp_gain := 0
-	if battle.win:
-		afk_wins += times
-		dest_wins[dest] += times
-		if slot_i == 0:      # le Capitaine, à bord du vaisseau 1, progresse en expédition
-			xp_gain = int(round(captain_run_xp(1.0) * Data.EXPEDITION_CAPTAIN_XP_RATIO)) * times
-			levels_gained += gain_captain_xp(xp_gain)
-	else:
-		afk_defeats += times
-		dest_wins[dest] = maxi(0, int(dest_wins[dest]) - Data.ENEMY_DEFEAT_LOSS * mini(times, 5))   # les ennemis s'adaptent
-		for r in rewards:
-			rewards[r] *= Data.LOSS_REWARD
+	afk_wins += wins
+	afk_defeats += losses
+	dest_wins[dest] += wins
+	if losses > 0:
+		dest_wins[dest] = maxi(0, int(dest_wins[dest]) - Data.ENEMY_DEFEAT_LOSS * mini(losses, 5))   # les ennemis s'adaptent
+	if wins > 0 and slot_i == 0:      # le Capitaine, à bord du vaisseau 1, progresse en expédition
+		xp_gain = int(round(captain_run_xp(1.0) * Data.EXPEDITION_CAPTAIN_XP_RATIO)) * wins
+		levels_gained += gain_captain_xp(xp_gain)
+	var reward_mult := float(wins) + float(losses) * Data.LOSS_REWARD       # une défaite ne garde qu'une part du butin
 	for r in rewards:
-		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0) * times
+		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0) * reward_mult
 		add_res(r, rewards[r])
 	expeditions_done += times
 	var head := "Victoire en %d tours" % battle.rounds if battle.win else "Défaite (butin réduit)"
@@ -1718,7 +1754,7 @@ func enter_anomaly(n: int) -> bool:
 	if n < 1 or n > anomaly_unlocked_max() or anomaly_charges < Data.ANOMALY_COST:
 		return false
 	anomaly_charges -= Data.ANOMALY_COST
-	var b := Battle.simulate([captain_unit()], make_anomaly_enemies(n))
+	var b := Battle.simulate([captain_unit()], make_anomaly_enemies(n), rng)     # vrai combat : le hasard joue
 	var first: bool = n > anomaly_max
 	var xp := 0
 	var credits := 0.0
@@ -1742,7 +1778,7 @@ func enter_anomaly(n: int) -> bool:
 				found[r] = ceil(Data.ANOMALY_FIRST_RES[r] * (1.0 + 0.1 * n))
 				add_res(r, found[r])
 	else:
-		anomaly_charges += Data.ANOMALY_COST
+		anomaly_charges = minf(float(Data.ANOMALY_CHARGES_MAX), anomaly_charges + Data.ANOMALY_COST * Data.ANOMALY_DEFEAT_REFUND)
 	var kind: String = Data.DEST_ORDER[(n - 1) % Data.DEST_ORDER.size()]
 	last_anomaly = {
 		"n": n, "win": b.win, "rounds": b.rounds, "xp": xp, "levels": levels, "credits": credits, "record": record,

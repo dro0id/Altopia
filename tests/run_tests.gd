@@ -510,8 +510,57 @@ func test_anomaly_defeat_refunds_charge() -> void:
 	var ch: float = _gs.anomaly_charges
 	_check(_gs.enter_anomaly(61), "entrée dans une faille trop forte")
 	_check(not _gs.last_anomaly.win, "défaite")
-	_check(is_equal_approx(_gs.anomaly_charges, ch), "les charges sont rendues")
+	_check(is_equal_approx(_gs.anomaly_charges, ch - Data.ANOMALY_COST * (1.0 - Data.ANOMALY_DEFEAT_REFUND)), "la moitié des charges est rendue")
 	_check(_gs.anomaly_max == 60 and _gs.last_anomaly.xp == 0, "aucun progrès, aucune perte")
+
+
+func test_combat_has_real_risk() -> void:
+	var weak := [Battle.make_unit("A", 100, 10, 0, 10)]
+	var strong := [Battle.make_unit("E", 100, 10, 0, 10)]
+	var r1 := RandomNumberGenerator.new()
+	var r2 := RandomNumberGenerator.new()
+	r1.seed = 99
+	r2.seed = 99
+	_check(Battle.simulate(weak, strong, r1).events == Battle.simulate(weak, strong, r2).events, "même graine : même combat")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var wins := 0
+	for i in 200:
+		if Battle.simulate(weak, strong, rng).win:
+			wins += 1
+	_check(wins > 40 and wins < 160, "combat à égalité : le hasard fait basculer le résultat (%d / 200)" % wins)
+	_check(Battle.simulate(weak, strong).win == Battle.simulate(weak, strong).win, "l'aperçu sans hasard reste déterministe")
+	var crushed := [Battle.make_unit("C", 1000, 100, 0, 10)]
+	var always := true
+	for i in 50:
+		always = always and Battle.simulate(crushed, strong, rng).win
+	_check(always, "écrasant : jamais d'échec")
+	_gs.new_game()
+	var allies := [Battle.make_unit("A", 100, 10, 0, 10)]
+	var p_even: float = _gs.battle_chance(allies, [Battle.make_unit("E", 100, 10, 0, 10)])
+	var p_easy: float = _gs.battle_chance(allies, [Battle.make_unit("E", 100, 6, 0, 10)])
+	var p_hard: float = _gs.battle_chance(allies, [Battle.make_unit("E", 100, 16, 0, 10)])
+	_check(p_easy > p_even and p_even > p_hard, "la chance de victoire baisse avec la force des ennemis (%.2f > %.2f > %.2f)" % [p_easy, p_even, p_hard])
+	_check(is_equal_approx(p_even, _gs.battle_chance(allies, [Battle.make_unit("E", 100, 10, 0, 10)])), "la chance annoncée est stable")
+	_gs.rng.seed = 11
+	_gs.captain.level = 1
+	_gs.anomaly_max = 60
+	var defeats := 0
+	for i in 20:
+		_gs.anomaly_charges = 100.0
+		_gs.enter_anomaly(61)
+		if not _gs.last_anomaly.win:
+			defeats += 1
+	_check(defeats == 20, "une faille bien trop forte est toujours perdue")
+
+
+func test_grouped_expeditions_mix_wins_and_losses() -> void:
+	_gs.new_game()
+	_gs.rng.seed = 3
+	_gs.launch(0, "asteroids")
+	var before: int = _gs.afk_wins + _gs.afk_defeats
+	_gs._complete(0, 40)
+	_check(_gs.afk_wins + _gs.afk_defeats - before == 40, "40 expéditions regroupées : toutes comptées (victoires + défaites)")
 
 
 func test_anomaly_cost_and_old_saves() -> void:
