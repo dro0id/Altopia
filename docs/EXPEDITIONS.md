@@ -1,12 +1,22 @@
 # Expéditions : refonte (cahier des charges)
 
-Les expéditions ne sont **pas** de l'AFK : elles se jouent en direct, avec le Capitaine et son équipage, et servent de bonus de ressources. Maquettes : canvas « Altopia — Refonte des Expéditions » (propositions A, B, C et D).
+Les expéditions ne sont **pas** de l'AFK : elles se jouent en direct, avec le Capitaine et son équipage, et servent de bonus de ressources. Maquettes : canvas « Altopia — Refonte des Expéditions » (propositions A, B, C et D, puis la série E : lancement, briefing, combat, gardien, résultat et charte graphique du combat).
 
 ## Décisions validées
 
 - Trois modes d'exploration : **Combat en direct** (B), **Dérive** (grille de scan, C) et **Route** (carte d'étapes, A).
-- **Lancer une expédition tire un mode au hasard.** Le joueur choisit la destination, pas le mode. Le tirage est pondéré selon la destination (voir plus bas), jamais le même mode trois fois de suite.
-- Le **« secteur du jour »** est conservé : gains ×1,5 pendant quelques heures sur une destination (ou un mode), pour pousser à varier.
+- **Le joueur choisit le mode** au lancement (Combat, Dérive ou Route), ou choisit **« Aléatoire »** : le jeu tire un mode pondéré selon la destination (voir plus bas, jamais le même mode trois fois de suite).
+- **Bonus de gains** (multiplicateurs sur les gains de l'expédition, jamais cumulés entre eux) :
+
+| Cas | Gains |
+|---|---|
+| Mode choisi | x1 |
+| Mode Aléatoire | x1,5 |
+| Mode choisi, sur le secteur du jour | x1,3 |
+| Mode Aléatoire, sur le secteur du jour | x1,6 |
+
+- Le **« secteur du jour »** est une destination mise en avant pendant quelques heures (rotation). Le bonus s'applique quel que soit le mode joué sur cette destination.
+- **Poids de l'AFK et des expéditions :** l'AFK n'est là qu'en complément, pour les joueurs casual : ses gains ne sont qu'« une petite pierre dans le grand édifice ». Le cœur du jeu, ce sont les expéditions et les anomalies jouées en direct. Les gains d'expédition ne doivent donc pas être calés sur l'AFK : l'AFK reste modeste.
 - Une **refonte des combats** est nécessaire : le combat actuel (`Battle.simulate`, rejoué en animation) devient un vrai combat en direct avec des couloirs, des tirs annoncés et des compétences d'équipage.
 - Les chances de victoire (« sûr » à partir de 80 %, « risqué », « très risqué ») et la règle « une défaite garde 25 % du butin » s'appliquent aux trois modes.
 - Hors ligne, les expéditions restent en pause.
@@ -41,7 +51,7 @@ Les niveaux de l'équipage au poste améliorent les chances et l'efficacité dan
 - 9 étapes environ : combats (mode Combat), événements à choix risqués, grilles de dérive pour les épaves, point de repos, gardien final.
 - La coque et la soute se gardent d'une étape à l'autre ; seul le repos soigne.
 
-## Tirage du mode (par défaut, à régler)
+## Tirage du mode « Aléatoire » (par défaut, à régler)
 
 | Destination | Dérive | Combat | Route |
 |---|---|---|---|
@@ -52,5 +62,5 @@ Les niveaux de l'équipage au poste améliorent les chances et l'efficacité dan
 ## Points ouverts
 
 - Le combat des anomalies utilise-t-il aussi le combat en direct, ou garde-t-il le combat automatique actuel ?
-- Une durée cible par mode, et le gain par minute de jeu actif face à l'AFK (qui doit rester l'essentiel).
-- La relance automatique (Cristaux) : elle relance la destination, avec un nouveau tirage de mode.
+- Une durée cible par mode (par défaut 1 à 2 minutes ; 8 minutes pour la route).
+- La relance automatique (Cristaux) : elle relance la destination, avec le même mode choisi, ou un nouveau tirage si le mode est « Aléatoire ».
