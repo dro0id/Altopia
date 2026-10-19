@@ -271,6 +271,7 @@ func _build_captain_page(page: VBoxContainer) -> void:
 	var an := _card(page)
 	_label(an, "Le contenu actif du Capitaine : XP et crédits. Une défaite rend la charge.", 19, COL_TEXT_DIM).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_an_info = _label(an, "", 22, UiTheme.MAGENTA)
+	_an_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var sel := HBoxContainer.new()
 	sel.add_theme_constant_override("separation", 10)
 	an.add_child(sel)

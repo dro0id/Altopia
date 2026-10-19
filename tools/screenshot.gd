@@ -75,9 +75,14 @@ func _initialize() -> void:
 	while main._an_view.playing:
 		main._an_view.advance(0.1)
 	await _shot_tab(main, "captain", out_dir + "/shot_anomaly_result.png", 560)
+	gs.anomaly_max = 300      # faille très au-dessus du niveau du Capitaine : risquée
+	main._an_sel = 301
+	main._dirty = true
+	await _shot_tab(main, "captain", out_dir + "/shot_anomaly_risky.png", 560)
 	await _shot_tab(main, "captain", out_dir + "/shot_captain_inv.png", 1500)
 	await _shot_tab(main, "crew", out_dir + "/shot_crew.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_idle.png")
+	await _shot_tab(main, "exp", out_dir + "/shot_exp_dest.png", 700)
 	gs.launch(0, "star")
 	gs.tick(12.0)
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_star.png")
