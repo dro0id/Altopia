@@ -16,7 +16,7 @@ Les expéditions ne sont **pas** de l'AFK : elles se jouent en direct, avec le C
 | Mode Aléatoire, sur le secteur du jour | x1,6 |
 
 - Le **« secteur du jour »** est une destination mise en avant pendant quelques heures (rotation). Le bonus s'applique quel que soit le mode joué sur cette destination.
-- **Poids de l'AFK et des expéditions :** l'AFK n'est là qu'en complément, pour les joueurs casual : ses gains ne sont qu'« une petite pierre dans le grand édifice ». Le cœur du jeu, ce sont les expéditions et les anomalies jouées en direct. Les gains d'expédition ne doivent donc pas être calés sur l'AFK : l'AFK reste modeste.
+- **L'AFK n'est pas modifié par cette refonte.** Le Capitaine ne reçoit aucune XP de l'AFK : son XP vient uniquement des anomalies et des expéditions jouées en direct. L'AFK sert seulement à produire des ressources hors ligne (et du matériel pour l'équipage), ce qui est déjà un bonus pour un joueur casual qui compense son manque de jeu. Les gains d'expédition se règlent donc pour le jeu en direct, sans référence à l'AFK.
 - Une **refonte des combats** est nécessaire : le combat actuel (`Battle.simulate`, rejoué en animation) devient un vrai combat en direct avec des couloirs, des tirs annoncés et des compétences d'équipage.
 - Les chances de victoire (« sûr » à partir de 80 %, « risqué », « très risqué ») et la règle « une défaite garde 25 % du butin » s'appliquent aux trois modes.
 - Hors ligne, les expéditions restent en pause.
