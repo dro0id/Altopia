@@ -1492,8 +1492,15 @@ func recall(slot_i: int) -> void:
 
 
 func set_auto(slot_i: int, value: bool) -> void:
+	if value and not premium_unlocked("exp_auto"):
+		return
 	slots[slot_i].auto = value
 	changed.emit()
+
+
+## La relance automatique des expéditions est un déblocage en Cristaux : sans lui, chaque expédition se relance à la main.
+func auto_relaunch(slot_i: int) -> bool:
+	return premium_unlocked("exp_auto") and bool(slots[slot_i].auto)
 
 
 ## `times` > 1 : plusieurs expéditions identiques regroupées (calcul hors ligne) ; un seul combat est simulé.
@@ -1541,7 +1548,7 @@ func _complete(slot_i: int, times: int = 1) -> void:
 		"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
 	}
 	battle_finished.emit(slot_i)
-	if slot.auto and launch_block_reason(dest, slot_i) == "":
+	if auto_relaunch(slot_i) and launch_block_reason(dest, slot_i) == "":
 		slot.remaining = duration_of(dest, slot_i)
 	else:
 		slot.dest = ""

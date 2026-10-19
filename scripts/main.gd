@@ -1015,7 +1015,10 @@ func _refresh_expeditions() -> void:
 			u.title.text = "Vaisseau 1 — le Capitaine (niv. %d) et son équipage" % GameState.captain.level
 		else:
 			u.title.text = "Vaisseau 2 (baie d'amarrage) — drone piloté par l'équipage seul"
-		u.auto.set_pressed_no_signal(slot.auto)
+		var auto_ok := GameState.premium_unlocked("exp_auto")
+		u.auto.set_pressed_no_signal(GameState.auto_relaunch(i))
+		u.auto.disabled = not auto_ok
+		u.auto.text = "Relance automatique" if auto_ok else "Relance automatique (Cristaux, bientôt)"
 		u.recall.visible = busy
 		u.auto_sq.visible = not busy
 		u.last.visible = slot.last != ""

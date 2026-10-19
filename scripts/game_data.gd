@@ -303,12 +303,13 @@ static func fmt_amounts(d: Dictionary) -> String:
 ## même hors ligne, une file d'attente payée d'avance, annulation remboursée.
 const RESEARCH_BASE_SLOTS := 1
 ## Monnaie spéciale (« Cristaux ») : impossible à obtenir en jeu pour le moment, prévue pour un achat plus tard.
-## Elle débloque le 3e poste de recherche et la recherche automatique. Tant que PREMIUM_OBTAINABLE est faux, l'interface les montre verrouillés.
+## Elle débloque le 3e poste de recherche, la recherche automatique, la relance automatique des expéditions et le rendement hors ligne à 70 %. Tant que PREMIUM_OBTAINABLE est faux, l'interface les montre verrouillés.
 const PREMIUM_NAME := "Cristaux"
 const PREMIUM_OBTAINABLE := false
 const PREMIUM_UNLOCKS := {
 	"lab_slot": {"name": "3e poste de recherche", "cost": 300},
 	"lab_auto": {"name": "Recherche automatique", "cost": 150},
+	"exp_auto": {"name": "Relance automatique des expéditions", "cost": 100},
 	"offline_boost": {"name": "Rendement hors ligne 70 %", "cost": 200},
 }
 const RESEARCH_QUEUE_MAX := 5

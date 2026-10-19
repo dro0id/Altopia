@@ -642,6 +642,16 @@ func test_auto_repeat_offline() -> void:
 	var d: float = _gs.duration_of("asteroids", 0)
 	_gs.launch(0, "asteroids")
 	_gs._advance_expeditions(d * 10.0 + 0.5)
+	_check(_gs.expeditions_done == 1 and _gs.slots[0].dest == "", "sans déblocage : une seule expédition, pas de relance")
+	_gs.set_auto(0, true)
+	_check(not _gs.auto_relaunch(0), "relance automatique verrouillée sans Cristaux")
+	_gs.crystals = 100
+	_check(_gs.buy_premium("exp_auto") and _gs.crystals == 0, "100 Cristaux : relance automatique débloquée")
+	_gs.set_auto(0, true)
+	_check(_gs.auto_relaunch(0), "relance automatique active")
+	_gs.expeditions_done = 0
+	_gs.launch(0, "asteroids")
+	_gs._advance_expeditions(d * 10.0 + 0.5)
 	_check(_gs.expeditions_done == 10, "10 cycles auto en une longue absence (obtenu %d)" % _gs.expeditions_done)
 	_check(_gs.slots[0].dest == "asteroids", "toujours en expédition")
 

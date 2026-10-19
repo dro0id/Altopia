@@ -195,6 +195,7 @@ Calibrage, Cartographie, Propulsion et Butin gagnent un palier IV (prérequis : 
 
 - Un seul poste de recherche au départ. Le Laboratoire annexe (recherche, 1 niveau) donne le 2e poste.
 - Le 3e poste et la recherche automatique ne s'obtiennent plus par le jeu : ils se débloquent avec une monnaie spéciale, les **Cristaux** (300 et 150), non obtenable en jeu pour le moment (`PREMIUM_OBTAINABLE = false`), prévue plus tard via un achat. L'interface les montre verrouillés.
+- La **relance automatique des expéditions** est aussi un déblocage en Cristaux (100) : sans lui, chaque expédition se relance à la main (le bouton est visible mais verrouillé).
 - Anciennes sauvegardes : ceux qui avaient déjà le 3e poste ou la recherche automatique les gardent (pas de perte).
 - Simulation d'un an avec 1 à 2 postes et sans recherche automatique (le robot relance ses recherches à chaque session) : recherches 319/371 (regular) et 302/371 (casual) au jour 365, contre 325/372 avant ; capitaine niveau 50 (regular) et 43 (casual) au jour 365. Les ressources limitent plus la recherche que le nombre de postes.
 
