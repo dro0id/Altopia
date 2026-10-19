@@ -231,3 +231,10 @@ Résultats, joueur naïf, 60 jours :
 Limites : le combat reste déterministe (aperçu exact), donc un échec n'arrive que si le joueur ignore l'aperçu. En casual, peu d'expéditions sont lancées : les ennemis ne rattrapent pas l'équipe et le taux reste proche de 100 %.
 
 Rythme sur un an après réglage (joueur prudent, avec refontes) : le Capitaine garde le même rythme (regular : niveau 15 / 26 / 39 / 50 aux jours 30 / 90 / 180 / 300 ; casual : 8 / 15 / 22 / 29). Numéro de faille atteint : environ 800 au jour 30 et 6 000 au jour 300 en regular. Expéditions : 85 % de réussite en regular, 92 % en casual, même avec le choix prudent (le repli sur les astéroïdes peut perdre).
+
+## Combats avec un vrai risque d'échec (20 % maximum)
+
+- Les vrais combats ont maintenant du hasard : chaque coup varie de ±35 % (`BATTLE_VARIANCE`) et les critiques sont tirés au sort. L'aperçu (sans hasard) reste utilisé pour les animations ; l'interface annonce une **chance de victoire** calculée par tirages répétés : « sûr » à partir de 80 %, « risqué » à partir de 50 %, « très risqué » en dessous.
+- Un joueur qui ne tente que le contenu « sûr » (≥ 80 % de chance) perd au plus 20 % du temps. Une défaite coûte quelque chose : en anomalie la moitié des charges est rendue (`ANOMALY_DEFEAT_REFUND`), en expédition le butin tombe à 25 % et les ennemis s'adaptent.
+- Mesure (90 jours, joueur qui ne tente que ≥ 80 % de chance) : réussite en anomalies / expéditions : casual 100 % / 91 %, regular 85 % / 83 %, hardcore 83 % / 81 %. Joueur naïf qui fonce toujours : casual 100 % / 93 %, regular 81 % / 83 %, hardcore 68 % / 82 %.
+- Les expéditions regroupées hors ligne tirent quelques combats pour estimer la part de victoires.
