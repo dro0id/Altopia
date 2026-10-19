@@ -18,6 +18,7 @@ const COL_GOOD := UiTheme.GOOD
 
 var _res_labels := {}
 var _rate_label: Label
+var _exp_count: Label
 var _pages := {}
 var _base_ui
 var _title: Label
@@ -387,6 +388,7 @@ func _build_crew_page(page: VBoxContainer) -> void:
 
 func _build_expedition_page(page: VBoxContainer) -> void:
 	_section(page, "Expéditions")
+	_exp_count = _label(page, "", 19, COL_ACCENT)
 	var note := _label(page, "Les expéditions se jouent en direct : le Capitaine y gagne de l'XP et l'équipage l'accompagne. Elles se mettent en pause quand vous quittez l'appli (l'AFK, lui, continue).", 19, COL_TEXT_DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for i in Data.MAX_SLOTS:
@@ -716,12 +718,13 @@ func _refresh() -> void:
 	for id in Data.RES_ORDER:
 		_res_labels[id].text = Data.fmt(GameState.res[id])
 	var prod := GameState.production_per_sec()
-	_rate_label.text = "AFK/h : +%s cr  +%s min.  +%s én.  +%s don.    Exp. : %d" % [
+	_rate_label.text = "Équipage /h : +%s cr  +%s min.  +%s én.  +%s don." % [
 		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
-		Data.fmt(prod.data * 3600.0), GameState.expeditions_done]
+		Data.fmt(prod.data * 3600.0)]
 	_refresh_goal()
 	_refresh_captain()
 	_refresh_crew()
+	_exp_count.text = "Expéditions terminées : %d" % GameState.expeditions_done
 	_refresh_expeditions()
 	_base_ui.refresh()
 	_refresh_ship()
