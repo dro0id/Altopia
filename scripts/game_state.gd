@@ -32,6 +32,7 @@ var auto_recycle := Data.AUTO_RECYCLE_MAX   # recycle les objets peu utiles dès
 var heroes := {}
 var hero_order: Array = []
 var recruits := 0
+var ship_tier_best := 0          # palier de vaisseau le plus haut atteint : il survit à la refonte (les améliorations, elles, repartent à zéro)
 var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0}
 var room_levels := {}             # niveau de chaque salle de la Base (1 au départ)
 var room_crew := {}               # salle -> équipier qui y travaille ("" = personne)
@@ -115,6 +116,7 @@ func reset() -> void:
 	recruits = 0
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
+	ship_tier_best = 0
 	for rid in Data.ROOM_ORDER:
 		room_levels[rid] = 1
 		room_crew[rid] = ""
@@ -1358,6 +1360,7 @@ func buy_upgrade(id: String) -> bool:
 		return false
 	pay(cost)
 	upgrade_levels[id] += 1
+	ship_tier_best = maxi(ship_tier_best, _ship_tier_from_levels())
 	changed.emit()
 	return true
 
@@ -1503,6 +1506,145 @@ func auto_relaunch(slot_i: int) -> bool:
 	return premium_unlocked("exp_auto") and bool(slots[slot_i].auto)
 
 
+## Règle commune aux expéditions (combat automatique ou en direct) : butin, XP du Capitaine, adaptation des ennemis, message.
+## `win_mult` multiplie le butin d'une victoire (mode Aléatoire, secteur du jour, objectifs) ; une défaite ne garde que LOSS_REWARD du butin de base.
+func _settle(slot_i: int, dest: String, times: int, wins: int, win_mult: float, head: String, battle: Dictionary) -> void:
+	var slot: Dictionary = slots[slot_i]
+	var losses := times - wins
+	var rewards: Dictionary = rewards_of(dest, slot_i)
+	var levels_gained := 0
+	var xp_gain := 0
+	afk_wins += wins
+	afk_defeats += losses
+	dest_wins[dest] += wins
+	if losses > 0:
+		dest_wins[dest] = maxi(0, int(dest_wins[dest]) - Data.ENEMY_DEFEAT_LOSS * mini(losses, 5))   # les ennemis s'adaptent
+	if wins > 0 and slot_i == 0:      # le Capitaine, à bord du vaisseau 1, progresse en expédition
+		xp_gain = int(round(captain_run_xp(1.0) * Data.EXPEDITION_CAPTAIN_XP_RATIO)) * wins
+		levels_gained += gain_captain_xp(xp_gain)
+	var reward_mult := float(wins) * win_mult + float(losses) * Data.LOSS_REWARD       # une défaite ne garde qu'une part du butin
+	for r in rewards:
+		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0) * reward_mult
+		add_res(r, rewards[r])
+	expeditions_done += times
+	slot.last = "%s — %s : %s" % [head, Data.DEST[dest].name, Data.fmt_amounts(rewards)]
+	if xp_gain > 0:
+		slot.last += "  |  Capitaine +%s XP" % Data.fmt(xp_gain)
+	if levels_gained > 0:
+		slot.last += "  |  %d niveau(x) gagné(s) !" % levels_gained
+	if battle.is_empty():
+		slot.log = []
+		slot.battle = {}
+	else:
+		slot.log = battle.log
+		var ally: Dictionary = battle.allies[0]
+		slot.battle = {
+			"win": battle.win, "dest": dest, "events": battle.events, "loot": {},
+			"allies": [{"id": "captain" if slot_i == 0 else "drone", "name": ally.name, "max_hp": ally.max_hp,
+				"look": captain.look.duplicate(), "crew": squad_ids(slot_i)}],
+			"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
+		}
+
+
+## --- Expéditions en direct ---
+
+## Somme des niveaux des quatre améliorations de production du vaisseau (0 à 80).
+func ship_upgrade_sum() -> int:
+	var n := 0
+	for id in ["laser", "solar", "scanner", "engines"]:
+		n += int(upgrade_levels[id])
+	return n
+
+
+func _ship_tier_from_levels() -> int:
+	var tier := 0
+	for i in Data.SHIP_TIER_LEVELS.size():
+		if ship_upgrade_sum() >= Data.SHIP_TIER_LEVELS[i]:
+			tier = i
+	return tier
+
+
+## Palier du vaisseau (0 à 4) : sa forme, sa coque et ses canons changent. On garde le plus haut atteint, même après une refonte.
+func ship_tier() -> int:
+	return maxi(ship_tier_best, _ship_tier_from_levels())
+
+
+var _sector_clock := -1.0        # réservé aux tests : heure simulée (secondes Unix)
+
+
+func _now() -> float:
+	return _sector_clock if _sector_clock >= 0.0 else Time.get_unix_time_from_system()
+
+
+## Secteur du jour : une destination mise en avant, qui change toutes les SECTOR_HOURS heures.
+func sector_of_day() -> String:
+	var idx := int(_now() / (float(Data.SECTOR_HOURS) * 3600.0))
+	return Data.DEST_ORDER[idx % Data.DEST_ORDER.size()]
+
+
+func sector_seconds_left() -> float:
+	var span := float(Data.SECTOR_HOURS) * 3600.0
+	return span - fmod(_now(), span)
+
+
+func ready_modes() -> Array:
+	var out: Array = []
+	for m in Data.MODES:
+		if Data.MODE_INFO[m].ready:
+			out.append(m)
+	return out
+
+
+## Le mode Aléatoire n'a de sens (et de bonus) que si le jeu a au moins deux modes à tirer.
+func random_mode_available() -> bool:
+	return ready_modes().size() >= 2
+
+
+func pick_random_mode() -> String:
+	var modes := ready_modes()
+	return modes[rng.randi_range(0, modes.size() - 1)]
+
+
+## Multiplicateur de gains : mode choisi x1, Aléatoire x1,5, secteur du jour x1,3 (x1,6 avec Aléatoire). Les bonus ne se cumulent pas.
+func live_mode_mult(dest: String, random: bool) -> float:
+	var on_sector := dest == sector_of_day()
+	if random:
+		return Data.SECTOR_RANDOM_MULT if on_sector else Data.RANDOM_MODE_MULT
+	return Data.SECTOR_MULT if on_sector else 1.0
+
+
+## Chance de victoire affichée en combat en direct : jamais au-dessus du seuil « sûr » (le combat reste un vrai défi).
+func live_chance(dest: String, slot_i: int) -> float:
+	return minf(expedition_chance(dest, slot_i), Data.WIN_CHANCE_SAFE)
+
+
+## Réglages du combat : le palier du vaisseau, le gardien de la destination et des ennemis plus durs quand le Capitaine est faible.
+func live_config(dest: String, slot_i: int) -> Dictionary:
+	var p := expedition_chance(dest, slot_i)
+	var under := clampf((Data.WIN_CHANCE_SAFE - p) / Data.WIN_CHANCE_SAFE, 0.0, 1.0)
+	var scale: float = Data.LIVE_DEST_SCALE[dest] * (1.0 + 1.2 * under)
+	return {"tier": ship_tier(), "use_boss": bool(Data.DEST[dest].guardian), "hp_scale": scale, "dmg_scale": scale}
+
+
+## "" si un combat en direct peut démarrer sur le vaisseau `slot_i`, sinon la raison du blocage.
+func live_block_reason(dest: String, slot_i: int) -> String:
+	if slots[slot_i].dest != "":
+		return "Le vaisseau est déjà en route"
+	return launch_block_reason(dest, slot_i)
+
+
+## Règle le butin d'un combat en direct terminé. `result` vient de LiveSim.result() ; `random` : le mode a été tiré au hasard.
+func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool) -> Dictionary:
+	var win := bool(result.get("win", false))
+	var mult := live_mode_mult(dest, random) * (1.0 + Data.OBJECTIVE_BONUS * float(result.get("objectives_done", 0)))
+	var head := "Victoire en %d s" % int(result.get("time", 0.0)) if win else "Défaite (butin réduit)"
+	if win and mult > 1.001:
+		head += " (gains x%s)" % ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ",")
+	_settle(slot_i, dest, 1, 1 if win else 0, mult, head, {})
+	changed.emit()
+	return {"mult": mult, "win": win}
+
+
 ## `times` > 1 : plusieurs expéditions identiques regroupées (calcul hors ligne) ; un seul combat est simulé.
 func _complete(slot_i: int, times: int = 1) -> void:
 	var slot: Dictionary = slots[slot_i]
@@ -1516,37 +1658,8 @@ func _complete(slot_i: int, times: int = 1) -> void:
 			if Battle.simulate(make_allies(slot_i), make_enemies(dest), rng).win:
 				w += 1
 		wins = int(round(float(w) / float(sample) * float(times)))
-	var losses := times - wins
-	var rewards: Dictionary = rewards_of(dest, slot_i)
-	var levels_gained := 0
-	var xp_gain := 0
-	afk_wins += wins
-	afk_defeats += losses
-	dest_wins[dest] += wins
-	if losses > 0:
-		dest_wins[dest] = maxi(0, int(dest_wins[dest]) - Data.ENEMY_DEFEAT_LOSS * mini(losses, 5))   # les ennemis s'adaptent
-	if wins > 0 and slot_i == 0:      # le Capitaine, à bord du vaisseau 1, progresse en expédition
-		xp_gain = int(round(captain_run_xp(1.0) * Data.EXPEDITION_CAPTAIN_XP_RATIO)) * wins
-		levels_gained += gain_captain_xp(xp_gain)
-	var reward_mult := float(wins) + float(losses) * Data.LOSS_REWARD       # une défaite ne garde qu'une part du butin
-	for r in rewards:
-		rewards[r] *= _gain_scale * (credit_mult() if r == "credits" else 1.0) * reward_mult
-		add_res(r, rewards[r])
-	expeditions_done += times
 	var head := "Victoire en %d tours" % battle.rounds if battle.win else "Défaite (butin réduit)"
-	slot.last = "%s — %s : %s" % [head, Data.DEST[dest].name, Data.fmt_amounts(rewards)]
-	if xp_gain > 0:
-		slot.last += "  |  Capitaine +%s XP" % Data.fmt(xp_gain)
-	if levels_gained > 0:
-		slot.last += "  |  %d niveau(x) gagné(s) !" % levels_gained
-	slot.log = battle.log
-	var ally: Dictionary = battle.allies[0]
-	slot.battle = {
-		"win": battle.win, "dest": dest, "events": battle.events, "loot": {},
-		"allies": [{"id": "captain" if slot_i == 0 else "drone", "name": ally.name, "max_hp": ally.max_hp,
-			"look": captain.look.duplicate(), "crew": squad_ids(slot_i)}],
-		"enemies": battle.enemies.map(func(u): return {"name": u.name, "max_hp": u.max_hp, "kind": dest}),
-	}
+	_settle(slot_i, dest, times, wins, 1.0, head, battle)
 	battle_finished.emit(slot_i)
 	if auto_relaunch(slot_i) and launch_block_reason(dest, slot_i) == "":
 		slot.remaining = duration_of(dest, slot_i)
@@ -1811,7 +1924,7 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": _captain_for_save(),
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "goals": goals_claimed,
+		"upgrades": upgrade_levels, "ship_tier": ship_tier_best, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total, "log": craft_log,
 			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "regen": anomaly_regen_acc, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
@@ -1885,6 +1998,8 @@ func load_game() -> bool:
 	var saved_up: Dictionary = parsed.get("upgrades", {})
 	for id in upgrade_levels:
 		upgrade_levels[id] = int(saved_up.get(id, 0))
+	ship_tier_best = maxi(int(parsed.get("ship_tier", 0)), 0)
+	ship_tier_best = maxi(ship_tier_best, _ship_tier_from_levels())
 	var saved_rs: Dictionary = parsed.get("research", {})
 	var saved_levels: Dictionary = saved_rs.get("levels", {})
 	for rid in Data.RESEARCH_ORDER:

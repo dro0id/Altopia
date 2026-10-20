@@ -5,6 +5,7 @@ extends SceneTree
 
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
+const LiveSim = preload("res://scripts/live_sim.gd")
 
 var _failures := 0
 var _gs: Node
@@ -1165,3 +1166,176 @@ func test_base_save_load_roundtrip() -> void:
 	_check(_gs.room_level("atelier") == 7 and _gs.atelier_slot == "boots" and _gs.atelier_focus == "xp_pct" and _gs.room_worker("atelier") == "tess", "Base restaurée")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_base.json"))
 	_gs.save_path = _gs.SAVE_PATH
+
+
+# ---------- expéditions en direct ----------
+
+func _live_run(seed_value: int, cfg: Dictionary, human: bool = false) -> LiveSim:
+	var s := LiveSim.new(seed_value)
+	s.human_bot = human
+	s.setup(cfg)
+	var steps := 0
+	while not s.over and steps < 20000:
+		s.step(1.0 / 30.0)
+		steps += 1
+	return s
+
+
+func test_live_sim_is_deterministic() -> void:
+	var a := _live_run(77, {"tier": 1, "assist": true})
+	var b := _live_run(77, {"tier": 1, "assist": true})
+	_check(a.over and a.win == b.win and a.hits == b.hits and is_equal_approx(a.t, b.t), "même graine, même combat")
+	_check(a.objectives == b.objectives, "mêmes objectifs tirés avec la même graine")
+
+
+func test_live_objectives_two_distinct_and_weak_needs_boss() -> void:
+	var weak_with_boss := false
+	for i in 60:
+		var s := LiveSim.new(1000 + i)
+		s.setup({"tier": 0, "use_boss": true})
+		_check(s.objectives.size() == 2 and s.objectives[0] != s.objectives[1], "deux objectifs différents")
+		if s.objectives.has("weak"):
+			weak_with_boss = true
+		var n := LiveSim.new(2000 + i)
+		n.setup({"tier": 0, "use_boss": false})
+		_check(not n.objectives.has("weak"), "pas d'objectif de points faibles sans gardien")
+	_check(weak_with_boss, "l'objectif des points faibles existe face à un gardien")
+
+
+func test_live_combo_counts_in_assist_mode() -> void:
+	var s := _live_run(5, {"tier": 0, "assist": true})
+	_check(s.max_combo >= 10, "le combo compte aussi en équipage assisté (x%d)" % s.max_combo)
+
+
+func test_live_projectiles_have_varied_speeds() -> void:
+	var s := LiveSim.new(3)
+	s.setup({"tier": 0})
+	var speeds := {}
+	for i in 1500:
+		s.step(1.0 / 30.0)
+		for b in s.ebullets:
+			speeds[b.kind] = true
+		if s.over:
+			break
+	_check(speeds.size() >= 3, "au moins trois sortes de projectiles ennemis (%d)" % speeds.size())
+
+
+func test_live_win_rates_stay_under_the_cap() -> void:
+	for tier in [0, 2, 4]:
+		var wins_auto := 0
+		var wins_human := 0
+		for i in 40:
+			if _live_run(9000 + i * 31, {"tier": tier, "assist": true}).win:
+				wins_auto += 1
+			if _live_run(7000 + i * 17, {"tier": tier}, true).win:
+				wins_human += 1
+		_check(wins_auto <= 34 and wins_human <= 34, "palier %d : au plus ~85 %% de victoires (auto %d/40, joueur %d/40)" % [tier + 1, wins_auto, wins_human])
+		_check(wins_auto >= 8 and wins_human >= 8, "palier %d : le combat reste gagnable (auto %d/40, joueur %d/40)" % [tier + 1, wins_auto, wins_human])
+
+
+func test_live_assist_shoots_weaker() -> void:
+	var s := LiveSim.new(1)
+	s.setup({"tier": 0, "assist": true})
+	var e := {"k": "drone", "x": 180.0, "y": 100.0, "hp": 1000.0, "max": 1000.0, "r": 24.0, "flash": 0.0, "dead": false}
+	s._damage_enemy(e, 100.0, 1)
+	_check(is_equal_approx(e.hp, 1000.0 - 100.0 * LiveSim.ASSIST_DAMAGE), "l'équipage assisté tire à 75 % de la puissance")
+
+
+func test_live_abandon_is_a_defeat() -> void:
+	var s := LiveSim.new(1)
+	s.setup({"tier": 0})
+	s.abandon()
+	_check(s.over and not s.win, "abandonner est une défaite")
+
+
+func test_ship_tier_follows_upgrades_and_survives_prestige() -> void:
+	_gs.new_game()
+	_check(_gs.ship_tier() == 0, "palier 1 au départ")
+	_gs.upgrade_levels["laser"] = 10
+	_check(_gs.ship_tier() == 1, "10 niveaux : palier 2")
+	_gs.upgrade_levels["solar"] = 15
+	_check(_gs.ship_tier() == 2, "25 niveaux : palier 3")
+	for id in ["laser", "solar", "scanner", "engines"]:
+		_gs.upgrade_levels[id] = 20
+	_check(_gs.ship_tier() == 4, "80 niveaux : palier 5")
+	_gs.ship_tier_best = 4
+	for id in ["laser", "solar", "scanner", "engines"]:
+		_gs.upgrade_levels[id] = 0
+	_check(_gs.ship_tier() == 4, "le palier le plus haut est gardé quand les améliorations repartent à zéro")
+	_gs.save_path = "user://test_ship_tier.json"
+	_gs.save_game()
+	_gs.reset()
+	_gs.load_game()
+	_check(_gs.ship_tier() == 4, "le palier est sauvegardé")
+
+
+func test_sector_of_day_rotates() -> void:
+	var seen := {}
+	for h in range(0, 24 * 3, Data.SECTOR_HOURS):
+		_gs._sector_clock = float(h) * 3600.0
+		seen[_gs.sector_of_day()] = true
+	_check(seen.size() == Data.DEST_ORDER.size(), "le secteur du jour passe par toutes les destinations")
+	_gs._sector_clock = 1000.0
+	var s0: String = _gs.sector_of_day()
+	_gs._sector_clock = 1000.0 + float(Data.SECTOR_HOURS) * 3600.0
+	_check(_gs.sector_of_day() != s0, "il change toutes les %d heures" % Data.SECTOR_HOURS)
+	_gs._sector_clock = -1.0
+
+
+func test_live_mode_multipliers() -> void:
+	_gs._sector_clock = 5.0 * 3600.0
+	var sd: String = _gs.sector_of_day()
+	var other := ""
+	for d in Data.DEST_ORDER:
+		if d != sd:
+			other = d
+	_check(is_equal_approx(_gs.live_mode_mult(other, false), 1.0), "mode choisi hors secteur : x1")
+	_check(is_equal_approx(_gs.live_mode_mult(other, true), 1.5), "Aléatoire hors secteur : x1,5")
+	_check(is_equal_approx(_gs.live_mode_mult(sd, false), 1.3), "mode choisi sur le secteur du jour : x1,3")
+	_check(is_equal_approx(_gs.live_mode_mult(sd, true), 1.6), "Aléatoire sur le secteur du jour : x1,6 (les bonus ne se cumulent pas)")
+	_gs._sector_clock = -1.0
+
+
+func test_random_mode_waits_for_a_second_mode() -> void:
+	_check(not _gs.random_mode_available(), "le mode Aléatoire n'a pas de sens tant qu'un seul mode est prêt")
+	_check(_gs.ready_modes() == ["combat"], "seul le combat est prêt")
+
+
+func test_finish_live_rewards_and_defeat() -> void:
+	_gs.new_game()
+	_gs._sector_clock = 7.0 * 3600.0         # secteur du jour : l'étoile naine, donc pas les astéroïdes
+	var dest := "asteroids"
+	var base_cr: float = _gs.res["credits"]
+	var win_info: Dictionary = _gs.finish_live(0, dest, {"win": true, "time": 20.0, "objectives_done": 2}, false)
+	var gain_win: float = _gs.res["credits"] - base_cr
+	_check(is_equal_approx(win_info.mult, 1.2) and gain_win > 0.0, "victoire avec deux objectifs : butin x1,2 (+10 % par objectif)")
+	var cr2: float = _gs.res["credits"]
+	_gs.finish_live(0, dest, {"win": false, "time": 20.0, "objectives_done": 0}, false)
+	var gain_loss: float = _gs.res["credits"] - cr2
+	_check(gain_loss > 0.0 and gain_loss < gain_win * 0.3, "une défaite ne garde qu'un quart du butin de base")
+	_check(_gs.expeditions_done == 2, "chaque combat compte comme une expédition")
+	_gs._sector_clock = -1.0
+
+
+func test_finish_live_gives_captain_xp_only_on_victory() -> void:
+	_gs.new_game()
+	var xp0: int = _gs.captain.xp
+	var lv0: int = _gs.captain.level
+	_gs.finish_live(0, "asteroids", {"win": false, "time": 10.0, "objectives_done": 0}, false)
+	_check(_gs.captain.xp == xp0 and _gs.captain.level == lv0, "pas d'XP après une défaite")
+	_gs.finish_live(0, "asteroids", {"win": true, "time": 10.0, "objectives_done": 0}, false)
+	_check(_gs.captain.xp != xp0 or _gs.captain.level != lv0, "le Capitaine gagne de l'XP après une victoire")
+
+
+func test_live_config_gets_harder_when_underpowered() -> void:
+	_gs.new_game()
+	var weak: Dictionary = _gs.live_config("asteroids", 0)
+	_gs.captain.level = 40
+	for id in ["weapon", "suit", "helmet", "gloves", "boots", "module"]:
+		var it: Dictionary = _gs.make_item(id, "legendary", 150)
+		_gs.items.append(it)
+		_gs.equipped[id] = it.id
+	var strong: Dictionary = _gs.live_config("asteroids", 0)
+	_check(weak.hp_scale >= strong.hp_scale and strong.hp_scale >= 1.0, "des ennemis plus durs si le Capitaine est faible, jamais plus faciles que la base")
+	_check(weak.use_boss and not _gs.live_config("star", 0).use_boss, "le gardien dépend de la destination")
+	_check(_gs.live_chance("asteroids", 0) <= Data.WIN_CHANCE_SAFE, "la chance affichée ne dépasse jamais 80 %")

@@ -10,6 +10,7 @@ const UiTheme = preload("res://scripts/ui_theme.gd")
 const UiIcons = preload("res://scripts/ui_icons.gd")
 const SpaceView = preload("res://scripts/space_view.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
+const LiveUI = preload("res://scripts/live_ui.gd")
 
 const COL_CARD := UiTheme.PANEL
 const COL_TEXT_DIM := UiTheme.DIM
@@ -19,6 +20,10 @@ const COL_GOOD := UiTheme.GOOD
 var _res_labels := {}
 var _rate_label: Label
 var _exp_count: Label
+var _sector_label: Label
+var _mode_btns := {}
+var _exp_mode := "combat"        # mode choisi pour les expéditions du vaisseau 1 : "combat" ou "random"
+var _live: Control               # combat en direct en cours
 var _pages := {}
 var _base_ui
 var _title: Label
@@ -389,6 +394,8 @@ func _build_crew_page(page: VBoxContainer) -> void:
 func _build_expedition_page(page: VBoxContainer) -> void:
 	_section(page, "Expéditions")
 	_exp_count = _label(page, "", 19, COL_ACCENT)
+	_sector_label = _label(page, "", 20, Color("ffd159"))
+	_sector_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var note := _label(page, "Les expéditions se jouent en direct : le Capitaine y gagne de l'XP et l'équipage l'accompagne. Elles se mettent en pause quand vous quittez l'appli (l'AFK, lui, continue).", 19, COL_TEXT_DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for i in Data.MAX_SLOTS:
@@ -463,6 +470,24 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		var recall := _button(card, "Rappeler le vaisseau", 70)
 		UiTheme.style_danger(recall)
 		recall.pressed.connect(_tap(func(): GameState.recall(i)))
+		if i == 0:
+			_label(card, "Comment explorer ?", 21, COL_TEXT_DIM)
+			var mode_row := HBoxContainer.new()
+			mode_row.add_theme_constant_override("separation", 6)
+			card.add_child(mode_row)
+			for m in ["combat", "derive", "route", "random"]:
+				var mb := Button.new()
+				mb.toggle_mode = true
+				mb.custom_minimum_size = Vector2(0, 74)
+				mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				mb.add_theme_font_size_override("font_size", 19)
+				mb.clip_text = true
+				mb.pressed.connect(_tap(func():
+					if m == "combat" or m == "random":
+						_exp_mode = m
+					_dirty = true))
+				mode_row.add_child(mb)
+				_mode_btns[m] = mb
 		var dest_btns := {}
 		for d in Data.DEST_ORDER:
 			var b := _button(card, "", 130)
@@ -474,7 +499,11 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 			b.add_theme_constant_override("icon_max_width", 56)
 			b.add_theme_constant_override("h_separation", 16)
 			b.add_theme_font_size_override("font_size", 21)
-			b.pressed.connect(_tap(func(): GameState.launch(i, d)))
+			b.pressed.connect(_tap(func():
+				if i == 0:
+					_start_live(0, d)
+				else:
+					GameState.launch(i, d)))
 			dest_btns[d] = b
 		var last := _label(card, "", 20, COL_ACCENT)
 		last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -487,6 +516,25 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 		})
 	_next_label = _label(page, "", 22, COL_TEXT_DIM)
 	_next_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+## Lance un combat en direct sur le vaisseau `slot_i` (le mode Aléatoire tire le mode parmi ceux qui sont prêts).
+func _start_live(slot_i: int, dest: String) -> void:
+	if _live != null or GameState.live_block_reason(dest, slot_i) != "":
+		return
+	var random := _exp_mode == "random" and GameState.random_mode_available()
+	if random:
+		GameState.pick_random_mode()          # un seul mode est prêt pour l'instant : le combat
+	var ui: Control = LiveUI.new()
+	_live = ui
+	add_child(ui)
+	ui.begin(slot_i, dest, GameState.live_config(dest, slot_i), random, GameState.live_mode_mult(dest, random), GameState.live_chance(dest, slot_i))
+	ui.closed.connect(func(replay: bool):
+		ui.queue_free()
+		_live = null
+		_dirty = true
+		if replay:
+			_start_live(slot_i, dest))
 
 
 func _drag_safe_option(opt: OptionButton) -> void:
@@ -1046,13 +1094,39 @@ func _refresh_expeditions() -> void:
 			if reason != "":
 				b.text = "%s\n%s" % [info.name, reason]
 			else:
-				var fight := GameState.preview_battle(d, i)
-				b.text = "%s — %s\n%s\nEnnemis niv. %d : %s" % [
-					info.name, Data.fmt_time(GameState.duration_of(d, i)),
-					Data.fmt_amounts(GameState.rewards_of(d, i)), GameState.enemy_level(d),
-					_chance_text(GameState.expedition_chance(d, i), "")]
+				if i == 0:
+					var random_i := _exp_mode == "random" and GameState.random_mode_available()
+					var mult_i := GameState.live_mode_mult(d, random_i)
+					var gains: Dictionary = GameState.rewards_of(d, i)
+					for r in gains:
+						gains[r] *= mult_i
+					b.text = "%s — combat en direct%s\n%s\nEnnemis niv. %d : %s" % [
+						info.name, ("  ·  ★ secteur du jour" if d == GameState.sector_of_day() else ""),
+						Data.fmt_amounts(gains) + ("  (x%s)" % ("%.2f" % mult_i).rstrip("0").rstrip(".").replace(".", ",") if mult_i > 1.001 else ""),
+						GameState.enemy_level(d), _chance_text(GameState.live_chance(d, i), "")]
+				else:
+					var fight := GameState.preview_battle(d, i)
+					b.text = "%s — %s\n%s\nEnnemis niv. %d : %s" % [
+						info.name, Data.fmt_time(GameState.duration_of(d, i)),
+						Data.fmt_amounts(GameState.rewards_of(d, i)), GameState.enemy_level(d),
+						_chance_text(GameState.expedition_chance(d, i), "")]
 			b.disabled = busy or reason != ""
 			b.visible = not busy
+	var sd := GameState.sector_of_day()
+	_sector_label.text = "★ Secteur du jour : %s · gains x%s (x%s avec le mode Aléatoire) · encore %s" % [Data.DEST[sd].name,
+		str(Data.SECTOR_MULT).replace(".", ","), str(Data.SECTOR_RANDOM_MULT).replace(".", ","), Data.fmt_time(GameState.sector_seconds_left())]
+	for m in _mode_btns:
+		var mb: Button = _mode_btns[m]
+		if m == "random":
+			var ok := GameState.random_mode_available()
+			mb.text = "Aléatoire\nx%s" % str(Data.RANDOM_MODE_MULT).replace(".", ",") if ok else "Aléatoire\nbientôt"
+			mb.disabled = not ok
+			mb.set_pressed_no_signal(_exp_mode == "random" and ok)
+		else:
+			var info_m: Dictionary = Data.MODE_INFO[m]
+			mb.text = info_m.name if info_m.ready else "%s\nbientôt" % info_m.name
+			mb.disabled = not info_m.ready
+			mb.set_pressed_no_signal(_exp_mode == m or (m == "combat" and _exp_mode == "random" and not GameState.random_mode_available()))
 	var next := ""
 	for d in Data.DEST_ORDER:
 		if not GameState.is_unlocked(d):

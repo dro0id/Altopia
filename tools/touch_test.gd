@@ -187,8 +187,21 @@ func _initialize() -> void:
 	await process_frame
 	var c := btn.get_global_rect().get_center()
 	await _drag(c, c)
-	var launched: bool = gs.slots[0].dest == "asteroids"
-	print(("ok   " if launched else "FAIL ") + "nouvelle partie : un tap sur « Champ d'astéroïdes » lance l'expédition (dest=%s, bouton désactivé=%s)" % [gs.slots[0].dest, btn.disabled])
+	var launched: bool = main._live != null      # un tap lance le combat en direct du vaisseau 1
+	print(("ok   " if launched else "FAIL ") + "nouvelle partie : un tap sur « Champ d'astéroïdes » lance le combat en direct (combat ouvert=%s, bouton désactivé=%s)" % [launched, btn.disabled])
 	if not launched:
 		failures += 1
+	else:
+		# Dans l'arène, un tap à droite doit envoyer le vaisseau dans le couloir de droite.
+		var lv: Control = main._live.view
+		var vr: Rect2 = lv.get_global_rect()
+		var tap := vr.position + Vector2(vr.size.x * 0.5 + lv._sc() * 130.0, vr.size.y * 0.5)
+		await _drag(tap, tap)
+		await process_frame
+		var right: bool = main._live.sim.lane == 2
+		print(("ok   " if right else "FAIL ") + "arène : un tap à droite choisit le couloir de droite (couloir=%d)" % main._live.sim.lane)
+		if not right:
+			failures += 1
+		main._live.closed.emit(false)
+		await process_frame
 	quit(1 if failures > 0 else 0)

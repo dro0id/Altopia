@@ -83,6 +83,22 @@ func _initialize() -> void:
 	await _shot_tab(main, "crew", out_dir + "/shot_crew.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_idle.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_dest.png", 700)
+	# Combat en direct : l'arène en pleine action puis l'écran de résultat.
+	main._start_live(0, "asteroids")
+	await process_frame
+	var lv = main._live
+	lv.sim.assist = true
+	for k in 150:
+		lv.sim.step(1.0 / 30.0)
+	await process_frame
+	await _shot(out_dir + "/shot_live.png")
+	while not lv.sim.over:
+		lv.sim.step(1.0 / 30.0)
+	await process_frame
+	await process_frame
+	await _shot(out_dir + "/shot_live_result.png")
+	lv.closed.emit(false)
+	await process_frame
 	gs.launch(0, "star")
 	gs.tick(12.0)
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_star.png")

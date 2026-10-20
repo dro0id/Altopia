@@ -27,4 +27,5 @@
 - [ ] **Étape 5 — Équilibrage** : tableur des courbes de progression.
 - [ ] **Étape 6 — Android** : export, icône, tests fermés, Google Play (25 $ unique).
 - [ ] **Étape 7 — Monétisation** : pubs récompensées, achats intégrés.
-- [ ] Refonte des expéditions : trois modes tirés au hasard (combat en direct, dérive en grille, route), secteur du jour conservé, refonte des combats. Cahier des charges dans `docs/EXPEDITIONS.md`.
+- [x] Refonte des expéditions, première étape : combat en direct (couloirs, tirs annoncés, compétences d'équipage, équipage assisté, objectifs, palier du vaisseau), sélecteur de mode et secteur du jour. Voir `docs/EXPEDITIONS.md`.
+- [ ] Expéditions : modes Dérive (grille de scan) et Route (carte d'étapes), puis mode Aléatoire (x1,5), étoiles, combat en direct des anomalies.

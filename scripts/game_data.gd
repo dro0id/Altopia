@@ -149,20 +149,36 @@ const BATTLE_MAX_ROUNDS := 60
 const BATTLE_VARIANCE := 0.35     # chaque coup varie de ±35 % : les combats serrés peuvent basculer (risque d'échec réel)
 const WIN_CHANCE_SAFE := 0.8      # au-dessus de 80 % de chance de victoire, le contenu est « sûr » (risque d'échec ≤ 20 %)
 
+## --- Expéditions en direct ---
+## Trois manières d'explorer ; seul le combat est jouable pour l'instant (la dérive et la route viendront).
+const MODES := ["combat", "derive", "route"]
+const MODE_INFO := {
+	"combat": {"name": "Combat", "desc": "Esquiver et déclencher les compétences de l'équipage", "ready": true},
+	"derive": {"name": "Dérive", "desc": "Scanner une grille et extraire les ressources", "ready": false},
+	"route": {"name": "Route", "desc": "Un voyage d'étapes, d'événements et de combats", "ready": false},
+}
+const RANDOM_MODE_MULT := 1.5       # mode « Aléatoire » : le jeu tire le mode, les gains sont majorés
+const SECTOR_MULT := 1.3            # secteur du jour (une destination mise en avant), mode choisi
+const SECTOR_RANDOM_MULT := 1.6     # secteur du jour avec le mode Aléatoire (les bonus ne se cumulent pas)
+const SECTOR_HOURS := 6             # le secteur du jour change toutes les 6 heures
+const OBJECTIVE_BONUS := 0.1        # chaque objectif de combat atteint ajoute 10 % au butin de la victoire
+const LIVE_DEST_SCALE := {"asteroids": 1.0, "star": 1.05, "planet": 1.15}    # les ennemis de la destination, en PV et dégâts
+const SHIP_TIER_LEVELS := [0, 10, 25, 45, 70]   # palier du vaisseau d'après la somme des niveaux des 4 améliorations
+
 const DEST_ORDER := ["asteroids", "star", "planet"]
 const DEST := {
 	"asteroids": {
-		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0,
+		"name": "Champ d'astéroïdes", "role": "pilot", "duration": 20.0, "unlock_data": 0.0, "guardian": true,
 		"enemy": {"kind": "asteroids", "name": "Foreur rebelle", "count": 2, "hp": 120.0, "atk": 18.0, "def": 6.0, "spd": 9.0},
 		"rewards": {"minerals": 5.0, "credits": 6.0, "data": 3.0},
 	},
 	"star": {
-		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0,
+		"name": "Étoile naine", "role": "engineer", "duration": 45.0, "unlock_data": 25.0, "guardian": false,
 		"enemy": {"kind": "star", "name": "Sentinelle solaire", "count": 2, "hp": 220.0, "atk": 26.0, "def": 12.0, "spd": 10.0},
 		"rewards": {"energy": 8.0, "credits": 12.0, "data": 6.0},
 	},
 	"planet": {
-		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0,
+		"name": "Planète inconnue", "role": "scientist", "duration": 90.0, "unlock_data": 100.0, "guardian": true,
 		"enemy": {"kind": "planet", "name": "Créature xéno", "count": 3, "hp": 300.0, "atk": 34.0, "def": 16.0, "spd": 11.0},
 		"rewards": {"data": 16.0, "credits": 36.0, "minerals": 3.0, "energy": 2.0},
 	},
