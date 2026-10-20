@@ -71,13 +71,31 @@ Les niveaux de l'équipage au poste améliorent les chances et l'efficacité dan
 - **Sons et vibrations :** sons synthétisés (aucun fichier), vibrations courtes à un impact et à la fin ; bouton « Son ».
 - **Butin :** `GameState.finish_live` règle le butin (victoire : mode x objectifs ; défaite : 25 % du butin de base), l'XP du Capitaine (victoire seulement) et l'adaptation des ennemis.
 
+## Dérive : règles implémentées (`scripts/derive_sim.gd`, `derive_ui.gd`, `derive_cell.gd`)
+
+- **Grille 6 x 7 brouillée**, 75 s, 10 dangers cachés (11 aux étoiles naines, 12 sur la planète, +1 ou +2 si le Capitaine est faible) et 9 ressources (minerai ◆, données ●, énergie ✦). La case de départ et ses voisines directes sont sûres.
+- **Scanner** une case voisine coûte 1 énergie (13 au départ, 20 au maximum) et révèle son contenu et un chiffre : le nombre de dangers autour d'elle. Aller sur une case déjà scannée est gratuit. **Avancer sans scanner** est gratuit mais un danger heurté retire 34 % de la coque.
+- **Extraire :** arriver sur une ressource lance l'extraction (1,6 s) toute seule ; bouger l'annule. Une énergie récoltée rend 4 points.
+- **Équipage :** Lumi (sonde : révèle les 8 cases autour, 3 énergies, 2 charges), Rex (saut de 2 cases en ligne, 2 énergies), Gorn (extraction).
+- **Le météore, « gardien » de la dérive :** annoncé 2,2 s à l'avance (case hachurée avec compte à rebours), il détruit la case visée et sa ressource, et pulvérise le vaisseau s'il tombe dessus (défaite immédiate). Un météore toutes les 10 s environ, qui vise le vaisseau dans 10 % des cas et ses voisines dans 15 %.
+- **Réussite :** survivre et ramener au moins 3 ressources. Même système d'objectifs que le combat (huit au choix, deux tirés au hasard, 1 à 3 étoiles, +10 % de butin par objectif). Une défaite garde 25 % du butin de base.
+- **Gains x1,3** : la dérive est plus difficile que le combat, elle rapporte plus. Ce gain propre au mode s'ajoute aux bonus Aléatoire et secteur du jour (qui ne se cumulent pas entre eux).
+- **Équipage assisté (bouton Auto) :** un démineur automatique déduit les cases sûres, scanne la moins dangereuse, fuit les météores, extrait et rentre. Il agit 30 % plus lentement, avec 0,45 s de réaction et quelques ratés.
+- **Intuitif :** un premier toucher sur une case voisine inconnue la sélectionne (boutons « Scanner » et « Avancer sans scanner »), un second la scanne ; conseil en direct, ressource la plus proche entourée d'or, coût du scan sur les cases, guide de départ (touche « ? » pour le rouvrir).
+- **Accessibilité :** chaque case a un nom complet (« ligne 3, colonne 4 : danger »), le danger a une forme (✕) et pas seulement une couleur, le météore a des hachures et un compte à rebours en chiffres, boutons d'au moins 60 px, clavier (flèches ou WASD, Maj + flèche, E, Q, L).
+- **Difficulté :** `tools/derive_balance.gd` : pilote automatique et joueur simulé autour de 76 % et 78 % de victoires.
+
+## Mode Aléatoire
+
+- Tire un mode parmi ceux qui sont prêts (combat, dérive), pondéré selon la destination (astéroïdes : dérive 50 / combat 40 ; étoile : dérive 30 / combat 50 ; planète : dérive 15 / combat 35 ; la route sera ajoutée), jamais le même mode trois fois de suite. Gains x1,5 (x1,6 sur le secteur du jour), puis le gain propre au mode (la dérive x1,3).
+
 ## État de l'implémentation
 
-- Fait : combat en direct sur le vaisseau 1, sélecteur de mode (Combat jouable ; Dérive et Route marqués « bientôt »), secteur du jour (rotation toutes les 6 h, bannière et ★ sur la destination), bonus de gains, objectifs, palier du vaisseau, sauvegarde, tests.
-- Le mode **Aléatoire** est verrouillé tant qu'un seul mode est prêt (sinon il donnerait x1,5 sans rien tirer). Il se débloque dès que la Dérive ou la Route existe.
+- Fait : combat en direct et dérive sur le vaisseau 1, sélecteur de mode (Combat, Dérive, Aléatoire ; Route marquée « bientôt »), secteur du jour (rotation toutes les 6 h, bannière et ★ sur la destination), bonus de gains, objectifs, palier du vaisseau, sauvegarde, tests.
+- Le mode **Aléatoire** est actif depuis que la dérive existe (deux modes à tirer).
 - Le vaisseau 2 (drone piloté par l'équipage seul) garde l'ancien déroulement automatique chronométré.
 - Les anomalies gardent leur combat automatique.
-- À faire : modes Dérive et Route, étoiles (récompense au-delà du bonus de butin), combat des anomalies.
+- À faire : mode Route, étoiles (récompense au-delà du bonus de butin), combat des anomalies.
 
 ## Points ouverts
 

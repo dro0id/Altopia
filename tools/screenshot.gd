@@ -99,6 +99,35 @@ func _initialize() -> void:
 	await _shot(out_dir + "/shot_live_result.png")
 	lv.closed.emit(false)
 	await process_frame
+	# Dérive : la grille en cours de partie, une case choisie, puis le résultat.
+	gs.derive_guide_seen = false
+	main._exp_mode = "derive"
+	main._start_live(0, "asteroids")
+	await process_frame
+	var dv = main._live
+	await _shot(out_dir + "/shot_derive_guide.png")
+	dv._guide.visible = false
+	for k in 40:
+		dv.sim.step(1.0 / 30.0)
+	dv.sim.act_scan(5, 2)
+	dv.sim.busy = 0.0
+	dv.sim.act_scan(5, 3)
+	dv.sim.busy = 0.0
+	dv.sel = [5, 1]
+	await process_frame
+	await process_frame
+	await _shot(out_dir + "/shot_derive.png")
+	dv.sim.assist = true
+	var guard := 0
+	while not dv.sim.over and guard < 4000:
+		dv.sim.step(1.0 / 30.0)
+		guard += 1
+	await process_frame
+	await process_frame
+	await _shot(out_dir + "/shot_derive_result.png")
+	dv.closed.emit(false)
+	main._exp_mode = "random"
+	await process_frame
 	gs.launch(0, "star")
 	gs.tick(12.0)
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_star.png")

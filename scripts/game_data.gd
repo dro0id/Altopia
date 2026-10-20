@@ -154,9 +154,17 @@ const WIN_CHANCE_SAFE := 0.8      # au-dessus de 80 % de chance de victoire, le 
 const MODES := ["combat", "derive", "route"]
 const MODE_INFO := {
 	"combat": {"name": "Combat", "desc": "Esquiver et déclencher les compétences de l'équipage", "ready": true},
-	"derive": {"name": "Dérive", "desc": "Scanner une grille et extraire les ressources", "ready": false},
+	"derive": {"name": "Dérive", "desc": "Scanner une grille et extraire les ressources", "ready": true},
 	"route": {"name": "Route", "desc": "Un voyage d'étapes, d'événements et de combats", "ready": false},
 }
+const MODE_REWARD_MULT := {"combat": 1.0, "derive": 1.3, "route": 1.0}   # la dérive est plus difficile : elle rapporte plus
+## Tirage du mode Aléatoire par destination (poids) : seuls les modes prêts sont tirés ; jamais trois fois le même mode de suite.
+const MODE_WEIGHTS := {
+	"asteroids": {"derive": 50, "combat": 40, "route": 10},
+	"star": {"derive": 30, "combat": 50, "route": 20},
+	"planet": {"derive": 15, "combat": 35, "route": 50},
+}
+const DERIVE_DEST_HAZARDS := {"asteroids": 10, "star": 11, "planet": 12}    # dangers cachés dans la grille
 const RANDOM_MODE_MULT := 1.5       # mode « Aléatoire » : le jeu tire le mode, les gains sont majorés
 const SECTOR_MULT := 1.3            # secteur du jour (une destination mise en avant), mode choisi
 const SECTOR_RANDOM_MULT := 1.6     # secteur du jour avec le mode Aléatoire (les bonus ne se cumulent pas)

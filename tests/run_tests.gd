@@ -6,6 +6,7 @@ extends SceneTree
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
 const LiveSim = preload("res://scripts/live_sim.gd")
+const DeriveSim = preload("res://scripts/derive_sim.gd")
 
 var _failures := 0
 var _gs: Node
@@ -1296,9 +1297,242 @@ func test_live_mode_multipliers() -> void:
 	_gs._sector_clock = -1.0
 
 
-func test_random_mode_waits_for_a_second_mode() -> void:
-	_check(not _gs.random_mode_available(), "le mode Aléatoire n'a pas de sens tant qu'un seul mode est prêt")
-	_check(_gs.ready_modes() == ["combat"], "seul le combat est prêt")
+func test_random_mode_available_with_two_ready_modes() -> void:
+	_check(_gs.ready_modes() == ["combat", "derive"], "combat et dérive sont prêts")
+	_check(_gs.random_mode_available(), "le mode Aléatoire a deux modes à tirer")
+
+
+func test_random_pick_is_weighted_and_never_three_in_a_row() -> void:
+	_gs.last_modes = []
+	var counts := {"combat": 0, "derive": 0}
+	var run := 1
+	var prev := ""
+	var max_run := 0
+	for i in 400:
+		var m: String = _gs.pick_random_mode("asteroids")
+		_check(counts.has(m), "seuls les modes prêts sont tirés (%s)" % m)
+		counts[m] = int(counts.get(m, 0)) + 1
+		run = run + 1 if m == prev else 1
+		prev = m
+		max_run = maxi(max_run, run)
+		_gs.note_mode(m)
+	_check(max_run <= 2, "jamais trois fois le même mode de suite (série max %d)" % max_run)
+	_check(counts.derive > counts.combat * 0.9 and counts.combat > 80, "poids : plus de dérive sur le champ d'astéroïdes (%s)" % str(counts))
+
+
+func test_derive_mode_reward_multiplier() -> void:
+	_gs._sector_clock = 7.0 * 3600.0         # secteur du jour : l'étoile naine
+	_check(is_equal_approx(_gs.live_mode_mult("asteroids", false, "derive"), 1.3), "la dérive rapporte x1,3")
+	_check(is_equal_approx(_gs.live_mode_mult("asteroids", true, "derive"), 1.5 * 1.3), "Aléatoire + dérive : x1,5 puis x1,3")
+	_check(is_equal_approx(_gs.live_mode_mult("star", true, "derive"), 1.6 * 1.3), "secteur du jour + Aléatoire + dérive")
+	_check(is_equal_approx(_gs.live_mode_mult("star", false, "derive"), 1.3 * 1.3), "secteur du jour + dérive")
+	_check(is_equal_approx(_gs.live_mode_mult("asteroids", false, "combat"), 1.0), "le combat reste à x1")
+	_gs._sector_clock = -1.0
+
+
+func test_finish_live_derive_message_and_rewards() -> void:
+	_gs.new_game()
+	_gs._sector_clock = 7.0 * 3600.0
+	var cr0: float = _gs.res["credits"]
+	var info: Dictionary = _gs.finish_live(0, "asteroids", {"win": true, "time": 40.0, "objectives_done": 1}, false, "derive")
+	_check(is_equal_approx(info.mult, 1.3 * 1.1), "dérive x1,3 et un objectif : x1,43")
+	_check(String(_gs.slots[0].last).begins_with("Dérive réussie"), "le message annonce la dérive")
+	_check(_gs.res["credits"] > cr0, "le butin est ajouté")
+	_check(_gs.last_modes == ["derive"], "le mode joué est mémorisé")
+	_gs._sector_clock = -1.0
+
+
+func test_derive_derive_config() -> void:
+	_gs.new_game()
+	var cfg: Dictionary = _gs.derive_config("asteroids", 0)
+	_check(cfg.hull == 1000.0 and cfg.hazards >= 10, "la coque suit le palier du vaisseau et le nombre de dangers la destination")
+	_check(_gs.derive_config("planet", 0).hazards >= _gs.derive_config("asteroids", 0).hazards, "plus de dangers sur les destinations difficiles")
+
+
+func _derive(seed_value: int = 11, cfg: Dictionary = {}) -> DeriveSim:
+	var d := DeriveSim.new(seed_value)
+	d.setup(cfg)
+	return d
+
+
+func test_derive_setup_is_fair() -> void:
+	for sd in 40:
+		var d := _derive(100 + sd)
+		var haz := 0
+		var res := 0
+		for c in d.cells:
+			if c.haz:
+				haz += 1
+			if c.res != "":
+				res += 1
+				_check(not c.haz, "une ressource n'est jamais sur un danger")
+		_check(haz == 10 and res == 9, "10 dangers et 9 ressources (%d, %d)" % [haz, res])
+		_check(not d.cells[DeriveSim.idx(6, 2)].haz, "la case de départ est sûre")
+		for n in DeriveSim.neigh4(6, 2):
+			_check(not d.cells[DeriveSim.idx(n[0], n[1])].haz, "les cases voisines du départ sont sûres")
+
+
+func test_derive_numbers_count_adjacent_hazards() -> void:
+	var d := _derive(21)
+	for r in DeriveSim.ROWS:
+		for c in DeriveSim.COLS:
+			var n := 0
+			for nb in DeriveSim.neigh8(r, c):
+				if d.cells[DeriveSim.idx(nb[0], nb[1])].haz:
+					n += 1
+			_check(d.cells[DeriveSim.idx(r, c)].num == n, "le chiffre compte les dangers voisins")
+
+
+func test_derive_scan_costs_energy_and_reveals() -> void:
+	var d := _derive(5)
+	var e0: float = d.energy
+	_check(d.act_scan(5, 2), "scanner une case voisine")
+	_check(is_equal_approx(d.energy, e0 - 1.0) and d.cells[DeriveSim.idx(5, 2)].seen, "1 énergie, la case est révélée")
+	_check(not d.act_scan(5, 2), "on ne scanne pas deux fois la même case")
+	d.step(1.0)
+	d.energy = 0.0
+	_check(not d.act_scan(5, 3), "sans énergie on ne peut plus scanner")
+
+
+func test_derive_blind_move_onto_hazard_hurts() -> void:
+	var d := _derive(5)
+	d.cells[DeriveSim.idx(5, 2)].haz = true
+	var h0: float = d.hull
+	_check(d.act_move(5, 2), "avancer sur une case inconnue est possible")
+	_check(d.hits == 1 and is_equal_approx(d.hull, h0 - roundf(h0 * 0.34)), "un danger heurté retire 34 % de la coque")
+	d.busy = 0.0
+	d.cells[DeriveSim.idx(6, 2)].haz = false
+	_check(d.act_move(6, 2), "on peut repartir vers une case sûre")
+
+
+func test_derive_known_hazard_is_not_entered() -> void:
+	var d := _derive(5)
+	d.cells[DeriveSim.idx(5, 2)].haz = true
+	d.cells[DeriveSim.idx(5, 2)].seen = true
+	_check(not d.act_move(5, 2) and d.hits == 0, "on n'entre pas volontairement sur un danger connu")
+
+
+func test_derive_extraction_starts_alone_and_collects() -> void:
+	var d := _derive(5)
+	d.cells[DeriveSim.idx(5, 2)].res = "ene"
+	d.cells[DeriveSim.idx(5, 2)].haz = false
+	d.cells[DeriveSim.idx(5, 2)].seen = true
+	d.energy = 5.0
+	d.meteor_t = 999.0
+	d.act_move(5, 2)
+	for i in 90:
+		d.step(1.0 / 30.0)
+	_check(d.extracted == 1 and d.loot.ene == 1, "arriver sur une ressource lance l'extraction seule")
+	_check(is_equal_approx(d.energy, 9.0), "une énergie récoltée rend 4 points")
+
+
+func test_derive_extraction_interrupted_by_leaving() -> void:
+	var d := _derive(5)
+	d.cells[DeriveSim.idx(5, 2)].res = "min"
+	d.cells[DeriveSim.idx(5, 2)].haz = false
+	d.cells[DeriveSim.idx(5, 2)].seen = true
+	d.meteor_t = 999.0
+	d.act_move(5, 2)
+	for i in 20:
+		d.step(1.0 / 30.0)
+	_check(d.extracting_at >= 0, "l'extraction est en cours")
+	d.extracting_at = -1          # le joueur touche une autre case : l'interface annule
+	for i in 90:
+		d.step(1.0 / 30.0)
+	_check(d.extracted == 0, "une extraction annulée ne rapporte rien")
+
+
+func test_derive_meteor_destroys_cell_and_resource() -> void:
+	var d := _derive(5)
+	d.meteor_t = 999.0
+	d.cells[DeriveSim.idx(3, 3)].res = "dat"
+	d.cells[DeriveSim.idx(3, 3)].haz = false
+	d.meteors.append({"r": 3, "c": 3, "t": 0.0})
+	for i in 90:
+		d.step(1.0 / 30.0)
+	var cell: Dictionary = d.cells[DeriveSim.idx(3, 3)]
+	_check(cell.destroyed and cell.res == "" and not d.over, "le météore détruit la case et sa ressource")
+	d.busy = 0.0
+	d.ship = [4, 3]
+	_check(not d.act_move(3, 3), "on ne peut plus entrer sur une case détruite")
+
+
+func test_derive_meteor_on_ship_is_instant_defeat() -> void:
+	var d := _derive(5)
+	d.meteor_t = 999.0
+	d.meteors.append({"r": 6, "c": 2, "t": 0.0})
+	for i in 90:
+		d.step(1.0 / 30.0)
+	_check(d.over and not d.win and d.hull == 0.0 and d.over_reason == "meteor", "un météore sur le vaisseau le pulvérise d'un coup")
+
+
+func test_derive_meteor_is_announced_before_impact() -> void:
+	var d := _derive(5)
+	d.meteor_t = 999.0
+	d.meteors.append({"r": 3, "c": 3, "t": 0.0})
+	for i in 30:        # 1 s : le météore est annoncé mais n'est pas tombé
+		d.step(1.0 / 30.0)
+	_check(d.meteors.size() == 1 and not d.cells[DeriveSim.idx(3, 3)].destroyed, "le météore est annoncé %.1f s à l'avance" % float(DeriveSim.CFG.meteor_tele))
+
+
+func test_derive_win_needs_the_minimum_loot() -> void:
+	var d := _derive(5)
+	d.extracted = 2
+	d.act_leave()
+	_check(d.over and not d.win and d.over_reason == "leave", "moins de 3 ressources : la dérive est manquée")
+	var e := _derive(5)
+	e.extracted = 3
+	e.act_leave()
+	_check(e.win, "3 ressources : la dérive est réussie")
+
+
+func test_derive_objectives_and_stars() -> void:
+	for sd in 30:
+		var d := _derive(300 + sd)
+		_check(d.objectives.size() == 2 and d.objectives[0] != d.objectives[1], "deux objectifs différents")
+	var d2 := _derive(1)
+	d2.objectives = ["hull", "loot"]
+	d2.extracted = 6
+	d2.act_leave()
+	var r: Dictionary = d2.result()
+	_check(r.win and r.objectives_done == 2, "deux objectifs atteints après une victoire")
+	var d3 := _derive(1)
+	d3.objectives = ["hull", "loot"]
+	d3.extracted = 1
+	d3.act_leave()
+	_check(d3.result().objectives_done == 0, "pas d'objectif compté après une défaite")
+
+
+func test_derive_assist_is_slower() -> void:
+	var d := DeriveSim.new(5)
+	d.setup({"assist": true})
+	d.act_scan(5, 2)
+	_check(is_equal_approx(d.busy, float(DeriveSim.CFG.scan_time) * 1.3), "l'équipage assisté agit 30 % plus lentement")
+
+
+func test_derive_bots_stay_under_the_cap() -> void:
+	var wins_auto := 0
+	var wins_human := 0
+	var n := 60
+	for i in n:
+		for mode in ["auto", "human"]:
+			var d := DeriveSim.new(31000 + i * 13)
+			d.assist = mode == "auto"
+			d.human_bot = mode == "human"
+			d.setup({"hull": 1000.0, "assist": mode == "auto"})
+			var steps := 0
+			while not d.over and steps < 6000:
+				d.step(1.0 / 30.0)
+				steps += 1
+			if not d.over:
+				d.finish(false)
+			if d.win:
+				if mode == "auto":
+					wins_auto += 1
+				else:
+					wins_human += 1
+	_check(wins_auto <= 51 and wins_human <= 51, "la dérive reste sous ~85 %% de victoires (auto %d/%d, joueur %d/%d)" % [wins_auto, n, wins_human, n])
+	_check(wins_auto >= 30 and wins_human >= 30, "la dérive reste gagnable (auto %d/%d, joueur %d/%d)" % [wins_auto, n, wins_human, n])
 
 
 func test_finish_live_rewards_and_defeat() -> void:

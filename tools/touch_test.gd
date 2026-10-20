@@ -204,4 +204,37 @@ func _initialize() -> void:
 			failures += 1
 		main._live.closed.emit(false)
 		await process_frame
+		# Dérive : un premier tap choisit la case voisine, un second la scanne.
+		main._exp_mode = "derive"
+		main._refresh()
+		await process_frame
+		var esc2: ScrollContainer = main._pages["exp"].get_meta("scroll")
+		var btn2: Button = main._slot_ui[0].dest["asteroids"]
+		esc2.ensure_control_visible(btn2)
+		await process_frame
+		await process_frame
+		var c2 := btn2.get_global_rect().get_center()
+		await _drag(c2, c2)
+		await process_frame
+		var d_ok: bool = main._live != null and main._live.has_method("_on_cell")
+		print(("ok   " if d_ok else "FAIL ") + "dérive : un tap sur la destination ouvre la grille")
+		if not d_ok:
+			failures += 1
+		else:
+			main._live._guide.visible = false
+			var cell: Button = main._live._cells[5 * 6 + 2]
+			var cell_c := cell.get_global_rect().get_center()
+			await _drag(cell_c, cell_c)
+			await process_frame
+			var sel_ok: bool = main._live.sel == [5, 2]
+			print(("ok   " if sel_ok else "FAIL ") + "dérive : un premier tap choisit la case voisine (sel=%s)" % str(main._live.sel))
+			var e0: float = main._live.sim.energy
+			await _drag(cell_c, cell_c)
+			await process_frame
+			var scan_ok: bool = main._live.sim.cells[6 * 0 + 5 * 6 + 2].seen and main._live.sim.energy < e0
+			print(("ok   " if scan_ok else "FAIL ") + "dérive : un second tap scanne la case (énergie %s -> %s)" % [str(e0), str(main._live.sim.energy)])
+			if not sel_ok or not scan_ok:
+				failures += 1
+			main._live.closed.emit(false)
+			await process_frame
 	quit(1 if failures > 0 else 0)

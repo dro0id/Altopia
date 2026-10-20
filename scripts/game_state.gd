@@ -9,6 +9,7 @@ signal anomaly_finished
 
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
+const LiveSim = preload("res://scripts/live_sim.gd")
 
 const SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 5
@@ -32,6 +33,7 @@ var auto_recycle := Data.AUTO_RECYCLE_MAX   # recycle les objets peu utiles dès
 var heroes := {}
 var hero_order: Array = []
 var recruits := 0
+var derive_guide_seen := false   # le guide de la dérive a déjà été lu
 var ship_tier_best := 0          # palier de vaisseau le plus haut atteint : il survit à la refonte (les améliorations, elles, repartent à zéro)
 var upgrade_levels := {"laser": 0, "solar": 0, "scanner": 0, "engines": 0, "docks": 0}
 var room_levels := {}             # niveau de chaque salle de la Base (1 au départ)
@@ -117,6 +119,7 @@ func reset() -> void:
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
 	ship_tier_best = 0
+	last_modes = []
 	for rid in Data.ROOM_ORDER:
 		room_levels[rid] = 1
 		room_crew[rid] = ""
@@ -1600,17 +1603,46 @@ func random_mode_available() -> bool:
 	return ready_modes().size() >= 2
 
 
-func pick_random_mode() -> String:
-	var modes := ready_modes()
-	return modes[rng.randi_range(0, modes.size() - 1)]
+var last_modes: Array = []       # les derniers modes joués (pour ne jamais tirer trois fois le même)
+
+
+## Mémorise le mode joué (choisi ou tiré).
+func note_mode(mode: String) -> void:
+	last_modes.append(mode)
+	while last_modes.size() > 2:
+		last_modes.remove_at(0)
+
+
+## Tirage du mode Aléatoire : pondéré selon la destination, parmi les modes prêts, sans répéter trois fois le même.
+func pick_random_mode(dest: String = "asteroids") -> String:
+	var weights: Dictionary = Data.MODE_WEIGHTS.get(dest, Data.MODE_WEIGHTS["asteroids"])
+	var banned := ""
+	if last_modes.size() >= 2 and last_modes[0] == last_modes[1]:
+		banned = last_modes[0]
+	var pool: Array = []
+	var total := 0.0
+	for m in ready_modes():
+		if m == banned and ready_modes().size() > 1:
+			continue
+		pool.append(m)
+		total += float(weights.get(m, 1))
+	var roll := rng.randf() * total
+	for m in pool:
+		roll -= float(weights.get(m, 1))
+		if roll <= 0.0:
+			return m
+	return pool[pool.size() - 1]
 
 
 ## Multiplicateur de gains : mode choisi x1, Aléatoire x1,5, secteur du jour x1,3 (x1,6 avec Aléatoire). Les bonus ne se cumulent pas.
-func live_mode_mult(dest: String, random: bool) -> float:
+func live_mode_mult(dest: String, random: bool, mode: String = "combat") -> float:
 	var on_sector := dest == sector_of_day()
+	var bonus := 1.0
 	if random:
-		return Data.SECTOR_RANDOM_MULT if on_sector else Data.RANDOM_MODE_MULT
-	return Data.SECTOR_MULT if on_sector else 1.0
+		bonus = Data.SECTOR_RANDOM_MULT if on_sector else Data.RANDOM_MODE_MULT
+	elif on_sector:
+		bonus = Data.SECTOR_MULT
+	return bonus * float(Data.MODE_REWARD_MULT.get(mode, 1.0))      # le gain propre au mode s'ajoute aux bonus, qui eux ne se cumulent pas
 
 
 ## Chance de victoire affichée en combat en direct : jamais au-dessus du seuil « sûr » (le combat reste un vrai défi).
@@ -1626,6 +1658,13 @@ func live_config(dest: String, slot_i: int) -> Dictionary:
 	return {"tier": ship_tier(), "use_boss": bool(Data.DEST[dest].guardian), "hp_scale": scale, "dmg_scale": scale}
 
 
+## Réglages de la dérive : la coque du palier du vaisseau, et plus de dangers sur les destinations difficiles ou si le Capitaine est faible.
+func derive_config(dest: String, slot_i: int) -> Dictionary:
+	var p := expedition_chance(dest, slot_i)
+	var under := clampf((Data.WIN_CHANCE_SAFE - p) / Data.WIN_CHANCE_SAFE, 0.0, 1.0)
+	return {"hull": float(LiveSim.SHIPS[ship_tier()].hull), "hazards": int(Data.DERIVE_DEST_HAZARDS[dest]) + int(round(under * 2.0))}
+
+
 ## "" si un combat en direct peut démarrer sur le vaisseau `slot_i`, sinon la raison du blocage.
 func live_block_reason(dest: String, slot_i: int) -> String:
 	if slots[slot_i].dest != "":
@@ -1634,10 +1673,13 @@ func live_block_reason(dest: String, slot_i: int) -> String:
 
 
 ## Règle le butin d'un combat en direct terminé. `result` vient de LiveSim.result() ; `random` : le mode a été tiré au hasard.
-func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool) -> Dictionary:
+func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool, mode: String = "combat") -> Dictionary:
 	var win := bool(result.get("win", false))
-	var mult := live_mode_mult(dest, random) * (1.0 + Data.OBJECTIVE_BONUS * float(result.get("objectives_done", 0)))
+	var mult := live_mode_mult(dest, random, mode) * (1.0 + Data.OBJECTIVE_BONUS * float(result.get("objectives_done", 0)))
 	var head := "Victoire en %d s" % int(result.get("time", 0.0)) if win else "Défaite (butin réduit)"
+	if mode == "derive":
+		head = "Dérive réussie en %d s" % int(result.get("time", 0.0)) if win else "Dérive manquée (butin réduit)"
+	note_mode(mode)
 	if win and mult > 1.001:
 		head += " (gains x%s)" % ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ",")
 	_settle(slot_i, dest, 1, 1 if win else 0, mult, head, {})
@@ -1924,7 +1966,7 @@ func save_game() -> void:
 		"res": res, "data_total": data_total, "captain": _captain_for_save(),
 		"items": items, "equipped": equipped, "next_item_id": next_item_id, "auto_recycle": auto_recycle,
 		"heroes": heroes, "hero_order": hero_order, "recruits": recruits,
-		"upgrades": upgrade_levels, "ship_tier": ship_tier_best, "goals": goals_claimed,
+		"upgrades": upgrade_levels, "ship_tier": ship_tier_best, "derive_guide": derive_guide_seen, "goals": goals_claimed,
 		"base": {"levels": room_levels, "crew": room_crew, "slot": atelier_slot, "focus": atelier_focus, "crafted": crafted_total, "log": craft_log,
 			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "regen": anomaly_regen_acc, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
@@ -1999,6 +2041,7 @@ func load_game() -> bool:
 	for id in upgrade_levels:
 		upgrade_levels[id] = int(saved_up.get(id, 0))
 	ship_tier_best = maxi(int(parsed.get("ship_tier", 0)), 0)
+	derive_guide_seen = bool(parsed.get("derive_guide", false))
 	ship_tier_best = maxi(ship_tier_best, _ship_tier_from_levels())
 	var saved_rs: Dictionary = parsed.get("research", {})
 	var saved_levels: Dictionary = saved_rs.get("levels", {})
