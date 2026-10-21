@@ -282,7 +282,7 @@ func _build_sheet() -> void:
 	_sheet = PanelContainer.new()
 	_sheet.visible = false
 	_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	(_sheet as PanelContainer).add_theme_stylebox_override("panel", UiTheme.box(Color(0.01, 0.025, 0.06, 0.93), Color(0, 0, 0, 0), 0, 0, 14))
+	(_sheet as PanelContainer).add_theme_stylebox_override("panel", UiTheme.box(Color(0.01, 0.025, 0.06, 0.985), Color(0, 0, 0, 0), 0, 0, 14))
 	add_child(_sheet)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
