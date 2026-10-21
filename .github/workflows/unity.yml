@@ -28,7 +28,8 @@ jobs:
     steps:
       - name: Licence Unity absente
         if: env.UNITY_LICENSE == ''
-        run: echo "Secrets UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD non définis : tests et builds Unity ignorés (voir unity/AltopiaRoute/README.md)."
+        run: |
+          echo "Secrets UNITY_LICENSE, UNITY_EMAIL et UNITY_PASSWORD non définis, tests et builds Unity ignorés (voir unity/AltopiaRoute/README.md)."
       - uses: actions/checkout@v4
         if: env.UNITY_LICENSE != ''
       - uses: actions/cache@v4
