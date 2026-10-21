@@ -13,6 +13,8 @@ if [ ! -d um ]; then
   curl -sSL -o um.nupkg https://api.nuget.org/v3-flatcontainer/unityengine.modules/2021.3.33/unityengine.modules.2021.3.33.nupkg
   unzip -q -o um.nupkg -d um
 fi
+REFS=""
+for f in "$WORK"/um/lib/net35/UnityEngine*.dll; do REFS="$REFS<Reference Include=\"$f\" />"; done
 cat > Check.csproj <<EOF
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -21,7 +23,7 @@ cat > Check.csproj <<EOF
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems><GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="$WORK/um/lib/net35/UnityEngine*.dll" />
+    $REFS
     <Compile Include="$ROOT/unity/AltopiaRoute/Assets/Scripts/**/*.cs" />
   </ItemGroup>
 </Project>
