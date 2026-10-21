@@ -66,7 +66,7 @@ def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_
     e.rotation_euler = (pitch, 0, rz)
     if flame_len > 0:
         for sx in (-0.72, 0.72):
-            for r, k, L in ((0.2, 5.0, flame_len*0.9),):
+            for r, k, L in ((0.2*max(1.0, flame_len/3.0), 5.0, flame_len*0.9),):
                 c = flame((0, 0, 0), (math.radians(90), 0, 0), L, r, flame_col, k)
                 c.parent = e; c.location = (sx, -2.78 - L/2, 0)
     return e
@@ -308,7 +308,7 @@ def arrive():
 # ---------------------------------------------------------------- scènes au sol
 ACCENTS = {"atelier": (1.0, 0.7, 0.42), "quartiers": (0.43, 1.0, 0.61), "labo": (0.5, 0.95, 1.0), "mine": (0.88, 0.72, 0.47), "centrale": (0.78, 0.6, 1.0), "soute": (1.0, 0.82, 0.35)}
 
-def launch_site(sun_elev=3.0, sun_az=3.4, dust=5.0, ship_pos=(0, 0, 1.9), ship_rz=math.radians(-90), pitch=0.0, flame_len=0.0, s=1.4):
+def launch_site(sun_elev=3.0, sun_az=3.4, dust=5.0, ship_pos=(0, 0, 1.9), ship_rz=math.radians(-90), pitch=0.0, flame_len=0.0, s=1.4, flame_col=(0.04, 0.45, 1.0)):
     world_sky(sun_elev, sun_az, dust, 0.5)
     ground(200, (0.16, 0.15, 0.15), 0.9, 0.12, 5.0)
     box("slab", (18, 13, 0.5), (0, 0, 0.25), material=solid("slab", (0.2, 0.21, 0.23), 0.8), bevel=0.0)
@@ -316,7 +316,7 @@ def launch_site(sun_elev=3.0, sun_az=3.4, dust=5.0, ship_pos=(0, 0, 1.9), ship_r
         box("edge", (17.4, 0.12, 0.06), (0, sy, 0.53), material=emissive("edge", (1.0, 0.65, 0.2), 5.0), bevel=0.0)
     for sx, sy in ((-1, -1), (1, -1), (0, 1.3)):
         cyl("leg", 0.12, 0.2, 0.9, (ship_pos[0] + sx*2.0, ship_pos[1] + sy*1.4, 0.95), axis="Z", seg=10, material=solid("leg", (0.3, 0.32, 0.36), 0.6, 0.5))
-    sh = ship(ship_pos, ship_rz, s, pitch, flame_len=flame_len)
+    sh = ship(ship_pos, ship_rz, s, pitch, flame_len=flame_len, flame_col=flame_col)
     for hx in (-24, 4, 30):
         imp("hangar_largeA", (hx, 34, 0), math.radians(180), 5.5)
     imp("structure_detailed", (-9, 18, 0), 0, 9)
@@ -340,10 +340,11 @@ def pad():
 
 @scene
 def launch():
-    reset(); launch_site(10.0, math.radians(215), 3.0, ship_pos=(0, 2, 8.5), ship_rz=math.radians(-90), pitch=0.0, flame_len=4.5, s=1.8)
+    reset(); launch_site(10.0, math.radians(215), 3.0, ship_pos=(0, 2, 8.5), ship_rz=math.radians(-90), pitch=0.0, flame_len=7.0, flame_col=(1.0, 0.4, 0.08), s=1.8)
     sh = [o for o in bpy.data.objects if o.name == "ship"][0]
     sh.rotation_euler = (math.radians(35), 0, math.radians(-90))
-    smoke_puffs((-1, 2, 0.8), 12, 3.0, 0.7, 1.4, 4, col=(0.2, 0.18, 0.17))
+    smoke_puffs((-1, 2, 0.8), 18, 4.0, 0.8, 1.7, 4, col=(0.2, 0.18, 0.17))
+    point((-3, 2, 5.0), 3500, (1.0, 0.5, 0.15), 1.5)
     area((-5, -7, 6), (0, 2, 7), 1000, (1.0, 0.7, 0.45), 6)
     camera((-7, -11, 3.0), (2.0, 2, 6.0), 26)
     render("launch", exposure=-0.8)
