@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering.PostProcessing;
 
 /// <summary>
 /// Scène « Route » d'Altopia en 3D (prototype Unity séparé du jeu Godot) : le convoi vole vers les étapes, chaque étape a son décor et son action
@@ -14,7 +13,6 @@ public class RouteDirector : MonoBehaviour
     static void Boot() { new GameObject("Route").AddComponent<RouteDirector>(); }
 
     // --- réglages ---
-    public bool flipBoss;                 // si l'œil du boss regarde dans le mauvais sens après import
     public float travelTime = 1.3f;
     const float FarZ = 150f, NearZ = 24f;
 
@@ -27,10 +25,12 @@ public class RouteDirector : MonoBehaviour
     GameObject current;                   // objet de l'étape en cours
     readonly List<Transform> enemies = new List<Transform>();
     string currentType = "";
-    bool busy, auto = true; string status = "";
+    bool busy; public bool auto = true; string status = "";
     float warp;                           // 0 = croisière, 1 = distorsion
     float shake, flash;
     Texture2D glow;
+
+    public bool IsIdle { get { return !busy; } }
 
     void Start()
     {
@@ -49,15 +49,7 @@ public class RouteDirector : MonoBehaviour
         cam.fieldOfView = 70; cam.nearClipPlane = 0.1f; cam.farClipPlane = 1000f; cam.allowHDR = true;
         go.tag = "MainCamera";
         foreach (var other in FindObjectsOfType<Camera>()) if (other != cam) other.gameObject.SetActive(false);
-        var layer = go.AddComponent<PostProcessLayer>();
-        layer.volumeTrigger = go.transform; layer.volumeLayer = ~0;
-        var profile = ScriptableObject.CreateInstance<PostProcessProfile>();
-        var bloom = profile.AddSettings<Bloom>();
-        bloom.enabled.Override(true); bloom.intensity.Override(0.7f); bloom.threshold.Override(1.0f); bloom.softKnee.Override(0.6f); bloom.diffusion.Override(7f);
-        var vig = profile.AddSettings<Vignette>(); vig.enabled.Override(true); vig.intensity.Override(0.32f);
-        var ca = profile.AddSettings<ChromaticAberration>(); ca.enabled.Override(true); ca.intensity.Override(0.15f);
-        var vol = PostProcessManager.instance.QuickVolume(0, 100f, bloom, vig, ca);
-        _ = vol;
+        go.AddComponent<SimpleBloom>();
     }
 
     void BuildLights()
@@ -142,7 +134,8 @@ public class RouteDirector : MonoBehaviour
         if (prefab == null) { Debug.LogWarning("Modèle manquant : " + model); return holder; }
         var inst = Instantiate(prefab, holder); inst.transform.localPosition = Vector3.zero; inst.transform.localRotation = Quaternion.identity;
         ModelLook.Apply(inst);
-        if (model == "player" || model == "enemy" || model == "elite") ModelLook.FaceForward(inst);
+        if (model == "player") ModelLook.FaceForward(inst, "cannon_tip");
+        else if (model == "enemy" || model == "elite" || model == "boss") ModelLook.FaceForward(inst, "eye");
         holder.localScale = Vector3.one * scale;
         return holder;
     }
@@ -166,7 +159,7 @@ public class RouteDirector : MonoBehaviour
                 }
                 break;
             case "gardien":
-                var b = Spawn("boss", root.transform, 0.95f); b.localRotation = Quaternion.Euler(0, flipBoss ? 0 : 180, 0); enemies.Add(b);
+                var b = Spawn("boss", root.transform, 0.95f); b.localRotation = Quaternion.Euler(0, 180, 0); enemies.Add(b);
                 break;
             case "recolte":
                 for (int i = 0; i < 14; i++)
@@ -383,7 +376,7 @@ public class RouteDirector : MonoBehaviour
     // ---------- utilitaires ----------
     Material AdditiveMat(Color c)
     {
-        var m = new Material(Shader.Find("Legacy Shaders/Particles/Additive")) { mainTexture = glow, color = c };
+        var m = new Material(Shader.Find("Altopia/Additive")) { mainTexture = glow, color = c };
         return m;
     }
 

@@ -48,22 +48,27 @@ public static class ModelLook
         }
     }
 
-    /// <summary>Remet le nez du modèle vers +Z (avant d'Unity). Le sens dépend de l'import FBX : on le déduit de la forme
-    /// (le nez est l'extrémité la plus étroite). Les modèles symétriques (boss, station…) ne sont pas touchés.</summary>
-    public static void FaceForward(GameObject root)
+    /// <summary>Remet l'avant du modèle vers +Z (avant d'Unity). L'avant est repéré par un objet nommé du modèle (« cannon_tip » pour le vaisseau,
+    /// « eye » pour les ennemis et le boss) : si ce repère est derrière le centre, on retourne le modèle. Retourne vrai si le modèle a été retourné.</summary>
+    public static bool FaceForward(GameObject root, string frontMarker)
     {
-        var verts = new List<Vector3>();
-        foreach (var f in root.GetComponentsInChildren<MeshFilter>())
-            if (f.sharedMesh != null) foreach (var v in f.sharedMesh.vertices) verts.Add(root.transform.InverseTransformPoint(f.transform.TransformPoint(v)));
-        if (verts.Count == 0) return;
-        float zmin = float.MaxValue, zmax = float.MinValue;
-        foreach (var v in verts) { zmin = Mathf.Min(zmin, v.z); zmax = Mathf.Max(zmax, v.z); }
-        float slab = (zmax - zmin) * 0.12f, xa = 0, xb = 0;
-        foreach (var v in verts)
-        {
-            if (v.z > zmax - slab) xa = Mathf.Max(xa, Mathf.Abs(v.x));
-            if (v.z < zmin + slab) xb = Mathf.Max(xb, Mathf.Abs(v.x));
-        }
-        if (xb < xa) root.transform.localRotation = Quaternion.Euler(0, 180, 0) * root.transform.localRotation;   // nez vers -Z : on retourne
+        Transform marker = null;
+        foreach (var t in root.GetComponentsInChildren<Transform>()) if (t.name.StartsWith(frontMarker)) { marker = t; break; }
+        var rends = root.GetComponentsInChildren<Renderer>();
+        if (marker == null || rends.Length == 0) return false;
+        var all = rends[0].bounds; foreach (var r in rends) all.Encapsulate(r.bounds);
+        var mr = marker.GetComponentInChildren<Renderer>();
+        Vector3 mc = mr != null ? mr.bounds.center : marker.position;
+        float dz = root.transform.InverseTransformPoint(mc).z - root.transform.InverseTransformPoint(all.center).z;
+        if (dz >= 0f) return false;
+        root.transform.localRotation = Quaternion.Euler(0, 180, 0) * root.transform.localRotation;
+        return true;
+    }
+
+    /// <summary>Noms de matériaux connus (utilisé par les tests pour vérifier qu'aucun matériau d'un modèle n'est oublié).</summary>
+    public static bool Knows(string materialName)
+    {
+        int dot = materialName.IndexOf('.'); if (dot > 0) materialName = materialName.Substring(0, dot);
+        return Table.ContainsKey(materialName);
     }
 }

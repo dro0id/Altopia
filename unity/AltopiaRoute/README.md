@@ -1,14 +1,28 @@
 # Altopia · Route (prototype Unity)
 
-Version Unity de la scène 3D de la Route, **séparée du jeu Godot** : elle ne se branche pas sur le jeu, c'est un prototype visuel à ouvrir dans Unity.
+Version Unity de la scène 3D de la Route, **séparée du jeu Godot** : un prototype visuel, il ne se branche pas sur le jeu.
 
-- Unity **2022.3 LTS** (Hub → *Open* → ce dossier). Paquet installé automatiquement : *Post Processing* (bloom, vignette, aberration chromatique).
-- Lancer n'importe quelle scène vide (ou en créer une) puis *Play* : `RouteDirector` se met en route tout seul et construit la caméra, les lumières, les étoiles, le convoi et les décors.
-- Panneau à gauche : mode auto (enchaîne combat, récolte, épave, repos, embuscade, inconnu, gardien) ou boutons pour déclencher chaque étape.
-- Modèles : `Assets/Resources/Models/*.fbx`, générés avec Blender par `tools/blender/build_assets.py --fbx unity/AltopiaRoute/Assets/Resources/Models`.
-- `ModelLook` redonne aux FBX leurs matériaux d'origine (métal, rugosité, émission).
+## Lancer (dans l'éditeur)
+1. Unity Hub → *Open* → ce dossier (Unity **2022.3 LTS**, rendu *Built-in*).
+2. Ouvrir n'importe quelle scène (ou menu **Altopia → Créer la scène Route**), puis *Play*. `RouteDirector` s'installe seul : caméra, lumières, étoiles, convoi, décors.
+3. Panneau à gauche : mode auto (enchaîne toutes les étapes) ou un bouton par type d'étape.
 
-**Non testé** : ce projet a été écrit sans pouvoir lancer Unity (pas d'éditeur ici). Points à vérifier à l'ouverture :
-1. Le sens des modèles : le nez des vaisseaux est remis vers +Z automatiquement ; si l'œil du boss regarde dans le mauvais sens, cocher *Flip Boss* sur l'objet « Route ».
-2. Les couleurs et la brillance des matériaux (rendu *Built-in*, shader Standard) : à comparer avec `docs/comparaison_blender_vs_scene.png`.
-3. Les erreurs de compilation éventuelles dans la console.
+## Tester
+| Quoi | Où | Besoin |
+|---|---|---|
+| Les scripts compilent | `tools/unity_check.sh` (et job *compile* de la CI) | .NET, pas d'éditeur ni de licence |
+| Modèles, matériaux, orientation, shaders | éditeur : *Window → General → Test Runner → EditMode* | éditeur Unity |
+| Chaque étape joue sans erreur | *Test Runner → PlayMode* | éditeur Unity |
+| Builds Android (APK) et WebGL + tests | job *unity* de la CI (`.github/workflows/unity.yml`) | secrets GitHub `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` (voir game.ci/docs/github/activation) |
+
+Sans les secrets, la CI exécute seulement la compilation. Avec eux, elle lance les tests puis publie l'APK et le build WebGL en artefacts.
+Build local : menu *Altopia* ou `Unity -batchmode -executeMethod BuildRoute.Android -quit`.
+
+## Contenu
+- `Assets/Resources/Models/*.fbx` : modèles Blender, générés par `tools/blender/build_assets.py --fbx unity/AltopiaRoute/Assets/Resources/Models`.
+- `Assets/Scripts/ModelLook.cs` : redonne aux FBX leur métal, rugosité et émission d'origine, et tourne l'avant des modèles vers +Z grâce à un repère nommé (`cannon_tip`, `eye`).
+- `Assets/Scripts/SimpleBloom.cs` + `Assets/Resources/Altopia*.shader` : bloom, vignette, aberration chromatique, matériau additif.
+- `Assets/Scripts/RouteDirector.cs` : la scène (étapes, combats, récolte, repos…).
+
+## Ce qui n'est pas vérifié
+Écrit sans éditeur Unity : seule la **compilation des scripts** est vérifiée (contre les DLL UnityEngine 2021.3). Jamais exécutés : les tests, les shaders (`.shader`), le code `Editor/BuildRoute.cs`, le rendu et les builds. Les premières erreurs viendront probablement de là ; renvoie-les-moi.
