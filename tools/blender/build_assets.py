@@ -5,12 +5,14 @@ from lib import *
 
 OUT = "assets/models"
 PREVIEW = None
+FBX = None
 args = sys.argv[1:]
 names = []
 i = 0
 while i < len(args):
     if args[i] == "--preview": PREVIEW = args[i+1]; i += 2
     elif args[i] == "--out": OUT = args[i+1]; i += 2
+    elif args[i] == "--fbx": FBX = args[i+1]; i += 2
     else: names.append(args[i]); i += 1
 
 def player(accent=(0.1, 0.8, 1.0), rng=None):
@@ -216,4 +218,5 @@ if __name__ == "__main__":
             if c: setup_render(PREVIEW, n, res=(700, 500), samples=32, cam=c[0], target=c[1], size=c[2])
             else: setup_render(PREVIEW, n, res=(700, 500), samples=32, target=(0, -0.2, 0), views=[(6.5, -7.5, 4.0), (-5, 7.5, 3.0)])
         export(os.path.join(OUT, n + ".glb"))
+        if FBX: export_fbx(os.path.join(FBX, n + ".fbx"))
         print("ok", n)

@@ -169,3 +169,9 @@ def torus(name, R, r, rot=(0, 0, 0), loc=(0, 0, 0), material=None, seg=72, minor
     ob.name = name; ob.rotation_euler = rot; ob.location = loc
     if material: finish(ob, material)
     return ob
+
+
+def export_fbx(path):
+    """FBX pour Unity : nez vers +Z, Y vers le haut, transformations cuites dans le maillage."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    bpy.ops.export_scene.fbx(filepath=path, axis_forward="-Z", axis_up="Y", bake_space_transform=True, apply_unit_scale=True, use_mesh_modifiers=True, path_mode="COPY", embed_textures=False, object_types={"MESH"}, mesh_smooth_type="FACE")
