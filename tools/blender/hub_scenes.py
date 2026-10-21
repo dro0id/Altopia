@@ -543,7 +543,7 @@ def base_proj():
     from bpy_extras.object_utils import world_to_camera_view
     reset(); base_cam()
     scn = bpy.context.scene; scn.render.resolution_x = 624; scn.render.resolution_y = 1352
-    cam = scn.camera; res = []
+    bpy.context.view_layer.update(); cam = scn.camera; res = []
     for (x, y) in SPOTS:
         pts = []
         for dx, dy in ((0, 0), (-1.7, 0), (0, -1.7), (1.7, 0), (0, 1.7)):
