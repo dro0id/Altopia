@@ -27,4 +27,15 @@ cat > Check.csproj <<EOF
 </Project>
 EOF
 dotnet build -nologo -v q 2>&1 | tee build.log | grep -E "error|Build succeeded" | sort -u
-grep -q "Build succeeded" build.log && echo "Compilation OK" || { echo "Compilation ÉCHOUÉE"; exit 1; }
+grep -q "Build succeeded" build.log && echo "Scripts du jeu : compilation OK" || { echo "Compilation ÉCHOUÉE"; exit 1; }
+
+# Code Editor (fenêtre de test, build) : compilé contre UnityEditor 2020.2, la seule version publiée sur NuGet.
+# Les API plus récentes (NamedBuildTarget, 2021.2+) n'existent pas dedans : ces erreurs-là sont attendues et ignorées.
+if [ ! -d ue ]; then
+  curl -sSL -o ue.nupkg https://api.nuget.org/v3-flatcontainer/unitytechnologies.unityeditor/2020.2.2.1/unitytechnologies.unityeditor.2020.2.2.1.nupkg
+  unzip -q -o ue.nupkg -d ue
+fi
+mkdir -p ed
+sed -e "s#</ItemGroup>#<Compile Include=\"$ROOT/unity/AltopiaRoute/Assets/Editor/**/*.cs\" /><Reference Include=\"$WORK/ue/lib/UnityEditor.dll\" /></ItemGroup>#" Check.csproj > ed/CheckEd.csproj
+(cd ed && dotnet build -nologo -v q 2>&1 | grep -E "error" | grep -v "NamedBuildTarget" | sort -u > ../ed.log || true)
+if [ -s ed.log ]; then cat ed.log; echo "Code Editor : compilation ÉCHOUÉE"; exit 1; else echo "Code Editor : compilation OK (hors API récentes)"; fi

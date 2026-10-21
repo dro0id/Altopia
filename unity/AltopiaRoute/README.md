@@ -7,10 +7,16 @@ Version Unity de la scène 3D de la Route, **séparée du jeu Godot** : un proto
 2. Ouvrir n'importe quelle scène (ou menu **Altopia → Créer la scène Route**), puis *Play*. `RouteDirector` s'installe seul : caméra, lumières, étoiles, convoi, décors.
 3. Panneau à gauche : mode auto (enchaîne toutes les étapes) ou un bouton par type d'étape.
 
+## Testeur intégré à l'éditeur
+Menu **Altopia → Testeur Route** ouvre une fenêtre avec trois onglets :
+- **Vitrine** : chaque modèle seul, éclairé comme dans Blender, à tourner à la souris (sans lancer le jeu), avec le sens de l'avant.
+- **Scène** : lancer/arrêter Play, créer la scène, mode auto et un bouton par type d'étape.
+- **Vérifications** : modèles, matériaux, orientation, shaders, avec le détail de chaque échec, et un raccourci vers le Test Runner.
+
 ## Tester
 | Quoi | Où | Besoin |
 |---|---|---|
-| Les scripts compilent | `tools/unity_check.sh` (et job *compile* de la CI) | .NET, pas d'éditeur ni de licence |
+| Les scripts compilent (jeu + fenêtre Editor) | `tools/unity_check.sh` (et job *compile* de la CI) | .NET, pas d'éditeur ni de licence |
 | Modèles, matériaux, orientation, shaders | éditeur : *Window → General → Test Runner → EditMode* | éditeur Unity |
 | Chaque étape joue sans erreur | *Test Runner → PlayMode* | éditeur Unity |
 | Builds Android (APK) et WebGL + tests | job *unity* de la CI (`.github/workflows/unity.yml`) | secrets GitHub `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` (voir game.ci/docs/github/activation) |
@@ -25,4 +31,4 @@ Build local : menu *Altopia* ou `Unity -batchmode -executeMethod BuildRoute.Andr
 - `Assets/Scripts/RouteDirector.cs` : la scène (étapes, combats, récolte, repos…).
 
 ## Ce qui n'est pas vérifié
-Écrit sans éditeur Unity : seule la **compilation des scripts** est vérifiée (contre les DLL UnityEngine 2021.3). Jamais exécutés : les tests, les shaders (`.shader`), le code `Editor/BuildRoute.cs`, le rendu et les builds. Les premières erreurs viendront probablement de là ; renvoie-les-moi.
+Écrit sans éditeur Unity : seule la **compilation des scripts** est vérifiée (jeu : DLL UnityEngine 2021.3 ; code Editor : UnityEditor 2020.2, sauf les API plus récentes comme `NamedBuildTarget`). Jamais exécutés : la fenêtre Testeur, les tests, les shaders (`.shader`), le rendu et les builds. Les premières erreurs viendront probablement de là ; renvoie-les-moi.
