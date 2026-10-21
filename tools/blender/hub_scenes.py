@@ -52,7 +52,7 @@ def imp(name, loc=(0, 0, 0), rz=0.0, s=1.0, center=True):
     new = [o for o in bpy.data.objects if o not in before]
     return group(new, name, loc, rz, s, center)
 
-def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_len=0.0, flame_col=(0.5, 0.85, 1.0)):
+def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_len=0.0, flame_col=(0.04, 0.45, 1.0)):
     before = set(bpy.data.objects)
     BA.player(accent)
     new = [o for o in bpy.data.objects if o not in before]
@@ -66,7 +66,7 @@ def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_
     e.rotation_euler = (pitch, 0, rz)
     if flame_len > 0:
         for sx in (-0.72, 0.72):
-            for r, k, L in ((0.17, 3.5, flame_len*0.8), (0.3, 0.9, flame_len*1.25)):
+            for r, k, L in ((0.2, 5.0, flame_len*0.9),):
                 c = flame((0, 0, 0), (math.radians(90), 0, 0), L, r, flame_col, k)
                 c.parent = e; c.location = (sx, -2.78 - L/2, 0)
     return e
@@ -296,7 +296,7 @@ def orbit():
 def arrive():
     reset(); world_space(neb=((0.7, 0.35, 0.15), (0.25, 0.1, 0.4)), neb_k=0.5)
     planet((0, 40, -130), 120, [(0.0, (0.1, 0.12, 0.3)), (0.4, (0.15, 0.4, 0.55)), (0.55, (0.78, 0.6, 0.3)), (0.75, (0.9, 0.75, 0.5)), (1.0, (0.98, 0.9, 0.75))], scale=6.0, atmo=(1.0, 0.7, 0.4), atmo_k=1.5)
-    s = ship((2.2, 2, 6.5), 0.0, 1.0, flame_len=1.2, flame_col=(1.0, 0.7, 0.3))
+    s = ship((2.2, 2, 6.5), 0.0, 1.0, flame_len=1.2, flame_col=(1.0, 0.35, 0.05))
     s.rotation_euler = (math.radians(-12), math.radians(3), math.radians(-14))
     pass
     sun((math.radians(70), math.radians(10), math.radians(220)), 3.0, (1, 0.88, 0.7))
@@ -498,7 +498,7 @@ def base_env(elev=14.0):
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -11.5, 10.8), (0, 2.0, 0.3), 34)
+    camera((0, -13.0, 12.0), (0, 1.8, 0.3), 31)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
