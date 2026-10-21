@@ -66,7 +66,7 @@ def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_
     e.rotation_euler = (pitch, 0, rz)
     if flame_len > 0:
         for sx in (-0.72, 0.72):
-            for r, k, L in ((0.3, 10.0, flame_len), (0.5, 3.0, flame_len*1.5)):
+            for r, k, L in ((0.17, 3.5, flame_len*0.8), (0.3, 0.9, flame_len*1.25)):
                 c = flame((0, 0, 0), (math.radians(90), 0, 0), L, r, flame_col, k)
                 c.parent = e; c.location = (sx, -2.78 - L/2, 0)
     return e
@@ -498,7 +498,7 @@ def base_env(elev=14.0):
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -13.5, 13.0), (0, 1.6, 0.3), 33)
+    camera((0, -11.5, 10.8), (0, 2.0, 0.3), 34)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
