@@ -9,6 +9,7 @@ const Sfx = preload("res://scripts/live_sfx.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 
 signal closed(replay: bool)
+signal fight_done(result: Dictionary)      # mode Route : le combat est fini, le voyage reprend la main
 
 const ABILITIES := [
 	{"id": "dodge", "name": "Esquive", "who": "Rex", "color": Color("80f2ff")},
@@ -50,6 +51,9 @@ var _players: Array = []
 var _settled := false
 var _relaunch_t := -1.0
 var _info_label: Label
+var route_mode := false                 # combat d'une étape de la Route : pas de butin ici, le résultat part vers RouteUI
+var auto_continue := false
+var _route_title := ""
 
 
 ## Prépare et démarre un combat : `cfg` vient de GameState.live_config, `mult` est le multiplicateur de gains annoncé.
@@ -59,6 +63,24 @@ func begin(p_slot: int, p_dest: String, cfg: Dictionary, p_random: bool, p_mult:
 	random = p_random
 	mult = p_mult
 	chance = p_chance
+	cfg["assist"] = assist_on
+	sim = Sim.new()
+	sim.setup(cfg)
+	_build()
+	view.attach(sim)
+	_refresh()
+
+
+## Combat d'une étape de la Route : `cfg` vient de RouteSim.fight_cfg ; le résultat est renvoyé par `fight_done`.
+func begin_route(p_dest: String, cfg: Dictionary, title: String, p_auto_continue: bool) -> void:
+	slot_i = 0
+	dest = p_dest
+	random = false
+	route_mode = true
+	auto_continue = p_auto_continue
+	_route_title = title
+	mult = 1.0
+	chance = 0.0
 	cfg["assist"] = assist_on
 	sim = Sim.new()
 	sim.setup(cfg)
@@ -350,18 +372,20 @@ func _process(delta: float) -> void:
 
 
 func _refresh() -> void:
-	_wave_label.text = "Vague %d / %d" % [clampi(sim.wave + 1, 1, Sim.WAVE_COUNT), Sim.WAVE_COUNT]
+	_wave_label.text = "Vague %d / %d" % [clampi(sim.wave + 1, 1, sim.wave_total), sim.wave_total]
 	_hull_bar.value = sim.hull / sim.hull_max
 	_hull_label.text = "%d / %d" % [int(sim.hull), int(sim.hull_max)]
 	_loot_label.text = "+%d min\n+%d don" % [sim.minerals, sim.data]
 	var p := chance
 	var label := "sûr" if p >= Data.WIN_CHANCE_SAFE else ("risqué" if p >= 0.5 else "très risqué")
-	_chance_label.text = "%s %d %%" % [label, int(round(p * 100.0))]
+	_chance_label.text = "%s %d %%" % [label, int(round(p * 100.0))] if not route_mode else ""
 	var cc := UiTheme.GOOD if p >= Data.WIN_CHANCE_SAFE else (UiTheme.WARN if p >= 0.5 else Color("ff6b7a"))
 	_chance_label.add_theme_color_override("font_color", cc)
 	var ship: Dictionary = Sim.SHIPS[sim.tier]
 	_info_label.text = "%s · palier %d · gains x%s%s" % [ship.name, sim.tier + 1, ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ","),
 		" · mode Aléatoire" if random else ""]
+	if route_mode:
+		_info_label.text = "%s · la coque se garde d'un combat à l'autre" % _route_title
 	for i in 2:
 		var id: String = sim.objectives[i]
 		var done: bool = sim.objective_done(id) and id not in ["hits", "hull", "fast"]
@@ -389,6 +413,9 @@ func _refresh() -> void:
 func _settle() -> void:
 	_settled = true
 	var res: Dictionary = sim.result()
+	if route_mode:
+		_settle_route(res)
+		return
 	var info: Dictionary = GameState.finish_live(slot_i, dest, res, random)
 	var win: bool = res.win
 	_res_title.text = "VICTOIRE" if win else "DÉFAITE"
@@ -407,3 +434,24 @@ func _settle() -> void:
 	if GameState.auto_relaunch(slot_i) and GameState.live_block_reason(dest, slot_i) == "":
 		_relaunch_t = 4.0
 	_result.visible = true
+
+
+func _settle_route(res: Dictionary) -> void:
+	var win: bool = res.win
+	_res_title.text = "COMBAT GAGNÉ" if win else "COQUE DÉTRUITE"
+	_res_title.add_theme_color_override("font_color", UiTheme.GOOD if win else Color("ff6b7a"))
+	_res_stars.text = ""
+	_res_body.text = "Coque restante : %d %%\nTemps %d s · impacts %d" % [int(round(float(res.hull_frac) * 100.0)), int(res.time), res.hits]
+	_res_info.text = ""
+	_again_btn.text = "Continuer le voyage" if win else "Voir le résultat du voyage"
+	for c in _again_btn.pressed.get_connections():
+		_again_btn.pressed.disconnect(c.callable)
+	_again_btn.pressed.connect(func(): fight_done.emit(res))
+	for ch in _again_btn.get_parent().get_children():
+		if ch is Button and ch != _again_btn:
+			ch.visible = false                     # pas de « Retour » en plein voyage
+	_result.visible = true
+	if auto_continue:
+		await get_tree().create_timer(1.6).timeout
+		if is_inside_tree():
+			fight_done.emit(res)

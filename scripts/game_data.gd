@@ -150,14 +150,14 @@ const BATTLE_VARIANCE := 0.35     # chaque coup varie de ±35 % : les combats se
 const WIN_CHANCE_SAFE := 0.8      # au-dessus de 80 % de chance de victoire, le contenu est « sûr » (risque d'échec ≤ 20 %)
 
 ## --- Expéditions en direct ---
-## Trois manières d'explorer ; seul le combat est jouable pour l'instant (la dérive et la route viendront).
+## Trois manières d'explorer, toutes jouables.
 const MODES := ["combat", "derive", "route"]
 const MODE_INFO := {
 	"combat": {"name": "Combat", "desc": "Esquiver et déclencher les compétences de l'équipage", "ready": true},
 	"derive": {"name": "Dérive", "desc": "Scanner une grille et extraire les ressources", "ready": true},
-	"route": {"name": "Route", "desc": "Un voyage d'étapes, d'événements et de combats", "ready": false},
+	"route": {"name": "Route", "desc": "Un voyage d'étapes, d'événements et de combats", "ready": true},
 }
-const MODE_REWARD_MULT := {"combat": 1.0, "derive": 1.3, "route": 1.0}   # la dérive est plus difficile : elle rapporte plus
+const MODE_REWARD_MULT := {"combat": 1.0, "derive": 1.3, "route": 1.0}   # la dérive est plus difficile : elle rapporte plus ; la route a son propre gain (RouteSim.route_mult)
 ## Tirage du mode Aléatoire par destination (poids) : seuls les modes prêts sont tirés ; jamais trois fois le même mode de suite.
 const MODE_WEIGHTS := {
 	"asteroids": {"derive": 50, "combat": 40, "route": 10},

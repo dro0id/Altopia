@@ -13,6 +13,8 @@ const BattleView = preload("res://scripts/battle_view.gd")
 const LiveUI = preload("res://scripts/live_ui.gd")
 const DeriveUI = preload("res://scripts/derive_ui.gd")
 const DeriveSim = preload("res://scripts/derive_sim.gd")
+const RouteUI = preload("res://scripts/route_ui.gd")
+const RouteSim = preload("res://scripts/route_sim.gd")
 
 const COL_CARD := UiTheme.PANEL
 const COL_TEXT_DIM := UiTheme.DIM
@@ -485,7 +487,7 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 				mb.add_theme_font_size_override("font_size", 19)
 				mb.clip_text = true
 				mb.pressed.connect(_tap(func():
-					if m == "combat" or m == "derive" or m == "random":
+					if m == "combat" or m == "derive" or m == "route" or m == "random":
 						_exp_mode = m
 					_dirty = true))
 				mode_row.add_child(mb)
@@ -525,9 +527,14 @@ func _start_live(slot_i: int, dest: String) -> void:
 	if _live != null or GameState.live_block_reason(dest, slot_i) != "":
 		return
 	var random := _exp_mode == "random" and GameState.random_mode_available()
-	var mode: String = GameState.pick_random_mode(dest) if random else (_exp_mode if _exp_mode == "derive" else "combat")
+	var mode: String = GameState.pick_random_mode(dest) if random else (_exp_mode if _exp_mode in ["derive", "route"] else "combat")
 	var ui: Control
-	if mode == "derive":
+	if mode == "route":
+		ui = RouteUI.new()
+		_live = ui
+		add_child(ui)
+		ui.begin(slot_i, dest, GameState.route_config(dest, slot_i), random, GameState.live_mode_mult(dest, random, "route"))
+	elif mode == "derive":
 		ui = DeriveUI.new()
 		_live = ui
 		add_child(ui)
@@ -1104,13 +1111,13 @@ func _refresh_expeditions() -> void:
 			else:
 				if i == 0:
 					var random_i := _exp_mode == "random" and GameState.random_mode_available()
-					var mode_i: String = "combat" if random_i or _exp_mode not in ["combat", "derive"] else _exp_mode
+					var mode_i: String = "combat" if random_i or _exp_mode not in ["combat", "derive", "route"] else _exp_mode
 					var mult_i := GameState.live_mode_mult(d, random_i, mode_i)
 					var gains: Dictionary = GameState.rewards_of(d, i)
 					for r in gains:
 						gains[r] *= mult_i
-					var mode_txt := "mode au hasard" if random_i else ("dérive" if mode_i == "derive" else "combat en direct")
-					var risk_txt := "au moins %d ressources à ramener" % int(DeriveSim.CFG.min_loot) if mode_i == "derive" and not random_i else _chance_text(GameState.live_chance(d, i), "")
+					var mode_txt := "mode au hasard" if random_i else ("dérive" if mode_i == "derive" else ("route" if mode_i == "route" else "combat en direct"))
+					var risk_txt := "au moins %d ressources à ramener" % int(DeriveSim.CFG.min_loot) if mode_i == "derive" and not random_i else ("voyage d'étapes : gains selon le secteur" if mode_i == "route" and not random_i else _chance_text(GameState.live_chance(d, i), ""))
 					b.text = "%s — %s%s\n%s\nEnnemis niv. %d : %s" % [
 						info.name, mode_txt, ("  ·  ★ secteur du jour" if d == GameState.sector_of_day() else ""),
 						Data.fmt_amounts(gains) + ("  (x%s)" % ("%.2f" % mult_i).rstrip("0").rstrip(".").replace(".", ",") if mult_i > 1.001 else ""),
@@ -1135,7 +1142,7 @@ func _refresh_expeditions() -> void:
 			mb.set_pressed_no_signal(_exp_mode == "random" and ok)
 		else:
 			var info_m: Dictionary = Data.MODE_INFO[m]
-			var gain := float(Data.MODE_REWARD_MULT.get(m, 1.0))
+			var gain := RouteSim.REWARD_BASE if m == "route" else float(Data.MODE_REWARD_MULT.get(m, 1.0))
 			mb.text = ("%s\nx%s" % [info_m.name, str(gain).replace(".", ",")]) if (info_m.ready and gain > 1.001) else (info_m.name if info_m.ready else "%s\nbientôt" % info_m.name)
 			mb.disabled = not info_m.ready
 			mb.set_pressed_no_signal(_exp_mode == m or (m == "combat" and _exp_mode == "random" and not GameState.random_mode_available()))

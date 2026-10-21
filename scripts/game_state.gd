@@ -10,6 +10,7 @@ signal anomaly_finished
 const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
 const LiveSim = preload("res://scripts/live_sim.gd")
+const RouteSim = preload("res://scripts/route_sim.gd")
 
 const SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 5
@@ -1665,6 +1666,28 @@ func derive_config(dest: String, slot_i: int) -> Dictionary:
 	return {"hull": float(LiveSim.SHIPS[ship_tier()].hull), "hazards": int(Data.DERIVE_DEST_HAZARDS[dest]) + int(round(under * 2.0))}
 
 
+## Réglages d'un voyage Route : les réglages des combats en direct, le niveau du Capitaine et l'équipage du vaisseau (un héros par poste).
+func route_config(dest: String, slot_i: int) -> Dictionary:
+	var cfg := live_config(dest, slot_i)
+	var crew: Dictionary = {}
+	var used: Array = []
+	for role in RouteSim.ROLES:
+		var cls: String = role                  # les postes portent le nom de la classe du héros
+		var found := ""
+		for id in squad_ids(slot_i):
+			if id not in used and Data.HEROES[id]["class"] == cls:
+				found = id
+				break
+		if found != "":
+			used.append(found)
+			crew[role] = {"name": Data.HEROES[found].name, "level": int(heroes[found].level), "present": true}
+		else:
+			crew[role] = {"name": RouteSim.ROLES[role], "level": 1, "present": false}
+	cfg["cap_level"] = int(captain.level)
+	cfg["crew"] = crew
+	return cfg
+
+
 ## "" si un combat en direct peut démarrer sur le vaisseau `slot_i`, sinon la raison du blocage.
 func live_block_reason(dest: String, slot_i: int) -> String:
 	if slots[slot_i].dest != "":
@@ -1675,10 +1698,12 @@ func live_block_reason(dest: String, slot_i: int) -> String:
 ## Règle le butin d'un combat en direct terminé. `result` vient de LiveSim.result() ; `random` : le mode a été tiré au hasard.
 func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool, mode: String = "combat") -> Dictionary:
 	var win := bool(result.get("win", false))
-	var mult := live_mode_mult(dest, random, mode) * (1.0 + Data.OBJECTIVE_BONUS * float(result.get("objectives_done", 0)))
+	var mult := live_mode_mult(dest, random, mode) * (1.0 + Data.OBJECTIVE_BONUS * float(result.get("objectives_done", 0))) * float(result.get("route_mult", 1.0))
 	var head := "Victoire en %d s" % int(result.get("time", 0.0)) if win else "Défaite (butin réduit)"
 	if mode == "derive":
 		head = "Dérive réussie en %d s" % int(result.get("time", 0.0)) if win else "Dérive manquée (butin réduit)"
+	if mode == "route":
+		head = "Voyage réussi en %d étapes" % int(result.get("steps", 0)) if win else "Voyage interrompu (butin réduit)"
 	note_mode(mode)
 	if win and mult > 1.001:
 		head += " (gains x%s)" % ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ",")

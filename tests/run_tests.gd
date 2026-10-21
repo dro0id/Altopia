@@ -7,6 +7,7 @@ const Data = preload("res://scripts/game_data.gd")
 const Battle = preload("res://scripts/battle.gd")
 const LiveSim = preload("res://scripts/live_sim.gd")
 const DeriveSim = preload("res://scripts/derive_sim.gd")
+const RouteSim = preload("res://scripts/route_sim.gd")
 
 var _failures := 0
 var _gs: Node
@@ -1298,13 +1299,13 @@ func test_live_mode_multipliers() -> void:
 
 
 func test_random_mode_available_with_two_ready_modes() -> void:
-	_check(_gs.ready_modes() == ["combat", "derive"], "combat et dérive sont prêts")
-	_check(_gs.random_mode_available(), "le mode Aléatoire a deux modes à tirer")
+	_check(_gs.ready_modes() == ["combat", "derive", "route"], "combat, dérive et route sont prêts")
+	_check(_gs.random_mode_available(), "le mode Aléatoire a plusieurs modes à tirer")
 
 
 func test_random_pick_is_weighted_and_never_three_in_a_row() -> void:
 	_gs.last_modes = []
-	var counts := {"combat": 0, "derive": 0}
+	var counts := {"combat": 0, "derive": 0, "route": 0}
 	var run := 1
 	var prev := ""
 	var max_run := 0
@@ -1317,7 +1318,7 @@ func test_random_pick_is_weighted_and_never_three_in_a_row() -> void:
 		max_run = maxi(max_run, run)
 		_gs.note_mode(m)
 	_check(max_run <= 2, "jamais trois fois le même mode de suite (série max %d)" % max_run)
-	_check(counts.derive > counts.combat * 0.9 and counts.combat > 80, "poids : plus de dérive sur le champ d'astéroïdes (%s)" % str(counts))
+	_check(counts.derive > counts.combat * 0.9 and counts.combat > 80 and counts.route > 15 and counts.route < counts.combat * 0.6, "poids : dérive > combat > route sur le champ d'astéroïdes (%s)" % str(counts))
 
 
 func test_derive_mode_reward_multiplier() -> void:
@@ -1573,3 +1574,262 @@ func test_live_config_gets_harder_when_underpowered() -> void:
 	_check(weak.hp_scale >= strong.hp_scale and strong.hp_scale >= 1.0, "des ennemis plus durs si le Capitaine est faible, jamais plus faciles que la base")
 	_check(weak.use_boss and not _gs.live_config("star", 0).use_boss, "le gardien dépend de la destination")
 	_check(_gs.live_chance("asteroids", 0) <= Data.WIN_CHANCE_SAFE, "la chance affichée ne dépasse jamais 80 %")
+
+
+
+# ---------- Route ----------
+
+func _route_crew() -> Dictionary:
+	return {"pilot": {"name": "Rex", "level": 6, "present": true}, "engineer": {"name": "Gorn", "level": 4, "present": true}, "scientist": {"name": "Lumi", "level": 4, "present": true}}
+
+
+func _route(seed_v: int, tier: int = 1) -> RouteSim:
+	var r := RouteSim.new(seed_v)
+	r.setup({"tier": tier, "hp_scale": 1.0, "dmg_scale": 1.0, "cap_level": 20, "crew": _route_crew()})
+	return r
+
+
+func test_route_map_is_valid_and_varied() -> void:
+	var sigs := {}
+	var lens := {}
+	for i in 200:
+		var r := _route(1000 + i * 31)
+		var n: int = r.meta.layers
+		lens[n] = true
+		_check(n >= 7 and n <= 11, "7 à 11 couches (%d)" % n)
+		_check(r.nodes[0].type == "depart" and r.nodes[r.nodes.size() - 1].type == "gardien", "départ et gardien aux extrémités")
+		# toutes les étapes sont atteignables depuis le départ et mènent au gardien
+		var seen := {0: true}
+		var queue: Array = [0]
+		while not queue.is_empty():
+			var cur: int = queue.pop_back()
+			for nx in r.nodes[cur].next:
+				if not seen.has(nx):
+					seen[nx] = true
+					queue.append(nx)
+		_check(seen.size() == r.nodes.size(), "toutes les étapes sont atteignables (graine %d)" % i)
+		for nd in r.nodes:
+			if nd.type != "gardien":
+				_check(not nd.next.is_empty(), "chaque étape mène quelque part")
+		var kinds := ""
+		for nd in r.nodes:
+			kinds += String(nd.type)[0]
+		sigs["%d|%s|%s|%s|%s|%s" % [n, r.meta.shape, r.meta.theme.id, r.meta.mod.id, r.meta.guard.name, kinds]] = true
+	_check(sigs.size() >= 195, "les voyages ne se ressemblent pas (%d différents sur 200)" % sigs.size())
+	_check(lens.size() == 5, "toutes les longueurs de 7 à 11 apparaissent")
+
+
+func test_route_same_seed_same_voyage() -> void:
+	var a := _route(777)
+	var b := _route(777)
+	_check(a.nodes.size() == b.nodes.size() and a.meta.name == b.meta.name and a.meta.theme.id == b.meta.theme.id, "même graine, même secteur")
+	for i in a.nodes.size():
+		_check(a.nodes[i].type == b.nodes[i].type and a.nodes[i].next == b.nodes[i].next, "même carte")
+
+
+func test_route_flow_rules() -> void:
+	var r := _route(4321)
+	# on se déplace seulement vers une étape voisine
+	var far: int = r.nodes.size() - 1
+	_check(not r.go_to(far), "on ne saute pas vers une étape lointaine")
+	var first: int = r.nodes[0].next[0]
+	_check(r.go_to(first), "on peut aller vers une étape voisine")
+	_check(not r.go_to(first), "pas de déplacement tant que l'étape n'est pas réglée (sauf carte)")
+	# récolte
+	r.phase = "harvest"
+	var before := r.total_loot()
+	r.harvest("min")
+	_check(r.total_loot() > before and r.phase == "map", "la récolte remplit la soute")
+	# repos : seul lui soigne, et il rend de la coque et des PV à l'équipage
+	r.hull = 30.0
+	r.crew.pilot.hp = 40.0
+	r.phase = "rest"
+	r.rest()
+	_check(r.hull == 70.0 and r.crew.pilot.hp == 90.0 and r.rests == 1, "le repos soigne la coque et l'équipage")
+	# événement : l'option sans risque ne coûte rien ; un échec peut blesser
+	r.phase = "event"
+	r.event = RouteSim.EVENTS[0]
+	var res := r.pick_option(2)
+	_check(res.ok and r.hull == 70.0, "passer son chemin est sans risque")
+	r.phase = "event"
+	r.event = RouteSim.EVENTS[0]
+	var inj := r.injuries
+	r.pick_option(0, 0.999)
+	_check(r.injuries == inj + 1, "forcer les soutes en cas d'échec blesse un équipier")
+	r.phase = "event"
+	r.event = RouteSim.EVENTS[0]
+	r.pick_option(0, 0.0)
+	_check(r.events_won == 1 and int(r.loot.min) >= 34, "un succès rapporte le butin de l'option")
+
+
+func test_route_event_chances_depend_on_crew_and_mod() -> void:
+	var r := _route(99)
+	var opt: Dictionary = RouteSim.EVENTS[0].opts[0]
+	r.meta.mod = RouteSim.MODS[3]       # équipage motivé
+	var p_good: float = r.option_chance(opt)
+	r.meta.mod = RouteSim.MODS[0]       # orage magnétique
+	var p_storm: float = r.option_chance(opt)
+	_check(p_good > p_storm + 0.1, "l'orage baisse les chances, l'équipage motivé les monte (%f / %f)" % [p_good, p_storm])
+	r.meta.mod = RouteSim.MODS[1]
+	var p_ok: float = r.option_chance(opt)
+	r.crew.engineer.hp = 20.0
+	_check(r.option_chance(opt) < p_ok, "un équipier blessé a moins de chances")
+	r.crew.engineer.present = false
+	_check(r.option_chance(opt) < p_ok, "sans équipier au poste, le Capitaine s'en charge moins bien")
+	_check(r.option_chance(RouteSim.EVENTS[0].opts[2]) == 1.0, "l'option sans risque est sûre")
+
+
+func test_route_fight_cfg_and_hull_carries_over() -> void:
+	var r := _route(2024, 2)
+	r.phase = "combat"
+	r.at = 1
+	r.nodes[1].type = "combat"
+	var cfg: Dictionary = r.fight_cfg()
+	_check(cfg.waves == [0, 1] and not cfg.use_boss and cfg.hull_frac == 1.0, "un combat ordinaire joue deux vagues, coque pleine")
+	r.hull = 45.0
+	_check(is_equal_approx(r.fight_cfg().hull_frac, 0.45), "la coque se garde d'un combat à l'autre")
+	r.nodes[1].type = "gardien"
+	_check(r.fight_cfg().use_boss and r.fight_cfg().waves == [3, 4], "le gardien joue la dernière vague avec le boss")
+	# LiveSim : la coque de départ et le nombre de vagues suivent la config
+	var s := LiveSim.new(5)
+	s.setup({"tier": 1, "waves": [0, 1], "hull_frac": 0.5})
+	_check(is_equal_approx(s.hull, s.hull_max * 0.5) and s.wave_total == 2, "LiveSim démarre à mi-coque, deux vagues")
+	s.human_bot = true
+	var steps := 0
+	while not s.over and steps < 20000:
+		s.step(1.0 / 30.0)
+		steps += 1
+	_check(s.over and s.result().has("hull_frac") and s.result().hull_frac <= 0.5 + 0.001, "le résultat donne la coque restante")
+
+
+func test_route_apply_fight_and_end_rules() -> void:
+	var r := _route(555)
+	r.phase = "combat"
+	r.at = 1
+	r.nodes[1].type = "combat"
+	r.meta.mod = RouteSim.MODS[4]       # eaux calmes : -25 % de dégâts de coque
+	var txt := r.apply_fight({"win": true, "hull_frac": 0.6, "time": 30.0})
+	_check(is_equal_approx(r.hull, 70.0) and r.phase == "map" and txt.find("Combat gagné") >= 0, "eaux calmes : 40 points perdus comptés pour 30 (%f)" % r.hull)
+	_check(int(r.loot.min) > 0, "un combat gagné rapporte du butin")
+	# défaite : le voyage se termine
+	r.phase = "combat"
+	r.apply_fight({"win": false, "hull_frac": 0.0, "time": 10.0})
+	_check(r.over and not r.win and r.phase == "end", "une défaite termine le voyage")
+	# gardien vaincu : voyage réussi
+	var g := _route(556)
+	g.at = g.nodes.size() - 1
+	g.phase = "combat"
+	g.apply_fight({"win": true, "hull_frac": 0.5, "time": 40.0})
+	_check(g.over and g.win, "le gardien vaincu réussit le voyage")
+	_check(g.result().route_mult > 1.0, "un voyage réussi a un multiplicateur de gains")
+
+
+func test_route_objectives_and_reward() -> void:
+	var r := _route(31)
+	_check(r.objectives.size() == 2 and r.objectives[0] != r.objectives[1], "deux objectifs différents par voyage")
+	r.objectives = ["hull", "noinj"]
+	r.hull = 80.0
+	_check(r.objectives_done() == 2, "coque à 80 % et aucun blessé : deux objectifs")
+	r.hull = 50.0
+	r.injuries = 1
+	_check(r.objectives_done() == 0, "coque à 50 % et un blessé : aucun objectif")
+	# récompense : thème, longueur et soute se cumulent ; la soute ne change que de ±20 %
+	var low := _route(32)
+	var high := _route(32)
+	high.loot = {"min": 300, "dat": 100, "ene": 100}
+	_check(high.route_mult() > low.route_mult() and high.route_mult() <= low.route_mult() * 1.5 + 0.001, "la soute améliore un peu le gain")
+
+
+func test_finish_live_route_rewards_and_message() -> void:
+	_gs.reset()
+	var base: Dictionary = _gs.rewards_of("asteroids", 0)
+	var before: float = _gs.res["minerals"]
+	var res := {"win": true, "time": 120.0, "objectives_done": 1, "route_mult": 1.6, "steps": 8}
+	var info: Dictionary = _gs.finish_live(0, "asteroids", res, false, "route")
+	_check(info.win and is_equal_approx(info.mult, 1.6 * 1.1), "gain route = multiplicateur du voyage x objectifs (%f)" % info.mult)
+	_check(String(_gs.slots[0].last).begins_with("Voyage réussi en 8 étapes"), "message de voyage réussi : %s" % _gs.slots[0].last)
+	_check(_gs.res["minerals"] > before + base.get("minerals", 0.0), "le butin est versé")
+	var lost := {"win": false, "time": 60.0, "objectives_done": 0, "route_mult": 1.7, "steps": 3}
+	_gs.finish_live(0, "asteroids", lost, false, "route")
+	_check(String(_gs.slots[0].last).begins_with("Voyage interrompu"), "message de voyage interrompu : %s" % _gs.slots[0].last)
+
+
+func test_route_config_uses_the_squad() -> void:
+	_gs.reset()
+	_gs.give_hero("rex", 9)
+	_gs.give_hero("gorn", 7)
+	_gs.auto_squad(0)
+	var cfg: Dictionary = _gs.route_config("planet", 0)
+	_check(cfg.crew.pilot.present and cfg.crew.pilot.level == 9, "le pilote du vaisseau est dans la config")
+	_check(cfg.crew.engineer.present and cfg.crew.engineer.level == 7, "l'ingénieur aussi")
+	_check(not cfg.crew.scientist.present, "sans scientifique, le poste est vide")
+	_check(cfg.cap_level == int(_gs.captain.level) and cfg.has("tier") and cfg.has("hp_scale"), "niveau du Capitaine et réglages de combat")
+
+
+func test_route_bots_stay_under_the_cap() -> void:
+	var n := 30
+	for tier in [0, 2, 4]:
+		for human in [false, true]:
+			var wins := 0
+			for i in n:
+				var r := _route(9100 + i * 7919, tier)
+				var counter := [0]
+				var fb := func(cfg: Dictionary) -> Dictionary:
+					counter[0] += 1
+					var s := LiveSim.new(500 + i * 104729 + counter[0])
+					cfg["assist"] = not human
+					s.human_bot = human
+					s.setup(cfg)
+					var steps := 0
+					while not s.over and steps < 20000:
+						s.step(1.0 / 30.0)
+						steps += 1
+					return s.result()
+				var guard := 0
+				while not r.over and guard < 200:
+					guard += 1
+					if not r.auto_step(fb):
+						break
+				if r.win:
+					wins += 1
+			_check(wins <= int(n * 0.87), "la route reste sous ~85 %% de victoires (palier %d, %s : %d/%d)" % [tier + 1, "joueur" if human else "auto", wins, n])
+			_check(wins >= int(n * 0.3), "la route reste gagnable (palier %d, %s : %d/%d)" % [tier + 1, "joueur" if human else "auto", wins, n])
+
+
+func test_route_abstract_flow_finishes() -> void:
+	for i in 40:
+		var r := _route(7000 + i)
+		var guard := 0
+		while not r.over and guard < 200:
+			guard += 1
+			r.auto_step(func(cfg: Dictionary) -> Dictionary:
+				return {"win": true, "hull_frac": maxf(0.0, r.hull - 12.0) / 100.0, "time": 10.0})
+		_check(r.over, "le voyage finit toujours (graine %d)" % i)
+
+
+func test_route_ui_builds_every_panel() -> void:
+	var RouteUI = load("res://scripts/route_ui.gd")
+	_gs.reset()
+	_gs.give_hero("rex", 5)
+	_gs.give_hero("lumi", 5)
+	_gs.auto_squad(0)
+	var ui: Control = RouteUI.new()
+	root.add_child(ui)
+	ui.begin(0, "asteroids", _gs.route_config("asteroids", 0), false, 1.0, 1234)
+	_check(ui._action.get_child_count() >= 0 and ui.sim.phase == "map", "l'écran démarre sur la carte")
+	for phase in ["map", "event", "combat", "harvest", "rest"]:
+		ui.sim.phase = phase
+		if phase == "event":
+			ui.sim.event = RouteSim.EVENTS[2]
+		if phase == "combat":
+			ui.sim.at = 1
+			ui.sim.nodes[1].type = "combat"
+		ui._clear_action()
+		ui._build_action()
+		_check(ui._action.get_child_count() > 0, "le panneau « %s » se construit" % phase)
+	ui.sim.phase = "map"
+	ui.sim.hull = 0.0
+	ui._abandon()
+	_check(ui._settled and ui._result.visible and ui._res_title.text.find("ABANDONNÉ") >= 0, "l'abandon règle le voyage et montre le résultat")
+	_check(String(_gs.slots[0].last).begins_with("Voyage interrompu"), "le butin réduit est annoncé")
+	ui.free()

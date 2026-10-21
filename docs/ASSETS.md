@@ -33,3 +33,8 @@ Aperçu : `docs/style/kenney_full_r2.png` (scène : `docs/style/kenney_full_r2_s
 ## Altopack R2
 Nom du pack de personnages et d'engins retouchés du projet (base Kenney CC0, palette R2) : `assets/altopack_r2/` (modèles), `tools/blender/altopack_*.py` (scripts), `docs/style/altopack_*.png` (aperçus).
 Personnages : le Capitaine (acier clair, accents cyan), le Pilote (bleu, visière ambrée, ailerons), l'Ingénieur (orange, casque de chantier, ceinture, réservoirs) et le Scientifique (blanc et vert, antennes, parabole, bocal) ; ennemi : le golem.
+
+## Modèles de la Route (Blender)
+Générés par script avec Blender (bpy) : `tools/blender/build_assets.py` (utilitaires dans `lib.py`). Sorties : `assets/models/*.glb` (jeu Godot) et, avec `--fbx <dossier>`, des FBX pour le prototype Unity.
+Modèles : `player` (vaisseau du convoi), `enemy` et `elite` (chasseurs), `boss` (gardien), `asteroid1` à `asteroid3`, `station`, `wreck`. Le nez pointe vers +Y dans Blender (-Z dans Godot et three.js). Comparaison avec les rendus Blender : `docs/comparaison_blender_vs_scene.png`.
+Régénérer : `python tools/blender/build_assets.py` (paquet `bpy` 5.2), puis ouvrir Godot pour réimporter.

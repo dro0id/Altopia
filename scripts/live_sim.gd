@@ -53,6 +53,8 @@ const ASSIST_DAMAGE := 0.75            # l'équipage assisté tire à 75 % de la
 var rng := RandomNumberGenerator.new()
 var tier := 0
 var use_boss := true
+var wave_list: Array = [0, 1, 2, 3, 4] # vagues jouées (le mode Route n'en joue que quelques-unes)
+var wave_total := 5
 var hp_scale := 1.0                    # difficulté de la destination (>= 1)
 var dmg_scale := 1.0
 var assist := false                    # équipage assisté : le pilote automatique joue
@@ -105,13 +107,15 @@ func _init(seed_value: int = 0) -> void:
 		rng.randomize()
 
 
-## cfg : tier, use_boss, hp_scale, dmg_scale, assist.
+## cfg : tier, use_boss, hp_scale, dmg_scale, assist ; optionnel (mode Route) : waves (indices de vagues), hull_frac (coque de départ, 0 à 1).
 func setup(cfg: Dictionary = {}) -> void:
 	tier = clampi(int(cfg.get("tier", 0)), 0, SHIPS.size() - 1)
 	use_boss = bool(cfg.get("use_boss", true))
 	hp_scale = float(cfg.get("hp_scale", 1.0))
 	dmg_scale = float(cfg.get("dmg_scale", 1.0))
 	assist = bool(cfg.get("assist", false))
+	wave_list = Array(cfg.get("waves", [0, 1, 2, 3, 4]))
+	wave_total = wave_list.size()
 	t = 0.0
 	wave = -1
 	delay = 0.6
@@ -121,8 +125,8 @@ func setup(cfg: Dictionary = {}) -> void:
 	beams = []
 	fx = []
 	texts = []
-	hull = SHIPS[tier].hull
-	hull_max = hull
+	hull_max = SHIPS[tier].hull
+	hull = hull_max * clampf(float(cfg.get("hull_frac", 1.0)), 0.01, 1.0)
 	lane = 1
 	px = LANES[1]
 	shield = 0.0
@@ -455,12 +459,12 @@ func step(dt: float) -> void:
 		elif delay > 0.0:
 			delay -= dt
 		else:
-			if wave >= WAVE_COUNT - 1:
+			if wave >= wave_total - 1:
 				_end(true)
 				return
 			wave += 1
-			_banner("GARDIEN" if (wave == WAVE_COUNT - 1 and use_boss) else "Vague %d" % (wave + 1), 1.5)
-			_spawn_wave(wave)
+			_banner("GARDIEN" if (wave_list[wave] == WAVE_COUNT - 1 and use_boss) else "Vague %d" % (wave + 1), 1.5)
+			_spawn_wave(wave_list[wave])
 			delay = 9999.0
 
 	if assist:
@@ -589,7 +593,7 @@ func _end(victory: bool) -> void:
 func result() -> Dictionary:
 	return {
 		"win": win, "time": t, "hits": hits, "max_combo": max_combo, "objectives": objectives.duplicate(),
-		"objectives_done": objectives_done() if win else 0, "minerals": minerals, "data": data, "tier": tier,
+		"objectives_done": objectives_done() if win else 0, "minerals": minerals, "data": data, "tier": tier, "hull_frac": hull / hull_max,
 	}
 
 

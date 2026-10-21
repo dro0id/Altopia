@@ -29,4 +29,5 @@
 - [ ] **Étape 7 — Monétisation** : pubs récompensées, achats intégrés.
 - [x] Refonte des expéditions, première étape : combat en direct (couloirs, tirs annoncés, compétences d'équipage, équipage assisté, objectifs, palier du vaisseau), sélecteur de mode et secteur du jour. Voir `docs/EXPEDITIONS.md`.
 - [x] Expéditions : mode Dérive (grille de scan, météore gardien, gains x1,3) et mode Aléatoire (x1,5, x1,6 sur le secteur du jour).
-- [ ] Expéditions : mode Route (carte d'étapes), étoiles, combat en direct des anomalies.
+- [x] Expéditions : combat en direct, dérive, route (scène 3D), mode Aléatoire, secteur du jour.
+- [ ] Expéditions : étoiles (récompense au-delà du bonus de butin), combat en direct des anomalies.

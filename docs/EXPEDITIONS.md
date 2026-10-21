@@ -48,8 +48,17 @@ Les niveaux de l'équipage au poste améliorent les chances et l'efficacité dan
 
 ## Route (carte d'étapes)
 
-- 9 étapes environ : combats (mode Combat), événements à choix risqués, grilles de dérive pour les épaves, point de repos, gardien final.
-- La coque et la soute se gardent d'une étape à l'autre ; seul le repos soigne.
+Un voyage d'étapes **généré à chaque départ**, avec une mise en scène **en 3D** (la scène remplit l'écran, l'interface est en surimpression). Les chiffres viennent de `scripts/route_sim.gd`.
+
+- **Secteur généré :** 7 à 11 couches, une forme de carte (losange, sablier, couloir, delta ou tremplin), un thème (Ceinture riche, Nébuleuse qui cache les étapes lointaines, Zone de guerre au butin ×1,2, Cimetière d'épaves, Secteur calme au butin ×0,9), une particularité (orage, vents solaires, pluie de minerai, équipage motivé, eaux calmes) et un gardien parmi cinq. Chaque étape mène à une ou deux voisines, parfois un raccourci.
+- **Étapes :** zone hostile et embuscade (combat), champ de ressources (minerai, données ou énergie), épave (événement à choix : sept événements, chaque option est tentée par un poste), repos (seul lui soigne : +40 % de coque, +50 % aux équipiers), inconnu (nébuleuse) et gardien final.
+- **Combats :** le vrai combat en direct (LiveSim), quelques vagues à la suite (zone hostile : 2, embuscade : 2 plus difficiles, gardien : tireur puis boss). **La coque se garde d'un combat à l'autre** ; les vents solaires et les eaux calmes modifient les dégâts de coque.
+- **Équipage :** un héros du vaisseau par poste (Pilote, Ingénieur, Scientifique) ; les chances d'un événement dépendent de son niveau et de ses PV (un équipier blessé perd 25 PV). Sans héros à un poste, le Capitaine s'en charge, 10 points moins bien.
+- **Gains :** x1,6 de base × thème × longueur (±4 % par couche), ajusté par la soute (0,8 à 1,2), puis objectifs (+10 % chacun, 2 objectifs tirés parmi 6, 1 à 3 étoiles) et bonus Aléatoire / secteur du jour. Une défaite garde 25 % du butin.
+- **Équipage assisté (Auto) :** il choisit la route (repos si la coque est basse, évite les embuscades à coque faible), les options d'événement et pilote les combats en mode assisté.
+- **Mise en scène 3D (Godot, rendu Compatibilité) :** `route_scene.gd` (caméra de poursuite, distorsion, ciel nébuleux, planète, étoiles qui défilent, modèles Blender `assets/models/*.glb`, lasers, explosions, faisceau de récolte), `route_ui.gd` (interface, carte, résultats), `route_map_view.gd` (carte du secteur).
+- **Difficulté :** `tools/route_balance.gd` (voyages entiers avec combats simulés) : 55 à 78 % de victoires selon le palier, équipage assisté ou joueur simulé ; réglage par palier dans `RouteSim.TIER_DMG`.
+- **Captures :** `tools/route_shots.gd` (voyage complet en 3D, nécessite `xvfb-run`).
 
 ## Tirage du mode « Aléatoire » (par défaut, à régler)
 
@@ -87,15 +96,15 @@ Les niveaux de l'équipage au poste améliorent les chances et l'efficacité dan
 
 ## Mode Aléatoire
 
-- Tire un mode parmi ceux qui sont prêts (combat, dérive), pondéré selon la destination (astéroïdes : dérive 50 / combat 40 ; étoile : dérive 30 / combat 50 ; planète : dérive 15 / combat 35 ; la route sera ajoutée), jamais le même mode trois fois de suite. Gains x1,5 (x1,6 sur le secteur du jour), puis le gain propre au mode (la dérive x1,3).
+- Tire un mode parmi ceux qui sont prêts (combat, dérive, route), pondéré selon la destination (astéroïdes : dérive 50 / combat 40 / route 10 ; étoile : dérive 30 / combat 50 / route 20 ; planète : dérive 15 / combat 35 / route 50), jamais le même mode trois fois de suite. Gains x1,5 (x1,6 sur le secteur du jour), puis le gain propre au mode (la dérive x1,3).
 
 ## État de l'implémentation
 
-- Fait : combat en direct et dérive sur le vaisseau 1, sélecteur de mode (Combat, Dérive, Aléatoire ; Route marquée « bientôt »), secteur du jour (rotation toutes les 6 h, bannière et ★ sur la destination), bonus de gains, objectifs, palier du vaisseau, sauvegarde, tests.
-- Le mode **Aléatoire** est actif depuis que la dérive existe (deux modes à tirer).
+- Fait : combat en direct, dérive et route sur le vaisseau 1, sélecteur de mode (Combat, Dérive, Route, Aléatoire), secteur du jour (rotation toutes les 6 h, bannière et ★ sur la destination), bonus de gains, objectifs, palier du vaisseau, sauvegarde, tests.
+- Le mode **Aléatoire** tire parmi les trois modes.
 - Le vaisseau 2 (drone piloté par l'équipage seul) garde l'ancien déroulement automatique chronométré.
 - Les anomalies gardent leur combat automatique.
-- À faire : mode Route, étoiles (récompense au-delà du bonus de butin), combat des anomalies.
+- À faire : étoiles (récompense au-delà du bonus de butin), combat des anomalies.
 
 ## Points ouverts
 
