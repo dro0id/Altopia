@@ -33,10 +33,11 @@ SPECS = {
  "bolt":    _sp((0.78, 0.18, 0.15), (1.0, 0.85, 0.2), (1.0, 0.7, 0.2), (0.18, 0.15, 0.13), (0.55, 0.37, 0.27), None, ("umc", "Worker"), 1.12, 0.94, "lamp", ["pouches", "tool"]),
  "tess":    _sp((0.95, 0.75, 0.12), (0.12, 0.12, 0.15), (1.0, 0.55, 0.1), (0.2, 0.17, 0.13), None, None, ("uw", "Worker"), 0.96, 0.94, "goggles", ["pouches", "tool"]),
  "gorn":    _sp((0.22, 0.24, 0.28), (1.0, 0.45, 0.1), (1.0, 0.45, 0.1), (0.12, 0.12, 0.14), (0.7, 0.5, 0.4), (0.5, 0.2, 0.1), ("umc", "Adventurer"), 1.3, 0.96, "lamp", ["pauldrons", "glowcore", "pouches"]),
- "lumi":    _sp((0.85, 0.93, 0.95), (0.2, 0.8, 0.8), (0.3, 0.9, 0.9), (0.9, 0.93, 0.95), None, (0.35, 0.6, 0.95), ("uw", "Casual"), 0.9, 0.95, "none", ["tablet"]),
+ "lumi":    _sp((0.45, 0.82, 0.88), (0.95, 0.97, 1.0), (0.3, 0.9, 0.9), (0.9, 0.93, 0.95), None, (0.35, 0.6, 0.95), ("uw", "Casual"), 0.9, 0.95, "none", ["tablet"]),
  "quark":   _sp((0.3, 0.28, 0.66), (0.75, 0.6, 1.0), (0.75, 0.6, 1.0), (0.2, 0.2, 0.3), None, (0.7, 0.7, 0.75), ("umc", "Suit"), 1.0, 1.0, "none", ["scanner"], None, True),
  "elara":   _sp((0.95, 0.95, 0.97), (1.0, 0.8, 0.25), (1.0, 0.8, 0.25), (0.95, 0.85, 0.5), None, (0.6, 0.25, 0.85), ("uw", "Formal"), 0.9, 1.0, "halo", ["orb", "epaulet"]),
  "vance":   _sp((0.08, 0.14, 0.38), (0.95, 0.78, 0.25), (0.9, 0.2, 0.2), (0.12, 0.13, 0.18), None, None, ("umc", "King"), 1.08, 1.02, "none", ["epaulet", "medals"], None, False, "suit"),
+ "droid":   _sp((0.78, 0.52, 0.16), (0.12, 0.12, 0.15), (1.0, 0.6, 0.15), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Worker"), 1.08, 0.95, "none", ["tool"]),
  "nox":     _sp((0.7, 0.74, 0.8), (0.75, 0.45, 1.0), (0.75, 0.45, 1.0), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Suit"), 1.0, 1.0, "none", []),
 }
 HEAD_DROP_MATS = {"Gold", "Worker_Yellow", "Worker_Vest", "Metal", "Swat", "Earrings", "Grey", "Orange", "LimeGreen", "Red_Dark"}   # couvre-chefs, bijoux, vêtements
@@ -318,11 +319,18 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     H = sp_["h"]; bk = sp_["bulk"]; ex = sp_["extras"]
     arm, parts = load_base(sp_["base"])
     head = parts["Head"]
-    _recolor_head(head, sp_)
+    ANDROID = name in ("nox", "droid")
+    if ANDROID:
+        bpy.data.objects.remove(head); head = None
+    else:
+        _recolor_head(head, sp_)
+        cc = Vector((0.0, -0.043, 1.69))
+        for v in head.data.vertices: v.co = cc + (v.co - cc) * 1.1
     # matières de la combinaison
     suit = M("suit_steel" if godot else name + "_suit", sp_["suit"], 0.0, 0.5)
-    glove = M(name + "_glove", (0.95, 0.95, 0.97) if name in ("captain", "lumi", "elara", "vance") else sp_["boot"], 0.0, 0.55)
-    boot = M(name + "_boot", sp_["boot"], 0.0, 0.55)
+    sc_ = sp_["suit"]
+    glove = M(name + "_glove", tuple(min(1.0, c * 1.04) for c in sc_), 0.0, 0.5)
+    boot = M(name + "_boot", tuple(c * 0.9 for c in sc_), 0.0, 0.5)
     dark = M("dark", (0.05, 0.07, 0.15), 0.1, 0.5)
     if godot:
         trim = M("accent_cyan", sp_["trim"], 0.1, 0.4, emit=sp_["trim"], k=0.35)
@@ -374,6 +382,18 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         ec = prim_cyl(0.04, 0.04, 0.025, (hc.x + sx * 0.235, hc.y, hc.z), (0, math.radians(90), 0), 14); add(ec, "Head", gray)
     rg = prim_box((0.04, 0.3, 0.025), (hc.x, hc.y + 0.01, hc.z + 0.205), r=0.3, sub=0); add(rg, "Head", trim)
     bl = prim_box((0.07, 0.02, 0.04), (hc.x, hc.y + 0.205, hc.z + 0.01), r=0.2, sub=0); add(bl, "Head", E("bl", (1.0, 0.3, 0.3), 2.5))
+    if ANDROID:
+        metal = M(name + "_metal", (0.78, 0.8, 0.84), 0.85, 0.3); face = M(name + "_face", (0.03, 0.035, 0.05), 0.2, 0.2)
+        eye = E(name + "_eye", sp_["trim"], 9.0)
+        add(prim_sph(1.0, hc + Vector((0, 0.01, -0.015)), (0.125, 0.135, 0.15), 18), "Head", metal)
+        add(prim_sph(1.0, hc + Vector((0, -0.075, 0.0)), (0.1, 0.06, 0.11), 16), "Head", face)
+        for sx in (-1, 1):
+            add(prim_box((0.034, 0.012, 0.016), (hc.x + sx * 0.042, hc.y - 0.128, hc.z + 0.012), r=0.3, sub=0), "Head", eye)
+            add(prim_cyl(0.034, 0.034, 0.03, (hc.x + sx * 0.128, hc.y + 0.01, hc.z - 0.01), (0, math.radians(90), 0), 12), "Head", eye)
+        add(prim_box((0.06, 0.01, 0.008), (hc.x, hc.y - 0.133, hc.z - 0.055), r=0.3, sub=0), "Head", eye)
+        add(prim_cyl(0.008, 0.008, 0.07, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.16), seg=6), "Head", metal)
+        add(prim_sph(0.016, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.2), (1, 1, 1), 8), "Head", eye)
+        add(prim_cyl(0.05, 0.05, 0.05, (hc.x, hc.y, hc.z - 0.14), seg=10), "Head", metal)
     # --- col, sac, tuyaux
     nz = hb("Neck").z
     nr = tube([Vector((math.cos(a) * 0.115, -0.043 + math.sin(a) * 0.11, nz + 0.01)) for a in [2 * math.pi * k / 20 for k in range(20)]], 0.028, 8, True); add(nr, "Neck", dark)
@@ -399,8 +419,12 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     for (bone, t, th, mt, ex_) in (("Abdomen", 0.45, 0.026, trim, 0.012), ("Abdomen", 0.62, 0.014, dark, 0.012), ("Abdomen", 0.3, 0.014, dark, 0.012), ("UpperArm.L", 0.92, 0.014, dark, 0.012), ("UpperArm.R", 0.92, 0.014, dark, 0.012),
                                    ("LowerArm.L", 0.06, 0.016, dark, 0.014), ("LowerArm.R", 0.06, 0.016, dark, 0.014), ("LowerArm.L", 0.86, 0.02, trim, 0.012), ("LowerArm.R", 0.86, 0.02, trim, 0.012),
                                    ("UpperLeg.L", 0.2, 0.016, dark, 0.014), ("UpperLeg.R", 0.2, 0.016, dark, 0.014), ("LowerLeg.L", 0.08, 0.018, dark, 0.014), ("LowerLeg.R", 0.08, 0.018, dark, 0.014),
-                                   ("LowerLeg.L", 0.88, 0.02, trim, 0.012), ("LowerLeg.R", 0.88, 0.02, trim, 0.012)):
-        r_ = ring_around(shells, arm, bone, t, th, mt, ex_, rmax_ring=(0.2 if bone == "Abdomen" else 0.13))
+                                   ("LowerLeg.L", 0.88, 0.02, trim, 0.012), ("LowerLeg.R", 0.88, 0.02, trim, 0.012),
+                                   ("Abdomen", 0.82, 0.02, trim, 0.012), ("Hips", 0.5, 0.02, dark, 0.012), ("Chest", 0.28, 0.014, dark, 0.012),
+                                   ("UpperArm.L", 0.5, 0.012, dark, 0.012), ("UpperArm.R", 0.5, 0.012, dark, 0.012), ("LowerArm.L", 0.45, 0.012, dark, 0.012), ("LowerArm.R", 0.45, 0.012, dark, 0.012),
+                                   ("UpperLeg.L", 0.55, 0.014, trim, 0.012), ("UpperLeg.R", 0.55, 0.014, trim, 0.012), ("UpperLeg.L", 0.9, 0.016, dark, 0.012), ("UpperLeg.R", 0.9, 0.016, dark, 0.012),
+                                   ("LowerLeg.L", 0.5, 0.012, dark, 0.012), ("LowerLeg.R", 0.5, 0.012, dark, 0.012)):
+        r_ = ring_around(shells, arm, bone, t, th, mt, ex_, rmax_ring=(0.2 if bone in ("Abdomen", "Hips", "Chest") else 0.13))
         if r_ is not None: rigid.append((r_, bone))
     bh_ = prim_box((0.06, 0.03, 0.05), (0, front_y(shells, hb("Abdomen").z + 0.07, 0.04) - 0.006, hb("Abdomen").z + 0.07), r=0.3, sub=0); add(bh_, "Abdomen", gray)
     for bone, side in (("UpperArm.L", 1), ("UpperArm.R", -1), ("UpperLeg.L", 1), ("UpperLeg.R", -1), ("LowerArm.L", 1), ("LowerArm.R", -1), ("LowerLeg.L", 1), ("LowerLeg.R", -1)):
@@ -452,14 +476,16 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
             h_ = hb(bone); add(prim_box((0.12, 0.1, 0.02), (h_.x + side * 0.045, h_.y, h_.z + 0.11), r=0.3, sub=0), bone, gold)
     if "pauldrons" in ex:
         for bone, side in (("UpperArm.L", 1), ("UpperArm.R", -1)):
-            h_ = hb(bone); add(prim_box((0.26 * bk, 0.26, 0.07), (h_.x + side * 0.05, h_.y, h_.z + 0.1), r=0.35), bone, trim if name == "gorn" else gold)
+            h_ = hb(bone); add(prim_box((0.17 * bk, 0.18, 0.05), (h_.x + side * 0.05, h_.y, h_.z + 0.1), r=0.35), bone, trim if name == "gorn" else gold)
     if "pouches" in ex:
         hz2 = hb("Hips").z + 0.06
         for k_ in range(3): add(prim_box((0.075, 0.05, 0.08), (-0.13 + k_ * 0.13, front_y(shells, hz2, 0.14) - 0.02, hz2), r=0.3), "Hips", M("pouch", (0.3, 0.22, 0.12), 0, 0.8))
     if "tool" in ex:
         add(prim_box((0.03, 0.03, 0.2), (0.23 * bk, front_y(shells, hb("Hips").z + 0.05, 0.22) - 0.02, hb("Hips").z + 0.02), (0, 0.2, 0.4), r=0.3, sub=0), "Hips", M("steel", (0.65, 0.67, 0.7), 0.9, 0.3))
     if "tablet" in ex:
-        h_ = hb("Hand.L"); add(prim_box((0.14, 0.012, 0.17), (h_.x + 0.06, h_.y - 0.07, h_.z - 0.0), r=0.2, sub=0), "Hand.L", E("tab", (0.3, 1.0, 0.7), 2.0))
+        h_ = hb("LowerArm.L"); t_ = tb("LowerArm.L"); c_ = h_ + (t_ - h_) * 0.5
+        add(prim_box((0.15, 0.03, 0.08), (c_.x, c_.y - 0.062, c_.z), r=0.25, sub=0), "LowerArm.L", gray)
+        add(prim_box((0.11, 0.016, 0.05), (c_.x, c_.y - 0.08, c_.z), r=0.2, sub=0), "LowerArm.L", E("tab", (0.3, 1.0, 0.8), 2.5))
     if "scanner" in ex:
         h_ = hb("Hand.R"); add(prim_box((0.08, 0.045, 0.16), (h_.x - 0.06, h_.y - 0.06, h_.z), r=0.3), "Hand.R", M("scan", (0.2, 0.22, 0.3), 0.6, 0.4))
         add(prim_sph(0.03, (h_.x - 0.06, h_.y - 0.09, h_.z + 0.09), (1, 1, 1), 8), "Hand.R", E("scl", (0.6, 0.4, 1.0), 7.0))
@@ -470,7 +496,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     if "scarf" in ex:
         add(tube([Vector((math.cos(a) * 0.14, -0.043 + math.sin(a) * 0.12, nz - 0.05)) for a in [2 * math.pi * k / 20 for k in range(20)]], 0.04, 8, True), "Chest", M("scarf", (0.1, 0.75, 0.95), 0, 0.8))
     if "glowcore" in ex:
-        add(prim_sph(0.055, (0, fy0 - 0.03, cz - 0.18), (1, 0.6, 1), 10), "Chest", E("core", (1.0, 0.5, 0.15), 8.0))
+        add(prim_sph(0.032, (0, fy0 - 0.02, cz - 0.17), (1, 0.5, 1), 10), "Chest", E("core", (1.0, 0.5, 0.15), 8.0))
     if "orb" in ex:
         add(prim_sph(0.06, (0.34, hb("UpperArm.L").y - 0.05, hb("UpperArm.L").z - 0.4), (1, 1, 1), 10), "Chest", E("orb", (0.8, 0.6, 1.0), 8.0))
     # --- fusion par (os, matière), peau
