@@ -325,7 +325,11 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     else:
         _recolor_head(head, sp_)
         cc = Vector((0.0, -0.043, 1.69))
-        for v in head.data.vertices: v.co = cc + (v.co - cc) * 1.1
+        hc0 = Vector((0.0, -0.043, 1.705)); Rin = Vector((0.188 * 0.9, 0.205 * 0.9, 0.205 * 0.9))
+        for v in head.data.vertices:
+            v.co = cc + (v.co - cc) * 1.1
+            d_ = v.co - hc0; e_ = math.sqrt((d_.x / Rin.x) ** 2 + (d_.y / Rin.y) ** 2 + (d_.z / Rin.z) ** 2)
+            if e_ > 1.0 and d_.z > -0.05: v.co = hc0 + d_ / e_   # cheveux : rester sous le casque
     # matières de la combinaison
     suit = M("suit_steel" if godot else name + "_suit", sp_["suit"], 0.0, 0.5)
     sc_ = sp_["suit"]
@@ -462,7 +466,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
             add(tube([Vector((hc.x + sx * 0.065 + math.cos(a) * 0.05, hc.y - 0.2, hc.z + 0.115 + math.sin(a) * 0.05)) for a in [2 * math.pi * k / 14 for k in range(14)]], 0.012, 6, True), "Head", black)
             add(prim_sph(0.042, (hc.x + sx * 0.065, hc.y - 0.2, hc.z + 0.115), (1, 0.2, 1), 10), "Head", E("lens", (1.0, 0.7, 0.2), 1.5))
     elif sp_["hat"] == "headband":
-        add(tube([Vector((math.cos(a) * 0.19, hc.y + math.sin(a) * 0.205, hc.z + 0.16)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.014, 6, True), "Head", M("hb", (1.0, 0.95, 0.95), 0, 0.5))
+        add(tube([Vector((math.cos(a) * 0.15, hc.y + math.sin(a) * 0.163, hc.z + 0.13)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.014, 6, True), "Head", M("hb", (1.0, 0.95, 0.95), 0, 0.5))
     elif sp_["hat"] == "halo":
         add(tube([Vector((math.cos(a) * 0.14, hc.y + math.sin(a) * 0.14, hc.z + 0.3)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.008, 6, True), "Head", E("halo", (1.0, 0.85, 0.35), 6.0))
     if sp_["glasses"]:
