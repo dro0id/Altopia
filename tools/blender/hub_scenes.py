@@ -489,7 +489,7 @@ KINDS = ["atelier", "quartiers", "labo", "mine", "centrale", "soute"]
 
 def base_env(elev=14.0):
     world_sky(elev, math.radians(205), 2.5, 0.35)
-    ground(3000, (0.5, 0.36, 0.24), 0.95, 0.35, 3.0)
+    ground(3000, (0.42, 0.29, 0.19), 0.95, 0.35, 3.0)
     for hx, hy, hs in ((-40, 60, 18), (-10, 70, 20), (30, 64, 17), (60, 70, 22), (-70, 55, 15)):
         imp("rock_largeA", (hx, hy, 0), hx, hs)
     imp("craterLarge", (-22, 24, 0), 0, 6)
@@ -506,7 +506,7 @@ def base_env(elev=14.0):
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -14.5, 13.0), (0, 1.8, 0.3), 27)
+    camera((0, -12.0, 10.8), (0, 1.9, 0.3), 31)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
@@ -522,7 +522,7 @@ def base_0():
     sphere("fire", 0.22, (0.8, 8.4, 0.25), material=emissive("fire", (1.0, 0.5, 0.15), 12.0))
     stage_people([(-0.6, 7.2, math.radians(-30)), (1.3, 7.4, math.radians(25)), (0.4, 6.1, 0.0)], ("captain", "crew_pilot", "crew_engineer"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
-    base_cam(); render("base_0", exposure=-0.4)
+    base_cam(); render("base_0", exposure=-0.9)
 
 @scene
 def base_1():
@@ -533,7 +533,7 @@ def base_1():
     tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3))
     stage_people([(-1.0, 7.0, math.radians(-30)), (3.2, -1.8, math.radians(90)), (-2.8, -2.6, 0.0), (4.2, -3.0, math.radians(-90))], ("captain", "crew_engineer", "crew_pilot", "crew_scientist"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
-    base_cam(); render("base_1", exposure=-0.4)
+    base_cam(); render("base_1", exposure=-0.9)
 
 @scene
 def base_2():
@@ -542,7 +542,7 @@ def base_2():
     scaffold((0, 8.0), ACCENTS["soute"], h=1.8, w=2.4) if False else None
     stage_people([(0.0, 3.0, 0.0), (2.0, 7.0, math.radians(90)), (-2.0, 7.2, math.radians(-90)), (0.0, -1.2, math.radians(180)), (1.4, -4.8, math.radians(30)), (-1.6, 5.0, 0.0)])
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
-    base_cam(); render("base_2", exposure=-0.4)
+    base_cam(); render("base_2", exposure=-0.9)
 
 @scene
 def base_proj():
