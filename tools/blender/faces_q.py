@@ -99,7 +99,6 @@ def human_head(name, hc, add, T):
         add(box((0.036 + 0.004 * (p["bush"] - 1), 0.011 + 0.003 * p["bush"], bt), (hc.x + x, surf(x, bz) - 0.004, hc.z + bz), (0, math.radians(sg * -ang), 0), r=0.35, sub=0), "Brow." + sd, brm)
     nl, nw = p["nose"]; nz = -0.012; ny = surf(0, nz)
     add(cyl(nw, 0.002, nl, (hc.x, ny - nl / 2 + 0.006, hc.z + nz), (math.radians(90), 0, 0), 4), "Head", sk)
-    for sg in (-1, 1): add(sph(1.0, (hc.x + sg * nw * 0.9, ny - 0.002, hc.z + nz - 0.012), (nw * 0.55, 0.008, 0.007), 6), "Head", sk)
     # bouche (os Jaw)
     mw, cv = p["mouth"]; mz = -0.058; my = surf(0, mz) - (0.012 if p["beard"] in ("full", "big") else 0.003)
     lipm = M(name + "_lip", p["lip"], 0.0, 0.5); lip2 = M(name + "_lip2", tuple(c * 0.75 for c in p["lip"]), 0.0, 0.5)
