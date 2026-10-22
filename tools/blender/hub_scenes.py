@@ -444,6 +444,12 @@ def plot_marker(loc, col):
         box("pmx", (w, 0.07, 0.05), (loc[0], loc[1] + sx*w/2, 0.04), material=m, bevel=0.0)
 
 def building(kind, loc, rz=0.0):
+    import buildings
+    objs = buildings.BUILDERS[kind](ACCENTS[kind])
+    group(objs, kind, (loc[0], loc[1], 0.0), rz, 1.0, center=False)
+    return
+
+def building_kenney(kind, loc, rz=0.0):
     x, y = loc[0], loc[1]
     tag = ACCENTS[kind]
     if kind == "atelier":
@@ -740,7 +746,7 @@ def make_icon(kind):
     def f():
         reset(); catcher(); icon_rig((0, 0, 1.0))
         building(kind, (0, 0), 0)
-        camera((6.5, -7.5, 5.2), (0, 0, 0.9), 40)
+        camera((4.7, -5.6, 3.7), (0, 0, 0.7), 40)
         render("i_" + kind, res=(480, 480), transparent=True)
     return f
 for _k in KINDS: SCENES["icon_" + _k] = make_icon(_k)
