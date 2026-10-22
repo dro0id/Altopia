@@ -234,7 +234,7 @@ def render(name, res=(624, 1352), transparent=False, samples=None, view="AgX", l
     print("rendu", scn.render.filepath)
 
 import characters_q as characters
-CHAR = {"captain": "captain", "crew_pilot": "rex", "crew_engineer": "bolt", "crew_scientist": "lumi", "lyra": "lumi", "rex": "rex", "bolt": "bolt", "vance": "vance", "nox": "nox", "nova": "nova", "zara": "zara", "tess": "tess", "gorn": "gorn", "lumi": "lumi", "quark": "quark", "elara": "elara"}
+CHAR = {"captain": "captain", "crew_pilot": "rex", "crew_engineer": "bolt", "crew_scientist": "lumi", "lyra": "lumi", "rex": "rex", "bolt": "bolt", "vance": "vance", "nox": "nox", "nova": "nova", "zara": "zara", "tess": "tess", "gorn": "gorn", "lumi": "lumi", "quark": "quark", "elara": "elara", "droid": "droid", **{k: k for k in ("jett", "vega", "sira", "tick", "brakk", "maya", "zyl", "sage", "ilan")}}
 def person(kind, loc, rz, s=2.0, pose="idle"):
     """Personnage modélisé sur mesure (characters.py), hauteur ~1,7 m pour s=2."""
     r = characters.make(CHAR[kind], pose, s * 0.8)
@@ -790,7 +790,7 @@ def make_portrait_game(kind):
         camera((0.6 * Hh * wide, 1.75 * Hh * wide, 1.0 * Hh), (0, 0, 0.83 * Hh), 82)
         render("%s" % kind, res=(256, 256), transparent=True, samples=64)
     return f
-for _k in ("captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox"): SCENES["pg_" + _k] = make_portrait_game(_k)
+for _k in ("captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox", "droid", "jett", "vega", "sira", "tick", "brakk", "maya", "zyl", "sage", "ilan"): SCENES["pg_" + _k] = make_portrait_game(_k)
 
 if __name__ == "__main__":
     for n in (NAMES or list(SCENES)):

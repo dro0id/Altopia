@@ -14,7 +14,7 @@ import bpy
 import characters_q as characters
 from lib import reset
 
-ALL = ["captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox"]
+ALL = ["captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox", "droid", "jett", "vega", "sira", "tick", "brakk", "maya", "zyl", "sage", "ilan"]
 for n in (names or ALL):
     reset()
     god = n == "captain"

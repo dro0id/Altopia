@@ -23,8 +23,8 @@ def glass(name="glass", tint=(0.75, 0.88, 1.0), a=0.1):
     return m
 
 # base Quaternius, tête à garder, personnalisation ---------------------------------------------------------
-def _sp(suit, trim, vis, boot, skin, hair, base, bulk=1.0, h=1.0, hat="none", extras=(), beard=None, glasses=False, helm=None, hair_keep=True):
-    return dict(suit=suit, trim=trim, vis=vis, boot=boot, skin=skin, hair=hair, base=base, bulk=bulk, h=h, hat=hat, extras=list(extras), beard=beard, glasses=glasses, helm=helm, hair_keep=hair_keep)
+def _sp(suit, trim, vis, boot, skin, hair, base, bulk=1.0, h=1.0, hat="none", extras=(), beard=None, glasses=False, helm=None, hair_keep=True, head=None):
+    return dict(head=head, suit=suit, trim=trim, vis=vis, boot=boot, skin=skin, hair=hair, base=base, bulk=bulk, h=h, hat=hat, extras=list(extras), beard=beard, glasses=glasses, helm=helm, hair_keep=hair_keep)
 SPECS = {
  "captain": _sp((0.92, 0.93, 0.95), (0.85, 0.12, 0.14), (0.85, 0.15, 0.15), (0.92, 0.93, 0.95), None, None, ("umc", "Adventurer"), 1.0, 1.0, "none", ["antenna"]),
  "rex":     _sp((0.95, 0.42, 0.08), (1.0, 0.95, 0.9), (1.0, 0.8, 0.2), (0.15, 0.15, 0.18), None, None, ("umc", "Beach"), 0.98, 0.97, "none", ["wings"]),
@@ -37,8 +37,17 @@ SPECS = {
  "quark":   _sp((0.3, 0.28, 0.66), (0.75, 0.6, 1.0), (0.75, 0.6, 1.0), (0.2, 0.2, 0.3), None, (0.7, 0.7, 0.75), ("umc", "Suit"), 1.0, 1.0, "none", ["scanner"], None, True),
  "elara":   _sp((0.95, 0.95, 0.97), (1.0, 0.8, 0.25), (1.0, 0.8, 0.25), (0.95, 0.85, 0.5), None, (0.6, 0.25, 0.85), ("uw", "Formal"), 0.9, 1.0, "halo", ["orb", "epaulet"]),
  "vance":   _sp((0.08, 0.14, 0.38), (0.95, 0.78, 0.25), (0.9, 0.2, 0.2), (0.12, 0.13, 0.18), None, None, ("umc", "King"), 1.08, 1.02, "none", ["epaulet", "medals"], None, False, "suit"),
- "droid":   _sp((0.78, 0.52, 0.16), (0.12, 0.12, 0.15), (1.0, 0.6, 0.15), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Worker"), 1.08, 0.95, "none", ["tool"]),
- "nox":     _sp((0.7, 0.74, 0.8), (0.75, 0.45, 1.0), (0.75, 0.45, 1.0), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Suit"), 1.0, 1.0, "none", []),
+ "droid":   _sp((0.78, 0.52, 0.16), (0.12, 0.12, 0.15), (1.0, 0.6, 0.15), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Worker"), 1.08, 0.95, "none", ["tool"], head="robot_visor"),
+ "jett":    _sp((0.62, 0.72, 0.82), (0.95, 0.2, 0.15), (1.0, 0.3, 0.1), (0.3, 0.3, 0.35), (0.8, 0.82, 0.86), None, ("umc", "Suit"), 1.0, 1.0, "none", ["wings"], head="robot_cyclops"),
+ "vega":    _sp((0.92, 0.96, 0.97), (0.95, 0.25, 0.85), (0.95, 0.25, 0.85), (0.2, 0.2, 0.3), (0.35, 0.6, 0.95), None, ("uw", "SciFi"), 0.9, 1.02, "none", ["wings"], head="alien_blue"),
+ "sira":    _sp((0.1, 0.5, 0.38), (1.0, 0.85, 0.3), (1.0, 0.85, 0.3), (0.12, 0.2, 0.16), (0.62, 0.42, 0.32), (0.65, 0.25, 0.1), ("uw", "Medieval"), 0.95, 0.99, "none", ["wings", "epaulet"]),
+ "tick":    _sp((0.85, 0.75, 0.2), (0.3, 1.0, 0.6), (0.3, 1.0, 0.6), (0.3, 0.3, 0.35), (0.78, 0.8, 0.84), None, ("umc", "Worker"), 1.1, 0.8, "none", ["pouches", "tool"], head="robot_screen"),
+ "brakk":   _sp((0.45, 0.4, 0.35), (1.0, 0.55, 0.1), (1.0, 0.55, 0.1), (0.2, 0.18, 0.15), (0.35, 0.6, 0.25), None, ("umc", "Adventurer"), 1.35, 1.05, "none", ["pauldrons", "pouches"], head="alien_lizard"),
+ "maya":    _sp((0.65, 0.3, 0.12), (0.2, 0.85, 0.95), (0.3, 0.9, 0.9), (0.2, 0.12, 0.08), (0.36, 0.22, 0.16), (0.07, 0.07, 0.1), ("uw", "Casual"), 0.93, 0.95, "lamp", ["tool", "pouches"]),
+ "zyl":     _sp((0.55, 0.8, 0.55), (0.95, 0.9, 0.35), (0.95, 0.9, 0.35), (0.25, 0.3, 0.25), (0.62, 0.7, 0.66), None, ("uw", "Formal"), 0.8, 0.96, "none", ["tablet"], head="alien_grey"),
+ "sage":    _sp((0.9, 0.9, 0.95), (0.3, 0.8, 1.0), (0.3, 0.8, 1.0), (0.3, 0.3, 0.38), (0.78, 0.8, 0.84), None, ("umc", "Suit"), 0.95, 1.0, "none", ["scanner"], head="robot_dome"),
+ "ilan":    _sp((0.75, 0.6, 0.85), (1.0, 0.9, 0.4), (1.0, 0.9, 0.4), (0.3, 0.25, 0.35), (0.5, 0.33, 0.24), (0.15, 0.15, 0.18), ("umc", "Beach"), 1.0, 0.99, "none", ["tablet"], glasses=True),
+ "nox":     _sp((0.7, 0.74, 0.8), (0.75, 0.45, 1.0), (0.75, 0.45, 1.0), (0.25, 0.27, 0.32), (0.6, 0.64, 0.7), None, ("umc", "Suit"), 1.0, 1.0, "none", [], head="robot_visor"),
 }
 HEAD_DROP_MATS = {"Gold", "Worker_Yellow", "Worker_Vest", "Metal", "Swat", "Earrings", "Grey", "Orange", "LimeGreen", "Red_Dark"}   # couvre-chefs, bijoux, vêtements
 HAIR_MATS = ("Hair", "Hair_White", "Hair_Brown", "Hair_Blond", "Moustache", "Eyebrows")
@@ -330,7 +339,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     H = sp_["h"]; bk = sp_["bulk"]; ex = sp_["extras"]
     arm, parts = load_base(sp_["base"])
     head = parts["Head"]
-    ANDROID = name in ("nox", "droid")
+    HK = sp_.get("head"); ANDROID = HK is not None
     if ANDROID:
         bpy.data.objects.remove(head); head = None
     else:
@@ -351,6 +360,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     glove = M(name + "_glove", tuple(min(1.0, c * 1.04) for c in sc_), 0.0, 0.5)
     boot = M(name + "_boot", tuple(c * 0.9 for c in sc_), 0.0, 0.5)
     dark = M("dark", (0.05, 0.07, 0.15), 0.1, 0.5)
+    if (sp_.get("head") or "").startswith("robot"):
+        glove = M(name + "_glove", (0.7, 0.72, 0.78), 0.85, 0.3); boot = M(name + "_boot", (0.5, 0.52, 0.58), 0.85, 0.35)
     if godot:
         trim = M("accent_cyan", sp_["trim"], 0.1, 0.4, emit=sp_["trim"], k=0.35)
     else:
@@ -405,16 +416,65 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     bl = prim_box((0.07, 0.02, 0.04), (hc.x, hc.y + 0.205, hc.z + 0.01), r=0.2, sub=0); add(bl, "Head", E("bl", (1.0, 0.3, 0.3), 2.5))
     if ANDROID:
         metal = M(name + "_metal", (0.78, 0.8, 0.84), 0.85, 0.3); face = M(name + "_face", (0.03, 0.035, 0.05), 0.2, 0.2)
-        eye = E(name + "_eye", sp_["trim"], 9.0)
-        add(prim_sph(1.0, hc + Vector((0, 0.01, -0.015)), (0.125, 0.135, 0.15), 18), "Head", metal)
-        add(prim_sph(1.0, hc + Vector((0, -0.075, 0.0)), (0.1, 0.06, 0.11), 16), "Head", face)
-        for sx in (-1, 1):
-            add(prim_box((0.034, 0.012, 0.016), (hc.x + sx * 0.042, hc.y - 0.128, hc.z + 0.012), r=0.3, sub=0), "Head", eye)
-            add(prim_cyl(0.034, 0.034, 0.03, (hc.x + sx * 0.128, hc.y + 0.01, hc.z - 0.01), (0, math.radians(90), 0), 12), "Head", eye)
-        add(prim_box((0.06, 0.01, 0.008), (hc.x, hc.y - 0.133, hc.z - 0.055), r=0.3, sub=0), "Head", eye)
-        add(prim_cyl(0.008, 0.008, 0.07, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.16), seg=6), "Head", metal)
-        add(prim_sph(0.016, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.2), (1, 1, 1), 8), "Head", eye)
-        add(prim_cyl(0.05, 0.05, 0.05, (hc.x, hc.y, hc.z - 0.14), seg=10), "Head", metal)
+        eye = E(name + "_eye", sp_["trim"], 9.0); V3 = Vector
+        kind, _, style = HK.partition("_")
+        def eyes_pair(x, y, z, sx, sy, sz, mat):
+            for sg in (-1, 1): add(prim_sph(1.0, (hc.x + sg * x, y, z), (sx, sy, sz), 10), "Head", mat)
+        if kind == "robot" and style == "visor":
+            add(prim_sph(1.0, hc + V3((0, 0.01, -0.015)), (0.125, 0.135, 0.15), 18), "Head", metal)
+            add(prim_sph(1.0, hc + V3((0, -0.075, 0.0)), (0.1, 0.06, 0.11), 16), "Head", face)
+            for sx in (-1, 1):
+                add(prim_box((0.034, 0.012, 0.016), (hc.x + sx * 0.042, hc.y - 0.128, hc.z + 0.012), r=0.3, sub=0), "Head", eye)
+                add(prim_cyl(0.034, 0.034, 0.03, (hc.x + sx * 0.128, hc.y + 0.01, hc.z - 0.01), (0, math.radians(90), 0), 12), "Head", eye)
+            add(prim_box((0.06, 0.01, 0.008), (hc.x, hc.y - 0.133, hc.z - 0.055), r=0.3, sub=0), "Head", eye)
+            add(prim_cyl(0.008, 0.008, 0.07, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.16), seg=6), "Head", metal)
+            add(prim_sph(0.016, (hc.x + 0.05, hc.y + 0.02, hc.z + 0.2), (1, 1, 1), 8), "Head", eye)
+        elif kind == "robot" and style == "cyclops":
+            add(prim_sph(1.0, hc + V3((0, 0.01, -0.02)), (0.125, 0.13, 0.14), 14), "Head", metal)
+            add(prim_cyl(0.075, 0.075, 0.05, (hc.x, hc.y - 0.1, hc.z + 0.01), (math.radians(90), 0, 0), 12), "Head", face)
+            add(prim_sph(1.0, (hc.x, hc.y - 0.128, hc.z + 0.01), (0.052, 0.025, 0.052), 10), "Head", eye)
+            for k_ in range(3): add(prim_box((0.07, 0.01, 0.008), (hc.x, hc.y - 0.125, hc.z - 0.08 - k_ * 0.018), r=0.3, sub=0), "Head", face)
+            for sg in (-1, 1): add(prim_cyl(0.012, 0.012, 0.09, (hc.x + sg * 0.1, hc.y + 0.02, hc.z + 0.14), seg=6), "Head", metal)
+        elif kind == "robot" and style == "screen":
+            add(prim_box((0.25, 0.22, 0.25), hc + V3((0, 0.0, -0.01)), r=0.3, sub=0), "Head", metal)
+            add(prim_box((0.2, 0.02, 0.16), (hc.x, hc.y - 0.113, hc.z + 0.0), r=0.2, sub=0), "Head", face)
+            eyes_pair(0.05, hc.y - 0.126, hc.z + 0.03, 0.026, 0.008, 0.026, eye)
+            for k_, dz in enumerate((-0.04, -0.055, -0.04)): add(prim_box((0.025, 0.008, 0.012), (hc.x + (k_ - 1) * 0.04, hc.y - 0.126, hc.z + dz - 0.005), r=0.3, sub=0), "Head", eye)
+            add(prim_cyl(0.01, 0.01, 0.1, (hc.x, hc.y, hc.z + 0.17), seg=6), "Head", metal)
+            add(prim_sph(0.022, (hc.x, hc.y, hc.z + 0.225), (1, 1, 1), 8), "Head", eye)
+        elif kind == "robot" and style == "dome":
+            add(prim_box((0.21, 0.19, 0.11), hc + V3((0, 0.0, -0.07)), r=0.3, sub=0), "Head", metal)
+            add(prim_box((0.17, 0.02, 0.035), (hc.x, hc.y - 0.1, hc.z - 0.065), r=0.2, sub=0), "Head", face)
+            add(prim_box((0.12, 0.012, 0.012), (hc.x, hc.y - 0.11, hc.z - 0.065), r=0.3, sub=0), "Head", eye)
+            add(prim_sph(1.0, hc + V3((0, 0.0, 0.03)), (0.1, 0.1, 0.1), 14), "Head", glass(name + "_dome", (0.8, 0.95, 1.0), 0.18))
+            add(prim_sph(1.0, hc + V3((0, 0.0, 0.03)), (0.045, 0.045, 0.045), 10), "Head", eye)
+        elif kind == "alien" and style == "grey":
+            sk = M(name + "_skin", sp_["skin"], 0.0, 0.6); blk = M(name + "_eyeblack", (0.01, 0.01, 0.02), 0.0, 0.15)
+            add(prim_sph(1.0, hc + V3((0, 0.0, 0.01)), (0.135, 0.13, 0.165), 14), "Head", sk)
+            eyes_pair(0.052, hc.y - 0.115, hc.z + 0.0, 0.046, 0.018, 0.07, blk)
+            for sg in (-1, 1): add(prim_sph(1.0, (hc.x + sg * 0.04, hc.y - 0.128, hc.z + 0.02), (0.012, 0.006, 0.02), 6), "Head", E(name + "_glint", (1, 1, 1), 3.0))
+            add(prim_box((0.04, 0.01, 0.006), (hc.x, hc.y - 0.128, hc.z - 0.09), r=0.3, sub=0), "Head", blk)
+        elif kind == "alien" and style == "blue":
+            sk = M(name + "_skin", sp_["skin"], 0.0, 0.6); blk = M(name + "_pupil", (0.02, 0.02, 0.03), 0.0, 0.15); yl = M(name + "_iris", (1.0, 0.85, 0.2), 0.0, 0.3)
+            add(prim_sph(1.0, hc + V3((0, 0.0, -0.005)), (0.125, 0.125, 0.15), 14), "Head", sk)
+            eyes_pair(0.05, hc.y - 0.108, hc.z + 0.01, 0.036, 0.016, 0.036, yl)
+            eyes_pair(0.05, hc.y - 0.12, hc.z + 0.01, 0.013, 0.008, 0.026, blk)
+            add(prim_cyl(0.014, 0.0, 0.05, (hc.x, hc.y - 0.125, hc.z - 0.03), (math.radians(90), 0, 0), 6), "Head", sk)
+            add(prim_box((0.05, 0.01, 0.006), (hc.x, hc.y - 0.115, hc.z - 0.07), r=0.3, sub=0), "Head", blk)
+            for sg in (-1, 1):
+                add(tube([V3((hc.x + sg * 0.05, hc.y - 0.02, hc.z + 0.13)), V3((hc.x + sg * 0.09, hc.y - 0.04, hc.z + 0.2)), V3((hc.x + sg * 0.1, hc.y - 0.07, hc.z + 0.25))], 0.007, 4), "Head", sk)
+                add(prim_sph(0.02, (hc.x + sg * 0.1, hc.y - 0.07, hc.z + 0.255), (1, 1, 1), 8), "Head", eye)
+        elif kind == "alien" and style == "lizard":
+            sk = M(name + "_skin", sp_["skin"], 0.0, 0.6); dk = M(name + "_dark", tuple(c * 0.45 for c in sp_["skin"]), 0.0, 0.6); yl = M(name + "_iris", (1.0, 0.8, 0.1), 0.0, 0.3)
+            add(prim_sph(1.0, hc + V3((0, 0.0, 0.0)), (0.115, 0.14, 0.13), 14), "Head", sk)
+            add(prim_box((0.1, 0.09, 0.075), (hc.x, hc.y - 0.12, hc.z - 0.035), r=0.3, sub=0), "Head", sk)
+            for sg in (-1, 1):
+                add(prim_sph(0.03, (hc.x + sg * 0.075, hc.y - 0.095, hc.z + 0.05), (1, 0.7, 1), 8), "Head", yl)
+                add(prim_box((0.008, 0.01, 0.034), (hc.x + sg * 0.075, hc.y - 0.12, hc.z + 0.05), r=0.2, sub=0), "Head", dk)
+                add(prim_sph(0.008, (hc.x + sg * 0.025, hc.y - 0.168, hc.z - 0.01), (1, 1, 1), 6), "Head", dk)
+            add(prim_box((0.09, 0.012, 0.008), (hc.x, hc.y - 0.166, hc.z - 0.06), r=0.3, sub=0), "Head", dk)
+            for k_ in range(3): add(prim_cyl(0.022 - k_ * 0.004, 0.0, 0.07 - k_ * 0.012, (hc.x, hc.y + 0.01 + k_ * 0.045, hc.z + 0.115 - k_ * 0.018), seg=5), "Head", dk)
+        add(prim_cyl(0.05, 0.05, 0.05, (hc.x, hc.y, hc.z - 0.14), seg=10), "Head", metal if kind == "robot" else M(name + "_neck", sp_["skin"], 0.0, 0.6))
     # --- col, sac, tuyaux
     nz = hb("Neck").z
     nr = tube([Vector((math.cos(a) * 0.115, -0.043 + math.sin(a) * 0.11, nz + 0.01)) for a in [2 * math.pi * k / 20 for k in range(20)]], 0.028, 8, True); add(nr, "Neck", dark)
