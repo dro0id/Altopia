@@ -341,7 +341,7 @@ def pad():
 
 @scene
 def launch():
-    reset(); launch_site(10.0, math.radians(215), 3.0, ship_pos=(0, 2, 8.5), ship_rz=math.radians(-90), pitch=0.0, flame_len=7.0, flame_col=(1.0, 0.4, 0.08), s=1.8)
+    reset(); launch_site(10.0, math.radians(215), 3.0, ship_pos=(0, 2, 8.5), ship_rz=math.radians(-90), pitch=0.0, flame_len=7.0, flame_col=(1.0, 0.2, 0.02), s=1.8)
     sh = [o for o in bpy.data.objects if o.name == "ship"][0]
     sh.rotation_euler = (math.radians(35), 0, math.radians(-90))
     smoke_puffs((-1, 2, 0.8), 18, 4.0, 0.8, 1.7, 4, col=(0.2, 0.18, 0.17))
