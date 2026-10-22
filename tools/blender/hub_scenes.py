@@ -46,9 +46,10 @@ def group(objs, name, loc=(0, 0, 0), rz=0.0, s=1.0, center=True):
     e.location = loc; e.rotation_euler = (0, 0, rz); e.scale = (s, s, s)
     return e
 
-def imp(name, loc=(0, 0, 0), rz=0.0, s=1.0, center=True):
+MODELS = os.path.join(ROOT, "assets", "models") + os.sep
+def imp(name, loc=(0, 0, 0), rz=0.0, s=1.0, center=True, models=False):
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=A + name + ".glb")
+    bpy.ops.import_scene.gltf(filepath=(MODELS if models else A) + name + ".glb")
     new = [o for o in bpy.data.objects if o not in before]
     return group(new, name, loc, rz, s, center)
 
@@ -66,7 +67,7 @@ def ship(loc=(0, 0, 0), rz=0.0, s=1.0, pitch=0.0, accent=(0.1, 0.8, 1.0), flame_
     e.rotation_euler = (pitch, 0, rz)
     if flame_len > 0:
         for sx in (-0.72, 0.72):
-            for r, k, L in ((0.2*max(1.0, flame_len/3.0), 5.0, flame_len*0.9),):
+            for r, k, L in ((0.2*max(1.0, flame_len/3.0), 5.0 + flame_len, flame_len*0.9),):
                 c = flame((0, 0, 0), (math.radians(90), 0, 0), L, r, flame_col, k)
                 c.parent = e; c.location = (sx, -2.78 - L/2, 0)
     return e
@@ -499,7 +500,7 @@ def base_env(elev=14.0):
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -13.0, 12.0), (0, 1.8, 0.3), 31)
+    camera((0, -14.5, 13.0), (0, 1.8, 0.3), 27)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
@@ -554,6 +555,175 @@ def base_proj():
     os.makedirs(OUT, exist_ok=True)
     json.dump(res, open(os.path.join(OUT, "base_plots.json"), "w"))
     print("rendu", os.path.join(OUT, "base_plots.json"))
+
+# ---------------------------------------------------------------- décors du tutoriel
+def dark_world(col=(0.01, 0.015, 0.03)):
+    w = bpy.data.worlds.new("w"); bpy.context.scene.world = w; w.use_nodes = True
+    w.node_tree.nodes["Background"].inputs[0].default_value = (*col, 1)
+
+def room(w=10, d=12, h=4.0, col=(0.05, 0.07, 0.1)):
+    m = solid("wall", col, 0.5, 0.55)
+    box("floor", (w, d, 0.2), (0, 0, -0.1), material=solid("floor", (0.05, 0.06, 0.08), 0.35, 0.5), bevel=0.0)
+    box("wallL", (0.3, d, h), (-w/2, 0, h/2), material=m, bevel=0.0)
+    box("wallR", (0.3, d, h), (w/2, 0, h/2), material=m, bevel=0.0)
+    box("wallB", (w, 0.3, h), (0, d/2, h/2), material=m, bevel=0.0)
+    box("ceil", (w, d, 0.2), (0, 0, h), material=m, bevel=0.0)
+    for k in range(5):
+        box("trim", (0.12, 0.12, h), (-w/2 + 0.2, -d/2 + 1 + k*(d-2)/4, h/2), material=emissive("trim", (0.2, 0.8, 1.0), 2.5), bevel=0.0)
+
+def holo_panel(loc, size, rot, col=(0.3, 0.9, 1.0), k=3.0):
+    return box("holo", (size[0], 0.02, size[1]), loc, rot, emissive("holo", col, k), 0.0)
+
+@scene
+def engine_room():
+    reset(); dark_world(); room(11, 12, 4.4)
+    cyl("core", 0.8, 0.8, 3.6, (0, 1.5, 1.8), axis="Z", seg=48, material=emissive("core", (0.2, 0.75, 1.0), 4.0))
+    for z_ in (0.4, 1.4, 2.4, 3.4):
+        bpy.ops.mesh.primitive_torus_add(major_radius=1.15, minor_radius=0.09, major_segments=48, minor_segments=12, location=(0, 1.5, z_))
+        bpy.context.active_object.data.materials.append(solid("ring", (0.15, 0.18, 0.22), 0.9, 0.3))
+    cyl("base", 1.6, 1.8, 0.3, (0, 1.5, 0.15), axis="Z", seg=48, material=solid("base", (0.1, 0.12, 0.15), 0.8, 0.35))
+    imp("machine_generatorLarge", (-3.6, 2.5, 0), math.radians(90), 3.0)
+    imp("machine_generatorLarge", (3.6, 2.5, 0), math.radians(-90), 3.0)
+    for k in range(3):
+        imp("pipe_straight", (-4.6, -2 + k*2.2, 2.6), math.radians(90), 2.2)
+    imp("desk_computer", (2.6, -1.2, 0), math.radians(-30), 3.0)
+    person("crew_pilot", (1.4, -1.8, 0), math.radians(-150), 2.0)
+    person("crew_engineer", (-1.8, -0.8, 0), math.radians(120), 2.0)
+    point((0, 1.5, 1.8), 900, (0.3, 0.8, 1.0), 0.6)
+    area((0, -5.5, 3.8), (0, 1, 1.2), 300, (1.0, 0.8, 0.6), 4)
+    camera((1.7, -3.4, 1.7), (-0.2, 1.4, 1.5), 21)
+    render("engine_room")
+
+@scene
+def combat():
+    reset(); world_space(neb=((0.5, 0.2, 0.25), (0.1, 0.2, 0.5)), neb_k=0.22)
+    s = ship((0, 0, 0), 0, 1.0, flame_len=2.0)
+    rng = random.Random(11)
+    for k in range(9):
+        a = rng.choice(["asteroid1", "asteroid2", "asteroid3"])
+        imp(a, (rng.uniform(-14, 14), rng.uniform(10, 40), rng.uniform(-6, 6)), rng.uniform(0, 6), rng.uniform(1.6, 3.4), models=True)
+    for ex, ey, ez in ((-5, 24, 1), (4, 28, -1), (0, 20, 3)):
+        e = imp("enemy", (ex, ey, ez), math.radians(180), 1.3, models=True)
+        point((ex, ey - 1.2, ez), 120, (1.0, 0.2, 0.1), 0.3)
+        sphere("halo", 0.35, (ex, ey - 1.0, ez), material=emissive("eh", (1.0, 0.25, 0.1), 6.0))
+    for tx, ty, tz in ((-5, 24, 1), (0, 20, 3)):
+        d = Vector((tx, ty, tz)) - Vector((0, 2.5, 0)); L = d.length
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.05, depth=L, location=Vector((0, 2.5, 0)) + d/2)
+        c = bpy.context.active_object; c.rotation_euler = d.to_track_quat("Z", "Y").to_euler(); c.data.materials.append(emissive("laser", (0.3, 1.0, 1.0), 14.0))
+    sphere("boom", 1.0, (4, 28, -1), material=emissive("boom", (1.0, 0.6, 0.15), 12.0))
+    sun((math.radians(55), math.radians(10), math.radians(140)), 3.5, (1, 0.93, 0.85))
+    area((-7, -6, 3), (0, 0, 0), 600, (0.4, 0.6, 1.0), 5)
+    point((0, -4.2, 0), 500, (0.5, 0.9, 1.0), 0.6)
+    camera((0.7, -6.4, 2.4), (0, 7.0, 0.8), 28)
+    render("combat")
+
+@scene
+def armory():
+    reset(); dark_world(); room(9, 9, 3.8, (0.06, 0.07, 0.1))
+    for k in range(4):
+        box("locker", (1.0, 0.6, 2.6), (-3.6 + k*1.15, 4.0, 1.3), material=solid("lk", (0.12, 0.15, 0.2), 0.6, 0.4), bevel=0.02)
+        box("lkl", (0.8, 0.02, 0.08), (-3.6 + k*1.15, 3.68, 2.2), material=emissive("lkl", (1.0, 0.8, 0.3) if k == 1 else (0.2, 0.8, 1.0), 4.0), bevel=0.0)
+    cyl("ped", 0.55, 0.65, 0.9, (2.0, 1.2, 0.45), axis="Z", seg=32, material=solid("ped", (0.1, 0.12, 0.16), 0.8, 0.3))
+    cyl("pring", 0.7, 0.7, 0.04, (2.0, 1.2, 0.92), axis="Z", seg=32, material=emissive("pring", (1.0, 0.82, 0.3), 6.0))
+    sphere("visor", 0.28, (2.0, 1.2, 1.5), (1.0, 1.0, 0.8), emissive("visor", (1.0, 0.8, 0.3), 3.0))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.34, minor_radius=0.03, major_segments=40, minor_segments=8, location=(2.0, 1.2, 1.5), rotation=(math.radians(80), 0, 0))
+    bpy.context.active_object.data.materials.append(emissive("vr", (1.0, 0.9, 0.5), 8.0))
+    imp("barrels", (-3.5, -1.0, 0), 0.5, 2.6)
+    person("captain", (-0.2, -0.2, 0), math.radians(200), 2.4)
+    point((2.0, 1.2, 1.6), 600, (1.0, 0.8, 0.4), 0.4)
+    area((0, -4.0, 3.3), (0, 1, 1.2), 300, (0.8, 0.9, 1.0), 4)
+    camera((0.3, -3.3, 1.4), (0.5, 0.6, 1.2), 30)
+    render("armory")
+
+@scene
+def lab():
+    reset(); dark_world(); room(10, 10, 4.0, (0.05, 0.07, 0.1))
+    box("bench", (4.6, 1.2, 0.9), (0, 2.0, 0.45), material=solid("bench", (0.1, 0.12, 0.16), 0.7, 0.35), bevel=0.02)
+    for k, c in enumerate(((0.3, 0.9, 1.0), (0.4, 1.0, 0.6), (1.0, 0.8, 0.3))):
+        holo_panel((-1.5 + k*1.5, 1.2, 1.9 + (k % 2)*0.2), (1.2, 0.9), (math.radians(80), 0, math.radians(-14 + k*14)), c, 2.6)
+    imp("desk_computer", (-1.6, 1.8, 0.9), math.radians(180), 2.4)
+    imp("satelliteDish_large", (3.8, 3.2, 0), math.radians(200), 2.8)
+    planet((1.3, 2.0, 1.6), 0.38, [(0.0, (0.1, 0.4, 0.6)), (0.6, (0.3, 0.9, 0.8)), (1.0, (0.8, 1.0, 1.0))], scale=4.0, atmo=(0.4, 0.9, 1.0), atmo_k=1.5)
+    person("crew_scientist", (-0.2, 0.3, 0), math.radians(10), 2.1)
+    person("captain", (1.8, -0.8, 0), math.radians(20), 2.1)
+    point((0, 1.5, 2.0), 500, (0.4, 0.9, 1.0), 0.5)
+    area((0, -4.5, 3.6), (0, 1, 1.2), 300, (1.0, 0.85, 0.7), 4)
+    camera((0.5, -3.7, 1.6), (0.1, 1.6, 1.3), 29)
+    render("lab")
+
+DRIFT_REV = {1, 2, 3, 6, 7, 8, 11, 12, 13, 17, 18, 19}
+DRIFT_RES = {3, 12, 18}
+DRIFT_SCALE = 5.6
+DRIFT_CAM_Y = 0.12
+
+@scene
+def drift():
+    reset(); world_space(neb_k=0.2)
+    rng = random.Random(5)
+    for k in range(6):
+        imp(rng.choice(["asteroid1", "asteroid2", "asteroid3"]), (rng.choice([-5.5, 5.5]) + rng.uniform(-1, 1), rng.uniform(-5, 4), -3 - rng.uniform(0, 2)), rng.uniform(0, 6), rng.uniform(1.4, 2.4), models=True)
+    box("deck", (5.7, 5.7, 0.1), (0, 0, -0.06), material=solid("deck", (0.02, 0.05, 0.1), 0.2, 0.3), bevel=0.0)
+    for j in range(5):
+        for c in range(5):
+            i = j*5 + c; X = c - 2; Y = 2 - j
+            if i in DRIFT_RES: col, k_ = (0.2, 1.0, 0.5), 2.4
+            elif i in DRIFT_REV: col, k_ = (0.12, 0.45, 0.65), 0.7
+            else: col, k_ = (0.05, 0.14, 0.24), 0.18
+            box("cell", (0.9, 0.9, 0.12), (X, Y, 0.02), material=emissive("cell", col, k_), bevel=0.0)
+            if i in DRIFT_RES: imp("rock_crystals", (X, Y, 0.08), rng.uniform(0, 6), 1.1)
+    point((0, 0, 3.0), 400, (0.5, 0.8, 1.0), 1.0)
+    sun((math.radians(30), 0, math.radians(30)), 2.0, (0.8, 0.9, 1.0))
+    c = camera((0, DRIFT_CAM_Y, 12.0), (0, DRIFT_CAM_Y, 0), 40)
+    c.data.type = "ORTHO"; c.data.ortho_scale = DRIFT_SCALE
+    c.rotation_euler = (0, 0, 0)
+    render("drift")
+
+@scene
+def rift():
+    reset(); world_space(neb=((0.45, 0.15, 0.8), (0.1, 0.5, 0.7)), neb_k=0.5)
+    n = 16
+    for k in range(n):
+        r = 7.0 - k*0.42
+        y = 14 + k*2.4
+        t = k / (n - 1)
+        col = (0.25 + 0.5*t, 0.2 + 0.3*(1 - t), 1.0 - 0.2*t)
+        bpy.ops.mesh.primitive_torus_add(major_radius=r, minor_radius=0.12 + 0.02*k, major_segments=64, minor_segments=10, location=(0, y, 0.5), rotation=(math.radians(90), 0, k*0.2))
+        bpy.context.active_object.data.materials.append(emissive("rift", col, 2.0 + 0.5*k))
+    sphere("core", 1.6, (0, 14 + n*2.4, 0.5), (1, 1, 1), emissive("core", (1.0, 1.0, 1.0), 20.0))
+    ship((0, 0, -1.6), 0, 0.8, flame_len=1.6)
+    area((-5, -5, 3), (0, 0, 0), 500, (0.5, 0.5, 1.0), 5)
+    point((0, 11, 0.5), 3000, (0.6, 0.4, 1.0), 1.5)
+    camera((0.4, -6.2, 0.6), (0, 14, 0.6), 30)
+    render("rift")
+
+ROUTE = [(-2.6, -3.6), (-0.8, -2.2), (1.8, -2.9), (2.6, -0.4), (0.9, 1.2), (-1.7, 1.6), (-0.4, 3.7)]
+@scene
+def route():
+    reset(); dark_world((0.008, 0.012, 0.03))
+    cyl("table", 4.6, 4.8, 0.3, (0, 0, -0.15), axis="Z", seg=64, material=solid("table", (0.05, 0.07, 0.1), 0.8, 0.3))
+    bpy.ops.mesh.primitive_torus_add(major_radius=4.7, minor_radius=0.05, major_segments=96, minor_segments=8, location=(0, 0, 0.03))
+    bpy.context.active_object.data.materials.append(emissive("tring", (0.3, 0.9, 1.0), 4.0))
+    rng = random.Random(3)
+    for k in range(40):
+        sphere("star", 0.025, (rng.uniform(-4, 4), rng.uniform(-4, 4), rng.uniform(0.2, 1.6)), material=emissive("st", (0.7, 0.9, 1.0), 6.0))
+    pts = [Vector((x, y, 0.35)) for x, y in ROUTE]
+    for a, b in zip(pts, pts[1:]):
+        d = b - a
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.035, depth=d.length, location=a + d/2)
+        c = bpy.context.active_object; c.rotation_euler = d.to_track_quat("Z", "Y").to_euler(); c.data.materials.append(emissive("rl", (0.3, 0.9, 1.0), 5.0))
+    for idx, p in enumerate(pts):
+        if idx < 3: col, r_ = (0.3, 1.0, 0.55), 0.2
+        elif idx == 3: col, r_ = (1.0, 0.8, 0.25), 0.3
+        elif idx < 6: col, r_ = (0.4, 0.9, 1.0), 0.2
+        else: col, r_ = (1.0, 0.25, 0.2), 0.42
+        sphere("node", r_, p, material=emissive("nd", col, 6.0))
+        if idx == 3:
+            bpy.ops.mesh.primitive_torus_add(major_radius=0.5, minor_radius=0.03, major_segments=40, minor_segments=8, location=p)
+            bpy.context.active_object.data.materials.append(emissive("sel", (1.0, 0.85, 0.3), 8.0))
+    ship(pts[3] + Vector((0, 0, 0.5)), 0, 0.14)
+    point((0, 0, 3.0), 400, (0.4, 0.9, 1.0), 1.0)
+    camera((0, -6.0, 5.4), (0, 0.5, 0.2), 27)
+    render("route")
 
 # ---------------------------------------------------------------- icônes et portraits (fond transparent)
 def catcher():
