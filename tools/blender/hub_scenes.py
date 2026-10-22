@@ -769,7 +769,7 @@ def make_portrait(kind):
         person(kind, (0, 0, 0), math.radians(18), 2.0, "idle")
         sun((math.radians(55), 0, math.radians(-30)), 3.2, (1, 0.95, 0.9))
         area((-3, 2.5, 2.0), (0, 0, 1.2), 160, (0.4, 0.8, 1.0), 3)
-        camera((-0.8, 3.0, 1.3), (0, 0, 1.0), 40)
+        camera((-0.55, 2.3, 1.35), (0, 0, 1.2), 58)
         render("i_" + kind, res=(480, 600), transparent=True)
     return f
 for _k in ("captain", "rex", "bolt", "lyra", "vance", "nox"): SCENES["portrait_" + _k] = make_portrait(_k)
