@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cgpkdrl64ifrd"
-path="res://.godot/imported/crew_pilot.glb-076c5ce6fe16eb96e4349c1a443972cf.scn"
+uid="uid://boxtc3xtq5ies"
+path="res://.godot/imported/char_gorn.glb-0490fda3c91166a6f38678e66bbb5253.scn"
 
 [deps]
 
-source_file="res://assets/base/crew_pilot.glb"
-dest_files=["res://.godot/imported/crew_pilot.glb-076c5ce6fe16eb96e4349c1a443972cf.scn"]
+source_file="res://assets/models/char_gorn.glb"
+dest_files=["res://.godot/imported/char_gorn.glb-0490fda3c91166a6f38678e66bbb5253.scn"]
 
 [params]
 

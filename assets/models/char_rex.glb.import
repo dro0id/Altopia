@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://pkx0fx0yr8fd"
-path="res://.godot/imported/crew_engineer.glb-73c04d714958f0f83915a94dea8a3cbf.scn"
+uid="uid://d2ss7x4ayrds0"
+path="res://.godot/imported/char_rex.glb-5727b06a484efe816bb0f6990da1ae48.scn"
 
 [deps]
 
-source_file="res://assets/base/crew_engineer.glb"
-dest_files=["res://.godot/imported/crew_engineer.glb-73c04d714958f0f83915a94dea8a3cbf.scn"]
+source_file="res://assets/models/char_rex.glb"
+dest_files=["res://.godot/imported/char_rex.glb-5727b06a484efe816bb0f6990da1ae48.scn"]
 
 [params]
 

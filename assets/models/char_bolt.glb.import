@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://c2xtjx3yhyes2"
-path="res://.godot/imported/crew_scientist.glb-0c2eee10ee67c01e7af6622895425ccd.scn"
+uid="uid://by8w1nfoj7rj2"
+path="res://.godot/imported/char_bolt.glb-a6fff99b2740c0f94c4c384759ca11a0.scn"
 
 [deps]
 
-source_file="res://assets/base/crew_scientist.glb"
-dest_files=["res://.godot/imported/crew_scientist.glb-0c2eee10ee67c01e7af6622895425ccd.scn"]
+source_file="res://assets/models/char_bolt.glb"
+dest_files=["res://.godot/imported/char_bolt.glb-a6fff99b2740c0f94c4c384759ca11a0.scn"]
 
 [params]
 

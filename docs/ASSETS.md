@@ -38,3 +38,11 @@ Personnages : le Capitaine (acier clair, accents cyan), le Pilote (bleu, visièr
 Générés par script avec Blender (bpy) : `tools/blender/build_assets.py` (utilitaires dans `lib.py`). Sorties : `assets/models/*.glb` (jeu Godot) et, avec `--fbx <dossier>`, des FBX pour le prototype Unity.
 Modèles : `player` (vaisseau du convoi), `enemy` et `elite` (chasseurs), `boss` (gardien), `asteroid1` à `asteroid3`, `station`, `wreck`. Le nez pointe vers +Y dans Blender (-Z dans Godot et three.js). Comparaison avec les rendus Blender : `docs/comparaison_blender_vs_scene.png`.
 Régénérer : `python tools/blender/build_assets.py` (paquet `bpy` 5.2), puis ouvrir Godot pour réimporter.
+
+
+## Astronautes low poly (Blender, de zéro)
+Direction artistique : astronautes low poly facettés (polygones plats, peu de segments), combinaison segmentée, casque à visière claire qui laisse voir le visage, sac de survie à tuyaux, panneau de commandes, genouillères, ceinture et manchettes colorées.
+- Générateur : `tools/blender/characters.py` (12 personnages : le Capitaine, les 9 héros rex, nova, zara, bolt, tess, gorn, lumi, quark, elara, plus Vance et Nox). Chacun a sa silhouette (taille, corpulence), ses couleurs, sa coiffure, sa barbe, son couvre-chef et ses accessoires ; les épiques ont un équipement en plus.
+- Export Godot : `python tools/blender/export_characters.py` -> `assets/base/captain.glb` (matières `suit_steel` et `accent_cyan`, nœuds `antenna`, `antenna_tip`, `pack_panel`, clips Walk, Shoot, Idle) et `assets/models/char_<id>.glb` pour les autres.
+- Portraits 2D : `python tools/blender/hub_scenes.py <dossier> pg_<id>` (256 x 256, fond transparent) puis copie dans `assets/portraits/`. `chibi.gd` les affiche à la place du dessin en code.
+- Les anciens modèles Kenney de l'équipage (`assets/base/crew_*.glb`) sont retirés.
