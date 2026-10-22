@@ -96,7 +96,7 @@ def build_suit_shell(src_objs, arm, mats, inflate=0.026):
             elif g in ("Neck",): k = inflate * 1.0
             v.co += v.normal * k
         onames = [(m.name.split(".")[0] if m else "") for m in sh.data.materials]
-        bad = [f for f in bm.faces if onames[f.material_index].startswith(("Hair", "Brown", "DarkBrown", "Moustache", "Beard"))
+        bad = [f for f in bm.faces if onames[f.material_index].startswith(("Hair", "Moustache", "Beard"))
                and not (max(set(dom[v.index] or "" for v in f.verts), key=[dom[v.index] or "" for v in f.verts].count)).startswith(HAND)]
         if bad: bmesh.ops.delete(bm, geom=bad, context="FACES")
         bm.faces.ensure_lookup_table()
