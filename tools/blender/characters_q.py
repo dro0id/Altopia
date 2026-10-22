@@ -270,10 +270,10 @@ def _bone_order(arm):
         if b.parent is None: rec(b)
     return order
 
-def apply_pose(arm, spec, keyframe=None):
+def apply_pose(arm, spec, keyframe=None, fx=None):
     """spec : {os: [(axe, degrés), ...]} rotations en repère monde, appliquées de la racine vers les extrémités."""
     for pb in arm.pose.bones:
-        pb.rotation_mode = "QUATERNION"; pb.rotation_quaternion = Quaternion((1, 0, 0, 0)); pb.location = (0, 0, 0)
+        pb.rotation_mode = "QUATERNION"; pb.rotation_quaternion = Quaternion((1, 0, 0, 0)); pb.location = (0, 0, 0); pb.scale = (1, 1, 1)
     bpy.context.view_layer.update()
     for bn in _bone_order(arm):
         if bn in spec:
@@ -285,10 +285,21 @@ def apply_pose(arm, spec, keyframe=None):
             M_ = Matrix.Translation(h) @ R @ Matrix.Translation(-h) @ pb.matrix
             pb.matrix = M_
             bpy.context.view_layer.update()
+    for bn, tr in spec.get("_t", {}).items():
+        pb = arm.pose.bones.get(bn)
+        if pb is not None:
+            m = pb.matrix.copy(); m.translation = m.translation + Vector(tr); pb.matrix = m
+            bpy.context.view_layer.update()
+    for bn, fx in (fx or {}).items():
+        pb = arm.pose.bones.get(bn)
+        if pb is None: continue
+        if "s" in fx: pb.scale = fx["s"]
+        if "l" in fx: pb.location = fx["l"]
     if keyframe is not None:
         for pb in arm.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=keyframe)
             pb.keyframe_insert("location", frame=keyframe)
+            pb.keyframe_insert("scale", frame=keyframe)
 
 X, Y, Z = (1, 0, 0), (0, 1, 0), (0, 0, 1)
 def apose(dl=68, bend=14):
@@ -477,6 +488,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
             for k_ in range(3): add(prim_cyl(0.022 - k_ * 0.004, 0.0, 0.07 - k_ * 0.012, (hc.x, hc.y + 0.01 + k_ * 0.045, hc.z + 0.115 - k_ * 0.018), seg=5), "Head", dk)
         add(prim_cyl(0.05, 0.05, 0.05, (hc.x, hc.y, hc.z - 0.14), seg=10), "Head", metal if kind == "robot" else M(name + "_neck", sp_["skin"], 0.0, 0.6))
     if FACE:
+        faces_q.add_face_bones(arm, name, hc)
         faces_q.human_head(name, hc, add, dict(M=M, E=E, box=prim_box, sph=prim_sph, cyl=prim_cyl, tube=tube))
     # --- col, sac, tuyaux
     nz = hb("Neck").z
@@ -615,37 +627,16 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     return root
 
 
-def animate(root):
-    """Clips Idle / Walk / Shoot (NLA) sur le squelette Humanoid, par poses clés monde. Le squelette reste en A-pose à la fin."""
+def animate(root, clips=None):
+    """Clips (NLA) de anims_q sur le squelette Humanoid + os de visage. clips : noms (par défaut Idle, Walk, Shoot). Le squelette reste en A-pose à la fin."""
+    import anims_q
     arm = PIV[root.name]
     bpy.context.scene.render.fps = 24
     arm.animation_data_create()
-    def mirror(sp_):
-        sw = {"L": "R", "R": "L"}
-        out = {}
-        for b, rots in sp_.items():
-            nb = b[:-1] + sw[b[-1]] if b[-2:] in (".L", ".R") else b
-            out[nb] = [((a[0], -a[1], -a[2]) if False else a, d) for a, d in rots]
-        return out
-    def walk(sg):
-        d = apose()
-        def add(b, *rot): d[b] = d.get(b, []) + list(rot)
-        add("UpperArm.L", (X, 26 * sg)); add("UpperArm.R", (X, -26 * sg)); add("LowerArm.L", (X, 20 if sg > 0 else 4)); add("LowerArm.R", (X, 4 if sg > 0 else 20))
-        add("UpperLeg.L", (X, -24 * sg)); add("UpperLeg.R", (X, 24 * sg)); add("LowerLeg.R", (X, 30 if sg > 0 else 0)); add("LowerLeg.L", (X, 0 if sg > 0 else 30))
-        add("Abdomen", (Z, 4 * sg))
-        return d
-    def idle(dh):
-        d = apose(); d["Head"] = [(X, dh)]; d["Abdomen"] = [(X, dh * 0.4)]; return d
-    def shoot(a):
-        d = apose(); d["UpperArm.R"] = [(Y, -40), (X, a)]; d["LowerArm.R"] = [(X, 8)]; d["Abdomen"] = [(X, a * 0.05)]; return d
-    clips = {
-        "Idle": [(1, idle(0)), (30, idle(3)), (60, idle(0))],
-        "Walk": [(1, walk(1)), (13, walk(-1)), (25, walk(1))],
-        "Shoot": [(1, idle(0)), (6, shoot(80)), (10, shoot(86)), (16, idle(0))],
-    }
-    for nm, frames in clips.items():
+    for nm in (clips or anims_q.CORE):
+        frames = anims_q.CLIPS[nm]()
         act = bpy.data.actions.new(nm); arm.animation_data.action = act
-        for f, sp_ in frames: apply_pose(arm, sp_, keyframe=f)
+        for f, sp_, fx in frames: apply_pose(arm, sp_, keyframe=f, fx=fx)
         arm.animation_data.action = None
         tr = arm.animation_data.nla_tracks.new(); tr.name = nm; st = tr.strips.new(nm, 1, act); st.name = nm
     apply_pose(arm, apose())

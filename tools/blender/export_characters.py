@@ -20,8 +20,10 @@ for n in (names or ALL):
     god = n == "captain"
     r = characters.make(n, "idle", 0.82 if god else 1.0, godot=god)
     characters.animate(r)
+    characters.PIV[r.name].name = "rig"; r.name = "char"   # mêmes noms de nœuds pour tous : la bibliothèque human_anims.glb s'applique à chacun
     bpy.context.view_layer.update()
     path = os.path.join(BASE, "captain.glb") if god else os.path.join(OUT, "char_%s.glb" % n)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_animation_mode="NLA_TRACKS", export_apply=True, use_visible=True, export_texcoords=False)
-    print("ok", n, path)
+    import glb_slim
+    print("ok", n, path, glb_slim.slim(path))
