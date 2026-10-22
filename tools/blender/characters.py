@@ -116,9 +116,17 @@ def make(name, pose="idle", s=1.0):
         arms[key] = ap
     # --- identité
     if name == "captain":
-        sph("helmet", R * 1.22, (0, 0, cz), (1, 1, 1), M("helm", (0.55, 0.62, 0.72), 0.6, 0.3), hp, 32)
-        sph("visor", R * 1.12, (0, R * 0.2, cz), (0.95, 0.9, 0.85), M("visor", (0.02, 0.05, 0.08), 0.9, 0.05), hp, 32)
-        sph("visorglow", R * 1.13, (0, R * 0.22, cz), (0.9, 0.82, 0.7), E("vg", (0.1, 0.8, 1.0), 0.8), hp, 32)
+        hairc = M("caphair", (0.08, 0.07, 0.09), 0, 0.8)
+        sph("hairbase", R * 1.03, (0, -R * 0.14, cz + R * 0.16), (1.0, 1.0, 0.8), hairc, hp, 24)
+        sph("sweep", R * 0.62, (R * 0.3, R * 0.55, cz + R * 0.58), (1.3, 0.6, 0.5), hairc, hp, 14)
+        gl = bpy.data.materials.new("capglass"); gl.use_nodes = True
+        gb = gl.node_tree.nodes["Principled BSDF"]; gb.inputs["Base Color"].default_value = (0.6, 0.85, 1.0, 1)
+        gb.inputs["Roughness"].default_value = 0.04; gb.inputs["Alpha"].default_value = 0.2
+        gb.inputs["Emission Color"].default_value = (0.1, 0.8, 1.0, 1); gb.inputs["Emission Strength"].default_value = 0.25
+        sph("helmet", R * 1.3, (0, 0, cz), (1, 1, 1), gl, hp, 32)
+        tor("helmring", R * 1.12, 0.03, (0, 0, cz - R * 0.5), m=M("helmmet", (0.55, 0.62, 0.72), 0.7, 0.3), parent=hp)
+        tor("visorband", R * 1.28, 0.022, (0, 0, cz + R * 0.02), (math.radians(90), 0, 0), E("vband", (0.1, 0.85, 1.0), 6.0), hp)
+        sph("cheek", 0.02, (0, R * 0.9, cz - 0.02), m=M("cheek", (0.85, 0.5, 0.45), 0, 0.8), parent=hp, seg=8)
         tor("collar", 0.11, 0.025, (0, 0, 0.0), m=acc, parent=hp)
         for sx in (-1, 1):
             bx("epaulet", (0.09, 0.06, 0.02), (sx * (0.2 * bk + 0.03), 0, 0.37), (0, 0, sx * -0.3), M("gold", (1.0, 0.8, 0.2), 0.7, 0.3), tp)

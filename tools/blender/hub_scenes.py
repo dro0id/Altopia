@@ -503,15 +503,15 @@ def base_env(elev=14.0):
         x, y = rng.uniform(-30, 30), rng.uniform(-14, 40)
         if (abs(x) < 9.5 and -9 < y < 11) or y < -7: continue
         imp(rng.choice(["rocks_smallA", "rocks_smallB", "rock"]), (x, y, 0), rng.uniform(0, 6), rng.uniform(1.2, 3.2))
-    sh = ship((0, 16.5, 1.0), math.radians(180), 1.5)
+    sh = ship((0, 12.8, 1.0), math.radians(180), 1.3)
     for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        cyl("leg", 0.08, 0.08, 1.0, (sx*1.6, 16.5 + sy*1.4, 0.5), axis="Z", seg=8, material=solid("leg", (0.4, 0.42, 0.46), 0.6, 0.5))
+        cyl("leg", 0.08, 0.08, 1.0, (sx*1.4, 12.8 + sy*1.2, 0.5), axis="Z", seg=8, material=solid("leg", (0.4, 0.42, 0.46), 0.6, 0.5))
     # lunes
     sphere("moon1", 11, (-70, 260, 90), material=emissive("moon", (0.8, 0.88, 1.0), 6.0))
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -15.0, 13.5), (0, 2.6, 0.3), 28)
+    camera((0, -5.5, 20.5), (0, 1.2, 0.0), 46)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
@@ -522,11 +522,11 @@ def base_0():
     reset(); base_env()
     for (x, y), k in zip(SPOTS, KINDS): plot_marker((x, y), ACCENTS[k])
     plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
-    tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3)); tent((3.5, 9.5), -0.3)
+    tent((-1.8, 9.2), 0.2); tent((0.8, 9.9), 0.0, (0.7, 0.5, 0.3)); tent((3.4, 9.2), -0.3)
     for k in range(3): imp("barrels", (-5.5 + k*1.2, 8.0, 0), k, 1.8)
     point((0.8, 8.4, 0.8), 140, (1.0, 0.6, 0.25), 0.4)
     sphere("fire", 0.22, (0.8, 8.4, 0.25), material=emissive("fire", (1.0, 0.5, 0.15), 12.0))
-    stage_people([(-0.6, 7.2, math.radians(-30)), (1.3, 7.4, math.radians(25)), (0.4, 6.1, 0.0)], ("captain", "crew_pilot", "crew_engineer"))
+    stage_people([(-0.6, 7.2, math.radians(-30)), (1.3, 7.4, math.radians(25)), (0.4, 6.1, 0.0)], ("captain", "rex", "bolt"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
     base_cam(); render("base_0", exposure=-0.9)
 
@@ -537,8 +537,8 @@ def base_1():
     scaffold(SPOTS[6], ACCENTS["pad"])
     for (x, y), k in list(zip(SPOTS, KINDS))[1:6]: plot_marker((x, y), ACCENTS[k])
     plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
-    tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3))
-    stage_people([(-1.0, 7.0, math.radians(-30)), (3.2, -1.8, math.radians(90)), (-2.8, -2.6, 0.0), (4.2, -3.0, math.radians(-90))], ("captain", "crew_engineer", "crew_pilot", "crew_scientist"))
+    tent((-1.8, 9.2), 0.2); tent((0.8, 9.9), 0.0, (0.7, 0.5, 0.3))
+    stage_people([(-1.0, 7.0, math.radians(-30)), (3.2, -1.8, math.radians(90)), (-2.8, -2.6, 0.0), (4.2, -3.0, math.radians(-90))], ("captain", "bolt", "rex", "lyra"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
     base_cam(); render("base_1", exposure=-0.9)
 
@@ -548,7 +548,7 @@ def base_2():
     for (x, y), k in zip(SPOTS, KINDS): building(k, (x, y), 0, LEVELS[k])
     plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
     scaffold((0, 8.0), ACCENTS["soute"], h=1.8, w=2.4) if False else None
-    stage_people([(0.0, 3.0, 0.0), (2.0, 7.0, math.radians(90)), (-2.0, 7.2, math.radians(-90)), (0.0, -1.2, math.radians(180)), (1.4, -4.8, math.radians(30)), (-1.6, 5.0, 0.0)])
+    stage_people([(0.2, -4.3, 0.3), (-0.2, -0.2, 3.0), (0.3, 3.9, 0.0), (0.0, 7.4, 2.0), (1.6, -4.3, 2.5), (-1.6, 2.2, -1.0)], ("captain", "rex", "bolt", "lyra", "nox", "vance"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
     base_cam(); render("base_2", exposure=-0.9)
 
