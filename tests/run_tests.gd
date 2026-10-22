@@ -1742,6 +1742,10 @@ func test_route_objectives_and_reward() -> void:
 
 func test_finish_live_route_rewards_and_message() -> void:
 	_gs.reset()
+	# le « secteur du jour » (+30 %) change avec l'heure : on fige une horloge où ce n'est pas les astéroïdes
+	_gs._sector_clock = 1.0e9
+	while _gs.sector_of_day() == "asteroids":
+		_gs._sector_clock += float(Data.SECTOR_HOURS) * 3600.0
 	var base: Dictionary = _gs.rewards_of("asteroids", 0)
 	var before: float = _gs.res["minerals"]
 	var res := {"win": true, "time": 120.0, "objectives_done": 1, "route_mult": 1.6, "steps": 8}
@@ -1752,6 +1756,7 @@ func test_finish_live_route_rewards_and_message() -> void:
 	var lost := {"win": false, "time": 60.0, "objectives_done": 0, "route_mult": 1.7, "steps": 3}
 	_gs.finish_live(0, "asteroids", lost, false, "route")
 	_check(String(_gs.slots[0].last).begins_with("Voyage interrompu"), "message de voyage interrompu : %s" % _gs.slots[0].last)
+	_gs._sector_clock = -1.0
 
 
 func test_route_config_uses_the_squad() -> void:
