@@ -200,8 +200,8 @@ def clip_work():
     F = 48; out = []
     for f in range(1, F + 2, 3):
         t = 2 * math.pi * (f - 1) / 12
-        s = S(over={"UpperArm.L": [(Y, 25), (Z, -62)], "UpperArm.R": [(Y, -25), (Z, 62)]})
-        s["LowerArm.L"] = [(Z, -30 - 5 * math.sin(t))]; s["LowerArm.R"] = [(Z, 30 + 5 * math.sin(t))]
+        s = S(over={"UpperArm.L": [(Y, 25), (Z, -80)], "UpperArm.R": [(Y, -25), (Z, 80)]})
+        s["LowerArm.L"] = [(Z, -22 - 5 * math.sin(t))]; s["LowerArm.R"] = [(Z, 22 + 5 * math.sin(t))]
         s["Hand.L"] = [(X, 8 * math.sin(t))]; s["Hand.R"] = [(X, -8 * math.sin(t))]
         s["Abdomen"] = [(X, 9)]; s["Head"] = [(X, 12 + 2 * math.sin(t / 3))]; s["Chest"] = [(X, 1.0 * math.sin(2 * math.pi * (f - 1) / F * 2))]
         out.append((f, s, face(s, brow_tilt=3)))
