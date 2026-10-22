@@ -42,6 +42,7 @@ def add_face_bones(arm, name, hc):
     for sg, sd in ((-1, "L"), (1, "R")):
         x = sg * p["eyex"]
         mk("Blink." + sd, (hc.x + x, hc.y - d * 0.9, hc.z + ez), (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.02))
+        e_ = mk("Eye." + sd, (hc.x + x, hc.y - d * 0.9, hc.z + ez), (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.012)); e_.parent = eb["Blink." + sd]
         mk("Brow." + sd, (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.03), (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.05))
     mk("Jaw", (hc.x, hc.y + d * 0.1, hc.z - 0.045), (hc.x, hc.y - d * 0.9, hc.z - 0.07))
     mk("HairB", (hc.x, hc.y + d * 0.85, hc.z + 0.04), (hc.x, hc.y + d * 1.4, hc.z - 0.06))
@@ -67,8 +68,14 @@ def human_head(name, hc, add, T):
         r = bvh.ray_cast(Vector((hc.x + x, hc.y - 0.5, hc.z + z)), Vector((0, 1, 0)))
         return r[0].y if r[0] is not None else hc.y - d
     def lock(pos, dv, ln, wd, mat, bone="Head", seg=4):
-        dv = Vector(dv).normalized(); eu = Vector((0, 0, 1)).rotation_difference(dv).to_euler()
-        add(cyl(wd, 0.0, ln, Vector(pos) + dv * ln / 2, (eu.x, eu.y, eu.z), seg), bone, mat)
+        """Mèche : plaque fine posée sur la surface (à plat contre la tête), bout biseauté : pas de pointe tournée vers l'avant."""
+        pos = Vector(pos); n = (pos - hc); n = Vector((n.x / w, n.y / d, n.z / h)).normalized() if n.length > 1e-6 else Vector((0, -1, 0))
+        z = Vector(dv).normalized(); z = (z - n * z.dot(n))
+        if z.length < 1e-4: z = Vector((0, 0, -1)) - n * (-n.z)
+        z.normalize(); x = n.cross(z).normalized(); n2 = z.cross(x).normalized()
+        from mathutils import Matrix
+        m = Matrix(((x.x, n2.x, z.x), (x.y, n2.y, z.y), (x.z, n2.z, z.z))); eu = m.to_euler()
+        add(box((wd * 1.7, 0.009, ln), pos + z * ln / 2 + n2 * 0.004, (eu.x, eu.y, eu.z), r=0.35, sub=0), bone, mat)
     def cap_pt(phi, zl, k=1.07):
         """point sur la calotte (phi : 0 = face, +/- côtés ; zl : hauteur relative)"""
         r = math.sqrt(max(0.0, 1 - zl * zl))
@@ -82,15 +89,14 @@ def human_head(name, hc, add, T):
     for sg in (-1, 1):
         sd = "L" if sg < 0 else "R"; x = sg * p["eyex"]; y = surf(x, ez)
         add(sph(1.0, (hc.x + x, y - 0.003, hc.z + ez), (0.017 * es, 0.007, 0.012 * es), 8), "Blink." + sd, wh)
-        add(sph(1.0, (hc.x + x, y - 0.0085, hc.z + ez), (0.0095 * es, 0.004, 0.0095 * es), 8), "Blink." + sd, ir)
-        add(sph(1.0, (hc.x + x, y - 0.011, hc.z + ez), (0.0045 * es, 0.0025, 0.0045 * es), 6), "Blink." + sd, pu)
+        add(sph(1.0, (hc.x + x, y - 0.0085, hc.z + ez), (0.0095 * es, 0.004, 0.0095 * es), 8), "Eye." + sd, ir)
+        add(sph(1.0, (hc.x + x, y - 0.011, hc.z + ez), (0.0045 * es, 0.0025, 0.0045 * es), 6), "Eye." + sd, pu)
         if p["lashes"]:
             add(box((0.036 * es, 0.006, 0.0045), (hc.x + x, y - 0.006, hc.z + ez + 0.0125 * es), (0, math.radians(sg * -6), 0), r=0.3, sub=0), "Blink." + sd, lashm)
             add(box((0.01, 0.006, 0.004), (hc.x + x + sg * 0.018 * es, y - 0.004, hc.z + ez + 0.009 * es), (0, math.radians(sg * 30), 0), r=0.3, sub=0), "Blink." + sd, lashm)
         bt, ang = p["brow"]; bz = ez + 0.026 + 0.004 * es; bt *= p["bush"]
-        # sourcil : un bloc incliné ; fournis (bush > 1.3) : deuxième mèche en désordre
-        for k_ in range(2 if p["bush"] > 1.3 else 1):
-            add(box((0.036, 0.011 + 0.004 * p["bush"], bt * (1.0 if k_ == 0 else 0.7)), (hc.x + x + sg * 0.004 * k_, surf(x, bz) - 0.004, hc.z + bz + 0.004 * k_), (0, math.radians(sg * -(ang + 7 * k_)), 0), r=0.3, sub=0), "Brow." + sd, brm)
+        # sourcil : un seul bloc incliné (plus épais et plus long si fourni)
+        add(box((0.036 + 0.004 * (p["bush"] - 1), 0.011 + 0.003 * p["bush"], bt), (hc.x + x, surf(x, bz) - 0.004, hc.z + bz), (0, math.radians(sg * -ang), 0), r=0.35, sub=0), "Brow." + sd, brm)
     nl, nw = p["nose"]; nz = -0.012; ny = surf(0, nz)
     add(cyl(nw, 0.002, nl, (hc.x, ny - nl / 2 + 0.006, hc.z + nz), (math.radians(90), 0, 0), 4), "Head", sk)
     for sg in (-1, 1): add(sph(1.0, (hc.x + sg * nw * 0.9, ny - 0.002, hc.z + nz - 0.012), (nw * 0.55, 0.008, 0.007), 6), "Head", sk)
@@ -166,16 +172,18 @@ def human_head(name, hc, add, T):
     hs = p["hs"]
     if hs != "bald":
         hb = bmesh.new(); bmesh.ops.create_uvsphere(hb, u_segments=16, v_segments=10, radius=1.0)
-        kk = 1.34 if hs == "afro" else 1.08
+        kk = 1.34 if hs == "afro" else 1.11
         for v in hb.verts: v.co = Vector((v.co.x * w * kk, v.co.y * d * kk, v.co.z * h * kk)) + hc + (Vector((0, 0.012, 0.01)) if hs == "afro" else Vector())
-        fr = {"short": 0.42, "spiky": 0.45, "long": 0.4, "bangs": 0.3, "bob": 0.45, "ponytail": 0.45, "bun": 0.42, "sidepart": 0.4, "receding": 0.72, "braid": 0.42, "afro": 0.2}[hs]
+        fr = {"short": 0.34, "spiky": 0.36, "long": 0.32, "bangs": 0.22, "bob": 0.34, "ponytail": 0.36, "bun": 0.34, "sidepart": 0.32, "receding": 0.62, "braid": 0.34, "afro": 0.2}[hs]
         bk = {"short": -0.05, "spiky": 0.0, "long": -0.5, "bangs": -0.5, "bob": -0.4, "ponytail": -0.1, "bun": -0.1, "sidepart": -0.05, "receding": 0.1, "braid": -0.1, "afro": -0.6}[hs]
         kill = []
         for f in hb.faces:
             c = (f.calc_center_median() - hc); zl = c.z / (h * kk); yl = c.y / (d * kk)
-            lim = fr if yl < 0.0 else bk
+            phi = math.atan2(c.x / (w * kk), -c.y / (d * kk))
+            hl = {"sidepart": (0.22 if phi < 0 else 0.55) + 0.04 * math.sin(6 * phi), "receding": fr - 0.14 * abs(math.sin(2.4 * phi)) * (1 if abs(phi) < 1.2 else 0),
+                  "bangs": fr + 0.035 * math.sin(9 * phi), "bob": fr + 0.04 * math.sin(8 * phi), "spiky": fr + 0.1 * abs(math.sin(5 * phi)), "afro": fr}.get(hs, fr + 0.06 * math.sin(5 * phi + 0.5))
+            lim = hl if yl < 0.0 else bk
             if zl < lim: kill.append(f)
-            elif yl < -0.55 and zl < fr + 0.15 and hs not in ("bangs", "afro"): kill.append(f)
         bmesh.ops.delete(hb, geom=kill, context="FACES")
         hm = bpy.data.meshes.new("hh"); hb.to_mesh(hm); hb.free()
         ho = bpy.data.objects.new("hh", hm); bpy.context.collection.objects.link(ho)
@@ -189,52 +197,39 @@ def human_head(name, hc, add, T):
         def sideburns(zl=0.0, ln=0.05):
             for sg in (-1, 1): lock(cap_pt(sg * 1.35, zl), (sg * 0.2, -0.1, -1), ln, 0.016, hair, "Head", 4)
         if hs == "short":
-            fringe(9, 0.42, 0.04); sideburns(0.15, 0.04)
+            sideburns(0.15, 0.04)
         elif hs == "spiky":
-            fringe(7, 0.45, 0.028); sideburns(0.1, 0.035)
-            for k_, (dx, dy, hh) in enumerate(((-0.06, -0.03, 0.05), (-0.03, 0.0, 0.065), (0.0, -0.045, 0.06), (0.03, 0.0, 0.065), (0.06, -0.03, 0.05), (0.0, 0.04, 0.055), (-0.045, 0.045, 0.045), (0.05, 0.04, 0.048), (-0.015, -0.06, 0.05), (0.02, 0.07, 0.04))):
-                lock((hc.x + dx, hc.y + dy, hc.z + h * 0.95), (dx * 6, dy * 6 - 0.1, 1.0), hh, 0.024, hair if k_ % 2 else hair2, "Head", 4)
+            sideburns(0.1, 0.035)
+            for k_, (dx, dy, hh) in enumerate(((-0.06, -0.01, 0.05), (-0.03, 0.0, 0.065), (0.0, -0.01, 0.06), (0.03, 0.0, 0.065), (0.06, -0.01, 0.05), (0.0, 0.04, 0.055), (-0.045, 0.045, 0.045), (0.05, 0.04, 0.048), (0.02, 0.07, 0.04))):
+                lock_up = (dx * 5, dy * 5 + 0.25, 1.0)
+                dv = Vector(lock_up).normalized(); eu = Vector((0, 0, 1)).rotation_difference(dv).to_euler()
+                add(cyl(0.024, 0.0, hh, Vector((hc.x + dx, hc.y + dy, hc.z + h * 0.92)) + dv * hh / 2, (eu.x, eu.y, eu.z), 4), "Head", hair if k_ % 2 else hair2)
         elif hs in ("long", "bangs"):
             add(box((w * 2.15, 0.03, 0.2), (hc.x, hc.y + d * 0.92, hc.z - 0.07), r=0.3, sub=0), "HairB", hair)
             for sg in (-1, 1): add(box((0.028, 0.14, 0.17), (hc.x + sg * w * 1.0, hc.y + 0.03, hc.z - 0.05), r=0.3, sub=0), "Head", hair)
-            for i in range(8): lock((hc.x - w * 0.95 + i * w * 1.9 / 7, hc.y + d * 0.93, hc.z - 0.165), (0.05 * math.sin(i), 0.15, -1), vary(i, 0.045), 0.016, hair if i % 2 else hair2, "HairB", 4)
-            for sg in (-1, 1):
-                for i in range(2): lock((hc.x + sg * w * (1.0 + 0.0 * i), hc.y + 0.02 + 0.05 * i, hc.z - 0.125), (sg * 0.2, 0.0, -1), vary(i + 3, 0.04), 0.013, hair2, "Head", 4)
-            if hs == "bangs": fringe(11, 0.3, 0.034, 1.0, 0.0)
-            else:
-                fringe(5, 0.4, 0.034, 0.9); add(box((0.008, 0.06, 0.004), (hc.x + 0.012, hc.y - d * 0.7, hc.z + h * 0.99), r=0.3, sub=0), "Head", M(name + "_part", tuple(c * 0.5 + 0.12 for c in p["skin"]), 0.0, 0.8))
+            for i in range(6): add(box((0.03, 0.02, vary(i, 0.04)), (hc.x - w * 0.9 + i * w * 1.8 / 5, hc.y + d * 0.93, hc.z - 0.18), r=0.3, sub=0), "HairB", hair if i % 2 else hair2)
+            if hs == "long": add(box((0.008, 0.06, 0.004), (hc.x + 0.012, hc.y - d * 0.7, hc.z + h * 0.99), r=0.3, sub=0), "Head", M(name + "_part", tuple(c * 0.5 + 0.12 for c in p["skin"]), 0.0, 0.8))
         elif hs == "bob":
             add(box((w * 2.1, 0.03, 0.12), (hc.x, hc.y + d * 0.9, hc.z - 0.03), r=0.3, sub=0), "HairB", hair)
-            for sg in (-1, 1):
-                add(box((0.03, 0.13, 0.12), (hc.x + sg * w * 1.04, hc.y + 0.02, hc.z - 0.02), r=0.3, sub=0), "Head", hair)
-                lock((hc.x + sg * w * 1.05, hc.y - 0.03, hc.z - 0.07), (-sg * 0.5, -0.3, -1), 0.03, 0.02, hair2, "Head", 4)
-            for i in range(8): lock((hc.x - w * 0.9 + i * w * 1.8 / 7, hc.y + d * 0.92, hc.z - 0.09), (0, 0.4, -1), vary(i, 0.03), 0.017, hair if i % 2 else hair2, "HairB", 4)
-            fringe(9, 0.36, 0.036, 1.05)
+            for sg in (-1, 1): add(box((0.03, 0.13, 0.12), (hc.x + sg * w * 1.04, hc.y + 0.02, hc.z - 0.02), r=0.3, sub=0), "Head", hair)
         elif hs == "ponytail":
-            fringe(7, 0.42, 0.03); sideburns(0.1, 0.03)
+            sideburns(0.1, 0.03)
             tube_pts = [Vector((hc.x, hc.y + d * 0.95, hc.z + 0.05)), Vector((hc.x, hc.y + d * 1.3, hc.z + 0.02)), Vector((hc.x, hc.y + d * 1.45, hc.z - 0.05)), Vector((hc.x, hc.y + d * 1.5, hc.z - 0.12))]
             add(tube(tube_pts, 0.02, 5), "HairB", hair)
             add(sph(0.019, tube_pts[1], (1.3, 1.3, 1.0), 6), "HairB", M("tie", (0.9, 0.3, 0.3), 0.3, 0.4))
-            lock(tube_pts[-1] + Vector((0, 0, 0.02)), (0, 0.15, -1), 0.06, 0.026, hair2, "HairB", 5)
+            add(sph(0.024, tube_pts[-1] + Vector((0, 0, -0.01)), (1, 1, 1.8), 6), "HairB", hair2)
         elif hs == "braid":
-            fringe(7, 0.4, 0.03); sideburns(0.1, 0.03)
+            sideburns(0.1, 0.03)
             for i in range(6): add(sph(0.02 - i * 0.0015, (hc.x + (0.009 if i % 2 else -0.009), hc.y + d * (1.0 + 0.05 * i), hc.z + 0.01 - i * 0.034), (1, 1, 1.25), 6), "HairB", hair if i % 2 else hair2)
-            lock((hc.x, hc.y + d * 1.28, hc.z - 0.2), (0, 0.1, -1), 0.04, 0.014, hair, "HairB", 4)
             add(sph(0.014, (hc.x, hc.y + d * 1.25, hc.z - 0.19), (1, 1, 1), 6), "HairB", M("tie2", (0.85, 0.7, 0.2), 0.4, 0.4))
         elif hs == "bun":
-            fringe(7, 0.42, 0.03, 1.0); sideburns(0.1, 0.03)
+            sideburns(0.1, 0.03)
             add(sph(0.046, (hc.x, hc.y + d * 0.5, hc.z + h * 1.06), (1, 1, 0.9), 8), "HairB", hair)
             add(tube([Vector((hc.x + math.cos(a) * 0.05, hc.y + d * 0.5 + math.sin(a) * 0.05, hc.z + h * 1.05)) for a in [2 * math.pi * k / 8 for k in range(8)]], 0.007, 4, True), "HairB", M("tie3", (0.9, 0.8, 0.3), 0.4, 0.4))
         elif hs == "sidepart":
-            for i in range(7): lock(cap_pt(-0.2 - 0.18 * i, 0.5 - 0.02 * i), (0.6 + 0.1 * i, -0.8, -0.5), vary(i, 0.045), 0.015, hair if i % 2 else hair2, "Head", 4)
             sideburns(0.1, 0.035)
-            add(box((w * 1.0, 0.035, 0.03), (hc.x + 0.03, surf(0.03, 0.082) - 0.004, hc.z + 0.088), (math.radians(-12), math.radians(-14), 0), r=0.3, sub=0), "Head", hair2)
         elif hs == "receding":
             sideburns(0.05, 0.05)
-            for sg in (-1, 1):
-                for i in range(3): lock(cap_pt(sg * (1.2 + 0.18 * i), 0.38 - 0.1 * i), (sg * 0.6, -0.2, -0.5), vary(i, 0.035), 0.015, hair, "Head", 4)
-            for i in range(5): lock((hc.x + (i - 2) * 0.022, hc.y - d * 0.55, hc.z + h * 0.8), (0, -0.5, 0.7), vary(i, 0.03), 0.012, hair2, "Head", 4)
         elif hs == "afro":
             for dx, dz in ((-0.05, 0.1), (0.05, 0.1), (0.0, 0.14), (-0.09, 0.03), (0.09, 0.03), (-0.07, 0.07), (0.07, 0.07), (0.0, 0.09)):
                 add(sph(0.045, (hc.x + dx, hc.y + 0.02, hc.z + dz), (1, 1, 1), 8), "Head", hair if (dx > 0) else hair2)
-            for i in range(8): lock(cap_pt(-1.1 + 2.2 * i / 7, 0.3, 1.15), (math.sin(-1.1 + 2.2 * i / 7) * 0.6, -0.7, 0.2), vary(i, 0.03), 0.02, hair2, "Head", 4)

@@ -295,6 +295,7 @@ def apply_pose(arm, spec, keyframe=None, fx=None):
         if pb is None: continue
         if "s" in fx: pb.scale = fx["s"]
         if "l" in fx: pb.location = fx["l"]
+        if "r" in fx: pb.rotation_quaternion = Quaternion(Vector(fx["r"][0]), math.radians(fx["r"][1]))
     if keyframe is not None:
         for pb in arm.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=keyframe)
@@ -397,28 +398,31 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     hs = bpy.context.active_object; hs.scale = R * 1.02; bpy.ops.object.transform_apply(scale=True)
     bm = bmesh.new(); bm.from_mesh(hs.data); bm.faces.ensure_lookup_table()
     ys = lambda f: f.calc_center_median()
-    kill = [f for f in bm.faces if (ys(f).y - hc.y) < -0.075 and abs(ys(f).x - hc.x) < 0.17 and -0.13 < (ys(f).z - hc.z) < 0.115]
+    # ouverture de la visière : super-ellipse lisse ; les sommets du bord sont ramenés sur la courbe (pas d'escalier)
+    OA, OB, OZ, ON = 0.168, 0.122, -0.0075, 3.0
+    inside = lambda x, z, k=1.0: (abs(x / (OA * k)) ** ON + abs((z - OZ) / (OB * k)) ** ON) < 1.0
+    def curve(th):
+        c_, s_ = math.cos(th), math.sin(th)
+        return OA * math.copysign(abs(c_) ** (2 / ON), c_), OZ + OB * math.copysign(abs(s_) ** (2 / ON), s_)
+    def on_sphere_y(x, z):
+        q = 1 - (x / (R.x * 1.02)) ** 2 - (z / (R.z * 1.02)) ** 2
+        return hc.y - R.y * 1.02 * math.sqrt(max(q, 0.0))
+    kill = [f for f in bm.faces if (ys(f).y - hc.y) < -0.06 and inside(ys(f).x - hc.x, ys(f).z - hc.z, 1.0)]
     bmesh.ops.delete(bm, geom=kill, context="FACES")
     bm.verts.ensure_lookup_table(); bm.edges.ensure_lookup_table()
-    bedges = [e for e in bm.edges if e.is_boundary]
-    loop_pts = []
-    if bedges:
-        nxt = {}
-        for e in bedges:
-            a, b = e.verts; nxt.setdefault(a.index, []).append(b.index); nxt.setdefault(b.index, []).append(a.index)
-        start = bedges[0].verts[0].index; cur = start; prev = None
-        for _ in range(len(bedges) + 2):
-            loop_pts.append(bm.verts[cur].co.copy())
-            cand = [n for n in nxt.get(cur, []) if n != prev]
-            if not cand: break
-            prev, cur = cur, cand[0]
-            if cur == start: break
+    for e in [e for e in bm.edges if e.is_boundary]:
+        for v in e.verts:
+            x, z = v.co.x - hc.x, v.co.z - hc.z
+            th = math.atan2((z - OZ) / OB, x / OA); cx, cz = curve(th)
+            v.co = Vector((hc.x + cx, on_sphere_y(cx, cz), hc.z + cz))
+    loop_pts = [Vector((hc.x + curve(2 * math.pi * k / 40)[0], on_sphere_y(*curve(2 * math.pi * k / 40)), hc.z + curve(2 * math.pi * k / 40)[1])) for k in range(40)]
     bm.to_mesh(hs.data); bm.free()
     md = hs.modifiers.new("sol", "SOLIDIFY"); md.thickness = 0.012; bpy.ops.object.modifier_apply(modifier="sol")
     _flat(hs, False); add(hs, "Head", shell_m)
     gs = prim_sph(1.0, hc, tuple(R * 1.0), 14 if LOD else 26); add(gs, "Head", glass("visor", (0.75, 0.88, 1.0), 0.07))
     if len(loop_pts) > 6:
-        cen = sum(loop_pts, Vector()) / len(loop_pts)
+        cen0 = sum(loop_pts, Vector()) / len(loop_pts)
+        cen = cen0
         rm = tube([p + (p - cen).normalized() * 0.004 for p in loop_pts], 0.016, 6, closed=True); add(rm, "Head", trim)
         rm2 = tube([p + (p - cen).normalized() * 0.012 + Vector((0, -0.01, 0)) for p in loop_pts], 0.008, 6, closed=True); add(rm2, "Head", dark)
     for sx in (-1, 1):
