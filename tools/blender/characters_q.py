@@ -3,6 +3,7 @@ Chaque personnage : base Quaternius (tête, cheveux, barbe, anatomie) + combinai
 + casque à visière claire, sac, tuyaux, panneau de commandes, genouillères, épaulières, liserés. Vrai squelette, clips Idle / Walk / Run / Shoot.
 make(nom, pose, s) -> empty racine (face vers +Y, pieds à z=0). animate(root) crée les clips (NLA)."""
 import bpy, bmesh, math, os
+import faces_q
 from mathutils import Vector, Matrix, Quaternion
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -339,8 +340,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     H = sp_["h"]; bk = sp_["bulk"]; ex = sp_["extras"]
     arm, parts = load_base(sp_["base"])
     head = parts["Head"]
-    HK = sp_.get("head"); ANDROID = HK is not None
-    if ANDROID:
+    HK = sp_.get("head"); ANDROID = HK is not None; FACE = name in faces_q.FACES
+    if ANDROID or FACE:
         bpy.data.objects.remove(head); head = None
     else:
         _recolor_head(head, sp_)
@@ -475,6 +476,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
             add(prim_box((0.09, 0.012, 0.008), (hc.x, hc.y - 0.166, hc.z - 0.06), r=0.3, sub=0), "Head", dk)
             for k_ in range(3): add(prim_cyl(0.022 - k_ * 0.004, 0.0, 0.07 - k_ * 0.012, (hc.x, hc.y + 0.01 + k_ * 0.045, hc.z + 0.115 - k_ * 0.018), seg=5), "Head", dk)
         add(prim_cyl(0.05, 0.05, 0.05, (hc.x, hc.y, hc.z - 0.14), seg=10), "Head", metal if kind == "robot" else M(name + "_neck", sp_["skin"], 0.0, 0.6))
+    if FACE:
+        faces_q.human_head(name, hc, add, dict(M=M, E=E, box=prim_box, sph=prim_sph, cyl=prim_cyl, tube=tube))
     # --- col, sac, tuyaux
     nz = hb("Neck").z
     nr = tube([Vector((math.cos(a) * 0.115, -0.043 + math.sin(a) * 0.11, nz + 0.01)) for a in [2 * math.pi * k / 20 for k in range(20)]], 0.028, 8, True); add(nr, "Neck", dark)
@@ -499,7 +502,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     for k_, c in enumerate(((1, 0.3, 0.2), (0.95, 0.95, 0.95), (0.3, 0.6, 1))):
         b_ = prim_box((0.035, 0.016, 0.03), (-0.055 + k_ * 0.055, fy - 0.022, cz - 0.005), r=0.25, sub=0); add(b_, "Chest", E("btn", c, 2.5))
     dl = prim_sph(0.028, (0.078, fy - 0.022, cz - 0.045), (1, 0.4, 1), 10); add(dl, "Chest", white)
-    zp = prim_box((0.022, 0.016, 0.4), (0, front_y(shells, cz + 0.2, 0.05) - 0.003, cz + 0.17), r=0.3, sub=0); add(zp, "Chest", trim)
+    zb_, zt_ = cz - 0.03, hc.z - 0.14; zp = prim_box((0.022, 0.016, zt_ - zb_), (0, front_y(shells, (zb_ + zt_) / 2, 0.05) - 0.003, (zb_ + zt_) / 2), r=0.3, sub=0); add(zp, "Chest", trim)
     for k_, c in enumerate(((0.2, 0.7, 0.3), (1, 1, 1), (1.0, 0.5, 0.1))):
         fg = prim_box((0.04, 0.014, 0.026), (-0.1 + k_ * 0.046, front_y(shells, cz + 0.2, 0.12) - 0.004, cz + 0.2), r=0.2, sub=0); add(fg, "Chest", M("flag", c, 0, 0.6))
     # --- ceinture, anneaux, liserés
@@ -552,7 +555,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         add(tube([Vector((math.cos(a) * 0.15, hc.y + math.sin(a) * 0.163, hc.z + 0.13)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.014, 6, True), "Head", M("hb", (1.0, 0.95, 0.95), 0, 0.5))
     elif sp_["hat"] == "halo":
         add(tube([Vector((math.cos(a) * 0.14, hc.y + math.sin(a) * 0.14, hc.z + 0.3)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.008, 6, True), "Head", E("halo", (1.0, 0.85, 0.35), 6.0))
-    if sp_["glasses"]:
+    if sp_["glasses"] and not FACE:
         for sx in (-1, 1):
             add(tube([Vector((hc.x + sx * 0.05 + math.cos(a) * 0.032, hc.y - 0.13, hc.z - 0.0 + math.sin(a) * 0.032)) for a in [2 * math.pi * k / 12 for k in range(12)]], 0.005, 4, True), "Head", black)
     if "antenna" in ex:

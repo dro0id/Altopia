@@ -787,7 +787,7 @@ def make_portrait_game(kind):
         area((2.0, -2.5, 1.6), (0, 0, 0.9), 120, (1.0, 0.4, 0.85), 3)
         Hh = characters.SPECS[CHAR[kind]]["h"] * 1.0
         wide = max(1.0, characters.SPECS[CHAR[kind]]["bulk"] * 0.9)
-        camera((0.6 * Hh * wide, 1.75 * Hh * wide, 1.0 * Hh), (0, 0, 0.83 * Hh), 82)
+        camera((0.42 * Hh * wide, 1.25 * Hh * wide, 1.0 * Hh), (0, 0, 0.88 * Hh), 82)
         render("%s" % kind, res=(256, 256), transparent=True, samples=64)
     return f
 for _k in ("captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox", "droid", "jett", "vega", "sira", "tick", "brakk", "maya", "zyl", "sage", "ilan"): SCENES["pg_" + _k] = make_portrait_game(_k)
