@@ -139,70 +139,70 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     hair = M(name + "_hair", sp_["hair"], 0.0, 0.8); black = M("black", (0.02, 0.02, 0.03), 0.0, 0.5)
     white = M("white", (0.95, 0.95, 0.97), 0.0, 0.55); vis = E(name + "_vis", sp_["vis"], 1.2)
     gold = M("gold", (1.0, 0.8, 0.2), 0.6, 0.35); brown = M("kneepad", (0.42, 0.33, 0.26), 0.0, 0.8)
-    hipz = 0.49; W = bk
-    # ---------- jambes (pivot à la hanche)
+    hipz = 0.47; W = bk
+    # ---------- jambes (pivot à la hanche) : gros volumes, combinaison "gonflée"
     for sx, key in ((-1, "lL"), (1, "lR")):
-        lp = pv("leg", (sx * 0.058 * W, 0, hipz), root); lp.rotation_euler = po[key]; pivs[key] = lp
-        zloft("thigh", [(0.0, 0.056 * W, 0.058 * W, 0, 0), (-0.1, 0.05 * W, 0.052 * W, 0, 0), (-0.21, 0.04 * W, 0.042 * W, 0, 0.002)], suit, lp, 12, k=1.18)
-        bx("kneepad", (0.064 * W, 0.036, 0.078), (0, 0.046 * W, -0.235), brown, lp, bevel=0.016)
-        bx("kneeband", (0.07 * W, 0.04, 0.012), (0, 0.04 * W, -0.2), dark, lp, bevel=0.004)
-        zloft("shin", [(-0.225, 0.04 * W, 0.042 * W, 0, 0.002), (-0.3, 0.036 * W, 0.04 * W, 0, 0), (-0.395, 0.033 * W, 0.036 * W, 0, -0.004)], suit, lp, 12, k=1.18)
-        stripe("legline", (sx * 0.052 * W, 0.0, -0.01), (sx * 0.04 * W, 0.0, -0.4), 0.009, 0.009, trim, lp)
-        stripe("legline2", (sx * 0.052 * W, 0.012, -0.01), (sx * 0.04 * W, 0.012, -0.4), 0.007, 0.007, dark, lp)
-        cy("ankle", 0.04 * W, 0.04 * W, 0.022, (0, -0.002, -0.42), dark, lp, seg=10)
-        cy("ankleline", 0.042 * W, 0.042 * W, 0.008, (0, -0.002, -0.405), trim, lp, seg=10)
-        bx("boot", (0.072 * W, 0.155, 0.066), (0, 0.032, -0.46), boot, lp, bevel=0.03)
-        bx("toe", (0.062 * W, 0.05, 0.05), (0, 0.095, -0.465), boot, lp, bevel=0.018)
-        bx("bootline", (0.072 * W, 0.12, 0.01), (0, 0.025, -0.445), trim, lp, bevel=0.003)
-        bx("sole", (0.074 * W, 0.16, 0.014), (0, 0.04, -0.495), E("sole", (0.3, 0.8, 1.0), 2.0) if name in ("captain", "vance", "nox") else dark, lp, bevel=0.003)
+        lp = pv("leg", (sx * 0.078 * W, 0, hipz), root); lp.rotation_euler = po[key]; pivs[key] = lp
+        zloft("thigh", [(0.0, 0.088 * W, 0.09 * W, 0, 0), (-0.09, 0.083 * W, 0.086 * W, 0, 0.004), (-0.19, 0.068 * W, 0.072 * W, 0, 0.006)], suit, lp, 12)
+        bx("kneepad", (0.1 * W, 0.05, 0.1), (0, 0.075 * W, -0.215), brown, lp, bevel=0.025)
+        bx("kneeband", (0.13 * W, 0.12, 0.016), (0, 0.0, -0.19), dark, lp, bevel=0.005)
+        zloft("shin", [(-0.2, 0.066 * W, 0.07 * W, 0, 0.006), (-0.27, 0.062 * W, 0.066 * W, 0, 0.002), (-0.36, 0.06 * W, 0.062 * W, 0, -0.004)], suit, lp, 12)
+        stripe("legline", (sx * 0.083 * W, 0.0, -0.01), (sx * 0.062 * W, 0.0, -0.36), 0.012, 0.012, trim, lp)
+        stripe("legline2", (sx * 0.083 * W, 0.016, -0.01), (sx * 0.062 * W, 0.016, -0.36), 0.008, 0.008, dark, lp)
+        cy("ankle", 0.068 * W, 0.068 * W, 0.03, (0, -0.004, -0.385), dark, lp, seg=12)
+        cy("ankleline", 0.07 * W, 0.07 * W, 0.01, (0, -0.004, -0.365), trim, lp, seg=12)
+        bx("boot", (0.118 * W, 0.215, 0.092), (0, 0.04, -0.425), boot, lp, bevel=0.04)
+        bx("toe", (0.108 * W, 0.07, 0.07), (0, 0.125, -0.43), boot, lp, bevel=0.032)
+        bx("bootline", (0.12 * W, 0.17, 0.014), (0, 0.03, -0.405), trim, lp, bevel=0.004)
+        bx("sole", (0.124 * W, 0.225, 0.02), (0, 0.045, -0.47), E("sole", (0.3, 0.8, 1.0), 2.0) if name in ("captain", "vance", "nox") else dark, lp, bevel=0.005)
     # ---------- torse
     tp = pv("torso", (0, 0, hipz), root); tp.rotation_euler = (po["lean"], 0, 0); pivs["torso"] = tp
-    zloft("pelvis", [(-0.02, 0.092 * W, 0.064, 0, 0), (0.03, 0.098 * W, 0.066, 0, 0), (0.06, 0.09 * W, 0.062, 0, 0)], suit, tp, 10)
-    zloft("chest", [(0.05, 0.09 * W, 0.062, 0, 0), (0.12, 0.108 * W, 0.07, 0, 0.003), (0.21, 0.126 * W, 0.076, 0, 0.004), (0.27, 0.134 * W, 0.074, 0, 0.002), (0.295, 0.1 * W, 0.062, 0, 0)], suit, tp, 10)
-    zloft("beltband", [(0.045, 0.098 * W, 0.066, 0, 0), (0.075, 0.1 * W, 0.068, 0, 0)], trim, tp, 10)
-    bx("buckle", (0.05, 0.014, 0.034), (0, 0.068, 0.06), gray, tp, bevel=0.005)
-    bx("zip", (0.012, 0.01, 0.2), (0, 0.075, 0.2), trim, tp, bevel=0.003)
-    bx("panel", (0.1, 0.016, 0.075), (0, 0.078, 0.185), gray, tp, bevel=0.008)
-    bx("screen", (0.07, 0.01, 0.022), (0, 0.088, 0.208), E("scr", (0.85, 0.95, 0.35) if name != "nox" else sp_["vis"], 1.3), tp, bevel=0.003)
+    zloft("pelvis", [(-0.03, 0.14 * W, 0.1, 0, 0), (0.03, 0.15 * W, 0.105, 0, 0), (0.07, 0.14 * W, 0.1, 0, 0)], suit, tp, 12)
+    zloft("chest", [(0.06, 0.135 * W, 0.098, 0, 0), (0.14, 0.17 * W, 0.112, 0, 0.004), (0.23, 0.2 * W, 0.12, 0, 0.006), (0.3, 0.208 * W, 0.115, 0, 0.003), (0.335, 0.15 * W, 0.095, 0, 0)], suit, tp, 12)
+    zloft("beltband", [(0.05, 0.152 * W, 0.107, 0, 0), (0.09, 0.154 * W, 0.109, 0, 0)], trim, tp, 12)
+    bx("buckle", (0.08, 0.02, 0.05), (0, 0.108, 0.07), gray, tp, bevel=0.008)
+    bx("zip", (0.016, 0.012, 0.24), (0, 0.12, 0.23), trim, tp, bevel=0.004)
+    bx("panel", (0.15, 0.024, 0.11), (0, 0.124, 0.2), gray, tp, bevel=0.012)
+    bx("screen", (0.108, 0.012, 0.034), (0, 0.139, 0.228), E("scr", (0.85, 0.95, 0.35) if name != "nox" else sp_["vis"], 1.3), tp, bevel=0.004)
     for k, c in enumerate(((1, 0.3, 0.2), (0.95, 0.95, 0.95), (0.3, 0.6, 1))):
-        bx("btn", (0.016, 0.01, 0.014), (-0.025 + k * 0.025, 0.088, 0.17), E("btn", c, 2.5), tp, bevel=0.002)
-    sp("dial", 0.014, (0.04, 0.09, 0.178), M("dial", (0.9, 0.9, 0.95), 0.2, 0.5), tp, (1, 0.4, 1), 8, 5)
+        bx("btn", (0.024, 0.012, 0.02), (-0.04 + k * 0.04, 0.139, 0.17), E("btn", c, 2.5), tp, bevel=0.003)
+    sp("dial", 0.02, (0.062, 0.14, 0.18), M("dial", (0.9, 0.9, 0.95), 0.2, 0.5), tp, (1, 0.4, 1), 8, 5)
     for k, c in enumerate(((0.2, 0.7, 0.3), (1, 1, 1), (1.0, 0.5, 0.1))):
-        bx("flag", (0.022, 0.008, 0.014), (-0.06 * W + k * 0.025, 0.074, 0.26), M("flag", c, 0, 0.6), tp, bevel=0.002)
+        bx("flag", (0.032, 0.01, 0.02), (-0.075 * W + k * 0.036, 0.118, 0.3), M("flag", c, 0, 0.6), tp, bevel=0.003)
     # sac de survie + tuyaux
-    bx("pack", (0.2 * W, 0.1, 0.25), (0, -0.088, 0.17), white if name != "nox" else gray, tp, bevel=0.03)
-    bx("pack_panel" if godot else "packtrim", (0.17 * W, 0.01, 0.035), (0, -0.14, 0.24), trim, tp, bevel=0.004)
-    bx("packlight", (0.05, 0.01, 0.025), (0, -0.142, 0.14), E("pl", (1.0, 0.3, 0.3), 3.0), tp, bevel=0.003)
+    bx("pack", (0.3 * W, 0.15, 0.34), (0, -0.14, 0.2), white if name != "nox" else gray, tp, bevel=0.04)
+    bx("pack_panel" if godot else "packtrim", (0.25 * W, 0.012, 0.05), (0, -0.216, 0.3), trim, tp, bevel=0.005)
+    bx("packlight", (0.07, 0.012, 0.035), (0, -0.218, 0.12), E("pl", (1.0, 0.3, 0.3), 3.0), tp, bevel=0.004)
     for sx in (-1, 1):
-        hoop("hose", [(sx * 0.07 * W, -0.1, 0.285), (sx * 0.15 * W, -0.06, 0.34), (sx * 0.11 * W, 0.0, 0.325), (sx * 0.075, 0.04, 0.31)], 0.012, black, tp)
+        hoop("hose", [(sx * 0.1 * W, -0.16, 0.36), (sx * 0.2 * W, -0.1, 0.43), (sx * 0.15 * W, 0.0, 0.41), (sx * 0.1, 0.06, 0.38)], 0.018, black, tp)
     if "antenna" in ex:
-        cy("antenna", 0.007, 0.007, 0.16, (0.08 * W, -0.12, 0.35), gray, tp, seg=6)
-        sp("antenna_tip", 0.018, (0.08 * W, -0.12, 0.44), E("atip", (1.0, 0.3, 0.8), 5.0), tp, (1, 1, 1), 6, 4)
+        cy("antenna", 0.01, 0.01, 0.2, (0.11 * W, -0.19, 0.42), gray, tp, seg=6)
+        sp("antenna_tip", 0.024, (0.11 * W, -0.19, 0.53), E("atip", (1.0, 0.3, 0.8), 5.0), tp, (1, 1, 1), 6, 4)
     # ---------- bras
     arms = {}
     for sx, key in ((-1, "aL"), (1, "aR")):
-        ap = pv("arm", (sx * (0.15 * W + 0.012), 0, 0.745), root if False else tp); ap.location = (sx * (0.15 * W + 0.012), 0, 0.255); ap.rotation_euler = po[key]; arms[key] = ap; pivs[key] = ap
-        bx("pad", (0.082 * W, 0.082, 0.055), (sx * 0.012, 0, 0.022), suit, ap, bevel=0.028)
-        bx("padline", (0.078 * W, 0.078, 0.008), (sx * 0.012, 0, 0.012), trim, ap, bevel=0.003)
-        zloft("upper", [(0.0, 0.036 * W, 0.036 * W, 0, 0), (-0.09, 0.034 * W, 0.034 * W, 0, 0), (-0.18, 0.03 * W, 0.03 * W, 0, 0)], suit, ap, 12, k=1.18)
-        zloft("fore", [(-0.19, 0.03 * W, 0.03 * W, 0, 0), (-0.27, 0.031 * W, 0.031 * W, 0, 0.002), (-0.335, 0.027 * W, 0.027 * W, 0, 0)], suit, ap, 12, k=1.18)
-        cy("elbow", 0.034 * W, 0.034 * W, 0.016, (0, -0.0, -0.185), dark, ap, seg=10)
-        stripe("armline", (sx * 0.037 * W, 0, 0.0), (sx * 0.031 * W, 0, -0.33), 0.009, 0.009, trim, ap)
-        stripe("armline2", (sx * 0.037 * W, 0.012, 0.0), (sx * 0.031 * W, 0.012, -0.33), 0.007, 0.007, dark, ap)
-        cy("cuff", 0.036 * W, 0.036 * W, 0.034, (0, 0, -0.335), trim, ap, seg=10)
-        cy("cuffring", 0.038 * W, 0.038 * W, 0.008, (0, 0, -0.352), dark, ap, seg=10)
+        ap = pv("arm", (sx * (0.21 * W + 0.04), 0, 0.3), tp); ap.rotation_euler = po[key]; arms[key] = ap; pivs[key] = ap
+        bx("pad", (0.13 * W, 0.125, 0.085), (sx * 0.02, 0, 0.03), suit, ap, bevel=0.04)
+        bx("padline", (0.134 * W, 0.129, 0.012), (sx * 0.02, 0, 0.015), trim, ap, bevel=0.004)
+        zloft("upper", [(0.0, 0.066 * W, 0.066 * W, 0, 0), (-0.08, 0.068 * W, 0.068 * W, 0, 0), (-0.16, 0.058 * W, 0.058 * W, 0, 0)], suit, ap, 12)
+        zloft("fore", [(-0.17, 0.056 * W, 0.056 * W, 0, 0), (-0.24, 0.058 * W, 0.058 * W, 0, 0.002), (-0.3, 0.05 * W, 0.05 * W, 0, 0)], suit, ap, 12)
+        cy("elbow", 0.064 * W, 0.064 * W, 0.022, (0, 0, -0.165), dark, ap, seg=12)
+        stripe("armline", (sx * 0.066 * W, 0, 0.0), (sx * 0.052 * W, 0, -0.3), 0.012, 0.012, trim, ap)
+        stripe("armline2", (sx * 0.066 * W, 0.016, 0.0), (sx * 0.052 * W, 0.016, -0.3), 0.008, 0.008, dark, ap)
+        cy("cuff", 0.06 * W, 0.06 * W, 0.05, (0, 0, -0.31), trim, ap, seg=12)
+        cy("cuffring", 0.064 * W, 0.064 * W, 0.012, (0, 0, -0.34), dark, ap, seg=12)
         gl = white if name in ("captain", "lumi", "elara", "vance") else boot
-        bx("glove", (0.052 * W, 0.058, 0.066), (0, 0.003, -0.395), gl, ap, bevel=0.024)
-        bx("fingers", (0.048 * W, 0.04, 0.036), (0, 0.006, -0.44), gl, ap, bevel=0.012)
-        bx("thumb", (0.018, 0.034, 0.03), (-sx * 0.03 * W, 0.03, -0.395), gl, ap, bevel=0.007)
+        bx("glove", (0.09 * W, 0.1, 0.1), (0, 0.004, -0.39), gl, ap, bevel=0.038)
+        bx("fingers", (0.084 * W, 0.07, 0.056), (0, 0.01, -0.45), gl, ap, bevel=0.024)
+        bx("thumb", (0.03, 0.06, 0.05), (-sx * 0.05 * W, 0.045, -0.385), gl, ap, bevel=0.014)
         if "pauldrons" in ex:
-            bx("pauldron", (0.1 * W, 0.1, 0.04), (sx * 0.015, 0, 0.045), trim if name == "gorn" else gold, ap, bevel=0.02)
+            bx("pauldron", (0.17 * W, 0.17, 0.06), (sx * 0.02, 0, 0.07), trim if name == "gorn" else gold, ap, bevel=0.03)
     # ---------- tête + casque
-    hp = pv("head", (0, 0, 0.8), root); hp.location = (0, 0, 0.31); hp.parent = tp; hp.rotation_euler = (0, 0, po["head"]); pivs["head"] = hp
-    cy("neck", 0.042, 0.048, 0.04, (0, 0, 0.0), dark, hp, seg=10)
-    tr("neckring", 0.066, 0.02, (0, 0, 0.018), dark, hp)
-    tr("neckseal", 0.066, 0.008, (0, 0, 0.035), trim, hp)
-    R = 0.134; hz = 0.124
+    hp = pv("head", (0, 0, 0.8), root); hp.location = (0, 0, 0.34); hp.parent = tp; hp.rotation_euler = (0, 0, po["head"]); pivs["head"] = hp
+    cy("neck", 0.07, 0.078, 0.05, (0, 0, 0.0), dark, hp, seg=12)
+    tr("neckring", 0.09, 0.026, (0, 0, 0.02), dark, hp)
+    tr("neckseal", 0.09, 0.01, (0, 0, 0.045), trim, hp)
+    R = 0.162; hz = 0.15
     hs = sp_["hair_style"]; bd = sp_["beard"]; hat = sp_["hat"]
     if name == "nox":
         sp("head", R * 1.0, (0, 0, hz), M("noxhead", (0.8, 0.83, 0.88), 0.5, 0.4), hp, (1, 0.95, 1), 12, 8)
@@ -217,12 +217,12 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         fy = hr * 0.95
         for sx in (-1, 1):
             bx("ear", (0.012, 0.022, 0.035), (sx * hr * 0.98, -0.005, hz - 0.01), skin, hp, bevel=0.004)
-            bx("eyew", (0.027, 0.008, 0.02), (sx * 0.033, fy - 0.004, hz + 0.012), white, hp, bevel=0.002)
-            bx("eye", (0.016, 0.01, 0.018), (sx * 0.033, fy - 0.001, hz + 0.011), black, hp, bevel=0.002)
-            bx("brow", (0.036, 0.012, 0.01), (sx * 0.034, fy - 0.001, hz + 0.036), hair if (hs != "none" or bd != "none") else black, hp, (0, 0, sx * -0.22), 0.002)
+            bx("eyew", (0.034, 0.01, 0.026), (sx * 0.04, fy - 0.004, hz + 0.014), white, hp, bevel=0.003)
+            bx("eye", (0.02, 0.012, 0.024), (sx * 0.04, fy - 0.001, hz + 0.013), black, hp, bevel=0.003)
+            bx("brow", (0.044, 0.014, 0.013), (sx * 0.041, fy - 0.001, hz + 0.045), hair if (hs != "none" or bd != "none") else black, hp, (0, 0, sx * -0.22), 0.002)
         bx("nosebridge", (0.014, 0.018, 0.04), (0, fy, hz - 0.005), skin, hp, bevel=0.005)
-        cy("nose", 0.017, 0.006, 0.03, (0, fy + 0.016, hz - 0.022), skin, hp, rot=(math.radians(-90), 0, 0), seg=4)
-        bx("mouth", (0.04, 0.008, 0.009), (0, fy - 0.002, hz - 0.052), M("lip", (0.5, 0.2, 0.18)), hp, bevel=0.002)
+        cy("nose", 0.021, 0.007, 0.036, (0, fy + 0.018, hz - 0.026), skin, hp, rot=(math.radians(-90), 0, 0), seg=4)
+        bx("mouth", (0.05, 0.01, 0.011), (0, fy - 0.002, hz - 0.062), M("lip", (0.5, 0.2, 0.18)), hp, bevel=0.002)
         if sp_["glasses"]:
             for sx in (-1, 1): tr("glass", 0.024, 0.0045, (sx * 0.033, fy + 0.006, hz + 0.012), black, hp, rot=(math.radians(90), 0, 0), seg=10)
             bx("bridge", (0.016, 0.006, 0.006), (0, fy + 0.006, hz + 0.016), black, hp, bevel=0.001)
@@ -302,7 +302,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         sp("core", 0.04, (0, 0.08, 0.1), E("core", (1.0, 0.5, 0.15), 8.0), tp, (1, 0.6, 1), 8, 5)
     if "orb" in ex:
         sp("orb", 0.045, (-0.3 * W, 0.12, 0.12), E("orb", (0.8, 0.6, 1.0), 8.0), tp, (1, 1, 1), 8, 5)
-    root.scale = (s * H, s * H, s * H)
+    root.scale = (s * H * 0.9, s * H * 0.9, s * H * 0.9)
     PIV[root.name] = pivs
     return root
 
