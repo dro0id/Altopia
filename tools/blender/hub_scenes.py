@@ -506,7 +506,7 @@ def base_env(elev=14.0):
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -12.0, 10.8), (0, 1.9, 0.3), 31)
+    camera((0, -12.5, 11.2), (0, 1.9, 0.3), 27.5)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
