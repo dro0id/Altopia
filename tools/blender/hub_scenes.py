@@ -233,9 +233,13 @@ def render(name, res=(624, 1352), transparent=False, samples=None, view="AgX", l
     bpy.ops.render.render(write_still=True)
     print("rendu", scn.render.filepath)
 
-CAPT = lambda: None
-def person(kind, loc, rz, s=1.7/0.84):
-    return imp(kind, loc, rz, s)
+import characters
+CHAR = {"captain": "captain", "crew_pilot": "rex", "crew_engineer": "bolt", "crew_scientist": "lyra", "rex": "rex", "bolt": "bolt", "lyra": "lyra", "vance": "vance", "nox": "nox"}
+def person(kind, loc, rz, s=2.0, pose="idle"):
+    """Personnage modélisé sur mesure (characters.py), hauteur ~1,7 m pour s=2."""
+    r = characters.make(CHAR[kind], pose, s * 0.8)
+    r.location = (loc[0], loc[1], loc[2] if len(loc) > 2 else 0.0); r.rotation_euler = (0, 0, rz)
+    return r
 
 def flame(loc, rz_rot, length, r, color=(0.5, 0.85, 1.0), k=14.0, soft=True):
     bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=r, radius2=0.0, depth=length, location=loc)
@@ -307,7 +311,7 @@ def arrive():
 
 
 # ---------------------------------------------------------------- scènes au sol
-ACCENTS = {"atelier": (1.0, 0.7, 0.42), "quartiers": (0.43, 1.0, 0.61), "labo": (0.5, 0.95, 1.0), "mine": (0.88, 0.72, 0.47), "centrale": (0.78, 0.6, 1.0), "soute": (1.0, 0.82, 0.35)}
+ACCENTS = {"atelier": (1.0, 0.7, 0.42), "quartiers": (0.43, 1.0, 0.61), "labo": (0.5, 0.95, 1.0), "mine": (0.88, 0.72, 0.47), "centrale": (0.78, 0.6, 1.0), "soute": (1.0, 0.82, 0.35), "pad": (1.0, 0.55, 0.5)}
 
 def launch_site(sun_elev=3.0, sun_az=3.4, dust=5.0, ship_pos=(0, 0, 1.9), ship_rz=math.radians(-90), pitch=0.0, flame_len=0.0, s=1.4, flame_col=(0.04, 0.45, 1.0)):
     world_sky(sun_elev, sun_az, dust, 0.5)
@@ -379,9 +383,10 @@ def briefing():
         bpy.context.active_object.data.materials.append(emissive("orb", (0.5, 0.95, 1.0), 6.0))
     sphere("marker", 0.07, (1.35, 0.1, 2.25), material=emissive("mk", (1.0, 0.82, 0.35), 12.0))
     person("captain", (0.0, -2.3, 0), 0, 2.1)
-    person("crew_pilot", (2.1, -0.4, 0), math.radians(90), 2.0)
-    person("crew_engineer", (-2.1, -0.4, 0), math.radians(-90), 2.0)
-    person("crew_scientist", (-0.2, 2.2, 0), math.radians(180), 2.0)
+    person("rex", (2.2, -0.5, 0), math.radians(90), 2.0)
+    person("bolt", (-2.2, -0.5, 0), math.radians(-90), 2.0, "idle")
+    person("lyra", (-1.3, 1.9, 0), math.radians(-150), 2.0, "think")
+    person("vance", (1.2, 1.9, 0), math.radians(160), 2.1, "point")
     point((0, 0, 2.0), 700, (0.3, 0.8, 1.0), 0.5)
     area((0, -6.0, 4.6), (0, 0, 1.2), 350, (1.0, 0.85, 0.7), 4)
     area((0, 6.0, 3.5), (0, 0, 1.2), 220, (0.4, 0.6, 1.0), 6)
@@ -410,8 +415,8 @@ def cockpit():
         box("scr", (1.1, 0.04, 0.5), (sx, 1.55, 0.95), (math.radians(-22), 0, 0), emissive("scr", (0.2, 0.8, 1.0) if sx != 0 else (1.0, 0.6, 0.2), 3.0), 0.0)
     for sx in (-1.1, 1.1):
         imp("desk_chairArms", (sx, 0.1, 0), math.radians(0), 1.5)
-    person("crew_pilot", (-1.1, 0.25, 0.05), 0, 1.8)
-    person("crew_engineer", (1.1, 0.25, 0.05), 0, 1.8)
+    person("rex", (-1.1, 0.25, 0.05), 0, 1.8, "work")
+    person("bolt", (1.1, 0.25, 0.05), 0, 1.8, "work")
     point((0, 1.2, 1.8), 120, (0.5, 0.8, 1.0), 0.4)
     camera((0.0, -3.0, 1.7), (0.0, 3.0, 1.3), 22)
     render("cockpit")
@@ -443,11 +448,10 @@ def plot_marker(loc, col):
         box("pmy", (0.07, w, 0.05), (loc[0] + sx*w/2, loc[1], 0.04), material=m, bevel=0.0)
         box("pmx", (w, 0.07, 0.05), (loc[0], loc[1] + sx*w/2, 0.04), material=m, bevel=0.0)
 
-def building(kind, loc, rz=0.0):
+def building(kind, loc, rz=0.0, level=1):
     import buildings
-    objs = buildings.BUILDERS[kind](ACCENTS[kind])
-    group(objs, kind, (loc[0], loc[1], 0.0), rz, 1.0, center=False)
-    return
+    objs = buildings.build(kind, level, ACCENTS[kind])
+    group(objs, kind, (loc[0], loc[1], 0.0), rz, 0.92 * buildings.level_scale(level), center=False)
 
 def building_kenney(kind, loc, rz=0.0):
     x, y = loc[0], loc[1]
@@ -484,8 +488,9 @@ def building_kenney(kind, loc, rz=0.0):
         for k in range(3): imp("barrels", (x - 1.5 + k*1.3, y - 2.0, 0), k, 1.5)
         box("lamp", (1.0, 0.06, 0.18), (x, y - 1.55, 2.0), material=emissive("t", tag, 5.0), bevel=0.0)
 
-SPOTS = [(-5.0, -5.0), (5.0, -5.0), (-5.0, 0.2), (5.0, 0.2), (-5.0, 5.4), (5.0, 5.4)]
-KINDS = ["atelier", "quartiers", "labo", "mine", "centrale", "soute"]
+SPOTS = [(-4.5, -6.4), (4.5, -6.4), (-4.5, -2.1), (4.5, -2.1), (-4.5, 2.2), (4.5, 2.2), (-4.5, 6.5), (4.5, 6.5)]
+LEVELS = {"atelier": 12, "quartiers": 4, "labo": 20, "mine": 7, "centrale": 10, "soute": 3, "pad": 1}
+KINDS = ["atelier", "quartiers", "labo", "mine", "centrale", "soute", "pad"]
 
 def base_env(elev=14.0):
     world_sky(elev, math.radians(205), 2.5, 0.35)
@@ -498,15 +503,15 @@ def base_env(elev=14.0):
         x, y = rng.uniform(-30, 30), rng.uniform(-14, 40)
         if (abs(x) < 9.5 and -9 < y < 11) or y < -7: continue
         imp(rng.choice(["rocks_smallA", "rocks_smallB", "rock"]), (x, y, 0), rng.uniform(0, 6), rng.uniform(1.2, 3.2))
-    sh = ship((0, 14, 1.0), math.radians(180), 1.5)
+    sh = ship((0, 16.5, 1.0), math.radians(180), 1.5)
     for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        cyl("leg", 0.08, 0.08, 1.0, (sx*1.6, 14 + sy*1.4, 0.5), axis="Z", seg=8, material=solid("leg", (0.4, 0.42, 0.46), 0.6, 0.5))
+        cyl("leg", 0.08, 0.08, 1.0, (sx*1.6, 16.5 + sy*1.4, 0.5), axis="Z", seg=8, material=solid("leg", (0.4, 0.42, 0.46), 0.6, 0.5))
     # lunes
     sphere("moon1", 11, (-70, 260, 90), material=emissive("moon", (0.8, 0.88, 1.0), 6.0))
     sphere("moon2", 5, (-135, 230, 40), material=emissive("moon2", (0.75, 0.8, 0.95), 5.0))
 
 def base_cam():
-    camera((0, -12.5, 11.2), (0, 1.9, 0.3), 27.5)
+    camera((0, -15.0, 13.5), (0, 2.6, 0.3), 28)
 
 def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "crew_scientist", "crew_pilot", "crew_engineer")):
     for (x, y, rz), k in zip(positions, kinds):
@@ -516,6 +521,7 @@ def stage_people(positions, kinds=("captain", "crew_pilot", "crew_engineer", "cr
 def base_0():
     reset(); base_env()
     for (x, y), k in zip(SPOTS, KINDS): plot_marker((x, y), ACCENTS[k])
+    plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
     tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3)); tent((3.5, 9.5), -0.3)
     for k in range(3): imp("barrels", (-5.5 + k*1.2, 8.0, 0), k, 1.8)
     point((0.8, 8.4, 0.8), 140, (1.0, 0.6, 0.25), 0.4)
@@ -530,6 +536,7 @@ def base_1():
     building("atelier", (*SPOTS[0], 0)[:2], 0)
     scaffold(SPOTS[1], ACCENTS["quartiers"])
     for (x, y), k in list(zip(SPOTS, KINDS))[2:]: plot_marker((x, y), ACCENTS[k])
+    plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
     tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3))
     stage_people([(-1.0, 7.0, math.radians(-30)), (3.2, -1.8, math.radians(90)), (-2.8, -2.6, 0.0), (4.2, -3.0, math.radians(-90))], ("captain", "crew_engineer", "crew_pilot", "crew_scientist"))
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
@@ -538,7 +545,8 @@ def base_1():
 @scene
 def base_2():
     reset(); base_env()
-    for (x, y), k in zip(SPOTS, KINDS): building(k, (x, y), 0)
+    for (x, y), k in zip(SPOTS, KINDS): building(k, (x, y), 0, LEVELS[k])
+    plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
     scaffold((0, 8.0), ACCENTS["soute"], h=1.8, w=2.4) if False else None
     stage_people([(0.0, 3.0, 0.0), (2.0, 7.0, math.radians(90)), (-2.0, 7.2, math.radians(-90)), (0.0, -1.2, math.radians(180)), (1.4, -4.8, math.radians(30)), (-1.6, 5.0, 0.0)])
     sun((math.radians(55), 0, math.radians(30)), 1.6, (1, 0.8, 0.6))
@@ -593,8 +601,8 @@ def engine_room():
     for k in range(3):
         imp("pipe_straight", (-4.6, -2 + k*2.2, 2.6), math.radians(90), 2.2)
     imp("desk_computer", (2.6, -1.2, 0), math.radians(-30), 3.0)
-    person("crew_pilot", (1.4, -1.8, 0), math.radians(-150), 2.0)
-    person("crew_engineer", (-1.8, -0.8, 0), math.radians(120), 2.0)
+    person("rex", (1.4, -1.8, 0), math.radians(-150), 2.0, "idle")
+    person("bolt", (-1.6, -0.6, 0), math.radians(110), 2.0, "work")
     point((0, 1.5, 1.8), 900, (0.3, 0.8, 1.0), 0.6)
     area((0, -5.5, 3.8), (0, 1, 1.2), 300, (1.0, 0.8, 0.6), 4)
     camera((1.7, -3.4, 1.7), (-0.2, 1.4, 1.5), 21)
@@ -635,7 +643,7 @@ def armory():
     bpy.ops.mesh.primitive_torus_add(major_radius=0.34, minor_radius=0.03, major_segments=40, minor_segments=8, location=(2.0, 1.2, 1.5), rotation=(math.radians(80), 0, 0))
     bpy.context.active_object.data.materials.append(emissive("vr", (1.0, 0.9, 0.5), 8.0))
     imp("barrels", (-3.5, -1.0, 0), 0.5, 2.6)
-    person("captain", (-0.2, -0.2, 0), math.radians(200), 2.4)
+    person("captain", (-0.2, -0.2, 0), math.radians(200), 2.4, "salute")
     point((2.0, 1.2, 1.6), 600, (1.0, 0.8, 0.4), 0.4)
     area((0, -4.0, 3.3), (0, 1, 1.2), 300, (0.8, 0.9, 1.0), 4)
     camera((0.3, -3.3, 1.4), (0.5, 0.6, 1.2), 30)
@@ -650,8 +658,8 @@ def lab():
     imp("desk_computer", (-1.6, 1.8, 0.9), math.radians(180), 2.4)
     imp("satelliteDish_large", (3.8, 3.2, 0), math.radians(200), 2.8)
     planet((1.3, 2.0, 1.6), 0.38, [(0.0, (0.1, 0.4, 0.6)), (0.6, (0.3, 0.9, 0.8)), (1.0, (0.8, 1.0, 1.0))], scale=4.0, atmo=(0.4, 0.9, 1.0), atmo_k=1.5)
-    person("crew_scientist", (-0.2, 0.3, 0), math.radians(10), 2.1)
-    person("captain", (1.8, -0.8, 0), math.radians(20), 2.1)
+    person("lyra", (-0.2, 0.3, 0), math.radians(10), 2.1, "work")
+    person("captain", (1.8, -0.8, 0), math.radians(20), 2.1, "think")
     point((0, 1.5, 2.0), 500, (0.4, 0.9, 1.0), 0.5)
     area((0, -4.5, 3.6), (0, 1, 1.2), 300, (1.0, 0.85, 0.7), 4)
     camera((0.5, -3.7, 1.6), (0.1, 1.6, 1.3), 29)
@@ -742,27 +750,29 @@ def icon_rig(target, dist=1.0):
     sun((math.radians(50), math.radians(0), math.radians(-35)), 3.5, (1, 0.93, 0.82))
     area((-6, 4, 5), target, 250, (0.5, 0.7, 1.0), 6)
 
-def make_icon(kind):
+def make_icon(kind, level):
     def f():
         reset(); catcher(); icon_rig((0, 0, 1.0))
-        building(kind, (0, 0), 0)
-        camera((4.7, -5.6, 3.7), (0, 0, 0.7), 40)
-        render("i_" + kind, res=(480, 480), transparent=True)
+        building(kind, (0, 0), 0, level)
+        camera((5.3, -6.3, 4.6), (0, 0, 1.25), 38)
+        render("i_%s_%d" % (kind, level) if level != 1 else "i_" + kind, res=(480, 480), transparent=True)
     return f
-for _k in KINDS: SCENES["icon_" + _k] = make_icon(_k)
+for _k in KINDS + ["pad"]:
+    SCENES["icon_" + _k] = make_icon(_k, 1)
+    for _l in (10, 20): SCENES["icon_%s_%d" % (_k, _l)] = make_icon(_k, _l)
 
 def make_portrait(kind):
     def f():
         reset(); catcher()
         w = bpy.data.worlds.new("w"); bpy.context.scene.world = w; w.use_nodes = True
         w.node_tree.nodes["Background"].inputs[0].default_value = (0.2, 0.3, 0.45, 1); w.node_tree.nodes["Background"].inputs[1].default_value = 0.5
-        person(kind, (0, 0, 0), math.radians(160), 2.0)
+        person(kind, (0, 0, 0), math.radians(18), 2.0, "idle")
         sun((math.radians(55), 0, math.radians(-30)), 3.2, (1, 0.95, 0.9))
         area((-3, 2.5, 2.0), (0, 0, 1.2), 160, (0.4, 0.8, 1.0), 3)
-        camera((-1.4, 3.2, 1.7), (0, 0, 1.2), 55)
+        camera((-0.8, 3.0, 1.3), (0, 0, 1.0), 40)
         render("i_" + kind, res=(480, 600), transparent=True)
     return f
-for _k in ("captain", "crew_pilot", "crew_engineer", "crew_scientist"): SCENES["portrait_" + _k] = make_portrait(_k)
+for _k in ("captain", "rex", "bolt", "lyra", "vance", "nox"): SCENES["portrait_" + _k] = make_portrait(_k)
 
 if __name__ == "__main__":
     for n in (NAMES or list(SCENES)):

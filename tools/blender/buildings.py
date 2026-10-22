@@ -5,14 +5,60 @@ import bpy, bmesh, math, random
 from mathutils import Vector
 from lib import mat as lmat, box, cyl, sphere
 
-def M(name, col, metal=0.0, rough=0.5): return lmat(name, col, metal, rough)
+CUR = {"tier": 0, "level": 1, "accent": (0.5, 0.9, 1.0)}
+
+def tier_of(level):
+    return 0 if level < 10 else (1 if level < 20 else 2)
+
+def M(name, col, metal=0.0, rough=0.5):
+    """Matériau texturé selon le palier : 1-9 peinture à panneaux, 10-19 acier riveté à liserés lumineux, 20 plaquage or/chrome à circuits lumineux."""
+    tier = CUR["tier"]
+    if tier == 1:
+        col = tuple(c * 0.78 for c in col); metal = max(metal, 0.65); rough = min(rough, 0.45)
+    elif tier == 2:
+        col = tuple(0.5 * c + 0.5 * g for c, g in zip(col, (1.0, 0.82, 0.45))); metal = 0.92; rough = 0.22
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; b = nt.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*col, 1); b.inputs["Metallic"].default_value = metal; b.inputs["Roughness"].default_value = rough
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    brick = nt.nodes.new("ShaderNodeTexBrick"); brick.inputs["Scale"].default_value = 5.0 if tier == 0 else 9.0
+    brick.inputs["Mortar Size"].default_value = 0.02; brick.inputs["Brick Width"].default_value = 1.2; brick.inputs["Row Height"].default_value = 0.6
+    nt.links.new(tc.outputs["Object"], brick.inputs["Vector"])
+    nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 9.0; nz.inputs["Detail"].default_value = 8
+    nt.links.new(tc.outputs["Object"], nz.inputs["Vector"])
+    # usure : variation de teinte
+    mx = nt.nodes.new("ShaderNodeMix"); mx.data_type = "RGBA"; mx.blend_type = "MULTIPLY"; mx.inputs[0].default_value = 0.35
+    mx.inputs[6].default_value = (*col, 1)
+    nt.links.new(nz.outputs["Color"], mx.inputs[7]); nt.links.new(mx.outputs[2], b.inputs["Base Color"])
+    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.25 if tier == 0 else 0.5; bump.inputs["Distance"].default_value = 0.02
+    nt.links.new(brick.outputs["Fac"], bump.inputs["Height"])
+    if tier >= 1:   # rivets
+        vr = nt.nodes.new("ShaderNodeTexVoronoi"); vr.inputs["Scale"].default_value = 28.0
+        nt.links.new(tc.outputs["Object"], vr.inputs["Vector"])
+        rr = nt.nodes.new("ShaderNodeMath"); rr.operation = "LESS_THAN"; rr.inputs[1].default_value = 0.1
+        nt.links.new(vr.outputs["Distance"], rr.inputs[0])
+        ad = nt.nodes.new("ShaderNodeMath"); ad.operation = "ADD"
+        nt.links.new(brick.outputs["Fac"], ad.inputs[0]); nt.links.new(rr.outputs[0], ad.inputs[1])
+        nt.links.new(ad.outputs[0], bump.inputs["Height"])
+    nt.links.new(bump.outputs[0], b.inputs["Normal"])
+    if tier == 2:   # circuits dorés lumineux
+        ve = nt.nodes.new("ShaderNodeTexVoronoi"); ve.feature = "DISTANCE_TO_EDGE"; ve.inputs["Scale"].default_value = 6.0
+        nt.links.new(tc.outputs["Object"], ve.inputs["Vector"])
+        cr = nt.nodes.new("ShaderNodeValToRGB"); cr.color_ramp.elements[0].position = 0.0; cr.color_ramp.elements[1].position = 0.04
+        cr.color_ramp.elements[0].color = (1, 1, 1, 1); cr.color_ramp.elements[1].color = (0, 0, 0, 1)
+        nt.links.new(ve.outputs["Distance"], cr.inputs[0])
+        em = nt.nodes.new("ShaderNodeMix"); em.data_type = "RGBA"; em.blend_type = "MULTIPLY"; em.inputs[0].default_value = 1.0
+        em.inputs[6].default_value = (*CUR["accent"], 1)
+        nt.links.new(cr.outputs[0], em.inputs[7]); nt.links.new(em.outputs[2], b.inputs["Emission Color"])
+        b.inputs["Emission Strength"].default_value = 2.5
+    return m
 def E(name, col, k=4.0):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; nt.nodes.clear()
     e = nt.nodes.new("ShaderNodeEmission"); e.inputs[0].default_value = (*col, 1); e.inputs[1].default_value = k
     o = nt.nodes.new("ShaderNodeOutputMaterial"); nt.links.new(e.outputs[0], o.inputs[0])
     return m
-def put(ob, m, smooth=True):
+def put(ob, m, smooth=True):  # noqa
     ob.data.materials.clear(); ob.data.materials.append(m)
     if smooth:
         for p in ob.data.polygons: p.use_smooth = True
@@ -178,4 +224,87 @@ def soute(accent=(1.0, 0.82, 0.35)):
         box("gp", (0.08, 0.08, 1.5), (x, 1.2, 0.9), material=ac, bevel=0.0)
     box("gb", (1.3, 0.1, 0.1), (1.1, 1.2, 1.65), material=ac, bevel=0.0)
 
-BUILDERS = {"atelier": atelier, "quartiers": quartiers, "labo": labo, "mine": mine, "centrale": centrale, "soute": soute}
+
+def _lamps(n, accent, w=3.3, d=3.1):
+    per = 2 * (w + d)
+    for k in range(n):
+        t = (k + 0.5) / max(n, 1) * per
+        if t < w: x, y = -w / 2 + t, -d / 2
+        elif t < w + d: x, y = w / 2, -d / 2 + (t - w)
+        elif t < 2 * w + d: x, y = w / 2 - (t - w - d), d / 2
+        else: x, y = -w / 2, d / 2 - (t - 2 * w - d)
+        sphere("lamp", 0.05, (x, y, 0.2), material=E("lamp", accent, 8.0))
+
+def _tier_extras(tier, level, accent):
+    if tier >= 1:
+        steel = M("t_steel", STEEL, 0.8, 0.35)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                box("pyl", (0.1, 0.1, 0.9 + 0.15 * tier), (sx * 1.72, sy * 1.6, 0.55 + 0.07 * tier), material=steel, bevel=0.01)
+                sphere("pyt", 0.075, (sx * 1.72, sy * 1.6, 1.05 + 0.15 * tier), material=E("pyt", accent, 9.0))
+        for sy in (-1, 1):
+            box("trim", (3.5, 0.06, 0.05), (0, sy * 1.66, 0.19), material=E("trim", accent, 5.0), bevel=0.0)
+        for sx in (-1, 1):
+            box("trim", (0.06, 3.3, 0.05), (sx * 1.76, 0, 0.19), material=E("trim", accent, 5.0), bevel=0.0)
+        for k, h in enumerate((0.9, 1.3, 0.7)):
+            cyl("mast", 0.03, 0.03, h, (-1.2 + k * 0.25, 1.45, 2.3 + h / 2), axis="Z", seg=8, material=steel)
+            sphere("mt", 0.05, (-1.2 + k * 0.25, 1.45, 2.3 + h), material=E("mt", accent, 8.0))
+    if tier == 2:
+        gold = (1.0, 0.82, 0.4)
+        torus(1.5, 0.05, (0, 0, 3.1), rot=(math.radians(12), math.radians(8), 0), mat=E("halo", gold, 7.0))
+        torus(1.05, 0.035, (0, 0, 3.35), rot=(math.radians(-14), math.radians(10), 0), mat=E("halo2", accent, 7.0))
+        cyl("beam", 0.05, 0.05, 3.4, (0, 0, 1.7), axis="Z", seg=12, material=E("beam", gold, 8.0))
+        torus(1.9, 0.07, (0, 0, 0.2), mat=E("gring", gold, 5.0))
+
+def build(kind, level=1, accent=None):
+    """Construit le bâtiment `kind` au niveau `level` (1-20). Paliers : 1-9, 10-19, 20."""
+    level = max(1, min(20, int(level)))
+    tier = tier_of(level)
+    accent = accent or ACCENT_DEFAULT[kind]
+    CUR.update(tier=tier, level=level, accent=accent)
+    before = set(bpy.data.objects)
+    BUILDERS[kind](accent)
+    _lamps(level if tier == 0 else (level - 9 if tier == 1 else 12), accent)
+    _tier_extras(tier, level, accent)
+    return [o for o in bpy.data.objects if o not in before]
+
+def level_scale(level):
+    return 1.0 + 0.012 * (max(1, min(20, level)) - 1)
+
+def _shuttle(loc, rz=0.0, s=1.0):
+    """Petite navette de recrues : fuselage effilé, ailes, cockpit lumineux."""
+    from lib import loft
+    hull, dark = M("sh_hull", (0.85, 0.88, 0.92), 0.4, 0.4), M("sh_dark", DARK, 0.6, 0.4)
+    f = loft("shfus", [(1.0, 0.03, 0.03, 0), (0.7, 0.18, 0.14, 0.01), (0.1, 0.34, 0.24, 0.02), (-0.6, 0.36, 0.22, 0), (-0.9, 0.28, 0.18, 0)], n=14, exp=2.6, material=hull, subsurf=1)
+    f.scale = (s, s, s); f.location = loc; f.rotation_euler = (0, 0, rz)
+    for sx in (-1, 1):
+        w = box("shwing", (0.55 * s, 0.5 * s, 0.03 * s), (loc[0] + sx * 0.38 * s * math.cos(rz), loc[1] + sx * 0.38 * s * math.sin(rz), loc[2] - 0.02), (0, 0, rz + sx * 0.3), dark, 0.01)
+    sphere("shcock", 0.1 * s, (loc[0] - math.sin(rz) * 0.3 * s, loc[1] + math.cos(rz) * 0.3 * s, loc[2] + 0.1 * s), (1, 1.6, 0.7), E("shc", (0.4, 0.9, 1.0), 3.0))
+    return f
+
+@_new
+def pad(accent=(1.0, 0.55, 0.5)):
+    hull, steel, dark = M("p_hull", HULL, 0.3, 0.5), M("p_steel", STEEL, 0.8, 0.35), M("p_dark", (0.12, 0.14, 0.18), 0.4, 0.6)
+    ac = M("p_acc", accent, 0.2, 0.4)
+    slab(3.6, 3.4, (0.22, 0.24, 0.28))
+    cyl("deck", 1.35, 1.35, 0.06, (0, -0.1, 0.19), axis="Z", seg=48, material=dark)
+    torus(1.3, 0.04, (0, -0.1, 0.23), mat=E("padring", accent, 6.0))
+    box("hbar1", (0.1, 0.8, 0.02), (-0.3, -0.1, 0.23), material=E("h1", accent, 5.0), bevel=0.0)
+    box("hbar2", (0.1, 0.8, 0.02), (0.3, -0.1, 0.23), material=E("h1", accent, 5.0), bevel=0.0)
+    box("hbar3", (0.7, 0.1, 0.02), (0, -0.1, 0.23), material=E("h1", accent, 5.0), bevel=0.0)
+    _shuttle((0.0, -0.1, 0.55), 0.0, 0.8)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            sphere("beacon", 0.07, (sx * 1.6, sy * 1.5 - 0.1, 0.25), material=E("bcn", (1.0, 0.3, 0.3), 8.0))
+    # tour de contrôle
+    box("tower", (0.55, 0.55, 1.5), (-1.3, 1.2, 0.9), material=hull, bevel=0.04)
+    box("cab", (0.8, 0.8, 0.35), (-1.3, 1.2, 1.8), material=steel, bevel=0.04)
+    box("glass", (0.82, 0.82, 0.18), (-1.3, 1.2, 1.82), material=E("cabg", (0.5, 0.95, 1.0), 2.5), bevel=0.0)
+    cyl("mast", 0.025, 0.025, 0.6, (-1.3, 1.2, 2.3), axis="Z", seg=8, material=steel)
+    sphere("mtip", 0.06, (-1.3, 1.2, 2.62), material=E("mtip", (1.0, 0.3, 0.3), 8.0))
+    box("sign", (1.0, 0.07, 0.16), (0.0, -1.66, 0.3), material=E("sign", accent, 6.0), bevel=0.0)
+    box("hangar", (1.0, 0.7, 0.6), (1.2, 1.2, 0.46), material=hull, bevel=0.04)
+    box("hdoor", (0.7, 0.05, 0.4), (1.2, 0.84, 0.4), material=dark, bevel=0.02)
+
+BUILDERS = {"atelier": atelier, "quartiers": quartiers, "labo": labo, "mine": mine, "centrale": centrale, "soute": soute, "pad": pad}
+ACCENT_DEFAULT = {"atelier": (1.0, 0.7, 0.42), "quartiers": (0.43, 1.0, 0.61), "labo": (0.5, 0.95, 1.0), "mine": (0.88, 0.72, 0.47), "centrale": (0.78, 0.6, 1.0), "soute": (1.0, 0.82, 0.35), "pad": (1.0, 0.55, 0.5)}
