@@ -11,7 +11,7 @@ while i < len(args):
     elif args[i] == "--base": BASE = args[i+1]; i += 2
     else: names.append(args[i]); i += 1
 import bpy
-import characters
+import characters_q as characters
 from lib import reset
 
 ALL = ["captain", "rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara", "vance", "nox"]

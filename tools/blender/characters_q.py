@@ -327,7 +327,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         cc = Vector((0.0, -0.043, 1.69))
         hc0 = Vector((0.0, -0.043, 1.705)); Rin = Vector((0.188 * 0.9, 0.205 * 0.9, 0.205 * 0.9))
         for v in head.data.vertices:
-            v.co = cc + (v.co - cc) * 1.1
+            v.co = cc + (v.co - cc) * 1.18
             d_ = v.co - hc0; e_ = math.sqrt((d_.x / Rin.x) ** 2 + (d_.y / Rin.y) ** 2 + (d_.z / Rin.z) ** 2)
             if e_ > 1.0 and d_.z > -0.05: v.co = hc0 + d_ / e_   # cheveux : rester sous le casque
     # matières de la combinaison
@@ -347,8 +347,10 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     for o in (parts["Body"], parts["Legs"], parts["Feet"]):
         if o is not None: bpy.data.objects.remove(o)
     rigid = []   # (objet, os)
-    def add(ob, bone, mat):
-        ob.data.materials.append(mat); rigid.append((ob, bone)); return ob
+    def add(ob, bone, mat, keep=None):
+        ob.data.materials.append(mat); rigid.append((ob, bone))
+        if keep: ob["keep"] = keep
+        return ob
     hb = lambda n: bone_h(arm, n); tb = lambda n: bone_t(arm, n)
     # --- casque
     hc = Vector((0.0, -0.043, 1.705)); R = Vector((0.188, 0.205, 0.205))
@@ -408,6 +410,12 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     pt = prim_box((0.28 * bk, 0.02, 0.05), (0, back_y + 0.2, cz + 0.12), r=0.3, sub=0); add(pt, "Chest", trim)
     pl = prim_box((0.07, 0.02, 0.04), (0, back_y + 0.2, cz - 0.1), r=0.2, sub=0); add(pl, "Chest", E("pl", (1.0, 0.3, 0.3), 3.0))
     for sx in (-1, 1):
+        add(prim_cyl(0.05, 0.05, 0.36, (sx * 0.2 * bk, back_y + 0.09, cz - 0.02), seg=12), "Chest", gray)          # bouteilles latérales
+        add(prim_cyl(0.054, 0.054, 0.03, (sx * 0.2 * bk, back_y + 0.09, cz + 0.13), seg=12), "Chest", trim)
+        add(prim_box((0.035, 0.012, 0.3), (sx * 0.12 * bk, back_y + 0.2, cz - 0.02), r=0.3, sub=0), "Chest", trim)     # sangles
+        for k_ in range(3): add(prim_box((0.08 * bk, 0.012, 0.012), (sx * 0.08 * bk, back_y + 0.2, cz - 0.1 - k_ * 0.03), r=0.3, sub=0), "Chest", dark)   # prises d'air
+    add(prim_box((0.12 * bk, 0.02, 0.07), (0, back_y + 0.2, cz + 0.02), r=0.25, sub=0), "Chest", E("bk_scr", sp_["trim"], 2.0), keep="pack_panel")
+    for sx in (-1, 1):
         hs_ = tube([Vector((sx * 0.1, back_y + 0.06, cz + 0.27)), Vector((sx * 0.2, back_y - 0.02, cz + 0.34)), Vector((sx * 0.17, -0.06, cz + 0.36)), Vector((sx * 0.1, -0.075, cz + 0.28))], 0.02, 8); add(hs_, "Chest", black)
     # --- panneau de commandes
     fy = front_y(shells, cz + 0.02, 0.1)
@@ -424,8 +432,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
                                    ("LowerArm.L", 0.06, 0.016, dark, 0.014), ("LowerArm.R", 0.06, 0.016, dark, 0.014), ("LowerArm.L", 0.86, 0.02, trim, 0.012), ("LowerArm.R", 0.86, 0.02, trim, 0.012),
                                    ("UpperLeg.L", 0.2, 0.016, dark, 0.014), ("UpperLeg.R", 0.2, 0.016, dark, 0.014), ("LowerLeg.L", 0.08, 0.018, dark, 0.014), ("LowerLeg.R", 0.08, 0.018, dark, 0.014),
                                    ("LowerLeg.L", 0.88, 0.02, trim, 0.012), ("LowerLeg.R", 0.88, 0.02, trim, 0.012),
-                                   ("Abdomen", 0.82, 0.02, trim, 0.012), ("Hips", 0.5, 0.02, dark, 0.012), ("Chest", 0.28, 0.014, dark, 0.012),
-                                   ("UpperArm.L", 0.5, 0.012, dark, 0.012), ("UpperArm.R", 0.5, 0.012, dark, 0.012), ("LowerArm.L", 0.45, 0.012, dark, 0.012), ("LowerArm.R", 0.45, 0.012, dark, 0.012),
+                                   ("Abdomen", 0.82, 0.02, trim, 0.012), ("Hips", 0.5, 0.02, dark, 0.012),
+                                   ("LowerArm.L", 0.45, 0.012, dark, 0.012), ("LowerArm.R", 0.45, 0.012, dark, 0.012),
                                    ("UpperLeg.L", 0.55, 0.014, trim, 0.012), ("UpperLeg.R", 0.55, 0.014, trim, 0.012), ("UpperLeg.L", 0.9, 0.016, dark, 0.012), ("UpperLeg.R", 0.9, 0.016, dark, 0.012),
                                    ("LowerLeg.L", 0.5, 0.012, dark, 0.012), ("LowerLeg.R", 0.5, 0.012, dark, 0.012)):
         r_ = ring_around(shells, arm, bone, t, th, mt, ex_, rmax_ring=(0.2 if bone in ("Abdomen", "Hips", "Chest") else 0.13))
@@ -473,8 +481,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         for sx in (-1, 1):
             add(tube([Vector((hc.x + sx * 0.05 + math.cos(a) * 0.032, hc.y - 0.13, hc.z - 0.0 + math.sin(a) * 0.032)) for a in [2 * math.pi * k / 12 for k in range(12)]], 0.005, 4, True), "Head", black)
     if "antenna" in ex:
-        add(prim_cyl(0.01, 0.01, 0.2, (0.16 * bk, back_y + 0.1, cz + 0.2), seg=6), "Chest", gray)
-        add(prim_sph(0.026, (0.16 * bk, back_y + 0.1, cz + 0.31), (1, 1, 1), 8), "Chest", E("atip", (1.0, 0.3, 0.8), 5.0))
+        add(prim_cyl(0.01, 0.01, 0.2, (0.16 * bk, back_y + 0.1, cz + 0.2), seg=6), "Chest", gray, keep="antenna")
+        add(prim_sph(0.026, (0.16 * bk, back_y + 0.1, cz + 0.31), (1, 1, 1), 8), "Chest", E("atip", (1.0, 0.3, 0.8), 5.0), keep="antenna_tip")
     if "epaulet" in ex:
         for bone, side in (("UpperArm.L", 1), ("UpperArm.R", -1)):
             h_ = hb(bone); add(prim_box((0.12, 0.1, 0.02), (h_.x + side * 0.045, h_.y, h_.z + 0.11), r=0.3, sub=0), bone, gold)
@@ -506,6 +514,8 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     # --- fusion par (os, matière), peau
     groups = {}
     for ob, bone in rigid:
+        if ob.get("keep"):
+            ob.name = ob["keep"]; skin_rigid(ob, arm, bone); continue
         key = (bone, ob.data.materials[0].name if ob.data.materials else "")
         groups.setdefault(key, []).append(ob)
     for (bone, mn), obs in groups.items():
@@ -525,3 +535,39 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     PIV[root.name] = arm
     apply_pose(arm, pose_spec(pose))
     return root
+
+
+def animate(root):
+    """Clips Idle / Walk / Shoot (NLA) sur le squelette Humanoid, par poses clés monde. Le squelette reste en A-pose à la fin."""
+    arm = PIV[root.name]
+    bpy.context.scene.render.fps = 24
+    arm.animation_data_create()
+    def mirror(sp_):
+        sw = {"L": "R", "R": "L"}
+        out = {}
+        for b, rots in sp_.items():
+            nb = b[:-1] + sw[b[-1]] if b[-2:] in (".L", ".R") else b
+            out[nb] = [((a[0], -a[1], -a[2]) if False else a, d) for a, d in rots]
+        return out
+    def walk(sg):
+        d = apose()
+        def add(b, *rot): d[b] = d.get(b, []) + list(rot)
+        add("UpperArm.L", (X, 26 * sg)); add("UpperArm.R", (X, -26 * sg)); add("LowerArm.L", (X, 20 if sg > 0 else 4)); add("LowerArm.R", (X, 4 if sg > 0 else 20))
+        add("UpperLeg.L", (X, -24 * sg)); add("UpperLeg.R", (X, 24 * sg)); add("LowerLeg.R", (X, 30 if sg > 0 else 0)); add("LowerLeg.L", (X, 0 if sg > 0 else 30))
+        add("Abdomen", (Z, 4 * sg))
+        return d
+    def idle(dh):
+        d = apose(); d["Head"] = [(X, dh)]; d["Abdomen"] = [(X, dh * 0.4)]; return d
+    def shoot(a):
+        d = apose(); d["UpperArm.R"] = [(Y, -40), (X, a)]; d["LowerArm.R"] = [(X, 8)]; d["Abdomen"] = [(X, a * 0.05)]; return d
+    clips = {
+        "Idle": [(1, idle(0)), (30, idle(3)), (60, idle(0))],
+        "Walk": [(1, walk(1)), (13, walk(-1)), (25, walk(1))],
+        "Shoot": [(1, idle(0)), (6, shoot(80)), (10, shoot(86)), (16, idle(0))],
+    }
+    for nm, frames in clips.items():
+        act = bpy.data.actions.new(nm); arm.animation_data.action = act
+        for f, sp_ in frames: apply_pose(arm, sp_, keyframe=f)
+        arm.animation_data.action = None
+        tr = arm.animation_data.nla_tracks.new(); tr.name = nm; st = tr.strips.new(nm, 1, act); st.name = nm
+    apply_pose(arm, apose())

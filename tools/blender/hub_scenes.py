@@ -233,7 +233,7 @@ def render(name, res=(624, 1352), transparent=False, samples=None, view="AgX", l
     bpy.ops.render.render(write_still=True)
     print("rendu", scn.render.filepath)
 
-import characters
+import characters_q as characters
 CHAR = {"captain": "captain", "crew_pilot": "rex", "crew_engineer": "bolt", "crew_scientist": "lumi", "lyra": "lumi", "rex": "rex", "bolt": "bolt", "vance": "vance", "nox": "nox", "nova": "nova", "zara": "zara", "tess": "tess", "gorn": "gorn", "lumi": "lumi", "quark": "quark", "elara": "elara"}
 def person(kind, loc, rz, s=2.0, pose="idle"):
     """Personnage modélisé sur mesure (characters.py), hauteur ~1,7 m pour s=2."""
