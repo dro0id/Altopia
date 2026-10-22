@@ -85,6 +85,10 @@ def build_suit_shell(src_objs, arm, mats, inflate=0.026):
         if so is None: continue
         # on travaille sur le maillage évalué (modificateurs appliqués : Mirror, Nodes), puis on regonfle
         sh = evaluated_copy(so, so.name + "_suit")
+        if LOD and SHELL_RATIO < 1.0:
+            dm = sh.modifiers.new("dec", "DECIMATE"); dm.ratio = SHELL_RATIO
+            bpy.context.view_layer.objects.active = sh
+            bpy.ops.object.modifier_apply(modifier="dec")
         bm = bmesh.new(); bm.from_mesh(sh.data)
         bm.verts.ensure_lookup_table()
         dom = dominant_groups(sh)
@@ -132,9 +136,9 @@ def prim_box(size, loc, rot=(0, 0, 0), r=0.25, sub=1):
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc, rotation=rot)
     ob = bpy.context.active_object; ob.scale = size
     bpy.ops.object.transform_apply(scale=True, rotation=False)
-    md = ob.modifiers.new("b", "BEVEL"); md.width = r * min(size); md.segments = 2; md.limit_method = "ANGLE"
+    md = ob.modifiers.new("b", "BEVEL"); md.width = r * min(size); md.segments = 1 if LOD else 2; md.limit_method = "ANGLE"
     bpy.ops.object.modifier_apply(modifier="b")
-    if sub:
+    if sub and not LOD:
         sm = ob.modifiers.new("s", "SUBSURF"); sm.levels = 1; sm.render_levels = 1
         bpy.ops.object.modifier_apply(modifier="s")
     _flat(ob, False); return ob
@@ -147,9 +151,16 @@ def prim_cyl(r1, r2, h, loc, rot=(0, 0, 0), seg=12):
     bpy.ops.mesh.primitive_cone_add(vertices=seg, radius1=r1, radius2=r2, depth=h, location=loc, rotation=rot)
     ob = bpy.context.active_object; _flat(ob, False); return ob
 
+LOD = True   # allège les maillages (anneaux, casque, combinaison) : ~25 000 -> ~10 000 triangles par personnage
+SHELL_RATIO = 0.8
+HEAD_RATIO = 0.65
+
 def tube(pts, r, n=8, closed=False):
     """Tuyau de rayon r le long de points (liste Vector) ; closed : boucle fermée."""
     pts = [Vector(p) for p in pts]
+    if LOD:
+        n = min(n, 5)
+        if closed and len(pts) > 12 and len(pts) <= 24 and len(pts) % 2 == 0 and len(pts) != 18: pts = pts[::2]
     bm = bmesh.new(); rows = []
     N = len(pts)
     for i, p in enumerate(pts):
@@ -195,7 +206,7 @@ def ring_around(shell_objs, arm, bone, t, thick, mat, extra=0.012, name="ring", 
     up = Vector((0, 0, 1)) if abs(ax.normalized().z) < 0.9 else Vector((0, 1, 0))
     u = (up - up.dot(ax.normalized()) * ax.normalized()).normalized(); w = ax.normalized().cross(u)
     ring = []
-    K = 20
+    K = 18
     for k in range(K):
         a = 2 * math.pi * k / K
         d = u * math.cos(a) + w * math.sin(a)
@@ -205,7 +216,7 @@ def ring_around(shell_objs, arm, bone, t, thick, mat, extra=0.012, name="ring", 
             if rmax_ring is not None and q.length > rmax_ring: continue
             if q.length > 1e-5 and q.normalized().dot(d) > 0.92: best = max(best, q.length)
         if best == 0.0: best = 0.04
-        ring.append(c + d * (best + extra))
+        ring.append(c + d * (best + extra + (0.005 if LOD else 0.0)))
     ob = tube(ring, thick, 6, closed=True); ob.name = name
     ob.data.materials.append(mat); return ob
 
@@ -330,6 +341,10 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
             v.co = cc + (v.co - cc) * 1.18
             d_ = v.co - hc0; e_ = math.sqrt((d_.x / Rin.x) ** 2 + (d_.y / Rin.y) ** 2 + (d_.z / Rin.z) ** 2)
             if e_ > 1.0 and d_.z > -0.05: v.co = hc0 + d_ / e_   # cheveux : rester sous le casque
+        if LOD and HEAD_RATIO < 1.0:
+            dm = head.modifiers.new("dec", "DECIMATE"); dm.ratio = HEAD_RATIO
+            bpy.context.view_layer.objects.active = head
+            bpy.ops.object.modifier_apply(modifier="dec")
     # matières de la combinaison
     suit = M("suit_steel" if godot else name + "_suit", sp_["suit"], 0.0, 0.5)
     sc_ = sp_["suit"]
@@ -355,7 +370,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     # --- casque
     hc = Vector((0.0, -0.043, 1.705)); R = Vector((0.188, 0.205, 0.205))
     shell_m = M(name + "_helm", sp_["suit"] if sp_["helm"] == "suit" else (0.94, 0.95, 0.97), 0.0, 0.4)
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=26, ring_count=16, location=hc)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=20, ring_count=12, location=hc)
     hs = bpy.context.active_object; hs.scale = R * 1.02; bpy.ops.object.transform_apply(scale=True)
     bm = bmesh.new(); bm.from_mesh(hs.data); bm.faces.ensure_lookup_table()
     ys = lambda f: f.calc_center_median()
@@ -378,7 +393,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     bm.to_mesh(hs.data); bm.free()
     md = hs.modifiers.new("sol", "SOLIDIFY"); md.thickness = 0.012; bpy.ops.object.modifier_apply(modifier="sol")
     _flat(hs, False); add(hs, "Head", shell_m)
-    gs = prim_sph(1.0, hc, tuple(R * 1.0), 26); add(gs, "Head", glass("visor", (0.75, 0.88, 1.0), 0.07))
+    gs = prim_sph(1.0, hc, tuple(R * 1.0), 14 if LOD else 26); add(gs, "Head", glass("visor", (0.75, 0.88, 1.0), 0.07))
     if len(loop_pts) > 6:
         cen = sum(loop_pts, Vector()) / len(loop_pts)
         rm = tube([p + (p - cen).normalized() * 0.004 for p in loop_pts], 0.016, 6, closed=True); add(rm, "Head", trim)
@@ -469,7 +484,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     hz = hc.z
     if sp_["hat"] == "lamp": add(prim_sph(0.032, (hc.x, hc.y - 0.2, hc.z + 0.13), (1, 0.7, 1), 8), "Head", E("lamp", (1.0, 0.95, 0.7), 8.0))
     elif sp_["hat"] == "goggles":
-        add(tube([Vector((math.cos(a) * 0.2, hc.y + math.sin(a) * 0.2, hc.z + 0.115)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.012, 6, True), "Head", black)
+        add(tube([Vector((math.cos(a) * 0.152, hc.y + math.sin(a) * 0.165, hc.z + 0.13)) for a in [2 * math.pi * k / 24 for k in range(24)]], 0.012, 6, True), "Head", black)
         for sx in (-1, 1):
             add(tube([Vector((hc.x + sx * 0.065 + math.cos(a) * 0.05, hc.y - 0.2, hc.z + 0.115 + math.sin(a) * 0.05)) for a in [2 * math.pi * k / 14 for k in range(14)]], 0.012, 6, True), "Head", black)
             add(prim_sph(0.042, (hc.x + sx * 0.065, hc.y - 0.2, hc.z + 0.115), (1, 0.2, 1), 10), "Head", E("lens", (1.0, 0.7, 0.2), 1.5))

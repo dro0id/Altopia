@@ -23,5 +23,5 @@ for n in (names or ALL):
     bpy.context.view_layer.update()
     path = os.path.join(BASE, "captain.glb") if god else os.path.join(OUT, "char_%s.glb" % n)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_animation_mode="NLA_TRACKS", export_apply=True, use_visible=True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_animation_mode="NLA_TRACKS", export_apply=True, use_visible=True, export_texcoords=False)
     print("ok", n, path)
