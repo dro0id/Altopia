@@ -534,8 +534,8 @@ def base_0():
 def base_1():
     reset(); base_env()
     building("atelier", (*SPOTS[0], 0)[:2], 0)
-    scaffold(SPOTS[1], ACCENTS["quartiers"])
-    for (x, y), k in list(zip(SPOTS, KINDS))[2:]: plot_marker((x, y), ACCENTS[k])
+    scaffold(SPOTS[6], ACCENTS["pad"])
+    for (x, y), k in list(zip(SPOTS, KINDS))[1:6]: plot_marker((x, y), ACCENTS[k])
     plot_marker(SPOTS[7], (0.6, 0.65, 0.7))
     tent((-2.0, 9.5), 0.2); tent((0.8, 10.4), 0.0, (0.7, 0.5, 0.3))
     stage_people([(-1.0, 7.0, math.radians(-30)), (3.2, -1.8, math.radians(90)), (-2.8, -2.6, 0.0), (4.2, -3.0, math.radians(-90))], ("captain", "crew_engineer", "crew_pilot", "crew_scientist"))
