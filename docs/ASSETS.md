@@ -51,3 +51,9 @@ Direction artistique : astronautes low poly facettés (polygones plats, peu de s
 - Export Godot : `python tools/blender/export_characters.py` -> `assets/base/captain.glb` (matières `suit_steel` et `accent_cyan`, nœuds `antenna`, `antenna_tip`, `pack_panel`, clips Walk, Shoot, Idle) et `assets/models/char_<id>.glb` pour les autres.
 - Portraits 2D : `python tools/blender/hub_scenes.py <dossier> pg_<id>` (256 x 256, fond transparent) puis copie dans `assets/portraits/`. `chibi.gd` les affiche à la place du dessin en code.
 - Les anciens modèles Kenney de l'équipage (`assets/base/crew_*.glb`) sont retirés.
+
+## Équipiers en 3D dans le jeu
+
+- `scripts/crew_view.gd` : fiche 3D d'un équipier (modèle `assets/models/char_<id>.glb` + bibliothèque d'animations, rotation au doigt). Ouverte par « Voir en 3D » sur chaque carte d'équipage, au recrutement d'une nouvelle carte, et dans l'écran de résultat du combat en direct (Victoire / Coup reçu).
+- `tools/crew_shot.gd` : capture d'une fiche (`xvfb-run -a godot --path . --resolution 720x1280 -s tools/crew_shot.gd -- <id> <clip> <png>`).
+- Poids mesuré : 12 000 à 17 500 triangles et 56 à 93 surfaces par personnage, 65 à 101 os ; un seul personnage est affiché à la fois. Non mesuré sur téléphone.
