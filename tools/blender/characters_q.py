@@ -414,7 +414,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     bm = bmesh.new(); bm.from_mesh(hs.data); bm.faces.ensure_lookup_table()
     ys = lambda f: f.calc_center_median()
     # ouverture de la visière : super-ellipse lisse ; les sommets du bord sont ramenés sur la courbe (pas d'escalier)
-    OA, OB, OZ, ON = 0.168, 0.122, -0.0075, 3.0
+    OA, OB, OZ, ON = 0.168, 0.136, 0.006, 3.0
     inside = lambda x, z, k=1.0: (abs(x / (OA * k)) ** ON + abs((z - OZ) / (OB * k)) ** ON) < 1.0
     def curve(th):
         c_, s_ = math.cos(th), math.sin(th)

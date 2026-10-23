@@ -187,13 +187,18 @@ def human_head(name, hc, add, T):
         if b in ("full", "big"):
             L_ = 1.0 if b == "full" else 1.7
             for row, (zl0, zl1, ln) in enumerate(((-0.62, -0.5, 0.05), (-0.78, -0.62, 0.065), (-0.9, -0.78, 0.08))):
-                n_ = 15 if row < 2 else 11
+                n_ = (15 if row < 2 else 11) + (5 if b == "big" else 0)
                 for i in range(n_):
                     u = i / (n_ - 1); phi = lerp(-1.45, 1.45, u) + 0.16 * (jit(i, row + 3.1) - 0.5)
                     if abs(phi) < 0.42 and row == 0: continue      # ouverture de la bouche
                     zl = lerp(zl0, zl1, jit(i, 0.7 + row))
                     dv = (math.sin(phi) * 0.25 + 0.3 * (jit(i, 7.0 + row) - 0.5), -math.cos(phi) * (0.25 + 0.2 * row), -1.0)
-                    clump(cap_pt(phi, zl, 1.08), dv, ln * L_ * (0.6 + 0.85 * jit(i, 2.0 + row)) * (1.25 if abs(phi) < 0.5 and row == 2 else 1.0), 0.016 * (0.85 + 0.3 * jit(i, 4.0)), bc if (i + row) % 2 else bc2, "Jaw", 0.5, 0.0, 0.5 * (jit(i, 6.0) - 0.5), 4)
+                    clump(cap_pt(phi, zl, 1.08), dv, ln * L_ * (0.6 + 0.85 * jit(i, 2.0 + row)) * (1.25 if abs(phi) < 0.5 and row == 2 else 1.0), 0.016 * (0.85 + 0.3 * jit(i, 4.0)) * (0.8 if b == "big" else 1.0), bc if (i + row) % 2 else bc2, "Jaw", 0.5, 0.0, (1.6 if b == "big" else 0.5) * (jit(i, 6.0) - 0.5), 4)
+            for i in range(24 if b == "big" else 16):   # poils fins entre les grosses mèches : casse l'effet de rangées
+                phi = lerp(-1.4, 1.4, jit(i, 8.3)); zl = lerp(-0.95, -0.55, jit(i, 9.1))
+                if abs(phi) < 0.4 and zl > -0.62: continue
+                dv = (math.sin(phi) * 0.3 + 0.5 * (jit(i, 3.7) - 0.5), -math.cos(phi) * (0.2 + 0.5 * jit(i, 1.1)), -1.0)
+                clump(cap_pt(phi, zl, 1.09), dv, (0.045 if b == "full" else 0.08) * L_ * (0.5 + jit(i, 5.5)), 0.009 * (0.7 + 0.6 * jit(i, 2.9)), bc2 if i % 3 else bc, "Jaw", 0.5, 0.0, 1.0 * (jit(i, 6.6) - 0.5), 3)
             for sg in (-1, 1):   # favoris reliant les cheveux à la barbe
                 for j in range(3): clump(cap_pt(sg * (1.2 + 0.12 * j), 0.0 - 0.15 * j, 1.07), (sg * 0.1, -0.2, -1), 0.05, 0.014, bc, "Head", 0.5, 0.0, 0.0, 3)
             if b == "big":
@@ -236,6 +241,7 @@ def human_head(name, hc, add, T):
         def dirf(a, b_, c): return lambda phi, zl: (math.sin(phi) * a, -math.cos(phi) * b_, c)
         if hs == "short":
             ring(16, -1.5, 1.5, 0.45, 0.62, dirf(0.7, 0.8, -0.3), 0.04, 0.013, Hm, "Head", 0.6, 0.0, 0.8)
+            ring(9, -1.0, 1.0, 0.58, 0.7, dirf(0.4, 0.9, -0.55), 0.05, 0.013, Hm, "Head", 0.5, 0.0, 0.9, 1.06, 4)
             ring(10, 1.6, 4.7, 0.2, 0.7, dirf(1.0, 1.0, -0.5), 0.05, 0.014, Hm, "Head", 0.7, 0.0, 0.8)
             sideburns(0.12, 0.04)
         elif hs == "spiky":
