@@ -52,6 +52,12 @@ const LINES := {
 	"engineer": ["Laissez-moi dix minutes et ce vaisseau tiendra encore dix ans.", "Ça grince, mais ça tient. Comme moi.", "Donnez-moi des minerais et je vous fais un miracle."],
 	"scientist": ["Les données sont fascinantes, Capitaine. Écoutez ça.", "Je viens de calculer nos chances. Elles sont… correctes.", "Une anomalie ! Enfin quelque chose d'intéressant."],
 }
+## Briefing avant une expédition (%s = destination, %s = ennemi).
+const LINES_BRIEF := {
+	"pilot": "Cap sur %s. Ennemi repéré : %s. Je vous couvre, Capitaine.",
+	"engineer": "%s : j'ai vérifié la coque. Face à %s, elle tiendra. Je crois.",
+	"scientist": "%s, Capitaine. J'ai analysé %s : il a des points faibles, visez-les.",
+}
 const LINES_NEW := ["Heureux de rejoindre l'équipage, Capitaine !", "Prêt à servir. Où dois-je me poster ?", "Alors c'est donc ça, Altopia. Impressionnant."]
 const STARTER_HEROES := ["rex", "bolt"]
 

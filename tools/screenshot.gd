@@ -84,7 +84,7 @@ func _initialize() -> void:
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_idle.png")
 	await _shot_tab(main, "exp", out_dir + "/shot_exp_dest.png", 700)
 	# Combat en direct : l'arène en pleine action puis l'écran de résultat.
-	main._start_live(0, "asteroids")
+	main._start_live(0, "asteroids", true)
 	await process_frame
 	var lv = main._live
 	lv.sim.assist = true
@@ -102,7 +102,7 @@ func _initialize() -> void:
 	# Dérive : la grille en cours de partie, une case choisie, puis le résultat.
 	gs.derive_guide_seen = false
 	main._exp_mode = "derive"
-	main._start_live(0, "asteroids")
+	main._start_live(0, "asteroids", true)
 	await process_frame
 	var dv = main._live
 	await _shot(out_dir + "/shot_derive_guide.png")

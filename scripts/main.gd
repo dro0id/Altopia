@@ -84,6 +84,10 @@ var _sheet_title: Label
 var _sheet_info: Label
 var _sheet_quote: Label
 var _sheet_gen := 0
+var _sheet_go: Button          # « Décoller ! » : visible seulement pendant un briefing
+var _sheet_close: Button
+var _sheet_on_go: Callable
+var _briefed := {}              # destinations déjà briefées pendant cette session
 const GESTURES := [["Idle", "Repos"], ["Look", "Regard"], ["Walk", "Marche"], ["Run", "Course"], ["Shoot", "Tir"], ["Talk", "Parler"],
 	["Wave", "Saluer"], ["Nod", "Oui"], ["Shake", "Non"], ["Think", "Réfléchir"], ["Point", "Montrer"], ["Work", "Travailler"],
 	["Salute", "Salut militaire"], ["Cheer", "Victoire"], ["Surprise", "Surprise"], ["Laugh", "Rire"], ["Hit", "Coup reçu"]]
@@ -224,12 +228,43 @@ func _build_sheet() -> void:
 		var b := _button(flow, g[1], 54)
 		b.add_theme_font_size_override("font_size", 20)
 		b.pressed.connect(func(): _sheet_view.play(g[0]))
-	var close := _button(col, "Fermer", 70)
-	UiTheme.style_primary(close)
-	close.pressed.connect(func(): _sheet.visible = false)
+	_sheet_go = _button(col, "Décoller !", 70)
+	UiTheme.style_primary(_sheet_go)
+	_sheet_go.visible = false
+	_sheet_go.pressed.connect(func():
+		_sheet.visible = false
+		if _sheet_on_go.is_valid():
+			_sheet_on_go.call())
+	_sheet_close = _button(col, "Fermer", 70)
+	UiTheme.style_primary(_sheet_close)
+	_sheet_close.pressed.connect(func(): _sheet.visible = false)
+
+
+## Briefing avant la première expédition d'une destination : un équipier du groupe parle, puis « Décoller ! » lance `on_go`.
+func _open_briefing(slot_i: int, dest: String, on_go: Callable) -> void:
+	var ids: Array = GameState.squad_ids(slot_i)
+	if ids.is_empty() or _briefed.has(dest):
+		on_go.call()
+		return
+	_briefed[dest] = true
+	var d: Dictionary = Data.DEST[dest]
+	var who := ""
+	for id in ids:
+		if Data.HEROES[id]["class"] == d.role:
+			who = id
+	if who == "":
+		who = ids[randi() % ids.size()]
+	_open_sheet(who)
+	_sheet_title.text = "Briefing : %s" % d.name
+	_sheet_quote.text = "« %s »" % (Data.LINES_BRIEF[Data.HEROES[who]["class"]] % [d.name, d.enemy.name])
+	_sheet_on_go = on_go
+	_sheet_go.visible = true
+	_sheet_close.text = "Annuler"
 
 
 func _open_sheet(id: String, is_new := false) -> void:
+	_sheet_go.visible = false
+	_sheet_close.text = "Fermer"
 	var tpl: Dictionary = Data.HEROES[id]
 	_sheet_title.text = ("Nouvel équipier : " if is_new else "") + String(tpl.name)
 	_sheet_title.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
@@ -600,8 +635,11 @@ func _build_expedition_page(page: VBoxContainer) -> void:
 
 
 ## Lance un combat en direct sur le vaisseau `slot_i` (le mode Aléatoire tire le mode parmi ceux qui sont prêts).
-func _start_live(slot_i: int, dest: String) -> void:
+func _start_live(slot_i: int, dest: String, briefed := false) -> void:
 	if _live != null or GameState.live_block_reason(dest, slot_i) != "":
+		return
+	if not briefed and not _sheet.visible:
+		_open_briefing(slot_i, dest, func(): _start_live(slot_i, dest, true))
 		return
 	var random := _exp_mode == "random" and GameState.random_mode_available()
 	var mode: String = GameState.pick_random_mode(dest) if random else (_exp_mode if _exp_mode in ["derive", "route"] else "combat")
@@ -1073,8 +1111,9 @@ func _refresh_crew() -> void:
 		if Data.ITEM_RARITY_ORDER.find(r) >= 2:
 			parts.append("%s %s %%" % [Data.ITEM_RARITY[r].name, String.num(100.0 * w[r] / wsum, 1)])
 	var per_hour := GameState.afk_drops_per_hour()
-	_afk_loot.text = "Le travail aux postes fabrique des objets pour le Capitaine : environ 1 toutes les %d min (niv. ~%d). Niveau d'AFK : %d. Chances : %s. Montez l'équipage et les postes pour un butin plus puissant." % [
-		int(round(60.0 / per_hour)), GameState.loot_level(), GameState.afk_level(), "  ·  ".join(parts)]
+	var rate_txt := "environ 1 toutes les %d min" % int(round(60.0 / per_hour)) if per_hour > 0.001 else "aucun tant que personne ne travaille en salle"
+	_afk_loot.text = "Le travail aux postes fabrique des objets pour le Capitaine : %s (niv. ~%d). Niveau d'AFK : %d. Chances : %s. Montez l'équipage et les postes pour un butin plus puissant." % [
+		rate_txt, GameState.loot_level(), GameState.afk_level(), "  ·  ".join(parts)]
 	var cost := GameState.recruit_cost()
 	_recruit_btn.text = "Recruter un équipier — %s crédits" % Data.fmt(cost)
 	_recruit_btn.disabled = GameState.res["credits"] < cost

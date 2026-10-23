@@ -56,4 +56,5 @@ Direction artistique : astronautes low poly facettés (polygones plats, peu de s
 
 - `scripts/crew_view.gd` : fiche 3D d'un équipier (modèle `assets/models/char_<id>.glb` + bibliothèque d'animations, rotation au doigt). Ouverte par « Voir en 3D » sur chaque carte d'équipage, au recrutement d'une nouvelle carte, et dans l'écran de résultat du combat en direct (Victoire / Coup reçu).
 - `tools/crew_shot.gd` : capture d'une fiche (`xvfb-run -a godot --path . --resolution 720x1280 -s tools/crew_shot.gd -- <id> <clip> <png>`).
-- Poids mesuré : 12 000 à 17 500 triangles et 56 à 93 surfaces par personnage, 65 à 101 os ; un seul personnage est affiché à la fois. Non mesuré sur téléphone.
+- Poids mesuré : 12 000 à 17 500 triangles, environ 30 surfaces par personnage (maillages de même matière fusionnés à l'export : `merge_by_material` dans `tools/blender/export_characters.py`, 80 surfaces avant), 65 à 101 os ; un seul personnage est affiché à la fois. Non mesuré sur téléphone.
+- Briefing : avant la première expédition d'une destination (par session), un équipier du groupe parle, puis « Décoller ! » lance le combat (`_open_briefing` dans `main.gd`, capture : `tools/briefing_shot.gd`).
