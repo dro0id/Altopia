@@ -136,21 +136,88 @@ def bone_t(arm, n): return arm.data.bones[n].tail_local.copy()
 def allowed_groups(bone):
     """os dont une pièce rigide peut reprendre les poids (sa propre chaîne de membre) ; None = reste rigide"""
     sd = bone[-2:] if bone[-2:] in (".L", ".R") else ""
-    if bone.startswith("UpperArm"): return {"Shoulder" + sd, "UpperArm" + sd, "LowerArm" + sd}
-    if bone.startswith("LowerArm"): return {"UpperArm" + sd, "LowerArm" + sd, "Hand" + sd}
-    if bone.startswith("UpperLeg"): return {"Hips", "UpperLeg" + sd, "LowerLeg" + sd}
-    if bone.startswith("LowerLeg"): return {"UpperLeg" + sd, "LowerLeg" + sd, "Foot" + sd}
-    if bone in ("Hips", "Abdomen"): return {"Hips", "Abdomen", "Torso"}
+    if bone.startswith("UpperArm"): return {"Shoulder" + sd, "UpperArm" + sd, "UpperArmTwist" + sd, "LowerArm" + sd, "Scapula" + sd}
+    if bone.startswith("LowerArm"): return {"UpperArm" + sd, "LowerArm" + sd, "LowerArmTwist" + sd, "Hand" + sd}
+    if bone.startswith("UpperLeg"): return {"Hips", "UpperLeg" + sd, "UpperLegTwist" + sd, "LowerLeg" + sd, "Glute" + sd}
+    if bone.startswith("LowerLeg"): return {"UpperLeg" + sd, "LowerLeg" + sd, "LowerLegTwist" + sd, "Foot" + sd}
+    if bone in ("Hips", "Abdomen"): return {"Hips", "Abdomen", "Torso", "Belly", "Glute.L", "Glute.R", "RibCage"}
     return None
 
+
+
+def add_body_bones(arm):
+    """Os anatomiques supplémentaires : torsion des membres (humérus, avant-bras, cuisse, tibia), orteils, omoplates, fessiers, cage thoracique, ventre."""
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = arm.data.edit_bones
+    def B(name, parent, head, tail):
+        b = eb.new(name); b.head = Vector(head); b.tail = Vector(tail); b.parent = eb[parent]; b.use_connect = False; return b
+    for sd in (".L", ".R"):
+        sg = 1 if sd == ".L" else -1
+        for seg in ("UpperArm", "LowerArm", "UpperLeg", "LowerLeg"):
+            b0 = eb[seg + sd]; B(seg + "Twist" + sd, seg + sd, b0.head.lerp(b0.tail, 0.55), b0.tail)
+        ft = eb["Foot" + sd]; d = (ft.tail - ft.head)
+        B("Toe" + sd, "Foot" + sd, ft.head + d * 0.62, ft.tail + d.normalized() * 0.07)
+        B("Scapula" + sd, "Chest", (sg * 0.07, 0.01, 1.42), (sg * 0.13, 0.02, 1.38))
+        B("Glute" + sd, "Hips", (sg * 0.07, 0.02, 0.95), (sg * 0.09, 0.05, 0.88))
+    B("RibCage", "Chest", (0.0, -0.042, 1.30), (0.0, -0.043, 1.50))
+    B("Belly", "Abdomen", (0.0, -0.055, 1.06), (0.0, -0.085, 1.10))
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+def add_secondary_weights(sh, arm):
+    """Répartit les poids de la combinaison sur les os supplémentaires (torsion le long des membres, orteils, omoplates, fessiers, côtes, ventre)."""
+    names = {vg.index: vg.name for vg in sh.vertex_groups}
+    heads = {b.name: (b.head_local.copy(), b.tail_local.copy()) for b in arm.data.bones}
+    def smoothstep(a, b, x): u = max(0.0, min(1.0, (x - a) / (b - a))); return u * u * (3 - 2 * u)
+    out = []
+    for v in sh.data.vertices:
+        W = {names[g.group]: g.weight for g in v.groups if names[g.group] in heads}; p = v.co
+        for sd in (".L", ".R"):
+            sg = 1 if sd == ".L" else -1
+            for seg in ("UpperArm", "LowerArm", "UpperLeg", "LowerLeg"):
+                w = W.get(seg + sd, 0.0)
+                if w > 0.01:
+                    h, t = heads[seg + sd]; ax = t - h; tt = (p - h).dot(ax) / max(ax.length_squared, 1e-9)
+                    f = smoothstep(0.4, 0.95, tt) * w; W[seg + sd] = w - f; W[seg + "Twist" + sd] = f
+            wf = W.get("Foot" + sd, 0.0)
+            if wf > 0.01:
+                h, t = heads["Foot" + sd]; ax = t - h; tt = (p - h).dot(ax) / max(ax.length_squared, 1e-9)
+                f = smoothstep(0.62, 0.9, tt) * wf; W["Foot" + sd] = wf - f; W["Toe" + sd] = f
+            wc = W.get("Chest", 0.0) + W.get("Torso", 0.0)
+            if wc > 0.02 and 1.34 < p.z < 1.52 and p.y > -0.04 and sg * p.x > 0.02 and abs(p.x) < 0.2:
+                f = 0.5 * smoothstep(0.02, 0.07, sg * p.x) * wc; r = f / wc
+                for k in ("Chest", "Torso"):
+                    if k in W: W[k] -= W[k] * r
+                W["Scapula" + sd] = f
+            wh = W.get("Hips", 0.0)
+            if wh > 0.02 and 0.84 < p.z < 1.0 and p.y > -0.04 and sg * p.x > 0.0 and abs(p.x) < 0.18:
+                f = 0.55 * wh; W["Hips"] = wh - f; W["Glute" + sd] = f
+        wc = W.get("Chest", 0.0) + W.get("Torso", 0.0)
+        if wc > 0.02 and 1.22 < p.z < 1.5 and (p.y < -0.03 or abs(p.x) > 0.1):
+            f = 0.45 * wc; r = f / wc
+            for k in ("Chest", "Torso"):
+                if k in W: W[k] -= W[k] * r
+            W["RibCage"] = W.get("RibCage", 0.0) + f
+        wa = W.get("Abdomen", 0.0)
+        if wa > 0.02 and 1.0 < p.z < 1.17 and p.y < -0.03:
+            f = 0.5 * wa; W["Abdomen"] = wa - f; W["Belly"] = f
+        out.append(W)
+    for vg in list(sh.vertex_groups): sh.vertex_groups.remove(vg)
+    vgs = {}
+    for i, W in enumerate(out):
+        top = sorted(((k, w) for k, w in W.items() if w > 0.01), key=lambda kv: -kv[1])[:4]; t = sum(w for _, w in top) or 1.0
+        for k, w in top:
+            if k not in vgs: vgs[k] = sh.vertex_groups.new(name=k)
+            vgs[k].add([i], w / t, "REPLACE")
 
 def smooth_weights(ob, iters=3, a=0.55):
     """Adoucit les poids de peau le long du maillage : les articulations plient en douceur au lieu de charnières dures."""
     me = ob.data; n = len(me.vertices)
     nb = [[] for _ in range(n)]
     for e in me.edges: nb[e.vertices[0]].append(e.vertices[1]); nb[e.vertices[1]].append(e.vertices[0])
+    valid = {b.name for b in ob.parent.data.bones} if ob.parent is not None else None
     names = {vg.index: vg.name for vg in ob.vertex_groups}
-    W = [{g.group: g.weight for g in v.groups} for v in me.vertices]
+    W = [{g.group: g.weight for g in v.groups if valid is None or names[g.group] in valid} for v in me.vertices]
     for _ in range(iters):
         new = []
         for i in range(n):
@@ -430,6 +497,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     if suit_override: sp_.update(suit_override)
     H = sp_["h"]; bk = sp_["bulk"]; ex = sp_["extras"]
     arm, parts = load_base(sp_["base"])
+    add_body_bones(arm)
     head = parts["Head"]
     HK = sp_.get("head"); ANDROID = HK is not None; FACE = name in faces_q.FACES
     if ANDROID or FACE:
@@ -463,6 +531,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     # combinaison : gonflée autour du corps (épaisseur selon corpulence)
     shells = build_suit_shell([parts["Body"], parts["Legs"], parts["Feet"]], arm, [suit, glove, boot, dark], inflate=0.026 * bk)
     for sh_ in shells: smooth_weights(sh_, 3, 0.55)
+    for sh_ in shells: add_secondary_weights(sh_, arm)
     for o in (parts["Body"], parts["Legs"], parts["Feet"]):
         if o is not None: bpy.data.objects.remove(o)
     rigid = []   # (objet, os)

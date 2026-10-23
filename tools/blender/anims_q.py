@@ -49,8 +49,8 @@ def S(*adds, over=None):
     return d
 
 def blink(a):
-    s = (1.0, max(0.06, 1.0 - 0.94 * a), 1.0)
-    return {"Blink.L": {"s": s}, "Blink.R": {"s": s}}
+    """fermeture des paupières (0 ouvert .. 1 fermé) ; traduite en rotations des os LidUp / LidLow par build()"""
+    return {"_lid": {"close": a}}
 
 def blink_amt(f, events):
     """événements de clignement : liste d'images de départ ; profil fermeture rapide, ouverture un peu plus lente"""
@@ -63,10 +63,18 @@ def blink_amt(f, events):
 def gaze(gx, gy):
     return {"Eye.L": {"l": (gx * 0.004, gy * 0.004, 0)}, "Eye.R": {"l": (gx * 0.004, gy * 0.004, 0)}}
 
-def face(spec, jaw=0.0, brow_up=0.0, brow_tilt=0.0):
+def face(spec, jaw=0.0, brow_up=0.0, brow_tilt=0.0, smile=0.0):
+    """Expression : mâchoire (jaw, degrés), sourcils (brow_up, brow_tilt : + colère, - tristesse), sourire (smile -1 triste .. 1 grand sourire)"""
     if jaw: spec["Jaw"] = spec.get("Jaw", []) + [(X, jaw)]
     if brow_tilt: spec["Brow.L"] = [(Y, brow_tilt)]; spec["Brow.R"] = [(Y, -brow_tilt)]
-    return {"Brow.L": {"l": (0, 0.006 * brow_up, 0)}, "Brow.R": {"l": (0, 0.006 * brow_up, 0)}} if brow_up else {}
+    t = brow_tilt / 10.0; fx = {}
+    for sd, sg in (("L", -1), ("R", 1)):
+        fx["BrowIn." + sd] = {"l": (0, 0.006 * (brow_up - 0.35 * t), 0)}
+        fx["BrowOut." + sd] = {"l": (0, 0.006 * (brow_up + 0.15 * t), 0)}
+        fx["MouthCorner." + sd] = {"l": (sg * -0.0035 * smile + sg * 0.0004 * jaw, 0.0055 * smile, 0)}
+        fx["Cheek." + sd] = {"l": (0, 0.0035 * max(0.0, smile), 0), "s": (1 + 0.12 * max(0.0, smile), 1, 1 + 0.12 * max(0.0, smile))}
+    fx["LipUp"] = {"l": (0, 0.0007 * jaw + 0.0012 * max(0.0, smile), 0)}
+    return fx
 
 def life(t, a=1.0, curl=15.0):
     """couche de vie : respiration, tête qui flotte, bras et mains détendus, regard ; t = phase 0..1 du clip (période 4 s)"""
@@ -81,6 +89,25 @@ def life(t, a=1.0, curl=15.0):
     fx = merge(fingers(curl + 3 * a * cyc(t, 1, 0.3)), gaze(0.4 * a * cyc(t, 1, 0.1), 0.2 * a * cyc(t, 2, 0.5)))
     return adds, fx
 
+
+def _ang(spec, bone, axis):
+    return sum(d for ax, d in spec.get(bone, []) if ax == axis)
+
+def extras(spec, fx, f, F):
+    """Os anatomiques déduits de la pose : cage thoracique et ventre (respiration), omoplates (bras levés ou avancés), torsion de l'humérus, de l'avant-bras, de la cuisse et du tibia."""
+    n = max(1, round(F / 24 / 3.8)); br = math.sin(TAU * n * ((f - 1) % F) / F)
+    add = {"RibCage": {"s": (1 + 0.014 * br, 1 + 0.02 * br, 1 + 0.01 * br)}, "Belly": {"s": (1 + 0.03 * br, 1 + 0.05 * br, 1 + 0.03 * br)}}
+    for sd, sg in ((".L", 1), (".R", -1)):
+        ua = "UpperArm" + sd
+        elev = max(0.0, min(1.0, ((_ang(spec, ua, Y) + DL) / (2 * DL)) if sg < 0 else ((DL - _ang(spec, ua, Y)) / (2 * DL))))
+        fwd = max(-1.0, min(1.0, (_ang(spec, ua, X) / 80.0) + (-sg * _ang(spec, ua, Z) / 85.0)))
+        spec["Scapula" + sd] = [(Y, -sg * 14 * elev), (Z, -sg * 9 * fwd)]
+        add["UpperArmTwist" + sd] = {"r": ((0, 1, 0), sg * (18 * elev - 10 * fwd))}
+        add["LowerArmTwist" + sd] = {"r": ((0, 1, 0), sg * 0.35 * _ang(spec, "LowerArm" + sd, X))}
+        add["UpperLegTwist" + sd] = {"r": ((0, 1, 0), 0.25 * _ang(spec, "UpperLeg" + sd, X) * -sg)}
+        add["LowerLegTwist" + sd] = {"r": ((0, 1, 0), -0.15 * _ang(spec, "UpperLeg" + sd, X) * -sg)}
+    return merge(fx, add)
+
 def build(F, fn, step=2, blinks=(), extra_frames=()):
     """échantillonne fn(f, t) -> (spec, fx) toutes les `step` images + aux images de clignement ; boucle sur F images (image F+1 = image 1)"""
     frames = set(range(1, F + 2, step)) | {F + 1} | set(extra_frames)
@@ -91,8 +118,17 @@ def build(F, fn, step=2, blinks=(), extra_frames=()):
         spec, fx = fn(f, t)
         if "HairB" in spec:   # les mèches ploient le long de la chaîne : chaque maillon prolonge le mouvement du précédent
             spec["HairB2"] = [(ax, 0.9 * dg) for ax, dg in spec["HairB"]]; spec["HairB3"] = [(ax, 1.1 * dg) for ax, dg in spec["HairB"]]
+        fx = extras(spec, fx, f, F)
         ba = blink_amt(f, blinks)
         if ba: fx = merge(fx, blink(ba))
+        lid = fx.pop("_lid", {}); c = max(0.0, min(1.0, lid.get("close", 0.0))); wd = lid.get("wide", 0.0)
+        for sd in ("L", "R"):
+            spec["LidUp." + sd] = [(X, 90 * c - 12 * wd)]; spec["LidLow." + sd] = [(X, -90 * c * 0.85 + 6 * wd)]
+        hz = _ang(spec, "Head", Z); hx = _ang(spec, "Head", X); jw = _ang(spec, "Jaw", X)
+        sw = 0.8 * _ang(spec, "HairB", X)
+        for k, sg in (("L", -1), ("R", 1)):
+            spec["HairS" + k] = [(X, sw), (Z, -sg * 0.3 * hz)]; spec["HairS" + k + "2"] = [(X, 0.9 * sw), (Z, -sg * 0.25 * hz)]; spec["HairS" + k + "3"] = [(X, 1.1 * sw), (Z, -sg * 0.3 * hz)]
+        spec["BeardC"] = [(X, -0.45 * jw + 0.25 * hx)]; spec["BeardC2"] = [(X, -0.5 * jw + 0.45 * hx)]
         out.append((f, spec, fx))
     return out
 
@@ -136,6 +172,7 @@ def walk_pose(f, t, run=False):
     adds += [("UpperLeg.L", X, -th * L), ("UpperLeg.R", X, -th * R),
              ("LowerLeg.L", X, kn * max(0.0, -co) * (1 if L < 0.7 else 0) + 7 * max(0.0, co) * max(0.0, 1 - L)), ("LowerLeg.R", X, kn * max(0.0, co) * (1 if R < 0.7 else 0) + 7 * max(0.0, -co) * max(0.0, 1 - R)),
              ("Foot.L", X, 16 * max(0.0, -L) - 10 * max(0.0, L) * 0.6), ("Foot.R", X, 16 * max(0.0, -R) - 10 * max(0.0, R) * 0.6),
+             ("Toe.L", X, (34 if not run else 45) * max(0.0, -L) - 14 * max(0.0, L)), ("Toe.R", X, (34 if not run else 45) * max(0.0, -R) - 14 * max(0.0, R)),
              ("UpperArm.L", X, (34 * amp) * sl(0.0) ), ("UpperArm.R", X, -(34 * amp) * sl(0.0)),
              ("LowerArm.L", X, (24 if not run else 78) + (16 * amp) * max(0.0, sl(0.5))), ("LowerArm.R", X, (24 if not run else 78) + (16 * amp) * max(0.0, -sl(0.5))),
              ("Hand.L", X, 8 * sl(1.0)), ("Hand.R", X, -8 * sl(1.0)),
@@ -168,7 +205,7 @@ def clip_shoot():
         s = S(*adds, over={"UpperArm.R": [(Y, -DL * (1 - sm(a / 84))), (Z, 0)]})
         s["UpperArm.R"] = [(Y, -DL * (1 - sm(a / 84))), (X, a)]
         s.setdefault("LowerArm.R", []).append((X, 8 * sm(a / 84)))
-        fx = merge(fx, fingers(15, right=55 * sm(a / 84)), face(s, brow_tilt=8 * sm(a / 84)), blink(0.7 * sm(a / 84) * (1 if 7 <= f <= 12 else 0)))
+        fx = merge(fx, fingers(15, right=55 * sm(a / 84)), face(s, brow_tilt=8 * sm(a / 84), smile=-0.1 * sm(a / 84)), blink(0.7 * sm(a / 84) * (1 if 7 <= f <= 12 else 0)))
         return s, fx
     return build(24, fn, 1)
 
@@ -192,7 +229,7 @@ def clip_talk():
                  ("UpperArm.R", Y, 22 + 6 * e), ("UpperArm.R", X, 34 + 12 * e2 + 6 * cyc(t, 2, 0.1)), ("LowerArm.R", X, 66 + 16 * e + 10 * cyc(t, 3, 0.3)), ("LowerArm.R", Z, 12 * cyc(t, 3, 0.3) * e),
                  ("Hand.R", X, 14 * cyc(t, 3, 0.55) * e), ("Hand.R", Z, 8 * cyc(t, 3, 0.1) * e), ("UpperArm.L", X, 6 + 3 * e), ("LowerArm.L", X, 12 + 6 * e), ("HairB", X, 3 * e)]
         s = S(*adds)
-        fx = merge(fx, fingers(15, right=15 + 20 * e), face(s, jaw=jaw, brow_up=0.15 + 0.9 * e2), gaze(0.3 * cyc(t, 2, 0.2), 0.2))
+        fx = merge(fx, fingers(15, right=15 + 20 * e), face(s, jaw=jaw, brow_up=0.15 + 0.9 * e2, smile=0.25 + 0.3 * e), gaze(0.3 * cyc(t, 2, 0.2), 0.2))
         return s, fx
     return build(F, fn, 1, blinks=(20, 55))
 
@@ -206,7 +243,7 @@ def clip_wave():
         adds += [("Head", Z, -7 * ramp), ("Head", X, 3 * ramp), ("Torso", Z, 4 * ramp), ("Chest", Z, 2 * ramp), ("Shoulder.R", Z, 8 * ramp), ("HairB", X, 4 * ramp * osc),
                  ("Hips", Z, -2 * ramp), ("LowerArm.R", Y, 32 * osc * ramp), ("Hand.R", Y, 24 * cyc(f / 24.0, 1.0, 0.12) * ramp), ("UpperArm.R", Z, 6 * osc * ramp)]
         s = S(*adds); s["UpperArm.R"] = [(Y, -DL + 138 * over), (Z, 6 * osc * ramp)]
-        fx = merge(fx, fingers(15, right=8), face(s, jaw=2.5 * ramp * (1 if (f // 6) % 2 else 0.2), brow_up=0.5 * ramp), gaze(0.0, 0.3 * ramp))
+        fx = merge(fx, fingers(15, right=8), face(s, jaw=2.5 * ramp * (1 if (f // 6) % 2 else 0.2), brow_up=0.5 * ramp, smile=0.7 * ramp), gaze(0.0, 0.3 * ramp))
         return s, fx
     return build(F, fn, 1, blinks=(26,))
 
@@ -289,7 +326,7 @@ def clip_cheer():
         s = S(*adds, over={"UpperArm.L": [(Y, DL - (DL + 72) * arms + 6 * cyc(t, 2))], "UpperArm.R": [(Y, -DL + (DL + 72) * arms - 6 * cyc(t, 2))]})
         s["LowerArm.L"] = [(X, 5 + 20 * air)]; s["LowerArm.R"] = [(X, 5 + 20 * air)]
         s["_t"] = {"Hips": (0, 0, 0.075 * air - 0.05 * crouch)}
-        fx = merge(fx, fingers(20, left=20 + 40 * air, right=20 + 40 * air), face(s, jaw=7 + 5 * air, brow_up=0.9))
+        fx = merge(fx, fingers(20, left=20 + 40 * air, right=20 + 40 * air), face(s, jaw=7 + 5 * air, brow_up=0.9, smile=0.9))
         return s, fx
     return build(F, fn, 1)
 
@@ -300,7 +337,7 @@ def clip_surprise():
         adds += [("Head", X, -9 * a), ("Chest", X, -6 * a), ("Hips", X, 4 * a), ("Abdomen", X, -3 * a), ("UpperArm.L", Y, 14 * a), ("UpperArm.R", Y, -14 * a), ("UpperArm.L", X, -6 * a), ("UpperArm.R", X, -6 * a),
                  ("LowerArm.L", X, 14 * a), ("LowerArm.R", X, 14 * a), ("UpperLeg.L", X, 3 * a), ("UpperLeg.R", X, -3 * a), ("HairB", X, 8 * a)]
         s = S(*adds); s["_t"] = {"Hips": (0, 0.012 * a, 0)}
-        fx = merge(fx, fingers(15 + 25 * a), face(s, jaw=14 * a, brow_up=1.3 * a), {"Blink.L": {"s": (1, 1 + 0.3 * a, 1)}, "Blink.R": {"s": (1, 1 + 0.3 * a, 1)}}, gaze(0, 0.5 * a))
+        fx = merge(fx, fingers(15 + 25 * a), face(s, jaw=14 * a, brow_up=1.3 * a, smile=-0.2 * a), {"_lid": {"wide": a}}, gaze(0, 0.5 * a))
         return s, fx
     return build(28, fn, 1)
 
@@ -315,7 +352,7 @@ def clip_laugh():
                  ("Hips", X, 2 * math.sin(w + 0.8) * r), ("HairB", X, 5 * math.sin(w - 0.6) * r)]
         s = S(*adds); s["_t"] = {"Hips": (0, 0, 0.004 * math.sin(w) * r)}
         sq = 1 - 0.65 * r
-        fx = merge(fx, face(s, jaw=(10 + 5 * math.sin(w)) * r, brow_up=0.6 * r), {"Blink.L": {"s": (1, sq, 1)}, "Blink.R": {"s": (1, sq, 1)}})
+        fx = merge(fx, face(s, jaw=(10 + 5 * math.sin(w)) * r, brow_up=0.6 * r, smile=1.0 * r), {"_lid": {"close": 1 - sq}})
         return s, fx
     return build(F, fn, 1)
 
@@ -326,7 +363,7 @@ def clip_hit():
         adds += [("Torso", X, -14 * a), ("Head", X, -18 * a), ("Hips", X, 6 * a), ("UpperArm.L", Y, 12 * a), ("UpperArm.R", Y, -12 * a), ("Head", Z, 10 * a), ("Chest", Z, -5 * a), ("HairB", X, 10 * a),
                  ("UpperLeg.L", X, 8 * a), ("LowerLeg.L", X, 10 * a)]
         s = S(*adds); s["_t"] = {"Hips": (0, 0.02 * a, 0)}
-        fx = merge(fx, fingers(15 + 40 * a), face(s, jaw=8 * a, brow_tilt=14 * a), blink(min(1.0, a)))
+        fx = merge(fx, fingers(15 + 40 * a), face(s, jaw=8 * a, brow_tilt=14 * a, smile=-0.8 * a), blink(min(1.0, a)))
         return s, fx
     return build(16, fn, 1)
 
