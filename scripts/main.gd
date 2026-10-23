@@ -5,6 +5,7 @@ const Data = preload("res://scripts/game_data.gd")
 const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
+const CrewView = preload("res://scripts/crew_view.gd")
 const BaseUI = preload("res://scripts/base_ui.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const UiIcons = preload("res://scripts/ui_icons.gd")
@@ -76,6 +77,14 @@ var _goal_info: Label
 var _goal_btn: Button
 # Équipage
 var _hero_ui := {}
+## Fiche 3D d'un équipier (fenêtre par-dessus l'écran) : modèle animé et boutons de gestes.
+var _sheet: Control
+var _sheet_view: Node
+var _sheet_title: Label
+var _sheet_info: Label
+const GESTURES := [["Idle", "Repos"], ["Look", "Regard"], ["Walk", "Marche"], ["Run", "Course"], ["Shoot", "Tir"], ["Talk", "Parler"],
+	["Wave", "Saluer"], ["Nod", "Oui"], ["Shake", "Non"], ["Think", "Réfléchir"], ["Point", "Montrer"], ["Work", "Travailler"],
+	["Salute", "Salut militaire"], ["Cheer", "Victoire"], ["Surprise", "Surprise"], ["Laugh", "Rire"], ["Hit", "Coup reçu"]]
 var _recruit_btn: Button
 var _recruit_label: Label
 var _collection_label: Label
@@ -171,6 +180,58 @@ func _build_ui() -> void:
 	_build_ship_page(_base_ui.sections["ship"])
 
 	_build_tabs(root)
+	_build_sheet()
+
+
+## Fenêtre « fiche 3D » : cachée par défaut, ouverte depuis une carte d'équipage.
+func _build_sheet() -> void:
+	_sheet = Control.new()
+	_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sheet.visible = false
+	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_sheet)
+	var dim := ColorRect.new()
+	dim.color = Color(0.01, 0.02, 0.05, 1.0)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet.add_child(dim)
+	var m := MarginContainer.new()
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right"]:
+		m.add_theme_constant_override("margin_" + side, 24)
+	m.add_theme_constant_override("margin_top", 56)
+	m.add_theme_constant_override("margin_bottom", 32)
+	_sheet.add_child(m)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	m.add_child(col)
+	_sheet_title = _label(col, "", 40)
+	_sheet_info = _label(col, "", 20, COL_TEXT_DIM)
+	_sheet_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sheet_view = CrewView.new()
+	_sheet_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_sheet_view)
+	_label(col, "Gestes", 24, COL_ACCENT)
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 8)
+	flow.add_theme_constant_override("v_separation", 8)
+	col.add_child(flow)
+	for g in GESTURES:
+		var b := _button(flow, g[1], 54)
+		b.add_theme_font_size_override("font_size", 20)
+		b.pressed.connect(func(): _sheet_view.play(g[0]))
+	var close := _button(col, "Fermer", 70)
+	UiTheme.style_primary(close)
+	close.pressed.connect(func(): _sheet.visible = false)
+
+
+func _open_sheet(id: String) -> void:
+	var tpl: Dictionary = Data.HEROES[id]
+	_sheet_title.text = tpl.name
+	_sheet_title.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
+	_sheet_info.text = "%s · %s · %s" % [Data.CREW[tpl["class"]].name, Data.SPECIES[tpl.get("species", "human")], Data.RARITY[tpl.rarity].name]
+	_sheet.visible = true
+	_sheet_view.show_hero(id)
 
 
 func _build_header(parent: Control) -> void:
@@ -391,8 +452,11 @@ func _build_crew_page(page: VBoxContainer) -> void:
 		train.add_theme_font_size_override("font_size", 21)
 		train.pressed.connect(_tap(func(): GameState.train(id)))
 		UiTheme.style_primary(train)
+		var view3d := _button(right, "Voir en 3D", 48)
+		view3d.add_theme_font_size_override("font_size", 20)
+		view3d.pressed.connect(_tap(func(): _open_sheet(id)))
 		_hero_ui[id] = {"panel": panel, "portrait": portrait, "name": name_l, "stats": stats_l, "xp": xp,
-			"where": where_l, "train": train}
+			"where": where_l, "train": train, "view3d": view3d}
 
 
 func _build_expedition_page(page: VBoxContainer) -> void:
@@ -1022,6 +1086,7 @@ func _refresh_crew() -> void:
 			u.xp.visible = false
 			u.where.text = ""
 			u.train.visible = false
+			u.view3d.visible = false
 			continue
 		var h: Dictionary = GameState.heroes[id]
 		var st := Data.hero_stats(id, h.level, h.stars)
@@ -1035,6 +1100,7 @@ func _refresh_crew() -> void:
 		u.xp.value = float(h.xp) / float(Data.xp_needed(h.level))
 		u.where.text = _hero_work_text(id)
 		u.train.visible = true
+		u.view3d.visible = true
 		if h.level >= Data.MAX_LEVEL:
 			u.train.text = "Niveau maximum"
 			u.train.disabled = true
