@@ -135,6 +135,21 @@ def bone_t(arm, n): return arm.data.bones[n].tail_local.copy()
 def skin_rigid(ob, arm, bone):
     ob.parent = arm
     md = ob.modifiers.new("Armature", "ARMATURE"); md.object = arm
+    if isinstance(bone, tuple):   # chaîne d'os : les poids passent d'un os au suivant selon la hauteur (les mèches ploient)
+        zs = [arm.data.bones[b].head_local.z for b in bone]
+        vgs = [ob.vertex_groups.new(name=b) for b in bone]
+        for v in ob.data.vertices:
+            z = v.co.z
+            if z >= zs[0]: w = [1.0] + [0.0] * (len(zs) - 1)
+            elif z <= zs[-1]: w = [0.0] * (len(zs) - 1) + [1.0]
+            else:
+                w = [0.0] * len(zs)
+                for k in range(len(zs) - 1):
+                    if zs[k + 1] <= z < zs[k]:
+                        u = (zs[k] - z) / (zs[k] - zs[k + 1]); w[k] = 1 - u; w[k + 1] = u; break
+            for g, wk in zip(vgs, w):
+                if wk > 0.001: g.add([v.index], wk, "REPLACE")
+        return ob
     vg = ob.vertex_groups.new(name=bone)
     vg.add(list(range(len(ob.data.vertices))), 1.0, "REPLACE")
     return ob
@@ -617,7 +632,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         for o in obs: o.select_set(True)
         bpy.context.view_layer.objects.active = obs[0]
         if len(obs) > 1: bpy.ops.object.join()
-        j = bpy.context.active_object; j.name = "%s_%s" % (bone, mn)
+        j = bpy.context.active_object; j.name = "%s_%s" % (bone if isinstance(bone, str) else bone[0] + "chain", mn)
         skin_rigid(j, arm, bone)
     # racine : faisceau orienté face +Y, pieds à z = 0
     root = bpy.data.objects.new("char_" + name, None); bpy.context.collection.objects.link(root)

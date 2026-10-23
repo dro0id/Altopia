@@ -45,8 +45,12 @@ def add_face_bones(arm, name, hc):
         e_ = mk("Eye." + sd, (hc.x + x, hc.y - d * 0.9, hc.z + ez), (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.012)); e_.parent = eb["Blink." + sd]
         mk("Brow." + sd, (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.03), (hc.x + x, hc.y - d * 0.9, hc.z + ez + 0.05))
     mk("Jaw", (hc.x, hc.y + d * 0.1, hc.z - 0.045), (hc.x, hc.y - d * 0.9, hc.z - 0.07))
-    mk("HairB", (hc.x, hc.y + d * 0.85, hc.z + 0.04), (hc.x, hc.y + d * 1.4, hc.z - 0.06))
+    h1 = mk("HairB", (hc.x, hc.y + d * 0.85, hc.z + 0.03), (hc.x, hc.y + d * 1.1, hc.z - 0.05))
+    h2 = mk("HairB2", (hc.x, hc.y + d * 1.1, hc.z - 0.05), (hc.x, hc.y + d * 1.2, hc.z - 0.13)); h2.parent = h1
+    h3 = mk("HairB3", (hc.x, hc.y + d * 1.2, hc.z - 0.13), (hc.x, hc.y + d * 1.3, hc.z - 0.24)); h3.parent = h2
     bpy.ops.object.mode_set(mode="OBJECT")
+
+TAU = 2 * math.pi
 
 def human_head(name, hc, add, T):
     p = FACES[name]; M, E, box, sph, cyl, tube = T["M"], T["E"], T["box"], T["sph"], T["cyl"], T["tube"]
@@ -76,6 +80,34 @@ def human_head(name, hc, add, T):
         from mathutils import Matrix
         m = Matrix(((x.x, n2.x, z.x), (x.y, n2.y, z.y), (x.z, n2.z, z.z))); eu = m.to_euler()
         add(box((wd * 1.7, 0.009, ln), pos + z * ln / 2 + n2 * 0.004, (eu.x, eu.y, eu.z), r=0.35, sub=0), bone, mat)
+    HC = ("HairB", "HairB2", "HairB3")
+    def lerp(a_, b_, u_): return a_ + (b_ - a_) * u_
+    def tube_r(pts, radii, n=4):
+        """Tube effilé (rayon par point), bout fermé en pointe, ombrage lissé"""
+        bm_ = bmesh.new(); rows = []; N = len(pts)
+        for i_, p_ in enumerate(pts):
+            T = (pts[min(i_ + 1, N - 1)] - pts[max(i_ - 1, 0)]).normalized()
+            ref = Vector((0, 0, 1)) if abs(T.z) < 0.9 else Vector((1, 0, 0))
+            Nn = (ref - ref.dot(T) * T).normalized(); B = T.cross(Nn)
+            rows.append([bm_.verts.new(p_ + Nn * math.cos(2 * math.pi * j / n) * radii[i_] + B * math.sin(2 * math.pi * j / n) * radii[i_]) for j in range(n)])
+        for i_ in range(N - 1):
+            for j in range(n): bm_.faces.new((rows[i_][j], rows[i_][(j + 1) % n], rows[i_ + 1][(j + 1) % n], rows[i_ + 1][j]))
+        bm_.faces.new(rows[0][::-1]); bm_.faces.new(rows[-1])
+        bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces)
+        me_ = bpy.data.meshes.new("tr"); bm_.to_mesh(me_); bm_.free()
+        for pl in me_.polygons: pl.use_smooth = True
+        o_ = bpy.data.objects.new("tr", me_); bpy.context.collection.objects.link(o_); return o_
+    def clump(root, d0, length, r0, mat, bone, grav=0.7, lift=0.0, curl=0.0, seg=4):
+        """Mèche : courbe qui retombe (gravité), s'écarte du crâne, se recourbe un peu ; rayon effilé"""
+        p_ = Vector(root); dv = Vector(d0).normalized(); pts = [p_.copy()]; step = length / seg
+        for i_ in range(seg):
+            side = dv.cross(Vector((0, 0, 1)))
+            dv = (dv + Vector((0, 0, -1)) * grav * 0.5 + Vector((0, 0, 1)) * lift * (i_ / seg) * 0.6 + (side.normalized() * curl * 0.4 if side.length > 1e-4 else Vector())).normalized()
+            p_ = p_ + dv * step
+            q = p_ - hc; e_ = math.sqrt((q.x / (w * 1.04)) ** 2 + (q.y / (d * 1.04)) ** 2 + (q.z / (h * 1.04)) ** 2)
+            if e_ < 1.0 and q.z > -h * 0.55: p_ = hc + q / max(e_, 1e-3)
+            pts.append(p_.copy())
+        add(tube_r(pts, [r0 * (1 - i_ / seg) ** 0.8 + 0.0008 for i_ in range(seg + 1)], 4), bone, mat)
     def cap_pt(phi, zl, k=1.07):
         """point sur la calotte (phi : 0 = face, +/- côtés ; zl : hauteur relative)"""
         r = math.sqrt(max(0.0, 1 - zl * zl))
@@ -95,8 +127,10 @@ def human_head(name, hc, add, T):
             add(box((0.036 * es, 0.006, 0.0045), (hc.x + x, y - 0.006, hc.z + ez + 0.0125 * es), (0, math.radians(sg * -6), 0), r=0.3, sub=0), "Blink." + sd, lashm)
             add(box((0.01, 0.006, 0.004), (hc.x + x + sg * 0.018 * es, y - 0.004, hc.z + ez + 0.009 * es), (0, math.radians(sg * 30), 0), r=0.3, sub=0), "Blink." + sd, lashm)
         bt, ang = p["brow"]; bz = ez + 0.026 + 0.004 * es; bt *= p["bush"]
-        # sourcil : un seul bloc incliné (plus épais et plus long si fourni)
-        add(box((0.036 + 0.004 * (p["bush"] - 1), 0.011 + 0.003 * p["bush"], bt), (hc.x + x, surf(x, bz) - 0.004, hc.z + bz), (0, math.radians(sg * -ang), 0), r=0.35, sub=0), "Brow." + sd, brm)
+        # sourcil : arc effilé (plus épais et plus long si fourni), incliné selon l'humeur
+        bw = 0.02 + 0.004 * (p["bush"] - 1); tl = math.radians(sg * -ang) * 0.5
+        pts = [Vector((hc.x + x - sg * bw * 1.0, surf(x - sg * bw, bz) - 0.004, hc.z + bz - bw * tl * -0.6)), Vector((hc.x + x, surf(x, bz + 0.003) - 0.005, hc.z + bz + 0.003 + 0.0)), Vector((hc.x + x + sg * bw * 1.15, surf(x + sg * bw * 1.2, bz - 0.004 + bw * tl * 0.9) - 0.004, hc.z + bz - 0.004 + bw * tl * 0.9))]
+        add(tube_r(pts, [bt * 0.28 + 0.0015, bt * 0.5 + 0.002, 0.0012], 4), "Brow." + sd, brm)
     nl, nw = p["nose"]; nz = -0.012; ny = surf(0, nz)
     add(cyl(nw, 0.002, nl, (hc.x, ny - nl / 2 + 0.006, hc.z + nz), (math.radians(90), 0, 0), 4), "Head", sk)
     # bouche (os Jaw)
@@ -124,11 +158,16 @@ def human_head(name, hc, add, T):
         for dx in (-0.01, 0.0, 0.01): add(sph(0.0035, (hc.x + dx, surf(dx, -0.004) - 0.001, hc.z - 0.004), (1, 0.5, 1), 5), "Head", fm)
     if p["scar"]:
         x = -0.05; add(box((0.007, 0.006, 0.07), (hc.x + x, surf(x, 0.0) - 0.003, hc.z + 0.0), (0, math.radians(25), 0), r=0.3, sub=0), "Head", M("scar", (0.62, 0.25, 0.25), 0.0, 0.7))
-    # ---- barbe
-    bc = M(name + "_beard", p["bc"], 0.0, 0.7); bc2 = M(name + "_beard2", tuple(min(1.0, c * 1.25 + 0.03) for c in p["bc"]), 0.0, 0.5); b = p["beard"]
+    # ---- barbe (mèches souples : tubes effilés, ombrage lissé) -------------------------------------------------
+    bc = M(name + "_beard", p["bc"], 0.0, 0.55); bc2 = M(name + "_beard2", tuple(min(1.0, c * 1.25 + 0.03) for c in p["bc"]), 0.0, 0.45); b = p["beard"]
+    def jit(i, k=1.0): return 0.5 + 0.5 * math.sin(i * 2.399 + k)       # variation déterministe 0..1
+    def ring(n, phi0, phi1, zl0, zl1, dirf, length, r0, mats, bone, grav=0.8, lift=0.0, curl=0.0, k=1.06, seg=4):
+        for i in range(n):
+            u = i / max(1, n - 1); phi = lerp(phi0, phi1, u) + 0.07 * (jit(i, 1.3) - 0.5); zl = lerp(zl0, zl1, jit(i, 0.4)) 
+            clump(cap_pt(phi, zl, k), dirf(phi, zl), length * (0.75 + 0.5 * jit(i, 2.1)), r0 * (0.8 + 0.4 * jit(i, 3.3)), mats[i % len(mats)], bone, grav, lift, curl * (jit(i, 5.0) - 0.5) * 2, seg)
     if b in ("full", "big", "stubble"):
         mat = bc if b != "stubble" else M(name + "_stubble", tuple(c * 0.78 for c in p["skin"]), 0.0, 0.9)
-        k = {"full": 1.1, "big": 1.14, "stubble": 1.03}[b]
+        k = {"full": 1.07, "big": 1.09, "stubble": 1.03}[b]
         sb = bmesh.new(); bmesh.ops.create_uvsphere(sb, u_segments=18, v_segments=11, radius=1.0)
         for v in sb.verts:
             x, y, z = v.co; t = max(0.0, (-z - 0.15) / 0.85)
@@ -143,35 +182,36 @@ def human_head(name, hc, add, T):
                 if abs(c.x) < 0.03 and -0.07 < c.z < -0.045 and c.y < -0.03 and f.is_valid: sb.faces.remove(f)
         sm = bpy.data.meshes.new("bd"); sb.to_mesh(sm); sb.free()
         bo = bpy.data.objects.new("bd", sm); bpy.context.collection.objects.link(bo)
-        for pl in sm.polygons: pl.use_smooth = False
+        for pl in sm.polygons: pl.use_smooth = True
         add(bo, "Head", mat)
         if b in ("full", "big"):
-            # mèches de barbe : pointes qui s'étirent sous le menton, favoris, moustache intégrée
-            n_ = 5 if b == "big" else 3
-            for i_ in range(n_):
-                phi = -0.7 + 1.4 * i_ / (n_ - 1); mid = i_ == n_ // 2
-                ln = (0.075 if b == "big" else 0.055) * (1.0 if mid else 0.62)
-                pt = hc + Vector((math.sin(phi) * w * 0.9, -math.cos(phi) * d * 0.9, -h * 0.88))
-                lock(pt, (math.sin(phi) * 0.25, -0.3, -1), ln, 0.03 if mid else 0.024, bc if i_ % 2 == 0 else bc2, "Jaw", 5)
-            for sg in (-1, 1):
-                lock(hc + Vector((sg * w * 1.02, -d * 0.1, -0.005)), (sg * 0.1, -0.1, -1), 0.06, 0.013, bc, "Head", 4)   # favoris
+            L_ = 1.0 if b == "full" else 1.7
+            for row, (zl0, zl1, ln) in enumerate(((-0.62, -0.5, 0.05), (-0.78, -0.62, 0.065), (-0.9, -0.78, 0.08))):
+                n_ = 15 if row < 2 else 11
+                for i in range(n_):
+                    u = i / (n_ - 1); phi = lerp(-1.45, 1.45, u) + 0.16 * (jit(i, row + 3.1) - 0.5)
+                    if abs(phi) < 0.42 and row == 0: continue      # ouverture de la bouche
+                    zl = lerp(zl0, zl1, jit(i, 0.7 + row))
+                    dv = (math.sin(phi) * 0.25 + 0.3 * (jit(i, 7.0 + row) - 0.5), -math.cos(phi) * (0.25 + 0.2 * row), -1.0)
+                    clump(cap_pt(phi, zl, 1.08), dv, ln * L_ * (0.6 + 0.85 * jit(i, 2.0 + row)) * (1.25 if abs(phi) < 0.5 and row == 2 else 1.0), 0.016 * (0.85 + 0.3 * jit(i, 4.0)), bc if (i + row) % 2 else bc2, "Jaw", 0.5, 0.0, 0.5 * (jit(i, 6.0) - 0.5), 4)
+            for sg in (-1, 1):   # favoris reliant les cheveux à la barbe
+                for j in range(3): clump(cap_pt(sg * (1.2 + 0.12 * j), 0.0 - 0.15 * j, 1.07), (sg * 0.1, -0.2, -1), 0.05, 0.014, bc, "Head", 0.5, 0.0, 0.0, 3)
             if b == "big":
                 for sg in (-1, 1):   # tresses de barbe
-                    pts = [hc + Vector((sg * 0.03, -d * 0.85, -h * 1.0)), hc + Vector((sg * 0.034, -d * 0.86, -h * 1.0 - 0.05)), hc + Vector((sg * 0.03, -d * 0.84, -h * 1.0 - 0.1))]
-                    add(tube(pts, 0.011, 5), "Jaw", bc2); add(sph(0.014, pts[-1] + Vector((0, 0, -0.012)), (1, 1, 1.3), 6), "Jaw", M("tie", (0.75, 0.55, 0.15), 0.6, 0.4))
-                add(sph(1.0, (hc.x, hc.y - 0.075, hc.z - 0.135), (0.075, 0.048, 0.08), 9), "Jaw", bc)
+                    pts = [hc + Vector((sg * 0.03, -d * 0.85, -h * 1.0)), hc + Vector((sg * 0.036, -d * 0.87, -h * 1.0 - 0.05)), hc + Vector((sg * 0.028, -d * 0.86, -h * 1.0 - 0.1)), hc + Vector((sg * 0.034, -d * 0.84, -h * 1.0 - 0.15))]
+                    add(tube_r(pts, [0.012, 0.012, 0.011, 0.004], 4), "Jaw", bc2); add(sph(0.012, pts[-1] + Vector((0, 0, -0.006)), (1, 1, 1.2), 6), "Jaw", M("tie", (0.75, 0.55, 0.15), 0.6, 0.4))
     if b == "mustache":
         my2 = surf(0, -0.038)
-        add(box((0.05, 0.014, 0.016), (hc.x, my2 - 0.005, hc.z - 0.04), r=0.3, sub=0), "Head", bc)
+        add(sph(1.0, (hc.x, my2 - 0.003, hc.z - 0.043), (0.026, 0.012, 0.012), 8), "Head", bc)
         for sg in (-1, 1):
-            lock((hc.x + sg * 0.02, my2 - 0.004, hc.z - 0.046), (sg * 1.0, -0.15, -0.35), 0.042, 0.012, bc2 if sg > 0 else bc, "Head", 4)
-            lock((hc.x + sg * 0.058, my2 - 0.001, hc.z - 0.052), (sg * 0.5, -0.1, 0.9), 0.022, 0.008, bc, "Head", 4)   # pointe relevée
-        add(box((0.012, 0.01, 0.014), (hc.x, my2 - 0.002, hc.z - 0.076), r=0.3, sub=0), "Jaw", bc)   # mouche
-    # ---- coiffure
+            clump((hc.x + sg * 0.012, my2 - 0.004, hc.z - 0.044), (sg * 1.0, -0.22, -0.35), 0.05, 0.011, bc2, "Head", 0.4, 0.9, 0.0, 4)
+            clump((hc.x + sg * 0.012, my2 - 0.004, hc.z - 0.05), (sg * 1.0, -0.22, -0.5), 0.045, 0.01, bc, "Head", 0.4, 0.5, 0.0, 4)
+        add(sph(1.0, (hc.x, my2 - 0.002, hc.z - 0.076), (0.007, 0.006, 0.008), 6), "Jaw", bc)
+    # ---- coiffure : calotte lissée + mèches effilées (les longues suivent le squelette HairB..HairB3 : elles ploient)
     hs = p["hs"]
     if hs != "bald":
         hb = bmesh.new(); bmesh.ops.create_uvsphere(hb, u_segments=16, v_segments=10, radius=1.0)
-        kk = 1.34 if hs == "afro" else 1.11
+        kk = 1.34 if hs == "afro" else 1.10
         for v in hb.verts: v.co = Vector((v.co.x * w * kk, v.co.y * d * kk, v.co.z * h * kk)) + hc + (Vector((0, 0.012, 0.01)) if hs == "afro" else Vector())
         fr = {"short": 0.34, "spiky": 0.36, "long": 0.32, "bangs": 0.22, "bob": 0.34, "ponytail": 0.36, "bun": 0.34, "sidepart": 0.32, "receding": 0.62, "braid": 0.34, "afro": 0.2}[hs]
         bk = {"short": -0.05, "spiky": 0.0, "long": -0.5, "bangs": -0.5, "bob": -0.4, "ponytail": -0.1, "bun": -0.1, "sidepart": -0.05, "receding": 0.1, "braid": -0.1, "afro": -0.6}[hs]
@@ -186,49 +226,71 @@ def human_head(name, hc, add, T):
         bmesh.ops.delete(hb, geom=kill, context="FACES")
         hm = bpy.data.meshes.new("hh"); hb.to_mesh(hm); hb.free()
         ho = bpy.data.objects.new("hh", hm); bpy.context.collection.objects.link(ho)
-        for pl in hm.polygons: pl.use_smooth = False
+        for pl in hm.polygons: pl.use_smooth = True
         add(ho, "Head", hair)
-        def vary(i, base): return base * (0.8 + 0.4 * abs(math.sin(i * 2.17 + 0.6)))
-        def fringe(n, zl, ln, spread=1.15, dirx=0.0, mat=None):
-            for i in range(n):
-                phi = -spread + 2 * spread * i / (n - 1)
-                lock(cap_pt(phi, zl), (math.sin(phi) * 0.3 + dirx, -math.cos(phi) * 0.3, -0.9), vary(i, ln), 0.014, (mat or (hair if i % 2 else hair2)), "Head", 4)
+        Hm = [hair, hair2]
+        out = lambda phi, zl: (math.sin(phi), -math.cos(phi), 0.0)
         def sideburns(zl=0.0, ln=0.05):
-            for sg in (-1, 1): lock(cap_pt(sg * 1.35, zl), (sg * 0.2, -0.1, -1), ln, 0.016, hair, "Head", 4)
+            for sg in (-1, 1):
+                for j in range(2): clump(cap_pt(sg * (1.3 + 0.1 * j), zl - 0.12 * j, 1.07), (sg * 0.15, -0.15, -1), ln * (1 - 0.2 * j), 0.014, hair, "Head", 0.5, 0.0, 0.0, 3)
+        def dirf(a, b_, c): return lambda phi, zl: (math.sin(phi) * a, -math.cos(phi) * b_, c)
         if hs == "short":
-            sideburns(0.15, 0.04)
+            ring(16, -1.5, 1.5, 0.45, 0.62, dirf(0.7, 0.8, -0.3), 0.04, 0.013, Hm, "Head", 0.6, 0.0, 0.8)
+            ring(10, 1.6, 4.7, 0.2, 0.7, dirf(1.0, 1.0, -0.5), 0.05, 0.014, Hm, "Head", 0.7, 0.0, 0.8)
+            sideburns(0.12, 0.04)
         elif hs == "spiky":
+            ring(14, -1.5, 1.5, 0.5, 0.7, lambda phi, zl: (math.sin(phi) * 0.5, -math.cos(phi) * 0.35, 1.0), 0.07, 0.02, Hm, "Head", 0.0, 0.0, 0.9)
+            ring(8, 1.6, 4.6, 0.5, 0.8, lambda phi, zl: (math.sin(phi) * 0.5, -math.cos(phi) * 0.35, 1.0), 0.06, 0.02, Hm, "Head", 0.0, 0.0, 0.9)
             sideburns(0.1, 0.035)
-            for k_, (dx, dy, hh) in enumerate(((-0.06, -0.01, 0.05), (-0.03, 0.0, 0.065), (0.0, -0.01, 0.06), (0.03, 0.0, 0.065), (0.06, -0.01, 0.05), (0.0, 0.04, 0.055), (-0.045, 0.045, 0.045), (0.05, 0.04, 0.048), (0.02, 0.07, 0.04))):
-                lock_up = (dx * 5, dy * 5 + 0.25, 1.0)
-                dv = Vector(lock_up).normalized(); eu = Vector((0, 0, 1)).rotation_difference(dv).to_euler()
-                add(cyl(0.024, 0.0, hh, Vector((hc.x + dx, hc.y + dy, hc.z + h * 0.92)) + dv * hh / 2, (eu.x, eu.y, eu.z), 4), "Head", hair if k_ % 2 else hair2)
         elif hs in ("long", "bangs"):
-            add(box((w * 2.15, 0.03, 0.2), (hc.x, hc.y + d * 0.92, hc.z - 0.07), r=0.3, sub=0), "HairB", hair)
-            for sg in (-1, 1): add(box((0.028, 0.14, 0.17), (hc.x + sg * w * 1.0, hc.y + 0.03, hc.z - 0.05), r=0.3, sub=0), "Head", hair)
-            for i in range(6): add(box((0.03, 0.02, vary(i, 0.04)), (hc.x - w * 0.9 + i * w * 1.8 / 5, hc.y + d * 0.93, hc.z - 0.18), r=0.3, sub=0), "HairB", hair if i % 2 else hair2)
-            if hs == "long": add(box((0.008, 0.06, 0.004), (hc.x + 0.012, hc.y - d * 0.7, hc.z + h * 0.99), r=0.3, sub=0), "Head", M(name + "_part", tuple(c * 0.5 + 0.12 for c in p["skin"]), 0.0, 0.8))
+            ring(22, 1.2, 5.1, 0.45, -0.2, lambda phi, zl: (math.sin(phi) * 0.15, -math.cos(phi) * 0.3, -1.0), 0.2, 0.019, Hm, HC, 0.7, 0.0, 0.8, 1.07, 5)
+            ring(8, -1.9, -1.35, 0.4, -0.1, lambda phi, zl: (math.sin(phi) * 0.2, 0.05, -1.0), 0.14, 0.016, Hm, HC, 0.7, 0.0, 0.4, 1.07, 5)
+            ring(8, 1.35, 1.9, 0.4, -0.1, lambda phi, zl: (math.sin(phi) * 0.2, 0.05, -1.0), 0.14, 0.016, Hm, HC, 0.7, 0.0, 0.4, 1.07, 5)
+            if hs == "bangs": ring(13, -1.1, 1.1, 0.62, 0.55, lambda phi, zl: (math.sin(phi) * 0.25 + 0.1, -math.cos(phi) * 0.5, -0.9), 0.07, 0.014, Hm, "Head", 0.5, 0.0, 0.9, 1.07, 4)
+            else: ring(9, -1.0, 1.0, 0.6, 0.5, lambda phi, zl: (math.sin(phi) * 0.7 + 0.5 * (1 if phi > 0 else -1), -math.cos(phi) * 0.4, -0.7), 0.06, 0.013, Hm, "Head", 0.6, 0.0, 0.8, 1.07, 4)
         elif hs == "bob":
-            add(box((w * 2.1, 0.03, 0.12), (hc.x, hc.y + d * 0.9, hc.z - 0.03), r=0.3, sub=0), "HairB", hair)
-            for sg in (-1, 1): add(box((0.03, 0.13, 0.12), (hc.x + sg * w * 1.04, hc.y + 0.02, hc.z - 0.02), r=0.3, sub=0), "Head", hair)
+            ring(16, 1.2, 5.1, 0.4, -0.1, lambda phi, zl: (math.sin(phi) * 0.15, -math.cos(phi) * 0.3, -1.0), 0.1, 0.018, Hm, HC, 0.4, -0.6, 0.6, 1.07, 4)
+            ring(6, -1.9, -1.35, 0.35, 0.0, lambda phi, zl: (math.sin(phi) * 0.2, -0.2, -1.0), 0.09, 0.016, Hm, HC, 0.4, -0.5, 0.3, 1.07, 4)
+            ring(6, 1.35, 1.9, 0.35, 0.0, lambda phi, zl: (math.sin(phi) * 0.2, -0.2, -1.0), 0.09, 0.016, Hm, HC, 0.4, -0.5, 0.3, 1.07, 4)
+            ring(13, -1.1, 1.1, 0.58, 0.5, lambda phi, zl: (math.sin(phi) * 0.3, -math.cos(phi) * 0.6, -0.8), 0.06, 0.013, Hm, "Head", 0.5, 0.0, 0.8, 1.07, 4)
         elif hs == "ponytail":
             sideburns(0.1, 0.03)
-            tube_pts = [Vector((hc.x, hc.y + d * 0.95, hc.z + 0.05)), Vector((hc.x, hc.y + d * 1.3, hc.z + 0.02)), Vector((hc.x, hc.y + d * 1.45, hc.z - 0.05)), Vector((hc.x, hc.y + d * 1.5, hc.z - 0.12))]
-            add(tube(tube_pts, 0.02, 5), "HairB", hair)
-            add(sph(0.019, tube_pts[1], (1.3, 1.3, 1.0), 6), "HairB", M("tie", (0.9, 0.3, 0.3), 0.3, 0.4))
-            add(sph(0.024, tube_pts[-1] + Vector((0, 0, -0.01)), (1, 1, 1.8), 6), "HairB", hair2)
+            ring(9, -1.4, 1.4, 0.45, 0.6, dirf(0.5, 0.6, -0.4), 0.04, 0.013, Hm, "Head", 0.6, 0.0, 0.8)
+            tie = Vector((hc.x, hc.y + d * 1.28, hc.z + 0.02))
+            for i in range(7):
+                a_ = (i - 3) * 0.1
+                pts = [cap_pt(math.pi + a_ * 1.5, 0.5, 1.05), Vector((hc.x + a_ * 0.05, hc.y + d * 1.12, hc.z + 0.06)), tie + Vector((a_ * 0.04, 0, 0)), tie + Vector((a_ * 0.18, 0.05, -0.08)), tie + Vector((a_ * 0.3, 0.07, -0.17)), tie + Vector((a_ * 0.35, 0.06, -0.24))]
+                add(tube_r(pts, [0.011, 0.012, 0.01, 0.014, 0.012, 0.003], 4), HC, Hm[i % 2])
+            add(tube([tie + Vector((math.cos(a) * 0.026, 0.0, math.sin(a) * 0.026)) for a in [TAU * k / 8 for k in range(8)]] if False else [Vector((tie.x + math.cos(a) * 0.024, tie.y, tie.z + math.sin(a) * 0.024)) for a in [2 * math.pi * k / 8 for k in range(8)]], 0.006, 4, True), "HairB", M("tie", (0.9, 0.3, 0.3), 0.3, 0.4))
         elif hs == "braid":
             sideburns(0.1, 0.03)
-            for i in range(6): add(sph(0.02 - i * 0.0015, (hc.x + (0.009 if i % 2 else -0.009), hc.y + d * (1.0 + 0.05 * i), hc.z + 0.01 - i * 0.034), (1, 1, 1.25), 6), "HairB", hair if i % 2 else hair2)
-            add(sph(0.014, (hc.x, hc.y + d * 1.25, hc.z - 0.19), (1, 1, 1), 6), "HairB", M("tie2", (0.85, 0.7, 0.2), 0.4, 0.4))
+            ring(9, -1.4, 1.4, 0.45, 0.6, dirf(0.5, 0.6, -0.4), 0.04, 0.013, Hm, "Head", 0.6, 0.0, 0.8)
+            for s_ in range(3):
+                ph = s_ * 2.1
+                pts = [Vector((hc.x + 0.012 * math.sin(ph + i * 1.5), hc.y + d * (0.95 + 0.08 * i), hc.z + 0.04 - i * 0.045)) for i in range(7)]
+                add(tube_r(pts, [0.012, 0.014, 0.014, 0.013, 0.012, 0.01, 0.003], 4), HC, Hm[s_ % 2])
+            add(sph(0.014, (hc.x, hc.y + d * 1.5, hc.z - 0.26), (1, 1, 1), 6), HC, M("tie2", (0.85, 0.7, 0.2), 0.4, 0.4))
         elif hs == "bun":
             sideburns(0.1, 0.03)
-            add(sph(0.046, (hc.x, hc.y + d * 0.5, hc.z + h * 1.06), (1, 1, 0.9), 8), "HairB", hair)
-            add(tube([Vector((hc.x + math.cos(a) * 0.05, hc.y + d * 0.5 + math.sin(a) * 0.05, hc.z + h * 1.05)) for a in [2 * math.pi * k / 8 for k in range(8)]], 0.007, 4, True), "HairB", M("tie3", (0.9, 0.8, 0.3), 0.4, 0.4))
+            ring(14, -1.5, 1.5, 0.45, 0.62, dirf(0.6, 0.7, -0.3), 0.04, 0.013, Hm, "Head", 0.6, 0.0, 0.8)
+            add(sph(0.046, (hc.x, hc.y + d * 0.5, hc.z + h * 1.06), (1, 1, 0.9), 10), HC, hair)
+            for i in range(6):
+                a_ = TAU * i / 6; pts = [Vector((hc.x + math.cos(a_) * 0.03, hc.y + d * 0.5 + math.sin(a_) * 0.03, hc.z + h * 1.04 + 0.03)), Vector((hc.x + math.cos(a_) * 0.052, hc.y + d * 0.5 + math.sin(a_) * 0.052, hc.z + h * 1.06)), Vector((hc.x + math.cos(a_ + 0.6) * 0.04, hc.y + d * 0.5 + math.sin(a_ + 0.6) * 0.04, hc.z + h * 1.1))]
+                add(tube_r(pts, [0.007, 0.007, 0.003], 4), HC, Hm[i % 2])
+            add(tube([Vector((hc.x + math.cos(a) * 0.05, hc.y + d * 0.5 + math.sin(a) * 0.05, hc.z + h * 1.05)) for a in [2 * math.pi * k / 8 for k in range(8)]], 0.006, 4, True), HC, M("tie3", (0.9, 0.8, 0.3), 0.4, 0.4))
         elif hs == "sidepart":
+            ring(14, -1.5, 0.2, 0.7, 0.45, lambda phi, zl: (-0.9, -0.5, -0.4), 0.06, 0.014, Hm, "Head", 0.5, 0.0, 0.7, 1.07, 4)
+            ring(7, 0.2, 1.5, 0.5, 0.6, lambda phi, zl: (math.sin(phi) * 0.4 - 0.5, -math.cos(phi) * 0.5, -0.5), 0.045, 0.013, Hm, "Head", 0.6, 0.0, 0.7, 1.07, 4)
+            ring(8, 1.6, 4.6, 0.2, 0.7, dirf(1.0, 1.0, -0.5), 0.05, 0.014, Hm, "Head", 0.7, 0.0, 0.8)
             sideburns(0.1, 0.035)
         elif hs == "receding":
             sideburns(0.05, 0.05)
+            for sg in (-1, 1): ring(6, sg * 1.25, sg * 1.9, 0.35, 0.0, dirf(0.9, 0.3, -0.7), 0.05, 0.014, Hm, "Head", 0.7, 0.0, 0.6)
+            ring(10, 1.9, 4.4, 0.1, 0.55, dirf(1.0, 1.0, -0.6), 0.05, 0.014, Hm, "Head", 0.7, 0.0, 0.8)
         elif hs == "afro":
+            for i in range(22):
+                a_ = -1.7 + 3.4 * (i % 11) / 10 if i < 11 else 1.5 + 3.0 * ((i - 11) / 10)
+                zl_ = 0.35 + 0.5 * jit(i, 1.9)
+                c_ = cap_pt(a_, zl_, 1.28); add(sph(0.032 + 0.012 * jit(i, 2.2), c_, (1, 1, 0.95), 7), "Head", Hm[i % 2])
             for dx, dz in ((-0.05, 0.1), (0.05, 0.1), (0.0, 0.14), (-0.09, 0.03), (0.09, 0.03), (-0.07, 0.07), (0.07, 0.07), (0.0, 0.09)):
-                add(sph(0.045, (hc.x + dx, hc.y + 0.02, hc.z + dz), (1, 1, 1), 8), "Head", hair if (dx > 0) else hair2)
+                add(sph(0.045, (hc.x + dx, hc.y + 0.02, hc.z + dz), (1, 1, 1), 8), "Head", Hm[0 if dx > 0 else 1])

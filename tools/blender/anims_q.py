@@ -89,6 +89,8 @@ def build(F, fn, step=2, blinks=(), extra_frames=()):
     for f in sorted(frames):
         t = ((f - 1) % F) / F if f <= F else 0.0
         spec, fx = fn(f, t)
+        if "HairB" in spec:   # les mèches ploient le long de la chaîne : chaque maillon prolonge le mouvement du précédent
+            spec["HairB2"] = [(ax, 0.9 * dg) for ax, dg in spec["HairB"]]; spec["HairB3"] = [(ax, 1.1 * dg) for ax, dg in spec["HairB"]]
         ba = blink_amt(f, blinks)
         if ba: fx = merge(fx, blink(ba))
         out.append((f, spec, fx))
