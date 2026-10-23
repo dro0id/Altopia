@@ -71,12 +71,12 @@ def face(spec, jaw=0.0, brow_up=0.0, brow_tilt=0.0):
 def life(t, a=1.0, curl=15.0):
     """couche de vie : respiration, tête qui flotte, bras et mains détendus, regard ; t = phase 0..1 du clip (période 4 s)"""
     b = cyc(t, 1, 0.0)
-    adds = [("Chest", X, 1.4 * a * b), ("Torso", X, 0.9 * a * b), ("Abdomen", X, 0.7 * a * b), ("Neck", X, -0.8 * a * b),
-            ("Shoulder.L", Z, 1.0 * a * b), ("Shoulder.R", Z, -1.0 * a * b),
-            ("Head", Z, a * (2.2 * cyc(t, 1, 0.2) + 1.0 * cyc(t, 3, 0.5))), ("Head", X, a * (1.4 * cyc(t, 2, 0.1) - 0.5 * b)), ("Neck", Z, 0.5 * a * cyc(t, 1, 0.12)),
-            ("UpperArm.L", X, 1.3 * a * cyc(t, 1, 0.28)), ("UpperArm.R", X, -1.3 * a * cyc(t, 1, 0.28)),
-            ("LowerArm.L", X, 5 + 1.5 * a * cyc(t, 1, 0.1)), ("LowerArm.R", X, 5 - 1.5 * a * cyc(t, 1, 0.1)),
-            ("Hand.L", X, 2 * a * cyc(t, 2, 0.4)), ("Hand.R", X, 2 * a * cyc(t, 2, 0.1)),
+    adds = [("Chest", X, 2.6 * a * b), ("Torso", X, 1.6 * a * b), ("Abdomen", X, 1.2 * a * b), ("Neck", X, -1.4 * a * b),
+            ("Shoulder.L", Z, 2.2 * a * b), ("Shoulder.R", Z, -2.2 * a * b),
+            ("Head", Z, a * (4.0 * cyc(t, 1, 0.2) + 1.8 * cyc(t, 3, 0.5))), ("Head", X, a * (2.6 * cyc(t, 2, 0.1) - 1.0 * b)), ("Neck", Z, 1.0 * a * cyc(t, 1, 0.12)),
+            ("UpperArm.L", X, 2.6 * a * cyc(t, 1, 0.28)), ("UpperArm.R", X, -2.6 * a * cyc(t, 1, 0.28)),
+            ("LowerArm.L", X, 9 + 3 * a * cyc(t, 1, 0.1)), ("LowerArm.R", X, 9 - 3 * a * cyc(t, 1, 0.1)),
+            ("Hand.L", X, 4 * a * cyc(t, 2, 0.4)), ("Hand.R", X, 4 * a * cyc(t, 2, 0.1)),
             ("HairB", X, 2 * a * cyc(t, 2, 0.8))]
     fx = merge(fingers(curl + 3 * a * cyc(t, 1, 0.3)), gaze(0.4 * a * cyc(t, 1, 0.1), 0.2 * a * cyc(t, 2, 0.5)))
     return adds, fx
@@ -102,11 +102,11 @@ def clip_idle():
     def fn(f, t):
         ws = cyc(t, 1, 0.0)
         adds, fx = life(t)
-        adds += [("Hips", Z, 2.2 * ws), ("Hips", Y, 1.6 * ws), ("Torso", Z, -1.4 * ws), ("Chest", Z, -0.8 * ws), ("Chest", Y, 1.0 * ws), ("Head", Y, -1.5 * ws),
+        adds += [("Hips", Z, 4.0 * ws), ("Hips", Y, 3.0 * ws), ("Torso", Z, -2.6 * ws), ("Chest", Z, -1.6 * ws), ("Chest", Y, 2.0 * ws), ("Head", Y, -2.8 * ws),
                  ("Shoulder.L", Z, -1.2 * ws), ("Shoulder.R", Z, -1.2 * ws),
                  ("LowerLeg.L", X, 2 + 4 * max(0.0, -ws)), ("LowerLeg.R", X, 2 + 4 * max(0.0, ws)), ("UpperLeg.L", X, -1.5 * max(0.0, -ws)), ("UpperLeg.R", X, -1.5 * max(0.0, ws)),
                  ("Foot.L", X, 1.5 * max(0.0, -ws)), ("Foot.R", X, 1.5 * max(0.0, ws))]
-        s = S(*adds); s["_t"] = {"Hips": (0.011 * ws, 0, -0.004 * abs(ws))}
+        s = S(*adds); s["_t"] = {"Hips": (0.02 * ws, 0, -0.008 * abs(ws))}
         fx = merge(fx, face(s, jaw=0.4 + 0.3 * cyc(t, 1, 0.5), brow_up=0.25 * max(0.0, cyc(t, 1, 0.45) - 0.5) * 2))
         return s, fx
     return build(F, fn, 2, blinks=(28, 77, 83))
@@ -136,11 +136,11 @@ def walk_pose(f, t, run=False):
     adds += [("UpperLeg.L", X, -th * L), ("UpperLeg.R", X, -th * R),
              ("LowerLeg.L", X, kn * max(0.0, -co) * (1 if L < 0.7 else 0) + 7 * max(0.0, co) * max(0.0, 1 - L)), ("LowerLeg.R", X, kn * max(0.0, co) * (1 if R < 0.7 else 0) + 7 * max(0.0, -co) * max(0.0, 1 - R)),
              ("Foot.L", X, 16 * max(0.0, -L) - 10 * max(0.0, L) * 0.6), ("Foot.R", X, 16 * max(0.0, -R) - 10 * max(0.0, R) * 0.6),
-             ("UpperArm.L", X, (24 * amp) * sl(0.0) ), ("UpperArm.R", X, -(24 * amp) * sl(0.0)),
-             ("LowerArm.L", X, (14 if not run else 78) + (10 * amp) * max(0.0, sl(0.5))), ("LowerArm.R", X, (14 if not run else 78) + (10 * amp) * max(0.0, -sl(0.5))),
+             ("UpperArm.L", X, (34 * amp) * sl(0.0) ), ("UpperArm.R", X, -(34 * amp) * sl(0.0)),
+             ("LowerArm.L", X, (24 if not run else 78) + (16 * amp) * max(0.0, sl(0.5))), ("LowerArm.R", X, (24 if not run else 78) + (16 * amp) * max(0.0, -sl(0.5))),
              ("Hand.L", X, 8 * sl(1.0)), ("Hand.R", X, -8 * sl(1.0)),
              ("UpperArm.L", Y, 3 * co), ("UpperArm.R", Y, -3 * co),
-             ("Hips", Z, 5 * amp * sw), ("Hips", Y, 3.0 * amp * co), ("Torso", Z, -4 * amp * sl(0.25)), ("Chest", Z, -3 * amp * sl(0.45)), ("Torso", Y, -1.5 * amp * co),
+             ("Hips", Z, 7 * amp * sw), ("Hips", Y, 4.0 * amp * co), ("Torso", Z, -6 * amp * sl(0.25)), ("Chest", Z, -5 * amp * sl(0.45)), ("Torso", Y, -1.5 * amp * co),
              ("Shoulder.L", Z, 3 * sl(0.3)), ("Shoulder.R", Z, -3 * sl(0.3)),
              ("Neck", Z, 2 * amp * sl(0.7)), ("Head", Z, 3 * amp * sl(0.9)), ("Head", X, -3 + 2.2 * abs(sl(0.6)) * amp + (-4 if run else 0)),
              ("Torso", X, 13 if run else 2.5), ("Abdomen", X, 4 if run else 0.5), ("Chest", X, 3 if run else 0.5),

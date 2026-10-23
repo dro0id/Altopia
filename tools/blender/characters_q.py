@@ -132,6 +132,70 @@ def build_suit_shell(src_objs, arm, mats, inflate=0.026):
 def bone_h(arm, n): return arm.data.bones[n].head_local.copy()
 def bone_t(arm, n): return arm.data.bones[n].tail_local.copy()
 
+
+def allowed_groups(bone):
+    """os dont une pièce rigide peut reprendre les poids (sa propre chaîne de membre) ; None = reste rigide"""
+    sd = bone[-2:] if bone[-2:] in (".L", ".R") else ""
+    if bone.startswith("UpperArm"): return {"Shoulder" + sd, "UpperArm" + sd, "LowerArm" + sd}
+    if bone.startswith("LowerArm"): return {"UpperArm" + sd, "LowerArm" + sd, "Hand" + sd}
+    if bone.startswith("UpperLeg"): return {"Hips", "UpperLeg" + sd, "LowerLeg" + sd}
+    if bone.startswith("LowerLeg"): return {"UpperLeg" + sd, "LowerLeg" + sd, "Foot" + sd}
+    if bone in ("Hips", "Abdomen"): return {"Hips", "Abdomen", "Torso"}
+    return None
+
+
+def smooth_weights(ob, iters=3, a=0.55):
+    """Adoucit les poids de peau le long du maillage : les articulations plient en douceur au lieu de charnières dures."""
+    me = ob.data; n = len(me.vertices)
+    nb = [[] for _ in range(n)]
+    for e in me.edges: nb[e.vertices[0]].append(e.vertices[1]); nb[e.vertices[1]].append(e.vertices[0])
+    names = {vg.index: vg.name for vg in ob.vertex_groups}
+    W = [{g.group: g.weight for g in v.groups} for v in me.vertices]
+    for _ in range(iters):
+        new = []
+        for i in range(n):
+            if not nb[i]: new.append(W[i]); continue
+            acc = {}
+            for j in nb[i]:
+                for k, w in W[j].items(): acc[k] = acc.get(k, 0.0) + w / len(nb[i])
+            d = {}
+            for k in set(W[i]) | set(acc): d[k] = (1 - a) * W[i].get(k, 0.0) + a * acc.get(k, 0.0)
+            t = sum(d.values()) or 1.0
+            new.append({k: w / t for k, w in d.items() if w / t > 0.02})
+        W = new
+    for vg in list(ob.vertex_groups): ob.vertex_groups.remove(vg)
+    vgs = {}
+    for i, d in enumerate(W):
+        for k, w in sorted(d.items(), key=lambda kv: -kv[1])[:4]:
+            if k not in vgs: vgs[k] = ob.vertex_groups.new(name=names[k])
+            vgs[k].add([i], w, "REPLACE")
+
+def transfer_weights(ob, shells, arm, allowed, bone_own):
+    """Les pièces rigides (anneaux, genouillères, sac...) reprennent les poids de la combinaison la plus proche : elles suivent sa déformation."""
+    from mathutils.kdtree import KDTree
+    pts = []; wts = []
+    for sh in shells:
+        gn = {vg.index: vg.name for vg in sh.vertex_groups}
+        for v in sh.data.vertices:
+            pts.append(v.co.copy()); wts.append({gn[g.group]: g.weight for g in v.groups})
+    kd = KDTree(len(pts))
+    for i, p in enumerate(pts): kd.insert(p, i)
+    kd.balance()
+    for vg in list(ob.vertex_groups): ob.vertex_groups.remove(vg)
+    vgs = {}
+    for v in ob.data.vertices:
+        acc = {}
+        for co, idx, dist in kd.find_n(ob.matrix_world @ v.co, 3):
+            for k, w in wts[idx].items():
+                if k in allowed: acc[k] = acc.get(k, 0.0) + w / 3.0
+        if not acc: acc = {bone_own: 1.0}
+        t = sum(acc.values()) or 1.0
+        for k, w in sorted(acc.items(), key=lambda kv: -kv[1])[:4]:
+            if k not in vgs: vgs[k] = ob.vertex_groups.new(name=k)
+            vgs[k].add([v.index], w / t, "REPLACE")
+    ob.parent = arm
+    md = ob.modifiers.new("Armature", "ARMATURE"); md.object = arm
+
 def skin_rigid(ob, arm, bone):
     ob.parent = arm
     md = ob.modifiers.new("Armature", "ARMATURE"); md.object = arm
@@ -139,7 +203,7 @@ def skin_rigid(ob, arm, bone):
         zs = [arm.data.bones[b].head_local.z for b in bone]
         vgs = [ob.vertex_groups.new(name=b) for b in bone]
         for v in ob.data.vertices:
-            z = v.co.z
+            z = (ob.matrix_world @ v.co).z
             if z >= zs[0]: w = [1.0] + [0.0] * (len(zs) - 1)
             elif z <= zs[-1]: w = [0.0] * (len(zs) - 1) + [1.0]
             else:
@@ -398,6 +462,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     black = M("black", (0.02, 0.02, 0.03), 0.0, 0.4); gold = M("gold", (1.0, 0.8, 0.2), 0.6, 0.3); brown = M("kneepad", (0.42, 0.33, 0.26), 0.0, 0.7)
     # combinaison : gonflée autour du corps (épaisseur selon corpulence)
     shells = build_suit_shell([parts["Body"], parts["Legs"], parts["Feet"]], arm, [suit, glove, boot, dark], inflate=0.026 * bk)
+    for sh_ in shells: smooth_weights(sh_, 3, 0.55)
     for o in (parts["Body"], parts["Legs"], parts["Feet"]):
         if o is not None: bpy.data.objects.remove(o)
     rigid = []   # (objet, os)
@@ -633,7 +698,10 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
         bpy.context.view_layer.objects.active = obs[0]
         if len(obs) > 1: bpy.ops.object.join()
         j = bpy.context.active_object; j.name = "%s_%s" % (bone if isinstance(bone, str) else bone[0] + "chain", mn)
-        skin_rigid(j, arm, bone)
+        if isinstance(bone, str) and allowed_groups(bone):
+            transfer_weights(j, shells, arm, allowed_groups(bone), bone)
+        else:
+            skin_rigid(j, arm, bone)
     # racine : faisceau orienté face +Y, pieds à z = 0
     root = bpy.data.objects.new("char_" + name, None); bpy.context.collection.objects.link(root)
     arm.parent = root
