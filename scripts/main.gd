@@ -1029,8 +1029,8 @@ func _refresh_crew() -> void:
 		u.name.text = "%s  —  niv. %d  %s" % [tpl.name, h.level, "★".repeat(h.stars)]
 		u.name.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
 		_set_rarity_style(u.panel, Data.RARITY[tpl.rarity].color)
-		u.stats.text = "%s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
-			cls.name, Data.RARITY[tpl.rarity].name, st.hp, st.atk, st.def, st.spd]
+		u.stats.text = "%s · %s · %s\nPV %d  ATQ %d  DÉF %d  VIT %d" % [
+			cls.name, Data.SPECIES[tpl.get("species", "human")], Data.RARITY[tpl.rarity].name, st.hp, st.atk, st.def, st.spd]
 		u.xp.visible = true
 		u.xp.value = float(h.xp) / float(Data.xp_needed(h.level))
 		u.where.text = _hero_work_text(id)

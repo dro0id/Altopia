@@ -22,17 +22,29 @@ const RARITY := {
 const RARITY_ORDER := ["epic", "rare", "common"]
 
 ## Héros recrutables : stats de base au niveau 1, 0 étoile.
-const HERO_ORDER := ["rex", "nova", "zara", "bolt", "tess", "gorn", "lumi", "quark", "elara"]
+const HERO_ORDER := ["rex", "jett", "nova", "vega", "zara", "sira", "bolt", "tick", "tess", "maya", "gorn", "brakk",
+	"lumi", "ilan", "quark", "sage", "elara", "zyl"]
+## Espèce de l'équipier (affichage) : humain par défaut.
+const SPECIES := {"human": "Humain", "robot": "Robot", "alien": "Extraterrestre"}
 const HEROES := {
 	"rex": {"name": "Rex", "class": "pilot", "rarity": "common", "specialty": "mine", "hp": 100.0, "atk": 14.0, "def": 6.0, "spd": 12.0},
 	"nova": {"name": "Nova", "class": "pilot", "rarity": "rare", "specialty": "quartiers", "hp": 110.0, "atk": 18.0, "def": 7.0, "spd": 15.0},
 	"zara": {"name": "Zara", "class": "pilot", "rarity": "epic", "specialty": "mine", "hp": 120.0, "atk": 24.0, "def": 9.0, "spd": 18.0},
+	"jett": {"name": "Jett", "class": "pilot", "rarity": "common", "specialty": "quartiers", "species": "human", "hp": 104.0, "atk": 13.0, "def": 6.0, "spd": 13.0},
+	"vega": {"name": "Vega", "class": "pilot", "rarity": "rare", "specialty": "mine", "species": "human", "hp": 108.0, "atk": 19.0, "def": 7.0, "spd": 16.0},
+	"sira": {"name": "Sira", "class": "pilot", "rarity": "epic", "specialty": "mine", "species": "alien", "hp": 124.0, "atk": 26.0, "def": 10.0, "spd": 20.0},
 	"bolt": {"name": "Bolt", "class": "engineer", "rarity": "common", "specialty": "centrale", "hp": 130.0, "atk": 10.0, "def": 10.0, "spd": 8.0},
 	"tess": {"name": "Tess", "class": "engineer", "rarity": "rare", "specialty": "atelier", "hp": 140.0, "atk": 12.0, "def": 13.0, "spd": 9.0},
 	"gorn": {"name": "Gorn", "class": "engineer", "rarity": "epic", "specialty": "atelier", "hp": 170.0, "atk": 15.0, "def": 17.0, "spd": 8.0},
+	"tick": {"name": "Tick", "class": "engineer", "rarity": "common", "specialty": "atelier", "species": "robot", "hp": 128.0, "atk": 9.0, "def": 11.0, "spd": 8.0},
+	"maya": {"name": "Maya", "class": "engineer", "rarity": "rare", "specialty": "centrale", "species": "human", "hp": 138.0, "atk": 13.0, "def": 12.0, "spd": 10.0},
+	"brakk": {"name": "Brakk", "class": "engineer", "rarity": "epic", "specialty": "mine", "species": "alien", "hp": 176.0, "atk": 16.0, "def": 18.0, "spd": 7.0},
 	"lumi": {"name": "Lumi", "class": "scientist", "rarity": "common", "specialty": "labo", "hp": 90.0, "atk": 16.0, "def": 4.0, "spd": 10.0},
 	"quark": {"name": "Quark", "class": "scientist", "rarity": "rare", "specialty": "soute", "hp": 95.0, "atk": 20.0, "def": 5.0, "spd": 11.0},
 	"elara": {"name": "Elara", "class": "scientist", "rarity": "epic", "specialty": "labo", "hp": 105.0, "atk": 27.0, "def": 6.0, "spd": 13.0},
+	"ilan": {"name": "Ilan", "class": "scientist", "rarity": "common", "specialty": "labo", "species": "human", "hp": 92.0, "atk": 15.0, "def": 4.0, "spd": 11.0},
+	"sage": {"name": "Sage", "class": "scientist", "rarity": "rare", "specialty": "soute", "species": "robot", "hp": 98.0, "atk": 19.0, "def": 6.0, "spd": 10.0},
+	"zyl": {"name": "Zyl", "class": "scientist", "rarity": "epic", "specialty": "labo", "species": "alien", "hp": 102.0, "atk": 28.0, "def": 5.0, "spd": 14.0},
 }
 const STARTER_HEROES := ["rex", "bolt"]
 
