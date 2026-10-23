@@ -753,7 +753,7 @@ def make(name, pose="idle", s=1.0, suit_override=None, godot=False):
     if "glowcore" in ex:
         add(prim_sph(0.032, (0, fy0 - 0.02, cz - 0.17), (1, 0.5, 1), 10), "Chest", E("core", (1.0, 0.5, 0.15), 8.0))
     if "orb" in ex:
-        add(prim_sph(0.06, (0.34, hb("UpperArm.L").y - 0.05, hb("UpperArm.L").z - 0.4), (1, 1, 1), 10), "Chest", E("orb", (0.8, 0.6, 1.0), 8.0))
+        h_ = hb("Hand.L"); add(prim_sph(0.06, (h_.x, h_.y - 0.13, h_.z - 0.1), (1, 1, 1), 10), "Hand.L", E("orb", (0.8, 0.6, 1.0), 8.0))   # tenue dans la main : suit tous les gestes
     # --- fusion par (os, matière), peau
     groups = {}
     for ob, bone in rigid:
