@@ -250,7 +250,7 @@ def human_head(name, hc, add, T):
         hb = bmesh.new(); bmesh.ops.create_uvsphere(hb, u_segments=16, v_segments=10, radius=1.0)
         kk = 1.34 if hs == "afro" else 1.10
         for v in hb.verts: v.co = Vector((v.co.x * w * kk, v.co.y * d * kk, v.co.z * h * kk)) + hc + (Vector((0, 0.012, 0.01)) if hs == "afro" else Vector())
-        fr = {"short": 0.34, "spiky": 0.36, "long": 0.32, "bangs": 0.22, "bob": 0.34, "ponytail": 0.36, "bun": 0.34, "sidepart": 0.32, "receding": 0.62, "braid": 0.34, "afro": 0.2}[hs]
+        fr = {"short": 0.34, "spiky": 0.36, "long": 0.32, "bangs": 0.22, "bob": 0.34, "ponytail": 0.36, "bun": 0.34, "sidepart": 0.32, "receding": 0.62, "braid": 0.34, "afro": 0.36}[hs]
         bk = {"short": -0.05, "spiky": 0.0, "long": -0.5, "bangs": -0.5, "bob": -0.4, "ponytail": -0.1, "bun": -0.1, "sidepart": -0.05, "receding": 0.1, "braid": -0.1, "afro": -0.6}[hs]
         kill = []
         for f in hb.faces:
