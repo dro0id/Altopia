@@ -30,9 +30,9 @@ const HEROES := {
 	"rex": {"name": "Rex", "class": "pilot", "rarity": "common", "specialty": "mine", "hp": 100.0, "atk": 14.0, "def": 6.0, "spd": 12.0},
 	"nova": {"name": "Nova", "class": "pilot", "rarity": "rare", "specialty": "quartiers", "hp": 110.0, "atk": 18.0, "def": 7.0, "spd": 15.0},
 	"zara": {"name": "Zara", "class": "pilot", "rarity": "epic", "specialty": "mine", "hp": 120.0, "atk": 24.0, "def": 9.0, "spd": 18.0},
-	"jett": {"name": "Jett", "class": "pilot", "rarity": "common", "specialty": "quartiers", "species": "human", "hp": 104.0, "atk": 13.0, "def": 6.0, "spd": 13.0},
-	"vega": {"name": "Vega", "class": "pilot", "rarity": "rare", "specialty": "mine", "species": "human", "hp": 108.0, "atk": 19.0, "def": 7.0, "spd": 16.0},
-	"sira": {"name": "Sira", "class": "pilot", "rarity": "epic", "specialty": "mine", "species": "alien", "hp": 124.0, "atk": 26.0, "def": 10.0, "spd": 20.0},
+	"jett": {"name": "Jett", "class": "pilot", "rarity": "common", "specialty": "quartiers", "species": "robot", "hp": 104.0, "atk": 13.0, "def": 6.0, "spd": 13.0},
+	"vega": {"name": "Vega", "class": "pilot", "rarity": "rare", "specialty": "mine", "species": "alien", "hp": 108.0, "atk": 19.0, "def": 7.0, "spd": 16.0},
+	"sira": {"name": "Sira", "class": "pilot", "rarity": "epic", "specialty": "mine", "species": "human", "hp": 124.0, "atk": 26.0, "def": 10.0, "spd": 20.0},
 	"bolt": {"name": "Bolt", "class": "engineer", "rarity": "common", "specialty": "centrale", "hp": 130.0, "atk": 10.0, "def": 10.0, "spd": 8.0},
 	"tess": {"name": "Tess", "class": "engineer", "rarity": "rare", "specialty": "atelier", "hp": 140.0, "atk": 12.0, "def": 13.0, "spd": 9.0},
 	"gorn": {"name": "Gorn", "class": "engineer", "rarity": "epic", "specialty": "atelier", "hp": 170.0, "atk": 15.0, "def": 17.0, "spd": 8.0},
@@ -46,6 +46,13 @@ const HEROES := {
 	"sage": {"name": "Sage", "class": "scientist", "rarity": "rare", "specialty": "soute", "species": "robot", "hp": 98.0, "atk": 19.0, "def": 6.0, "spd": 10.0},
 	"zyl": {"name": "Zyl", "class": "scientist", "rarity": "epic", "specialty": "labo", "species": "alien", "hp": 102.0, "atk": 28.0, "def": 5.0, "spd": 14.0},
 }
+## Répliques des équipiers (fiche 3D, recrutement) : une liste par classe.
+const LINES := {
+	"pilot": ["À vos ordres, Capitaine. Dites où, j'y vole.", "Le champ d'astéroïdes ? Un jeu d'enfant.", "Cap dégagé. Je garde les mains sur les commandes."],
+	"engineer": ["Laissez-moi dix minutes et ce vaisseau tiendra encore dix ans.", "Ça grince, mais ça tient. Comme moi.", "Donnez-moi des minerais et je vous fais un miracle."],
+	"scientist": ["Les données sont fascinantes, Capitaine. Écoutez ça.", "Je viens de calculer nos chances. Elles sont… correctes.", "Une anomalie ! Enfin quelque chose d'intéressant."],
+}
+const LINES_NEW := ["Heureux de rejoindre l'équipage, Capitaine !", "Prêt à servir. Où dois-je me poster ?", "Alors c'est donc ça, Altopia. Impressionnant."]
 const STARTER_HEROES := ["rex", "bolt"]
 
 ## --- Capitaine (le joueur) ---

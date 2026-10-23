@@ -12,7 +12,7 @@ func _initialize() -> void:
 	for i in 4:
 		await process_frame
 	main._show_tab("crew")
-	main._open_sheet(a[0])
+	main._open_sheet(a[0], a.size() > 3)
 	for i in 20:
 		await process_frame
 	main._sheet_view.play(a[1])

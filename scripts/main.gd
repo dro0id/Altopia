@@ -82,6 +82,8 @@ var _sheet: Control
 var _sheet_view: Node
 var _sheet_title: Label
 var _sheet_info: Label
+var _sheet_quote: Label
+var _sheet_gen := 0
 const GESTURES := [["Idle", "Repos"], ["Look", "Regard"], ["Walk", "Marche"], ["Run", "Course"], ["Shoot", "Tir"], ["Talk", "Parler"],
 	["Wave", "Saluer"], ["Nod", "Oui"], ["Shake", "Non"], ["Think", "Réfléchir"], ["Point", "Montrer"], ["Work", "Travailler"],
 	["Salute", "Salut militaire"], ["Cheer", "Victoire"], ["Surprise", "Surprise"], ["Laugh", "Rire"], ["Hit", "Coup reçu"]]
@@ -208,6 +210,8 @@ func _build_sheet() -> void:
 	_sheet_title = _label(col, "", 40)
 	_sheet_info = _label(col, "", 20, COL_TEXT_DIM)
 	_sheet_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sheet_quote = _label(col, "", 22, Color("ffd159"))
+	_sheet_quote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_sheet_view = CrewView.new()
 	_sheet_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_sheet_view)
@@ -225,13 +229,22 @@ func _build_sheet() -> void:
 	close.pressed.connect(func(): _sheet.visible = false)
 
 
-func _open_sheet(id: String) -> void:
+func _open_sheet(id: String, is_new := false) -> void:
 	var tpl: Dictionary = Data.HEROES[id]
-	_sheet_title.text = tpl.name
+	_sheet_title.text = ("Nouvel équipier : " if is_new else "") + String(tpl.name)
 	_sheet_title.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
 	_sheet_info.text = "%s · %s · %s" % [Data.CREW[tpl["class"]].name, Data.SPECIES[tpl.get("species", "human")], Data.RARITY[tpl.rarity].name]
+	var lines: Array = Data.LINES_NEW if is_new else Data.LINES[tpl["class"]]
+	_sheet_quote.text = "« %s »" % lines[randi() % lines.size()]
 	_sheet.visible = true
 	_sheet_view.show_hero(id)
+	# il parle d'abord ; ensuite le geste dépend de la situation : au travail s'il est dans une salle, sinon il salue
+	_sheet_view.play("Talk")
+	_sheet_gen += 1
+	var gen := _sheet_gen
+	get_tree().create_timer(3.0).timeout.connect(func():
+		if gen == _sheet_gen and _sheet.visible:
+			_sheet_view.play("Work" if GameState.hero_room(id) != "" and not is_new else "Wave"))
 
 
 func _build_header(parent: Control) -> void:

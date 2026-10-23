@@ -7,6 +7,7 @@ const Sim = preload("res://scripts/live_sim.gd")
 const LiveView = preload("res://scripts/live_view.gd")
 const Sfx = preload("res://scripts/live_sfx.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
+const CrewView = preload("res://scripts/crew_view.gd")
 
 signal closed(replay: bool)
 signal fight_done(result: Dictionary)      # mode Route : le combat est fini, le voyage reprend la main
@@ -42,6 +43,8 @@ var _chance_label: Label
 var _obj_labels: Array = []
 var _ab_btns: Dictionary = {}
 var _result: PanelContainer
+var _res_box: VBoxContainer
+var _res_crew: Control      # un équipier du groupe fête la victoire ou encaisse la défaite (créé au premier résultat)
 var _res_title: Label
 var _res_stars: Label
 var _res_body: Label
@@ -264,6 +267,7 @@ func _build() -> void:
 	rc.add_theme_constant_override("separation", 10)
 	rc.alignment = BoxContainer.ALIGNMENT_CENTER
 	_result.add_child(rc)
+	_res_box = rc
 	_res_title = Label.new()
 	_res_title.add_theme_font_size_override("font_size", 52)
 	_res_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -431,9 +435,29 @@ func _settle() -> void:
 	_res_body.text = "\n".join(lines)
 	_res_info.text = String(GameState.slots[slot_i].last)
 	_again_btn.text = "Rejouer"
+	_show_result_crew(win)
 	if GameState.auto_relaunch(slot_i) and GameState.live_block_reason(dest, slot_i) == "":
 		_relaunch_t = 4.0
 	_result.visible = true
+
+
+## Un équipier du groupe réagit au résultat : Victoire s'il a gagné, Coup reçu sinon (modèle 3D animé, un seul à la fois).
+func _show_result_crew(win: bool) -> void:
+	var ids: Array = GameState.squad_ids(slot_i)
+	if ids.is_empty():
+		if _res_crew != null:
+			_res_crew.visible = false
+		return
+	if _res_crew == null:
+		_res_crew = CrewView.new()
+		_res_crew.custom_minimum_size = Vector2(0, 250)
+		_res_crew.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_res_box.add_child(_res_crew)
+		_res_box.move_child(_res_crew, 2)
+	_res_crew.visible = true
+	var who: String = ids[randi() % ids.size()]
+	_res_crew.show_hero(who)
+	_res_crew.play("Cheer" if win else "Hit")
 
 
 func _settle_route(res: Dictionary) -> void:

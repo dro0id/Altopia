@@ -70,7 +70,7 @@ func show_hero(id: String) -> void:
 	var box := _bounds(_model)
 	var h := maxf(box.size.y, 0.5)
 	_model.position.y = -box.position.y
-	_cam.position = Vector3(0, h * 0.52, h * 1.85)
+	_cam.position = Vector3(0, h * 0.52, h * 2.05)
 	_cam.look_at(Vector3(0, h * 0.5, 0))
 	_yaw = 0.0
 	_auto = true
