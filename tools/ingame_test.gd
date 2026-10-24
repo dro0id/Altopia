@@ -28,7 +28,8 @@ func _shot(name: String) -> void:
 
 ## Vrai clic au centre d'un contrôle (appui puis relâchement).
 func _click(c: Control) -> void:
-	var p := c.get_global_rect().get_center()
+	# position en pixels de fenêtre : le contenu est mis à l'échelle (mode canvas_items), donc on applique la transformation d'affichage
+	var p: Vector2 = root.get_final_transform() * c.get_global_rect().get_center()
 	var b := InputEventMouseButton.new()
 	b.button_index = MOUSE_BUTTON_LEFT
 	b.position = p
@@ -46,14 +47,21 @@ func _click(c: Control) -> void:
 	await _frames(3)
 
 
-func _visible_on_screen(c: Control) -> bool:
-	return c.is_visible_in_tree() and Rect2(Vector2.ZERO, Vector2(720, 1280)).encloses(c.get_global_rect())
-
-
 func _scroll_to(page: String, c: Control) -> void:
 	var sc: ScrollContainer = main._pages[page].get_meta("scroll")
 	sc.ensure_control_visible(c)
 	await _frames(3)
+
+
+## Contrôles visibles qui dépassent de l'écran (débordement de mise en page).
+func _overflow(label: String) -> void:
+	var win := Rect2(Vector2.ZERO, root.get_visible_rect().size)
+	var bad := 0
+	for n in main.find_children("*", "Control", true, false):
+		var c: Control = n
+		if c.is_visible_in_tree() and c.get_global_rect().size.x > win.size.x + 2.0:
+			bad += 1
+	print("LAYOUT %s : zone %dx%d, contrôles plus larges que l'écran : %d" % [label, int(win.size.x), int(win.size.y), bad])
 
 
 func _fps_phase(label: String) -> void:
@@ -85,6 +93,7 @@ func _initialize() -> void:
 	await _click(main._tab_buttons["crew"])
 	_check(main._pages["crew"].visible, "clic sur l'onglet Équipage : la page s'affiche")
 	await _shot("crew")
+	_overflow("équipage")
 
 	# --- Les 18 cartes existent, les 6 possédées montrent « Voir en 3D »
 	var owned := 0
