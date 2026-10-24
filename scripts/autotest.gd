@@ -85,6 +85,7 @@ func run(main_scene: Control, out_dir: String) -> int:
 	out = out_dir
 	DirAccess.make_dir_recursive_absolute(out)
 	_report = FileAccess.open(out + "/report.txt", FileAccess.WRITE)
+	_log("démarrage du parcours (fenêtre %dx%d)" % [DisplayServer.window_get_size().x, DisplayServer.window_get_size().y])
 	await get_tree().process_frame
 	gs = get_tree().root.get_node("GameState")
 	gs.save_path = "user://ingame_test.json"
