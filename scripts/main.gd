@@ -113,6 +113,16 @@ func _ready() -> void:
 	_refresh()
 	if not GameState.last_offline_report.is_empty():
 		_base_ui.show_offline_report(GameState.last_offline_report)
+	if OS.has_feature("autotest"):      # APK de test sur émulateur : lance le parcours automatique (scripts/autotest.gd)
+		_run_autotest.call_deferred()
+
+
+func _run_autotest() -> void:
+	await get_tree().process_frame
+	var t := AutoTest.new()
+	add_child(t)
+	var failures: int = await t.run(self, "user://autotest")
+	print("AUTOTEST_DONE failures=", failures)
 
 
 func _input(event: InputEvent) -> void:

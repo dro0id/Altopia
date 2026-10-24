@@ -76,6 +76,49 @@ jobs:
         with:
           name: altopia-apk
           path: build/altopia.apk
+      # APK de test pour émulateur x86_64 : même jeu, plus le parcours automatique (fonction « autotest », scripts/autotest.gd)
+      - name: Exporter l'APK de test (émulateur x86_64)
+        run: |
+          sed -i 's/^architectures\/arm64-v8a=.*/architectures\/arm64-v8a=false/; s/^architectures\/x86_64=.*/architectures\/x86_64=true/; s/^custom_features=.*/custom_features="autotest"/; s#^export_path=.*#export_path="build/altopia-test.apk"#' export_presets.cfg
+          godot --headless --path . --export-debug "Android" build/altopia-test.apk
+          ls -la build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: altopia-test-apk
+          path: build/altopia-test.apk
+
+  # Test réel : l'APK tourne dans un émulateur Android 14 (écran 1080x2400 comme le Xiaomi 11T) et déroule le parcours en jeu.
+  emulator:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: altopia-test-apk
+          path: apk
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Parcours en jeu sur émulateur Android 14
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tools/emulator_test.sh apk/altopia-test.apk emulator_out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-report
+          path: emulator_out
 
   # Lien de téléchargement direct (utilisable depuis le téléphone, sans compte GitHub
   # pour un dépôt public). Mis à jour à chaque push sur main ou sur une branche ccr-*.
