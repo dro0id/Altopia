@@ -227,7 +227,9 @@ func _build_sheet() -> void:
 	for g in GESTURES:
 		var b := _button(flow, g[1], 54)
 		b.add_theme_font_size_override("font_size", 20)
-		b.pressed.connect(func(): _sheet_view.play(g[0]))
+		b.pressed.connect(func():
+			_sheet_gen += 1          # un geste choisi à la main annule le geste d'accueil automatique
+			_sheet_view.play(g[0]))
 	_sheet_go = _button(col, "Décoller !", 70)
 	UiTheme.style_primary(_sheet_go)
 	_sheet_go.visible = false
@@ -473,7 +475,10 @@ func _build_crew_page(page: VBoxContainer) -> void:
 	_recruit_btn = _button(page, "", 100)
 	UiTheme.style_primary(_recruit_btn)
 	_recruit_btn.add_theme_font_size_override("font_size", 26)
-	_recruit_btn.pressed.connect(_tap(func(): GameState.recruit()))
+	_recruit_btn.pressed.connect(_tap(func():
+		var r: Dictionary = GameState.recruit()
+		if not r.is_empty() and r.new:
+			_open_sheet(r.id, true)))
 	_recruit_label = _label(page, "", 22, COL_ACCENT)
 	_recruit_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	for id in Data.HERO_ORDER:
