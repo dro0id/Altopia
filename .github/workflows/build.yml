@@ -1,8 +1,9 @@
 name: Tests et APK Android
 
+# Économie de minutes GitHub Actions : pas de second lancement pour la demande de fusion (le push suffit),
+# et le test sur émulateur (long) ne tourne qu'à la demande : onglet Actions > « Run workflow ».
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -90,6 +91,7 @@ jobs:
   # Test réel : l'APK tourne dans un émulateur Android 14 (écran 1080x2400 comme le Xiaomi 11T) et déroule le parcours en jeu.
   emulator:
     needs: apk
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 70
     steps:
