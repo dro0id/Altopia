@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bigkgeuwlbk4d"
-path="res://.godot/imported/cruise.jpg-59d4171d58f0d606d90109ab0d120d40.ctex"
+uid="uid://bixtrd7cjouq8"
+path="res://.godot/imported/rift.jpg-c235f3dcf31177198546f08375b3be73.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/intro/cruise.jpg"
-dest_files=["res://.godot/imported/cruise.jpg-59d4171d58f0d606d90109ab0d120d40.ctex"]
+source_file="res://assets/intro/rift.jpg"
+dest_files=["res://.godot/imported/rift.jpg-c235f3dcf31177198546f08375b3be73.ctex"]
 
 [params]
 

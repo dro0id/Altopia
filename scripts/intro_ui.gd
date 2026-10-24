@@ -91,7 +91,7 @@ func _build(n: int) -> void:
 	_count_gen += 1
 	for c in _layer.get_children():
 		c.queue_free()
-	var pages := ["pad", "briefing", "cockpit", "launch", "orbit", "cruise"]
+	var pages := ["pad", "briefing", "cockpit", "pad", "orbit", "rift"]     # écran 4 : le vaisseau est encore au sol, il décolle à zéro
 	_bg.texture = load(IMG % pages[n])
 	_bg.pivot_offset = size / 2.0
 	_bg.scale = Vector2.ONE
@@ -99,7 +99,7 @@ func _build(n: int) -> void:
 		_zoom.kill()
 	_zoom = create_tween()
 	_zoom.tween_property(_bg, "scale", Vector2.ONE * (1.12 if n != 3 else 1.25), 10.0)
-	_shade.color = Color(0.01, 0.02, 0.06, 0.35 if n in [0, 4, 5] else 0.5)
+	_shade.color = Color(0.01, 0.02, 0.06, 0.35 if n in [0, 4, 5] else (0.7 if n in [1, 2] else 0.5))   # écrans 2 et 3 : décor assombri, le personnage 3D reste au premier plan
 	_skip.visible = n < 5
 	match n:
 		0: _page_earth()
@@ -218,7 +218,7 @@ func _page_mission() -> void:
 	_stage_character("vance")
 	var col := _bottom_column()
 	var p := _panel(col)
-	_speaker(p, "vance", "Commandante Vance", "Direction des missions")
+	_speaker(p, "vance", "Commandant Vance", "Direction des missions")
 	var quote := _label(p, "« %s »" % VANCE_LINE, 26)
 	var more := _button(col, "Que sait-on du signal ?", false)
 	more.custom_minimum_size = Vector2(0, 64)
@@ -234,7 +234,7 @@ func _page_crew() -> void:
 	var col := _bottom_column()
 	var p := _panel(col)
 	_speaker(p, "rex", "Rex", "Pilote · niv. 1")
-	_label(p, "« Systèmes verts, Capitaine. Bolt garde les machines, Lumi les données, moi la barre. Il ne reste qu'à s'installer. »", 26)
+	_label(p, "« Systèmes verts, Capitaine. Le vaisseau vole tout seul en croisière : placez-nous aux salles de la Base et on produira pour vous, même quand vous dormez. »", 26)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -277,6 +277,8 @@ func _countdown(num: Label, thr: Label, gen: int) -> void:
 		if gen != _count_gen or not is_inside_tree():
 			return
 		num.text = "0" if k == 0 else str(k)
+		if k == 0:
+			_bg.texture = load(IMG % "launch")          # à zéro : le vaisseau décolle
 		thr.text = "poussée %d %%" % [35, 55, 80, 100][3 - k]
 		_shake(10.0 + 6.0 * (3 - k))
 		await get_tree().create_timer(0.95).timeout
@@ -307,7 +309,7 @@ func _page_orbit() -> void:
 	_label(top, "Dernier regard\nsur la Terre.", 56, Color.WHITE)
 	var col := _bottom_column()
 	var p := _panel(col)
-	_speaker(p, "bolt", "Bolt", "Ingénieur")
+	_speaker(p, "bolt", "Bolt", "Ingénieur · par radio")
 	_label(p, "« Moteur de saut chargé. Après ça, plus de carte, plus de retour direct. On y va quand vous voulez. »", 26)
 	_button(col, "Sauter vers l'inconnu").pressed.connect(_jump)
 

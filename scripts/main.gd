@@ -76,6 +76,7 @@ var _goal_title: Label
 var _goal_bar: ProgressBar
 var _goal_info: Label
 var _goal_btn: Button
+var _goal_card: Control
 ## Tutoriel : bandeau de mission (toutes pages), cible qui pulse, annonces.
 var _tuto_panel: PanelContainer
 var _tuto_head: Label
@@ -200,6 +201,7 @@ func _claim_tuto() -> void:
 ## Bandeau de mission, onglets et sous-pages verrouillés, cible qui pulse.
 func _refresh_tuto() -> void:
 	var active := GameState.tuto_active()
+	_goal_card.visible = not active          # un seul fil d'objectifs à la fois : les objectifs de progression arrivent après le tutoriel
 	_tuto_panel.visible = active and GameState.tuto_intro_seen
 	if active:
 		var m: Dictionary = GameState.tuto_mission()
@@ -504,6 +506,7 @@ func _build_tabs(parent: Control) -> void:
 
 func _build_captain_page(page: VBoxContainer) -> void:
 	var goal := _card(page)
+	_goal_card = goal.get_parent()
 	_goal_title = _label(goal, "", 24, UiTheme.MAGENTA)
 	_goal_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_goal_bar = _bar(goal, 14, UiTheme.MAGENTA)

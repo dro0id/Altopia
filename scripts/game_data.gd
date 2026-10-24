@@ -283,7 +283,7 @@ const TUTO := [
 		"kind": "minerals", "target": 50, "reward": {"credits": 600.0}, "nav": "base", "sub": "salles", "unlock": "Expéditions"},
 	{"id": "t3", "title": "Première expédition", "text": "Gagnez un combat en direct dans le champ d'astéroïdes. Touchez un couloir pour changer de voie.",
 		"kind": "combat_wins", "target": 1, "reward": {"credits": 800.0}, "nav": "exp", "unlock": "Capitaine"},
-	{"id": "t4", "title": "Équiper le Capitaine", "text": "Équipez un objet : onglet Capitaine, puis touchez un emplacement.",
+	{"id": "t4", "title": "Équiper le Capitaine", "text": "Onglet Capitaine, descendez jusqu'à Équipement : touchez « Équiper automatiquement le meilleur » (ou « Équiper » sur un objet de la liste).",
 		"kind": "equipped", "target": 1, "reward": {"credits": 1000.0}, "nav": "captain", "unlock": "Atelier et Vaisseau"},
 	{"id": "t5", "title": "Améliorer une salle", "text": "Montez la Mine au niveau 3 dans la Base. Les améliorations coûtent crédits et minerais.",
 		"kind": "room_level", "target": 3, "reward": {"credits": 1200.0}, "nav": "base", "sub": "salles", "unlock": "Labo"},
@@ -291,11 +291,11 @@ const TUTO := [
 		"kind": "research_started", "target": 1, "reward": {"credits": 1500.0}, "nav": "base", "sub": "lab"},
 	{"id": "t7", "title": "Réussir une Dérive", "text": "Expéditions : choisissez le mode Dérive, scannez la grille et ramenez les ressources.",
 		"kind": "derive_wins", "target": 1, "reward": {"credits": 1800.0}, "nav": "exp"},
-	{"id": "t8", "title": "Entrer dans la Faille 1", "text": "Dans Expéditions, la Faille est une anomalie à explorer avec le Capitaine.",
-		"kind": "anomaly_runs", "target": 1, "reward": {"credits": 2000.0}, "nav": "exp"},
+	{"id": "t8", "title": "Entrer dans la Faille 1", "text": "Onglet Capitaine, section Anomalies : la Faille 1 est un combat automatique du Capitaine. Touchez « Entrer dans la faille ».",
+		"kind": "anomaly_runs", "target": 1, "reward": {"credits": 2000.0}, "nav": "captain"},
 	{"id": "t9", "title": "Faire une Route", "text": "Expéditions : mode Route, un voyage d'étapes jusqu'au gardien.",
 		"kind": "route_wins", "target": 1, "reward": {"credits": 2400.0}, "nav": "exp", "unlock": "Rang"},
-	{"id": "t10", "title": "Atteindre la destination", "text": "Terminez le voyage : montez la Base jusqu'à la première refonte (Base › Rang).",
+	{"id": "t10", "title": "Première refonte", "text": "Montez les salles (90 niveaux cumulés) puis lancez la refonte : Base › Rang. Vous gardez équipage, équipement et recherches.",
 		"kind": "prestige_count", "target": 1, "reward": {"credits": 5000.0, "item": "epic"}, "nav": "base", "sub": "rang"},
 ]
 const TUTO_MINERAL_BOOST := 10.0   # la Mine produit 10 fois plus pendant la mission des minerais
