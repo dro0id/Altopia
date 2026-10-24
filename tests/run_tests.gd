@@ -76,7 +76,10 @@ func test_tuto_missions_in_order_with_rewards_and_unlocks() -> void:
 	_gs.start_tutorial()
 	_check(_gs.tuto_active() and _gs.tuto_step == 0 and not _gs.tuto_intro_seen, "le tutoriel démarre à la mission 1, intro non vue")
 	_check(not _gs.tab_unlocked("exp") and not _gs.tab_unlocked("captain") and _gs.tab_unlocked("base") and _gs.tab_unlocked("crew"), "au départ : Expéditions et Capitaine verrouillés")
-	_check(not _gs.section_unlocked("lab") and not _gs.section_unlocked("rang") and _gs.section_unlocked("salles"), "au départ : Labo et Rang verrouillés")
+	_check(not _gs.section_unlocked("lab") and not _gs.section_unlocked("rang") and not _gs.section_unlocked("atelier") and _gs.section_unlocked("salles"), "au départ : Console, Atelier et Rang verrouillés")
+	_check(_gs.room_visible("mine") and _gs.room_visible("labo") and not _gs.room_visible("atelier") and not _gs.room_visible("soute"), "chapitre 1 : seulement trois postes à bord, pas de Base")
+	_check(_gs.room_name("mine") == "Moteurs" and _gs.room_name("labo") == "Console", "chapitre 1 : les salles portent des noms de postes du vaisseau")
+	_check(_gs.heroes.size() == 3 and _gs.heroes.has("lumi"), "chapitre 1 : trois équipiers (Rex, Bolt, Lumi)")
 	_check(_gs.hero_room("rex") == "" and _gs.equipped["weapon"] == -1, "au départ : Rex n'est pas en salle, rien n'est équipé")
 	_check(not _gs.claim_tuto(), "on ne récupère pas une mission non faite")
 	# M1 : Rex en salle
@@ -97,7 +100,7 @@ func test_tuto_missions_in_order_with_rewards_and_unlocks() -> void:
 	_check(_gs.claim_tuto() and _gs.tab_unlocked("captain"), "M3 : un combat gagné ouvre le Capitaine")
 	# M4 : équiper
 	_gs.equip(_gs.items[0].id)
-	_check(_gs.claim_tuto() and _gs.section_unlocked("atelier"), "M4 : équiper un objet ouvre Atelier et Vaisseau")
+	_check(_gs.claim_tuto() and _gs.section_unlocked("ship") and not _gs.section_unlocked("atelier"), "M4 : équiper un objet ouvre les améliorations du vaisseau, pas l'Atelier")
 	# M5 : Mine niveau 3
 	_gs.room_levels["mine"] = 3
 	_check(_gs.claim_tuto() and _gs.section_unlocked("lab") and not _gs.section_unlocked("rang"), "M5 : Mine niveau 3 ouvre le Labo")
@@ -112,13 +115,17 @@ func test_tuto_missions_in_order_with_rewards_and_unlocks() -> void:
 	_gs.enter_anomaly(1)
 	_check(_gs.claim_tuto(), "M8 : entrer dans la Faille 1")
 	_gs.finish_live(0, "asteroids", {"win": true, "steps": 10}, false, "route")
-	_check(_gs.claim_tuto() and _gs.section_unlocked("rang"), "M9 : une route réussie ouvre le Rang")
-	# M10 : première refonte
-	_check(not _gs.tuto_ready(), "M10 pas faite avant la refonte")
-	for rid in Data.ROOM_ORDER:
-		_gs.room_levels[rid] = 30
-	_check(_gs.do_prestige() > 0 and _gs.claim_tuto(), "M10 : la première refonte termine le tutoriel")
-	_check(not _gs.tuto_active() and _gs.tab_unlocked("exp"), "tutoriel terminé : tout est ouvert")
+	_check(_gs.claim_tuto() and not _gs.section_unlocked("rang"), "M9 : une route réussie ; le Rang reste fermé jusqu'à l'arrivée")
+	# M10 : l'arrivée (route vers la Planète inconnue) déclenche la première refonte
+	_gs.finish_live(0, "asteroids", {"win": true, "steps": 10}, false, "route")
+	_check(not _gs.tuto_ready(), "M10 : une route vers un autre secteur ne compte pas")
+	_gs.finish_live(0, "planet", {"win": true, "steps": 10}, false, "route")
+	_check(_gs.tuto_ready(), "M10 : une route gagnée vers la Planète inconnue")
+	var pts0: int = _gs.prestige_points
+	_check(_gs.claim_tuto() and not _gs.tuto_active(), "M10 : le vaisseau se pose, le tutoriel est fini")
+	_check(_gs.prestige_count == 1 and _gs.prestige_points == pts0 + Data.ARRIVAL_SHARDS, "l'arrivée est la première refonte (+%d points, Rang 1)" % Data.ARRIVAL_SHARDS)
+	_check(_gs.tab_unlocked("exp") and _gs.section_unlocked("atelier") and _gs.section_unlocked("rang") and _gs.room_visible("atelier"), "après l'arrivée : la Base, ses salles, l'Atelier et le Rang sont ouverts")
+	_check(_gs.room_name("mine") == "Mine", "après l'arrivée : les postes deviennent les salles de la Base")
 
 
 func test_tuto_state_is_saved_and_old_saves_skip_it() -> void:

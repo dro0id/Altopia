@@ -7,6 +7,7 @@ const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
 const CrewView = preload("res://scripts/crew_view.gd")
 const IntroUI = preload("res://scripts/intro_ui.gd")
+const ArriveUI = preload("res://scripts/arrive_ui.gd")
 const BaseUI = preload("res://scripts/base_ui.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const UiIcons = preload("res://scripts/ui_icons.gd")
@@ -189,7 +190,20 @@ func _toast(text: String) -> void:
 
 func _claim_tuto() -> void:
 	var m: Dictionary = GameState.tuto_mission()
-	if m.is_empty() or not GameState.claim_tuto():
+	if m.is_empty() or not GameState.tuto_ready():
+		return
+	if GameState.tuto_step == Data.TUTO.size() - 1:       # dernière mission : on atterrit d'abord (scène d'arrivée)
+		var ui := ArriveUI.new()
+		add_child(ui)
+		ui.landed.connect(func():
+			ui.queue_free()
+			_finish_tuto_claim(m))
+		return
+	_finish_tuto_claim(m)
+
+
+func _finish_tuto_claim(m: Dictionary) -> void:
+	if not GameState.claim_tuto():
 		return
 	var msg := "Mission accomplie !  %s" % Data.fmt_amounts(m.reward)
 	if m.has("unlock"):
@@ -213,6 +227,7 @@ func _refresh_tuto() -> void:
 		_tuto_bar.value = clampf(prog / target, 0.0, 1.0)
 		_tuto_bar.visible = target > 1.0
 		_tuto_btn.visible = GameState.tuto_ready()
+	_tab_buttons["base"].text = "Vaisseau" if active else "Base"
 	for id in _tab_buttons:
 		var open: bool = GameState.tab_unlocked(id)
 		_tab_buttons[id].disabled = not open
@@ -1254,7 +1269,14 @@ func _refresh_inventory() -> void:
 
 
 func _refresh_crew() -> void:
-	_collection_label.text = "Équipage : %d / %d cartes" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
+	var ch1 := GameState.tuto_active()
+	if ch1:
+		_collection_label.text = "Équipage : %d équipiers à bord" % GameState.heroes.size()
+	else:
+		_collection_label.text = "Équipage : %d / %d cartes" % [GameState.heroes.size(), Data.HERO_ORDER.size()]
+	_afk_loot.visible = not ch1             # pas d'Atelier à bord : les objets fabriqués viennent avec la Base
+	_recruit_btn.visible = not ch1          # le recrutement vient avec la Base (à l'arrivée)
+	_recruit_label.visible = not ch1
 	_synergy_label.text = "L'équipage, ce sont des objets à placer aux postes de vos vaisseaux : ils renforcent le Capitaine et rapportent des crédits. Synergie x%.2f (paires de classes +10 %%, les 3 classes +25 %%)." % GameState.synergy_multiplier()
 	var prod := GameState.production_per_sec()
 	for id in Data.RES_ORDER:
@@ -1287,6 +1309,7 @@ func _refresh_crew() -> void:
 		var u: Dictionary = _hero_ui[id]
 		var tpl: Dictionary = Data.HEROES[id]
 		var cls: Dictionary = Data.CREW[tpl["class"]]
+		u.panel.visible = GameState.heroes.has(id) or not GameState.tuto_active()
 		if not GameState.heroes.has(id):
 			u.portrait.role = tpl["class"]
 			u.portrait.setup_empty(tpl["class"])
@@ -1324,9 +1347,11 @@ func _refresh_crew() -> void:
 func _hero_work_text(id: String) -> String:
 	var room := GameState.hero_room(id)
 	var spec: String = Data.HEROES[id].get("specialty", "")
-	var spec_name: String = Data.ROOMS[spec].name if Data.ROOMS.has(spec) else "?"
+	var spec_name: String = GameState.room_name(spec) if Data.ROOMS.has(spec) else "?"
 	if room != "":
-		return "Au travail : %s%s. %s" % [Data.ROOMS[room].name, " (sa spécialité !)" if room == spec else "", _base_ui._tile_output(room, id)]
+		return "Au travail : %s%s. %s" % [GameState.room_name(room), " (sa spécialité !)" if room == spec else "", _base_ui._tile_output(room, id)]
+	if GameState.tuto_active():
+		return "Au repos. Poste de prédilection : %s. Place-le à un poste du vaisseau (Vaisseau › Postes) pour produire." % spec_name
 	return "Au repos. Spécialité : %s. Place-le dans une salle de la Base pour produire." % spec_name
 
 

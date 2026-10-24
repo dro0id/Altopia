@@ -49,6 +49,8 @@ var _pulse_eff: Label
 var _pulse_cap: Label
 var _tiles := {}
 var _hub_ring: Control
+var _hub_strip: Control
+var _hub_goal: Control
 var _hub_atelier: Label
 var _hub_last: Label
 var _goal_label: Label
@@ -407,6 +409,7 @@ func _build_hub(sec: VBoxContainer) -> void:
 		_build_tile(grid, rid)
 
 	var strip := _panel(sec, PANEL, Color(MAGENTA.r, MAGENTA.g, MAGENTA.b, 0.5), 14.0, 10.0)
+	_hub_strip = strip.get_parent() if strip.get_parent() != sec else strip
 	var srow := _hbox(strip, 12.0)
 	_hub_ring = _ring(srow, 46.0, MAGENTA, 5.0)
 	var stext := _vbox(srow, 0.0)
@@ -414,6 +417,7 @@ func _build_hub(sec: VBoxContainer) -> void:
 	_hub_last = _wrap(_label(stext, "", 12, DIM, true))
 
 	var goal := _panel(sec, Color(0, 0, 0, 0), FAINT, 14.0, 9.0)
+	_hub_goal = goal.get_parent() if goal.get_parent() != sec else goal
 	var gv := _vbox(goal, 6.0)
 	var grow := _hbox(gv, 8.0)
 	_goal_label = _label(grow, "", 14, DIM)
@@ -468,7 +472,7 @@ func _build_tile(grid: GridContainer, rid: String) -> void:
 	var ebl := _label(empty_btn, "Affecter quelqu'un", 14, WARN, false, true)
 	ebl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var dash := _dash(b, WARN)
-	_tiles[rid] = {"btn": b, "lvl": lvl, "who": who, "avatar_slot": avatar_slot, "who_name": who_name, "who_tag": who_tag, "out": out,
+	_tiles[rid] = {"btn": b, "name": name_l, "lvl": lvl, "who": who, "avatar_slot": avatar_slot, "who_name": who_name, "who_tag": who_tag, "out": out,
 		"empty_note": empty_note, "empty_btn": empty_btn, "dash": dash, "worker": "?"}
 
 
@@ -765,6 +769,15 @@ func _on_rank_pressed() -> void:
 ## ---------- Rafraîchissement ----------
 
 func refresh() -> void:
+	# visibilité et noms selon le chapitre (même quand la page n'est pas affichée)
+	var ch1 := GameState.tuto_active()
+	for rid in Data.ROOM_ORDER:
+		(_tiles[rid].btn as Button).visible = GameState.room_visible(rid)
+	_hub_strip.visible = not ch1
+	_hub_goal.visible = not ch1
+	for k in ["salles", "lab"]:
+		if _pills.has(k):
+			(_pills[k] as Button).text = {"salles": "Postes" if ch1 else "Salles", "lab": "Console" if ch1 else "Labo"}[k]
 	_refresh_hub()
 	_refresh_atelier()
 	_refresh_lab()
@@ -789,12 +802,24 @@ func _refresh_hub() -> void:
 	if not _visible("salles"):
 		return
 	var active := 0
+	var total := 0
 	for rid in Data.ROOM_ORDER:
+		if not GameState.room_visible(rid):
+			continue
+		total += 1
 		if GameState.room_worker(rid) != "":
 			active += 1
-	var total := Data.ROOM_ORDER.size()
+	var ch1 := GameState.tuto_active()
+	_hub_strip.visible = not ch1          # l'Atelier et les objectifs de progression sont des choses de la Base
+	_hub_goal.visible = not ch1
+	for k in ["salles", "lab"]:
+		if _pills.has(k):
+			(_pills[k] as Button).text = {"salles": "Postes" if ch1 else "Salles", "lab": "Console" if ch1 else "Labo"}[k]
 	var prod := GameState.production_per_sec()
-	_pulse_state.text = ("%d SALLE ACTIVE SUR %d" if active == 1 else "%d SALLES ACTIVES SUR %d") % [active, total]
+	var unit := "POSTE" if ch1 else "SALLE"
+	var verb := "ACTIF" if ch1 else "ACTIVE"
+	var plural := "" if active == 1 else "S"
+	_pulse_state.text = "%d %s%s %s%s SUR %d" % [active, unit, plural, verb, plural, total]
 	_pulse_big.text = "+%s cr/h" % _spaced(prod.credits * 3600.0)
 	_pulse_small.text = "+%s min · +%s én · +%s don par heure" % [_spaced(prod.minerals * 3600.0), _spaced(prod.energy * 3600.0), _spaced(prod.data * 3600.0)]
 	var dot_color: Color = GOOD if active > 0 else WARN
@@ -833,6 +858,8 @@ func _refresh_tile(rid: String) -> void:
 	var t: Dictionary = _tiles[rid]
 	var color: Color = Data.ROOMS[rid].color
 	var w := GameState.room_worker(rid)
+	(t.btn as Button).visible = GameState.room_visible(rid)
+	(t.name as Label).text = GameState.room_name(rid) if GameState.tuto_active() else String(TILE_NAMES.get(rid, Data.ROOMS[rid].name))
 	var staffed := w != ""
 	t.lvl.text = "niv. %d" % GameState.room_level(rid)
 	if w != t.worker:
@@ -968,7 +995,7 @@ func _fill_sheet(rid: String) -> void:
 	tile.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_icon(tile, r.icon, color, 34.0)
 	var nv := _vbox(head, 0.0)
-	_label(nv, r.name, 26, TEXT, false, true)
+	_label(nv, GameState.room_name(rid), 26, TEXT, false, true)
 	_sh["level"] = _label(nv, "", 13, DIM, true)
 	var ov := _vbox(head, 0.0)
 	ov.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -1070,7 +1097,7 @@ func _update_sheet(rid: String) -> void:
 		row.lv.text = "niv. %d" % h.level
 		if row.busy:
 			var where := GameState.hero_room(id)
-			row.sub.text = "déjà : %s" % Data.ROOMS[where].name
+			row.sub.text = "déjà : %s" % GameState.room_name(where)
 			row.sub.add_theme_color_override("font_color", DIM)
 			row.right.text = "occupé"
 			row.right.add_theme_color_override("font_color", DIM)
@@ -1078,7 +1105,7 @@ func _update_sheet(rid: String) -> void:
 		var tag := _hero_tag(rid, id)
 		var tag_txt := ""
 		if tag == "spécialité":
-			tag_txt = "spécialité %s : +%d %%" % [r.name, int(Data.ROOM_SPECIALTY_BONUS * 100.0)]
+			tag_txt = "spécialité %s : +%d %%" % [GameState.room_name(rid), int(Data.ROOM_SPECIALTY_BONUS * 100.0)]
 		elif tag == "affinité":
 			tag_txt = "affinité : +%d %%" % int(Data.ROOM_AFFINITY_BONUS * 100.0)
 		row.sub.text = tag_txt if tag_txt != "" else "sans bonus de classe"

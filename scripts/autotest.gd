@@ -239,8 +239,15 @@ func run(main_scene: Control, out_dir: String) -> int:
 	await _frames(25)
 	main._refresh()
 	await _frames(5)
-	_check(main._tuto_panel.visible and main._tuto_title.text == "Mettre Rex à la Mine", "mission 1 affichée dans le bandeau")
+	_check(main._tuto_panel.visible and main._tuto_title.text == "Mettre Rex aux Moteurs", "mission 1 affichée dans le bandeau")
 	_check(main._tab_buttons["exp"].disabled and main._tab_buttons["captain"].disabled and not main._tab_buttons["base"].disabled, "Expéditions et Capitaine verrouillés au départ")
+	_check(main._tab_buttons["base"].text == "Vaisseau", "au départ : pas de Base, l'onglet s'appelle Vaisseau")
+	var visible_tiles := 0
+	for rid in main._base_ui._tiles:
+		if (main._base_ui._tiles[rid].btn as Button).visible:
+			visible_tiles += 1
+	_check(visible_tiles == 3, "au départ : trois postes seulement (%d)" % visible_tiles)
+	_check(not main._recruit_btn.visible, "au départ : pas de recrutement (il vient avec la Base)")
 	await _click(main._tab_buttons["crew"])
 	await _click(main._tab_buttons["exp"])
 	_check(not main._pages["exp"].get_meta("scroll").visible, "un clic sur un onglet verrouillé ne l'ouvre pas")

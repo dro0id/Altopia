@@ -234,7 +234,7 @@ func _page_crew() -> void:
 	var col := _bottom_column()
 	var p := _panel(col)
 	_speaker(p, "rex", "Rex", "Pilote · niv. 1")
-	_label(p, "« Systèmes verts, Capitaine. Le vaisseau vole tout seul en croisière : placez-nous aux salles de la Base et on produira pour vous, même quand vous dormez. »", 26)
+	_label(p, "« Systèmes verts, Capitaine. Le vaisseau vole tout seul en croisière : mettez-nous aux postes et on produira pour vous, même quand vous dormez. La Base, on la bâtira à l'arrivée. »", 26)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE

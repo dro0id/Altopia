@@ -191,6 +191,9 @@ func start_tutorial() -> void:
 		room_crew[rid] = ""
 	for s in Data.EQUIP_SLOTS:
 		equipped[s] = -1
+	if not heroes.has("lumi"):
+		give_hero("lumi")          # trois postes, trois équipiers (un par métier)
+		auto_squad(0)
 	changed.emit()
 
 
@@ -662,10 +665,10 @@ func prestige_block_reason() -> String:
 
 ## Refonte : les salles, les améliorations du vaisseau (sauf les docks) et les ressources sont remises à zéro.
 ## L'équipage, le Capitaine, l'équipement, les recherches et les objectifs sont conservés.
-func do_prestige() -> int:
-	if prestige_block_reason() != "":
+func do_prestige(forced_gain: int = -1) -> int:
+	if forced_gain < 0 and prestige_block_reason() != "":
 		return 0
-	var gain := prestige_gain()
+	var gain := forced_gain if forced_gain >= 0 else prestige_gain()
 	for i in slots.size():
 		recall(i)        # les expéditions en cours sont rappelées (sans gain)
 	prestige_points += gain
@@ -1293,6 +1296,17 @@ func tuto_progress(m: Dictionary) -> float:
 	return float(tuto_counts.get(String(m.kind), 0))
 
 
+## Chapitre 1 : seuls les trois postes du vaisseau existent, sous leur nom de bord.
+func room_visible(rid: String) -> bool:
+	return not tuto_active() or Data.CH1_ROOMS.has(rid)
+
+
+func room_name(rid: String) -> String:
+	if tuto_active() and Data.SHIP_POSTS.has(rid):
+		return String(Data.SHIP_POSTS[rid])
+	return String(Data.ROOMS[rid].name)
+
+
 func tuto_ready() -> bool:
 	return tuto_active() and tuto_progress(tuto_mission()) >= float(tuto_mission().target)
 
@@ -1300,8 +1314,11 @@ func tuto_ready() -> bool:
 func claim_tuto() -> bool:
 	if not tuto_ready():
 		return false
+	var last := tuto_step == Data.TUTO.size() - 1
 	_give_goal_reward(tuto_mission())
 	tuto_step += 1
+	if last:
+		do_prestige(Data.ARRIVAL_SHARDS)      # le vaisseau se pose : première refonte, la Base se débloque
 	changed.emit()
 	return true
 
@@ -1785,6 +1802,8 @@ func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool, mo
 	note_mode(mode)
 	if win:
 		tuto_note({"combat": "combat_wins", "derive": "derive_wins", "route": "route_wins"}.get(mode, "combat_wins"))
+		if mode == "route" and dest == "planet":
+			tuto_note("route_planet")
 	if win and mult > 1.001:
 		head += " (gains x%s)" % ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ",")
 	_settle(slot_i, dest, 1, 1 if win else 0, mult, head, {})

@@ -68,3 +68,8 @@ Direction artistique : astronautes low poly facettés (polygones plats, peu de s
 - Bandeau de mission sur toutes les pages, onglet qui pulse vers la cible, annonce de récompense, éclat vert sur ce qui se débloque (Expéditions après la mission 2, Capitaine après la 3, Atelier et Vaisseau après la 4, Labo après la 5, Rang après la 9).
 - Adaptations par rapport à la maquette : les « postes du vaisseau » sont les salles de la Base ; la mission des minerais accélère la Mine ×10 ; la mission 10 est la première refonte.
 - Captures : `tools/tuto_shot.gd`. Tests : `tests/run_tests.gd` (logique) et `scripts/autotest.gd` (en jeu, par clics, aussi sur émulateur).
+
+### Chapitre 1 / chapitre 2 (cohérence du tutoriel)
+
+- Chapitre 1 (tutoriel) : pas de Base. L'onglet s'appelle **Vaisseau**, avec trois **postes** (Mine → Moteurs, Centrale → Réacteur, Labo → Console) et trois équipiers (Rex, Bolt, Lumi) ; pas de recrutement, pas d'Atelier, pas de Rang, pas d'objectifs de progression. Noms et visibilité : `GameState.room_name()` / `room_visible()`.
+- La mission 10 (route gagnée vers la Planète inconnue) déclenche l'arrivée (`scripts/arrive_ui.gd`) : première refonte forcée (`do_prestige(Data.ARRIVAL_SHARDS)`), Rang 1, et la Base se débloque (chapitre 2 : onglet Base, six salles, Atelier, recrutement, Rang).
