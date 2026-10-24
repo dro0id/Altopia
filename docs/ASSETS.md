@@ -61,3 +61,10 @@ Direction artistique : astronautes low poly facettés (polygones plats, peu de s
 - Test en jeu : `xvfb-run -a godot --path . --resolution 720x1280 -s tools/ingame_test.gd -- <dossier>` pilote la vraie scène par de vrais clics (onglets, fiche 3D, 17 gestes, recrutement, briefing, combat, résultat) et enregistre des captures.
 - Simulation d'écran Xiaomi 11T (1080x2400, 20:9) : `xvfb-run -a -s "-screen 0 1080x2400x24" godot --path . --resolution 1080x2400 -s tools/ingame_test.gd -- <dossier>`. Coût CPU des animations : `godot --headless --path . -s tools/anim_bench.gd`.
 - Test réel sur émulateur : le job `emulator` de la CI (Android 14, 1080x2400) installe l'APK de test x86_64 et déroule scripts/autotest.gd ; le rapport, les captures, gfxinfo et logcat sont dans l'artefact `emulator-report` (tools/emulator_test.sh).
+
+## Tutoriel (repris de la maquette « Actes 1 et 5 »)
+
+- Nouvelle partie : introduction animée de 6 écrans (`scripts/intro_ui.gd`, images `assets/intro/`) puis 10 missions guidées (`Data.TUTO`, état dans `GameState.tuto_*`, sauvegardé ; les anciennes sauvegardes n'ont pas à le refaire).
+- Bandeau de mission sur toutes les pages, onglet qui pulse vers la cible, annonce de récompense, éclat vert sur ce qui se débloque (Expéditions après la mission 2, Capitaine après la 3, Atelier et Vaisseau après la 4, Labo après la 5, Rang après la 9).
+- Adaptations par rapport à la maquette : les « postes du vaisseau » sont les salles de la Base ; la mission des minerais accélère la Mine ×10 ; la mission 10 est la première refonte.
+- Captures : `tools/tuto_shot.gd`. Tests : `tests/run_tests.gd` (logique) et `scripts/autotest.gd` (en jeu, par clics, aussi sur émulateur).

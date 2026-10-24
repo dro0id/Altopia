@@ -213,6 +213,54 @@ func run(main_scene: Control, out_dir: String) -> int:
 	await _click(dest)
 	_check(main._live != null and not main._sheet.visible, "relance de la même destination : pas de second briefing")
 
+	if main._live != null:       # la relance du dernier scénario a ouvert un combat : on le ferme
+		main._live.closed.emit(false)
+		await _frames(5)
+	# --- Tutoriel sur une partie neuve : introduction, missions, onglets verrouillés, récompense
+	gs.reset()
+	gs.new_game()
+	gs.start_tutorial()
+	gs.save_path = "user://ingame_test.json"
+	main._refresh()
+	main._show_intro()
+	await _frames(20)
+	var intro: Node = null
+	for c in main.get_children():
+		if c is IntroUI:
+			intro = c
+	_check(intro != null, "partie neuve : l'introduction s'affiche")
+	await _frames(40)
+	await _shot("intro")
+	if intro != null:
+		await _click(intro._skip)
+		await _frames(5)
+		_check(gs.tuto_intro_seen, "« Passer » ferme l'introduction (marquée comme vue)")
+	await _frames(25)
+	main._refresh()
+	await _frames(5)
+	_check(main._tuto_panel.visible and main._tuto_title.text == "Mettre Rex à la Mine", "mission 1 affichée dans le bandeau")
+	_check(main._tab_buttons["exp"].disabled and main._tab_buttons["captain"].disabled and not main._tab_buttons["base"].disabled, "Expéditions et Capitaine verrouillés au départ")
+	await _click(main._tab_buttons["crew"])
+	await _click(main._tab_buttons["exp"])
+	_check(not main._pages["exp"].get_meta("scroll").visible, "un clic sur un onglet verrouillé ne l'ouvre pas")
+	await _frames(15)
+	_check(main._tuto_target == main._tab_buttons["base"], "la cible de la mission pulse (onglet Base) quand on est ailleurs")
+	await _shot("tuto_mission1")
+	gs.set_room_crew("mine", "rex")
+	await _frames(25)
+	_check(main._tuto_btn.visible, "mission 1 faite : le bouton de récompense apparaît")
+	var cr0: float = gs.res["credits"]
+	await _click(main._tuto_btn)
+	_check(gs.tuto_step == 1 and gs.res["credits"] >= cr0 + 400.0, "clic sur Récupérer : +400 crédits, mission 2")
+	_check(main._toast_label.modulate.a > 0.3 and main._toast_label.text.begins_with("Mission accomplie"), "annonce « Mission accomplie » affichée")
+	gs.add_res("minerals", 50.0)
+	await _frames(25)
+	await _click(main._tuto_btn)
+	await _frames(10)
+	_check(gs.tuto_step == 2 and not main._tab_buttons["exp"].disabled and main._tab_buttons["captain"].disabled, "mission 2 faite : Expéditions s'ouvre, Capitaine reste fermé")
+	_check(main._toast_label.text.contains("Expéditions"), "annonce du déblocage « Expéditions »")
+	await _shot("tuto_unlock")
+
 	_log("Échecs : %d" % failures)
 	_log("Appareil : %s, Android %s, rendu %s, fenêtre %dx%d" % [OS.get_model_name(), OS.get_version(), RenderingServer.get_video_adapter_name(), DisplayServer.window_get_size().x, DisplayServer.window_get_size().y])
 	_report.close()

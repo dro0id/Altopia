@@ -6,6 +6,7 @@ const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
 const CrewView = preload("res://scripts/crew_view.gd")
+const IntroUI = preload("res://scripts/intro_ui.gd")
 const BaseUI = preload("res://scripts/base_ui.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const UiIcons = preload("res://scripts/ui_icons.gd")
@@ -75,6 +76,18 @@ var _goal_title: Label
 var _goal_bar: ProgressBar
 var _goal_info: Label
 var _goal_btn: Button
+## Tutoriel : bandeau de mission (toutes pages), cible qui pulse, annonces.
+var _tuto_panel: PanelContainer
+var _tuto_head: Label
+var _tuto_title: Label
+var _tuto_text: Label
+var _tuto_bar: ProgressBar
+var _tuto_btn: Button
+var _tuto_target: Control
+var _tuto_tween: Tween
+var _tab_was_open := {}
+var _toast_label: Label
+var _toast_tween: Tween
 # Équipage
 var _hero_ui := {}
 ## Fiche 3D d'un équipier (fenêtre par-dessus l'écran) : modèle animé et boutons de gestes.
@@ -109,12 +122,138 @@ func _ready() -> void:
 	GameState.changed.connect(func(): _dirty = true)
 	GameState.battle_finished.connect(_on_battle_finished)
 	GameState.anomaly_finished.connect(_on_anomaly_finished)
-	_show_tab("captain")
+	_show_tab("captain" if GameState.tab_unlocked("captain") else "base")
 	_refresh()
+	if not GameState.tuto_intro_seen:
+		_show_intro()
 	if not GameState.last_offline_report.is_empty():
 		_base_ui.show_offline_report(GameState.last_offline_report)
 	if OS.has_feature("autotest"):      # APK de test sur émulateur : lance le parcours automatique (scripts/autotest.gd)
 		_run_autotest.call_deferred()
+
+
+## ---------- Tutoriel ----------
+
+func _show_intro() -> void:
+	var ui := IntroUI.new()
+	add_child(ui)
+	ui.finished.connect(func():
+		GameState.tuto_intro_seen = true
+		GameState.save_game()
+		ui.queue_free())
+
+
+func _build_tuto_panel(parent: Control) -> void:
+	_tuto_panel = PanelContainer.new()
+	_tuto_panel.add_theme_stylebox_override("panel", UiTheme.card_box(Color("ffd159")))
+	_tuto_panel.visible = false
+	parent.add_child(_tuto_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tuto_panel.add_child(v)
+	_tuto_head = _label(v, "", 19, Color("ffd159"))
+	_tuto_title = _label(v, "", 27)
+	_tuto_text = _label(v, "", 19, COL_TEXT_DIM)
+	_tuto_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tuto_bar = _bar(v, 12, Color("ffd159"))
+	_tuto_btn = _button(v, "Récupérer la récompense", 60)
+	UiTheme.style_primary(_tuto_btn)
+	_tuto_btn.pressed.connect(_tap(_claim_tuto))
+	_toast_label = Label.new()
+	_toast_label.add_theme_font_size_override("font_size", 26)
+	_toast_label.add_theme_color_override("font_color", Color("ffd159"))
+	_toast_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_toast_label.add_theme_constant_override("outline_size", 8)
+	_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_toast_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_toast_label.offset_top = 600
+	_toast_label.offset_left = 30
+	_toast_label.offset_right = -30
+	_toast_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_label.modulate.a = 0.0
+	add_child(_toast_label)
+
+
+func _toast(text: String) -> void:
+	_toast_label.text = text
+	if _toast_tween != null:
+		_toast_tween.kill()
+	_toast_label.modulate.a = 1.0
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(2.6)
+	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.6)
+
+
+func _claim_tuto() -> void:
+	var m: Dictionary = GameState.tuto_mission()
+	if m.is_empty() or not GameState.claim_tuto():
+		return
+	var msg := "Mission accomplie !  %s" % Data.fmt_amounts(m.reward)
+	if m.has("unlock"):
+		msg += "\nNOUVEAU : %s" % m.unlock
+	_toast(msg)
+	_dirty = true
+
+
+## Bandeau de mission, onglets et sous-pages verrouillés, cible qui pulse.
+func _refresh_tuto() -> void:
+	var active := GameState.tuto_active()
+	_tuto_panel.visible = active and GameState.tuto_intro_seen
+	if active:
+		var m: Dictionary = GameState.tuto_mission()
+		var prog: float = GameState.tuto_progress(m)
+		var target: float = float(m.target)
+		_tuto_head.text = "MISSION %d / %d  ·  %s" % [GameState.tuto_step + 1, Data.TUTO.size(), Data.fmt_amounts(m.reward)]
+		_tuto_title.text = String(m.title)
+		_tuto_text.text = String(m.text)
+		_tuto_bar.value = clampf(prog / target, 0.0, 1.0)
+		_tuto_bar.visible = target > 1.0
+		_tuto_btn.visible = GameState.tuto_ready()
+	for id in _tab_buttons:
+		var open: bool = GameState.tab_unlocked(id)
+		_tab_buttons[id].disabled = not open
+		_tab_buttons[id].modulate = Color.WHITE if open else Color(1, 1, 1, 0.35)
+		if open and _tab_was_open.get(id, true) == false:
+			_flash(_tab_buttons[id])
+		_tab_was_open[id] = open
+	for id in _base_ui._pills:
+		var open2: bool = GameState.section_unlocked(id)
+		_base_ui._pills[id].disabled = not open2
+		_base_ui._pills[id].modulate = Color.WHITE if open2 else Color(1, 1, 1, 0.35)
+	_update_tuto_pulse()
+
+
+## Éclat vert sur une entrée de menu tout juste débloquée.
+func _flash(c: Control) -> void:
+	var t := create_tween()
+	t.tween_property(c, "modulate", Color(0.5, 1.6, 0.7), 0.25)
+	t.tween_property(c, "modulate", Color.WHITE, 0.6)
+
+
+## Fait pulser l'onglet (ou la sous-page de la Base) où la mission en cours se joue, tant qu'on n'y est pas.
+func _update_tuto_pulse() -> void:
+	var target: Control = null
+	if GameState.tuto_active() and GameState.tuto_intro_seen and not GameState.tuto_ready():
+		var m: Dictionary = GameState.tuto_mission()
+		var nav: String = m.get("nav", "")
+		var here: bool = nav != "" and _pages[nav].get_meta("scroll").visible
+		if nav != "" and not here:
+			target = _tab_buttons[nav]
+		elif nav == "base" and m.has("sub") and _base_ui.current != m.sub and _base_ui._pills.has(m.sub):
+			target = _base_ui._pills[m.sub]
+	if target == _tuto_target:
+		return
+	if _tuto_tween != null:
+		_tuto_tween.kill()
+	if _tuto_target != null and is_instance_valid(_tuto_target):
+		_tuto_target.modulate = Color.WHITE
+	_tuto_target = target
+	if target != null:
+		_tuto_tween = create_tween().set_loops()
+		_tuto_tween.tween_property(target, "modulate", Color(1.7, 1.5, 0.7), 0.55)
+		_tuto_tween.tween_property(target, "modulate", Color.WHITE, 0.55)
 
 
 func _run_autotest() -> void:
@@ -183,6 +322,7 @@ func _build_ui() -> void:
 	_base_ui = BaseUI.new(self)
 	_build_header(root)
 	_subnav = _base_ui.build_subnav(root)
+	_build_tuto_panel(root)
 
 	var holder := Control.new()
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -914,6 +1054,7 @@ func _refresh() -> void:
 	_rate_label.text = "Équipage /h : +%s cr  +%s min.  +%s én.  +%s don." % [
 		Data.fmt(prod.credits * 3600.0), Data.fmt(prod.minerals * 3600.0), Data.fmt(prod.energy * 3600.0),
 		Data.fmt(prod.data * 3600.0)]
+	_refresh_tuto()
 	_refresh_goal()
 	_refresh_captain()
 	_refresh_crew()

@@ -69,6 +69,84 @@ func _item(slot: String, rarity: String, ilvl: int, affixes: Array = []) -> Dict
 	return it
 
 
+## --- Tutoriel ---
+
+func test_tuto_missions_in_order_with_rewards_and_unlocks() -> void:
+	_gs.new_game()
+	_gs.start_tutorial()
+	_check(_gs.tuto_active() and _gs.tuto_step == 0 and not _gs.tuto_intro_seen, "le tutoriel démarre à la mission 1, intro non vue")
+	_check(not _gs.tab_unlocked("exp") and not _gs.tab_unlocked("captain") and _gs.tab_unlocked("base") and _gs.tab_unlocked("crew"), "au départ : Expéditions et Capitaine verrouillés")
+	_check(not _gs.section_unlocked("lab") and not _gs.section_unlocked("rang") and _gs.section_unlocked("salles"), "au départ : Labo et Rang verrouillés")
+	_check(_gs.hero_room("rex") == "" and _gs.equipped["weapon"] == -1, "au départ : Rex n'est pas en salle, rien n'est équipé")
+	_check(not _gs.claim_tuto(), "on ne récupère pas une mission non faite")
+	# M1 : Rex en salle
+	_gs.set_room_crew("mine", "rex")
+	_check(_gs.tuto_ready(), "M1 faite quand Rex travaille en salle")
+	var c0: float = _gs.res["credits"]
+	_check(_gs.claim_tuto() and _gs.tuto_step == 1 and _gs.res["credits"] == c0 + 400.0, "M1 : +400 crédits, mission suivante")
+	# M2 : 100 minerais
+	_check(not _gs.tuto_ready(), "M2 pas faite sans minerais")
+	var rate_before: float = _gs.production_per_sec().minerals
+	_check(rate_before > 0.0, "M2 : la Mine produit des minerais (accélérée pendant la mission)")
+	_gs.add_res("minerals", 50.0)
+	_check(_gs.claim_tuto(), "M2 : 50 minerais")
+	_check(_gs.production_per_sec().minerals < rate_before, "après M2 : la production redevient normale")
+	_check(_gs.tab_unlocked("exp") and not _gs.tab_unlocked("captain"), "après M2 : Expéditions ouvertes, Capitaine encore fermé")
+	# M3 : combat gagné
+	_gs.finish_live(0, "asteroids", {"win": true, "time": 20.0, "objectives_done": 0}, false, "combat")
+	_check(_gs.claim_tuto() and _gs.tab_unlocked("captain"), "M3 : un combat gagné ouvre le Capitaine")
+	# M4 : équiper
+	_gs.equip(_gs.items[0].id)
+	_check(_gs.claim_tuto() and _gs.section_unlocked("atelier"), "M4 : équiper un objet ouvre Atelier et Vaisseau")
+	# M5 : Mine niveau 3
+	_gs.room_levels["mine"] = 3
+	_check(_gs.claim_tuto() and _gs.section_unlocked("lab") and not _gs.section_unlocked("rang"), "M5 : Mine niveau 3 ouvre le Labo")
+	# M6 : recherche
+	_give({"credits": 1e6, "data": 1e6, "minerals": 1e6, "energy": 1e6})
+	_check(_gs.start_research(Data.RESEARCH_ORDER[0]) and _gs.claim_tuto(), "M6 : lancer une recherche")
+	# M7-M9 : modes de jeu
+	_gs.finish_live(0, "asteroids", {"win": false}, false, "derive")
+	_check(not _gs.tuto_ready(), "M7 : une dérive perdue ne compte pas")
+	_gs.finish_live(0, "asteroids", {"win": true, "time": 30.0}, false, "derive")
+	_check(_gs.claim_tuto(), "M7 : dérive réussie")
+	_gs.enter_anomaly(1)
+	_check(_gs.claim_tuto(), "M8 : entrer dans la Faille 1")
+	_gs.finish_live(0, "asteroids", {"win": true, "steps": 10}, false, "route")
+	_check(_gs.claim_tuto() and _gs.section_unlocked("rang"), "M9 : une route réussie ouvre le Rang")
+	# M10 : première refonte
+	_check(not _gs.tuto_ready(), "M10 pas faite avant la refonte")
+	for rid in Data.ROOM_ORDER:
+		_gs.room_levels[rid] = 30
+	_check(_gs.do_prestige() > 0 and _gs.claim_tuto(), "M10 : la première refonte termine le tutoriel")
+	_check(not _gs.tuto_active() and _gs.tab_unlocked("exp"), "tutoriel terminé : tout est ouvert")
+
+
+func test_tuto_state_is_saved_and_old_saves_skip_it() -> void:
+	var path := "user://test_tuto.json"
+	_gs.save_path = path
+	_gs.new_game()
+	_gs.start_tutorial()
+	_gs.set_room_crew("mine", "rex")
+	_gs.claim_tuto()
+	_gs.tuto_intro_seen = true
+	_gs.tuto_note("combat_wins")
+	_gs.save_game()
+	_gs.reset()
+	_check(_gs.load_game() and _gs.tuto_step == 1 and _gs.tuto_intro_seen and int(_gs.tuto_counts.get("combat_wins", 0)) == 1, "le tutoriel survit à la sauvegarde")
+	# ancienne sauvegarde : pas de clé « tuto » -> tutoriel considéré fait
+	var f := FileAccess.open(path, FileAccess.READ)
+	var parsed: Dictionary = JSON.parse_string(f.get_as_text())
+	f.close()
+	parsed.erase("tuto")
+	var w := FileAccess.open(path, FileAccess.WRITE)
+	w.store_string(JSON.stringify(parsed))
+	w.close()
+	_gs.reset()
+	_check(_gs.load_game() and not _gs.tuto_active() and _gs.tuto_intro_seen, "ancienne sauvegarde : pas de tutoriel à refaire")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_gs.save_path = "user://save.json"
+
+
 func test_hero_stats_scale() -> void:
 	var s1: Dictionary = Data.hero_stats("rex", 1, 0)
 	var s2: Dictionary = Data.hero_stats("rex", 5, 0)

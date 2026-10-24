@@ -64,6 +64,10 @@ var last_seen := 0
 var expeditions_done := 0
 var last_offline_report := {}
 var last_recruit := {}
+## Tutoriel : index de la mission en cours (= Data.TUTO.size() quand il est fini), introduction vue, compteurs d'actions.
+var tuto_step := 0
+var tuto_intro_seen := true
+var tuto_counts := {}
 
 var _autosave_timer := 0.0
 var _gain_scale := 1.0          # rendement appliqué aux gains (hors ligne)
@@ -87,6 +91,7 @@ func _ready() -> void:
 	reset()
 	if not load_game():
 		new_game()
+		start_tutorial()
 
 
 func _process(delta: float) -> void:
@@ -117,6 +122,9 @@ func reset() -> void:
 	heroes = {}
 	hero_order = []
 	recruits = 0
+	tuto_step = Data.TUTO.size()
+	tuto_intro_seen = true
+	tuto_counts = {}
 	for id in upgrade_levels:
 		upgrade_levels[id] = 0
 	ship_tier_best = 0
@@ -171,6 +179,18 @@ func new_game() -> void:
 		equipped[s] = it.id
 	res["credits"] = Data.START_CREDITS
 	last_seen = int(Time.get_unix_time_from_system())
+	changed.emit()
+
+
+## Nouvelle partie avec tutoriel : aucun équipier aux salles, rien d'équipé (les premières missions font ces gestes).
+func start_tutorial() -> void:
+	tuto_step = 0
+	tuto_intro_seen = false
+	tuto_counts = {}
+	for rid in Data.ROOM_ORDER:
+		room_crew[rid] = ""
+	for s in Data.EQUIP_SLOTS:
+		equipped[s] = -1
 	changed.emit()
 
 
@@ -904,6 +924,8 @@ func production_per_sec() -> Dictionary:
 	var pm := (1.0 + research_bonus("prod_pct") / 100.0) * perk_mult("prod")
 	for r in out:
 		out[r] *= pm
+	if tuto_active() and String(tuto_mission().kind) == "minerals":
+		out["minerals"] *= Data.TUTO_MINERAL_BOOST          # mission « Produire des minerais » : pas question d'attendre des heures
 	return out
 
 
@@ -1019,6 +1041,7 @@ func start_research(id: String) -> bool:
 	if not can_afford(cost):
 		return false
 	pay(cost)
+	tuto_note("research_started")
 	if research_active.size() < research_slots():
 		_begin_research(id)
 	else:
@@ -1235,6 +1258,61 @@ func squad_role_level(slot_i: int, dest: String) -> int:
 		if Data.HEROES[id]["class"] == role:
 			total += heroes[id].level
 	return total
+
+
+## --- Tutoriel ---
+
+func tuto_active() -> bool:
+	return tuto_step < Data.TUTO.size()
+
+
+func tuto_mission() -> Dictionary:
+	return Data.TUTO[tuto_step] if tuto_active() else {}
+
+
+func tuto_note(kind: String) -> void:
+	tuto_counts[kind] = int(tuto_counts.get(kind, 0)) + 1
+
+
+func tuto_progress(m: Dictionary) -> float:
+	match String(m.kind):
+		"room_crew":
+			for rid in Data.ROOM_ORDER:
+				if room_worker(rid) == "rex":
+					return 1.0
+			return 0.0
+		"minerals": return res["minerals"]
+		"equipped":
+			var n := 0
+			for s in Data.EQUIP_SLOTS:
+				if int(equipped[s]) != -1:
+					n += 1
+			return float(n)
+		"room_level": return float(room_level("mine"))
+		"prestige_count": return float(prestige_count)
+	return float(tuto_counts.get(String(m.kind), 0))
+
+
+func tuto_ready() -> bool:
+	return tuto_active() and tuto_progress(tuto_mission()) >= float(tuto_mission().target)
+
+
+func claim_tuto() -> bool:
+	if not tuto_ready():
+		return false
+	_give_goal_reward(tuto_mission())
+	tuto_step += 1
+	changed.emit()
+	return true
+
+
+## Onglet ouvert ? (toujours oui hors tutoriel)
+func tab_unlocked(tab: String) -> bool:
+	return not tuto_active() or tuto_step >= int(Data.TUTO_TAB_STEP.get(tab, 0))
+
+
+func section_unlocked(section: String) -> bool:
+	return not tuto_active() or tuto_step >= int(Data.TUTO_SECTION_STEP.get(section, 0))
 
 
 ## --- Objectifs ---
@@ -1705,6 +1783,8 @@ func finish_live(slot_i: int, dest: String, result: Dictionary, random: bool, mo
 	if mode == "route":
 		head = "Voyage réussi en %d étapes" % int(result.get("steps", 0)) if win else "Voyage interrompu (butin réduit)"
 	note_mode(mode)
+	if win:
+		tuto_note({"combat": "combat_wins", "derive": "derive_wins", "route": "route_wins"}.get(mode, "combat_wins"))
 	if win and mult > 1.001:
 		head += " (gains x%s)" % ("%.2f" % mult).rstrip("0").rstrip(".").replace(".", ",")
 	_settle(slot_i, dest, 1, 1 if win else 0, mult, head, {})
@@ -1941,6 +2021,7 @@ func enter_anomaly(n: int) -> bool:
 	if n < 1 or n > anomaly_unlocked_max() or anomaly_charges < Data.ANOMALY_COST:
 		return false
 	anomaly_charges -= Data.ANOMALY_COST
+	tuto_note("anomaly_runs")
 	var b := Battle.simulate([captain_unit()], make_anomaly_enemies(n), rng)     # vrai combat : le hasard joue
 	var first: bool = n > anomaly_max
 	var xp := 0
@@ -1996,6 +2077,7 @@ func save_game() -> void:
 			"prestige": {"best": prestige_best, "count": prestige_count, "earned": prestige_earned, "points": prestige_points, "perks": prestige_perks}}, "premium": {"crystals": crystals, "unlocks": premium_unlocks}, "research": {"levels": research_levels, "active": research_active, "queue": research_queue, "auto": research_auto},
 		"anomaly": {"max": anomaly_max, "best": anomaly_best, "charges": anomaly_charges, "regen": anomaly_regen_acc, "cost_scale": 10}, "slots": _slots_for_save(), "dest_wins": dest_wins,
 		"done": expeditions_done, "last_seen": last_seen,
+		"tuto": {"step": tuto_step, "intro": tuto_intro_seen, "counts": tuto_counts},
 	}))
 
 
@@ -2159,6 +2241,17 @@ func load_game() -> bool:
 		}
 	expeditions_done = int(parsed.get("done", 0))
 	last_seen = int(parsed.get("last_seen", 0))
+	var saved_tu: Dictionary = parsed.get("tuto", {})
+	if saved_tu.is_empty():       # sauvegarde d'avant le tutoriel : le joueur n'a pas à le refaire
+		tuto_step = Data.TUTO.size()
+		tuto_intro_seen = true
+		tuto_counts = {}
+	else:
+		tuto_step = clampi(int(saved_tu.get("step", 0)), 0, Data.TUTO.size())
+		tuto_intro_seen = bool(saved_tu.get("intro", true))
+		tuto_counts = {}
+		for k in saved_tu.get("counts", {}):
+			tuto_counts[String(k)] = int(saved_tu.counts[k])
 
 	var now := int(Time.get_unix_time_from_system())
 	var away := maxi(0, now - last_seen)

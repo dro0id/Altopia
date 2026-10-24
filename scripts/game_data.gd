@@ -272,6 +272,37 @@ const PRESTIGE_GOALS := [
 	{"id": "pg6", "name": "Gagner 150 éclats par des refontes", "kind": "prestige_earned", "target": 150, "reward": {"shards": 20, "item": "legendary"}},
 ]
 
+## Tutoriel : 10 missions guidées pour le voyage (maquette « Acte 5 »). Une mission à la fois ; la récompense se récupère par un bouton.
+## kind : room_crew (un équipier en salle), minerals (minerais en stock), combat_wins, equipped (objets équipés), room_level (niveau de la Mine),
+## research_started, derive_wins, anomaly_runs, route_wins, prestige_count.
+## nav : onglet à faire pulser (captain, crew, exp, base) ; sub : sous-page de la Base. unlock : ce que la mission prochaine débloque.
+const TUTO := [
+	{"id": "t1", "title": "Mettre Rex à la Mine", "text": "Ouvrez la Base, touchez la Mine et choisissez Rex : l'équipage produit même quand vous n'êtes pas là.",
+		"kind": "room_crew", "target": 1, "reward": {"credits": 400.0}, "nav": "base", "sub": "salles"},
+	{"id": "t2", "title": "Produire 50 minerais", "text": "Rex travaille à la Mine, même hors ligne (production accélérée pendant cette mission). Revenez voir : ça s'accumule tout seul.",
+		"kind": "minerals", "target": 50, "reward": {"credits": 600.0}, "nav": "base", "sub": "salles", "unlock": "Expéditions"},
+	{"id": "t3", "title": "Première expédition", "text": "Gagnez un combat en direct dans le champ d'astéroïdes. Touchez un couloir pour changer de voie.",
+		"kind": "combat_wins", "target": 1, "reward": {"credits": 800.0}, "nav": "exp", "unlock": "Capitaine"},
+	{"id": "t4", "title": "Équiper le Capitaine", "text": "Équipez un objet : onglet Capitaine, puis touchez un emplacement.",
+		"kind": "equipped", "target": 1, "reward": {"credits": 1000.0}, "nav": "captain", "unlock": "Atelier et Vaisseau"},
+	{"id": "t5", "title": "Améliorer une salle", "text": "Montez la Mine au niveau 3 dans la Base. Les améliorations coûtent crédits et minerais.",
+		"kind": "room_level", "target": 3, "reward": {"credits": 1200.0}, "nav": "base", "sub": "salles", "unlock": "Labo"},
+	{"id": "t6", "title": "Lancer une recherche", "text": "Base › Labo : choisissez une recherche et lancez-la. Elle continue hors ligne.",
+		"kind": "research_started", "target": 1, "reward": {"credits": 1500.0}, "nav": "base", "sub": "lab"},
+	{"id": "t7", "title": "Réussir une Dérive", "text": "Expéditions : choisissez le mode Dérive, scannez la grille et ramenez les ressources.",
+		"kind": "derive_wins", "target": 1, "reward": {"credits": 1800.0}, "nav": "exp"},
+	{"id": "t8", "title": "Entrer dans la Faille 1", "text": "Dans Expéditions, la Faille est une anomalie à explorer avec le Capitaine.",
+		"kind": "anomaly_runs", "target": 1, "reward": {"credits": 2000.0}, "nav": "exp"},
+	{"id": "t9", "title": "Faire une Route", "text": "Expéditions : mode Route, un voyage d'étapes jusqu'au gardien.",
+		"kind": "route_wins", "target": 1, "reward": {"credits": 2400.0}, "nav": "exp", "unlock": "Rang"},
+	{"id": "t10", "title": "Atteindre la destination", "text": "Terminez le voyage : montez la Base jusqu'à la première refonte (Base › Rang).",
+		"kind": "prestige_count", "target": 1, "reward": {"credits": 5000.0, "item": "epic"}, "nav": "base", "sub": "rang"},
+]
+const TUTO_MINERAL_BOOST := 10.0   # la Mine produit 10 fois plus pendant la mission des minerais
+## Étape du tutoriel (index de la mission en cours) à partir de laquelle chaque onglet / sous-page est ouvert.
+const TUTO_TAB_STEP := {"crew": 0, "base": 0, "exp": 2, "captain": 3}
+const TUTO_SECTION_STEP := {"salles": 0, "atelier": 4, "ship": 4, "lab": 5, "rang": 9}
+
 const SYNERGY_PAIR := 0.10
 const SYNERGY_FULL := 0.25
 const PAIRS := [["pilot", "engineer"], ["engineer", "scientist"], ["scientist", "pilot"]]
