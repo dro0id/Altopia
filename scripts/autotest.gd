@@ -261,7 +261,8 @@ func run(main_scene: Control, out_dir: String) -> int:
 	await _click(main._tuto_btn)
 	_check(gs.tuto_step == 1 and gs.res["credits"] >= cr0 + 400.0, "clic sur Récupérer : +400 crédits, mission 2")
 	_check(main._toast_label.modulate.a > 0.3 and main._toast_label.text.begins_with("Mission accomplie"), "annonce « Mission accomplie » affichée")
-	gs.add_res("minerals", 50.0)
+	for i in 120:
+		gs.tick(1.0)
 	await _frames(25)
 	await _click(main._tuto_btn)
 	await _frames(10)

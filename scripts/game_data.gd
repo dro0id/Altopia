@@ -280,14 +280,14 @@ const CH1_ROOMS := ["mine", "centrale", "labo"]
 const ARRIVAL_SHARDS := 7
 
 ## Tutoriel : 10 missions guidées pour le voyage (maquette « Acte 5 »). Une mission à la fois ; la récompense se récupère par un bouton.
-## kind : room_crew (un équipier à un poste), minerals (minerais en stock), combat_wins, equipped (objets équipés), room_level (niveau des Moteurs),
+## kind : room_crew (un équipier à un poste), credits_made (crédits produits par les postes depuis le début de la mission), combat_wins, equipped (objets équipés), room_level (niveau des Moteurs),
 ## research_started, derive_wins, anomaly_runs, route_wins, route_planet (route gagnée vers la Planète inconnue : le vaisseau se pose).
 ## nav : onglet à faire pulser (captain, crew, exp, base) ; sub : sous-page de la Vaisseau/Base. unlock : ce que la mission suivante débloque.
 const TUTO := [
 	{"id": "t1", "title": "Mettre Rex aux Moteurs", "text": "Le vaisseau a trois postes : Moteurs, Réacteur et Console. Ouvrez Vaisseau › Postes, touchez les Moteurs et choisissez Rex : l'équipage produit même quand vous n'êtes pas là.",
 		"kind": "room_crew", "target": 1, "reward": {"credits": 400.0}, "nav": "base", "sub": "salles"},
-	{"id": "t2", "title": "Produire 50 minerais", "text": "Rex travaille aux Moteurs, même hors ligne (production accélérée pendant cette mission). Revenez voir : ça s'accumule tout seul.",
-		"kind": "minerals", "target": 50, "reward": {"credits": 600.0}, "nav": "base", "sub": "salles", "unlock": "Expéditions"},
+	{"id": "t2", "title": "Gagner 30 crédits", "text": "Rex travaille aux Moteurs, même hors ligne (production accélérée pendant cette mission). Les crédits rentrent tout seuls : regardez le compteur en haut monter.",
+		"kind": "credits_made", "target": 30, "reward": {"credits": 600.0}, "nav": "base", "sub": "salles", "unlock": "Expéditions"},
 	{"id": "t3", "title": "Première expédition", "text": "Gagnez un combat en direct dans le champ d'astéroïdes. Touchez un couloir pour changer de voie.",
 		"kind": "combat_wins", "target": 1, "reward": {"credits": 800.0}, "nav": "exp", "unlock": "Capitaine"},
 	{"id": "t4", "title": "Équiper le Capitaine", "text": "Onglet Capitaine, descendez jusqu'à Équipement : touchez « Équiper automatiquement le meilleur » (ou « Équiper » sur un objet de la liste).",
@@ -305,7 +305,7 @@ const TUTO := [
 	{"id": "t10", "title": "Atteindre la destination", "text": "Gagnez une Route vers la Planète inconnue : le vaisseau se pose. C'est la première refonte, et la Base se débloque.",
 		"kind": "route_planet", "target": 1, "reward": {"item": "epic"}, "nav": "exp", "unlock": "La Base"},
 ]
-const TUTO_MINERAL_BOOST := 10.0   # les Moteurs produisent 10 fois plus pendant la mission des minerais
+const TUTO_PROD_BOOST := 40.0   # les postes produisent 40 fois plus pendant la mission « Gagner des crédits » (environ une minute)
 ## Étape du tutoriel (index de la mission en cours) à partir de laquelle chaque onglet / sous-page est ouvert.
 ## Atelier et Rang appartiennent à la Base : ils ne s'ouvrent qu'une fois le tutoriel fini (à l'arrivée).
 const TUTO_TAB_STEP := {"crew": 0, "base": 0, "exp": 2, "captain": 3}

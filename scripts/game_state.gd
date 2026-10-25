@@ -927,8 +927,9 @@ func production_per_sec() -> Dictionary:
 	var pm := (1.0 + research_bonus("prod_pct") / 100.0) * perk_mult("prod")
 	for r in out:
 		out[r] *= pm
-	if tuto_active() and String(tuto_mission().kind) == "minerals":
-		out["minerals"] *= Data.TUTO_MINERAL_BOOST          # mission « Produire des minerais » : pas question d'attendre des heures
+	if tuto_active() and String(tuto_mission().kind) == "credits_made":
+		for r in out:
+			out[r] *= Data.TUTO_PROD_BOOST          # mission « Gagner des crédits » : pas question d'attendre des heures
 	return out
 
 
@@ -1284,7 +1285,6 @@ func tuto_progress(m: Dictionary) -> float:
 				if room_worker(rid) == "rex":
 					return 1.0
 			return 0.0
-		"minerals": return res["minerals"]
 		"equipped":
 			var n := 0
 			for s in Data.EQUIP_SLOTS:
@@ -1293,7 +1293,7 @@ func tuto_progress(m: Dictionary) -> float:
 			return float(n)
 		"room_level": return float(room_level("mine"))
 		"prestige_count": return float(prestige_count)
-	return float(tuto_counts.get(String(m.kind), 0))
+	return float(tuto_counts.get(String(m.kind), 0.0))
 
 
 ## Chapitre 1 : seuls les trois postes du vaisseau existent, sous leur nom de bord.
@@ -1900,6 +1900,8 @@ func tick(seconds: float) -> void:
 	var prod := production_per_sec()
 	for r in prod:
 		add_res(r, prod[r] * seconds * _gain_scale)
+	if tuto_active() and String(tuto_mission().kind) == "credits_made":
+		tuto_counts["credits_made"] = float(tuto_counts.get("credits_made", 0.0)) + prod["credits"] * seconds * _gain_scale
 	if not _offline_calc:
 		_advance_expeditions(seconds)      # les expéditions se jouent en direct : elles se mettent en pause hors ligne
 	_afk_work(seconds)
@@ -2270,7 +2272,7 @@ func load_game() -> bool:
 		tuto_intro_seen = bool(saved_tu.get("intro", true))
 		tuto_counts = {}
 		for k in saved_tu.get("counts", {}):
-			tuto_counts[String(k)] = int(saved_tu.counts[k])
+			tuto_counts[String(k)] = float(saved_tu.counts[k])
 
 	var now := int(Time.get_unix_time_from_system())
 	var away := maxi(0, now - last_seen)

@@ -89,11 +89,13 @@ func test_tuto_missions_in_order_with_rewards_and_unlocks() -> void:
 	_check(_gs.claim_tuto() and _gs.tuto_step == 1 and _gs.res["credits"] == c0 + 400.0, "M1 : +400 crédits, mission suivante")
 	# M2 : 100 minerais
 	_check(not _gs.tuto_ready(), "M2 pas faite sans minerais")
-	var rate_before: float = _gs.production_per_sec().minerals
-	_check(rate_before > 0.0, "M2 : la Mine produit des minerais (accélérée pendant la mission)")
-	_gs.add_res("minerals", 50.0)
-	_check(_gs.claim_tuto(), "M2 : 50 minerais")
-	_check(_gs.production_per_sec().minerals < rate_before, "après M2 : la production redevient normale")
+	var rate_before: float = _gs.production_per_sec().credits
+	_check(not _gs.tuto_ready(), "M2 pas faite sans production")
+	for i in 120:
+		_gs.tick(1.0)
+	_check(_gs.tuto_ready(), "M2 : Rex aux Moteurs gagne 30 crédits en moins de deux minutes (accéléré)")
+	_check(_gs.claim_tuto(), "M2 : 30 crédits produits")
+	_check(_gs.production_per_sec().credits < rate_before / 10.0, "après M2 : la production redevient normale")
 	_check(_gs.tab_unlocked("exp") and not _gs.tab_unlocked("captain"), "après M2 : Expéditions ouvertes, Capitaine encore fermé")
 	# M3 : combat gagné
 	_gs.finish_live(0, "asteroids", {"win": true, "time": 20.0, "objectives_done": 0}, false, "combat")
