@@ -174,7 +174,7 @@ def walk_pose(f, t, run=False):
              ("Foot.L", X, 16 * max(0.0, -L) - 10 * max(0.0, L) * 0.6), ("Foot.R", X, 16 * max(0.0, -R) - 10 * max(0.0, R) * 0.6),
              ("Toe.L", X, (34 if not run else 45) * max(0.0, -L) - 14 * max(0.0, L)), ("Toe.R", X, (34 if not run else 45) * max(0.0, -R) - 14 * max(0.0, R)),
              ("UpperArm.L", X, (34 * amp) * sl(0.0) ), ("UpperArm.R", X, -(34 * amp) * sl(0.0)),
-             ("LowerArm.L", X, (24 if not run else 78) + (16 * amp) * max(0.0, sl(0.5))), ("LowerArm.R", X, (24 if not run else 78) + (16 * amp) * max(0.0, -sl(0.5))),
+             ("LowerArm.L", X, -((24 if not run else 78) + (16 * amp) * max(0.0, sl(0.5)))), ("LowerArm.R", X, -((24 if not run else 78) + (16 * amp) * max(0.0, -sl(0.5)))),
              ("Hand.L", X, 8 * sl(1.0)), ("Hand.R", X, -8 * sl(1.0)),
              ("UpperArm.L", Y, 3 * co), ("UpperArm.R", Y, -3 * co),
              ("Hips", Z, 7 * amp * sw), ("Hips", Y, 4.0 * amp * co), ("Torso", Z, -6 * amp * sl(0.25)), ("Chest", Z, -5 * amp * sl(0.45)), ("Torso", Y, -1.5 * amp * co),
@@ -203,8 +203,8 @@ def clip_shoot():
         adds += [("Torso", X, -rec), ("Head", X, -rec * 0.6 + 3 * sm(a / 84)), ("Hips", X, rec * 0.4), ("Chest", X, -rec * 0.4), ("Neck", X, -rec * 0.3),
                  ("HairB", X, 6 * rec), ("Hips", Z, -6 * sm(a / 84)), ("Torso", Z, 8 * sm(a / 84)), ("UpperLeg.R", X, -4 * sm(a / 84)), ("UpperLeg.L", X, 6 * sm(a / 84)), ("LowerLeg.L", X, 6 * sm(a / 84))]
         s = S(*adds, over={"UpperArm.R": [(Y, -DL * (1 - sm(a / 84))), (Z, 0)]})
-        s["UpperArm.R"] = [(Y, -DL * (1 - sm(a / 84))), (X, a)]
-        s.setdefault("LowerArm.R", []).append((X, 8 * sm(a / 84)))
+        s["UpperArm.R"] = [(Y, -DL * (1 - sm(a / 84))), (Z, 88 * sm(a / 84))]      # même recette que Point : bras tendu vers l'avant
+        s["LowerArm.R"] = s.get("LowerArm.R", []) + [(X, 4 * sm(a / 84))]
         fx = merge(fx, fingers(15, right=55 * sm(a / 84)), face(s, brow_tilt=8 * sm(a / 84), smile=-0.1 * sm(a / 84)), blink(0.7 * sm(a / 84) * (1 if 7 <= f <= 12 else 0)))
         return s, fx
     return build(24, fn, 1)
@@ -226,8 +226,8 @@ def clip_talk():
         jaw = 3.0 * e + 7.0 * e * abs(math.sin(TAU * f / 3.3 + 1.3 * math.sin(f)))
         adds, fx = life(t, 1.0)
         adds += [("Head", X, 3.5 * e2 - 1.0), ("Head", Z, 3 * cyc(t, 1, 0.1) + 2 * e * cyc(t, 3, 0.2)), ("Neck", X, 1.5 * e2), ("Chest", X, 1.0 * e2),
-                 ("UpperArm.R", Y, 22 + 6 * e), ("UpperArm.R", X, 34 + 12 * e2 + 6 * cyc(t, 2, 0.1)), ("LowerArm.R", X, 66 + 16 * e + 10 * cyc(t, 3, 0.3)), ("LowerArm.R", Z, 12 * cyc(t, 3, 0.3) * e),
-                 ("Hand.R", X, 14 * cyc(t, 3, 0.55) * e), ("Hand.R", Z, 8 * cyc(t, 3, 0.1) * e), ("UpperArm.L", X, 6 + 3 * e), ("LowerArm.L", X, 12 + 6 * e), ("HairB", X, 3 * e)]
+                 ("UpperArm.R", Y, 22 + 6 * e), ("UpperArm.R", X, -(34 + 12 * e2 + 6 * cyc(t, 2, 0.1))), ("LowerArm.R", X, -(66 + 16 * e + 10 * cyc(t, 3, 0.3))), ("LowerArm.R", Z, 12 * cyc(t, 3, 0.3) * e),
+                 ("Hand.R", X, 14 * cyc(t, 3, 0.55) * e), ("Hand.R", Z, 8 * cyc(t, 3, 0.1) * e), ("UpperArm.L", X, -(6 + 3 * e)), ("LowerArm.L", X, -(12 + 6 * e)), ("HairB", X, 3 * e)]
         s = S(*adds)
         fx = merge(fx, fingers(15, right=15 + 20 * e), face(s, jaw=jaw, brow_up=0.15 + 0.9 * e2, smile=0.25 + 0.3 * e), gaze(0.3 * cyc(t, 2, 0.2), 0.2))
         return s, fx
@@ -335,7 +335,7 @@ def clip_surprise():
         a = wp(f, [(1, 0), (4, -0.2), (8, 1.15), (11, 1.0), (20, 1.0), (28, 0)])
         adds, fx = life(0.0, 0.6)
         adds += [("Head", X, -9 * a), ("Chest", X, -6 * a), ("Hips", X, 4 * a), ("Abdomen", X, -3 * a), ("UpperArm.L", Y, 14 * a), ("UpperArm.R", Y, -14 * a), ("UpperArm.L", X, -6 * a), ("UpperArm.R", X, -6 * a),
-                 ("LowerArm.L", X, 14 * a), ("LowerArm.R", X, 14 * a), ("UpperLeg.L", X, 3 * a), ("UpperLeg.R", X, -3 * a), ("HairB", X, 8 * a)]
+                 ("LowerArm.L", X, -14 * a), ("LowerArm.R", X, -14 * a), ("UpperLeg.L", X, 3 * a), ("UpperLeg.R", X, -3 * a), ("HairB", X, 8 * a)]
         s = S(*adds); s["_t"] = {"Hips": (0, 0.012 * a, 0)}
         fx = merge(fx, fingers(15 + 25 * a), face(s, jaw=14 * a, brow_up=1.3 * a, smile=-0.2 * a), {"_lid": {"wide": a}}, gaze(0, 0.5 * a))
         return s, fx
