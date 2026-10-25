@@ -101,6 +101,9 @@ var _sheet_quote: Label
 var _sheet_gen := 0
 var _sheet_go: Button          # « Décoller ! » : visible seulement pendant un briefing
 var _sheet_close: Button
+var _sheet_bg: TextureRect      # décor de la fiche (poste de pilotage pendant un briefing)
+var _sheet_shade: ColorRect
+var _sheet_gestures: Array = []   # titre « Gestes » et boutons : réservés à la fiche d'un équipier
 var _sheet_on_go: Callable
 var _briefed := {}              # destinations déjà briefées pendant cette session
 const GESTURES := [["Idle", "Repos"], ["Look", "Regard"], ["Walk", "Marche"], ["Run", "Course"], ["Shoot", "Tir"], ["Talk", "Parler"],
@@ -368,6 +371,19 @@ func _build_sheet() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sheet.add_child(dim)
+	_sheet_bg = TextureRect.new()
+	_sheet_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sheet_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_sheet_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_sheet_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet_bg.visible = false
+	_sheet.add_child(_sheet_bg)
+	_sheet_shade = ColorRect.new()
+	_sheet_shade.color = Color(0.01, 0.02, 0.06, 0.45)
+	_sheet_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sheet_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet_shade.visible = false
+	_sheet.add_child(_sheet_shade)
 	var m := MarginContainer.new()
 	m.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right"]:
@@ -386,8 +402,9 @@ func _build_sheet() -> void:
 	_sheet_view = CrewView.new()
 	_sheet_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_sheet_view)
-	_label(col, "Gestes", 24, COL_ACCENT)
+	_sheet_gestures.append(_label(col, "Gestes", 24, COL_ACCENT))
 	var flow := HFlowContainer.new()
+	_sheet_gestures.append(flow)
 	flow.add_theme_constant_override("h_separation", 8)
 	flow.add_theme_constant_override("v_separation", 8)
 	col.add_child(flow)
@@ -429,11 +446,23 @@ func _open_briefing(slot_i: int, dest: String, on_go: Callable) -> void:
 	_sheet_on_go = on_go
 	_sheet_go.visible = true
 	_sheet_close.text = "Annuler"
+	_set_sheet_mode(true)
+
+
+## Fiche d'équipier (gestes en boutons, fond uni) ou scène narrative (briefing : poste de pilotage, pas de boutons de gestes ; recrutement : sans gestes).
+func _set_sheet_mode(briefing: bool, recruit := false) -> void:
+	_sheet_bg.visible = briefing
+	_sheet_shade.visible = briefing
+	if briefing:
+		_sheet_bg.texture = load("res://assets/intro/cockpit.jpg")
+	for c in _sheet_gestures:
+		(c as Control).visible = not (briefing or recruit)
 
 
 func _open_sheet(id: String, is_new := false) -> void:
 	_sheet_go.visible = false
 	_sheet_close.text = "Fermer"
+	_set_sheet_mode(false, is_new)
 	var tpl: Dictionary = Data.HEROES[id]
 	_sheet_title.text = ("Nouvel équipier : " if is_new else "") + String(tpl.name)
 	_sheet_title.add_theme_color_override("font_color", Data.RARITY[tpl.rarity].color)
@@ -448,7 +477,7 @@ func _open_sheet(id: String, is_new := false) -> void:
 	var gen := _sheet_gen
 	get_tree().create_timer(3.0).timeout.connect(func():
 		if gen == _sheet_gen and _sheet.visible:
-			_sheet_view.play("Work" if GameState.hero_room(id) != "" and not is_new else "Wave"))
+			_sheet_view.play("Work" if (GameState.hero_room(id) != "" and not is_new) or _sheet_bg.visible else "Wave"))
 
 
 func _build_header(parent: Control) -> void:
