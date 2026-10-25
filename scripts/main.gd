@@ -6,6 +6,7 @@ const Starfield = preload("res://scripts/starfield.gd")
 const Chibi = preload("res://scripts/chibi.gd")
 const BaseView = preload("res://scripts/base_view.gd")
 const CrewView = preload("res://scripts/crew_view.gd")
+const CockpitView = preload("res://scripts/cockpit_view.gd")
 const IntroUI = preload("res://scripts/intro_ui.gd")
 const ArriveUI = preload("res://scripts/arrive_ui.gd")
 const BaseUI = preload("res://scripts/base_ui.gd")
@@ -101,6 +102,7 @@ var _sheet_quote: Label
 var _sheet_gen := 0
 var _sheet_go: Button          # « Décoller ! » : visible seulement pendant un briefing
 var _sheet_close: Button
+var _sheet_cockpit: Control      # scène 3D du poste de pilotage (briefing)
 var _sheet_bg: TextureRect      # décor de la fiche (poste de pilotage pendant un briefing)
 var _sheet_shade: ColorRect
 var _sheet_gestures: Array = []   # titre « Gestes » et boutons : réservés à la fiche d'un équipier
@@ -402,6 +404,10 @@ func _build_sheet() -> void:
 	_sheet_view = CrewView.new()
 	_sheet_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_sheet_view)
+	_sheet_cockpit = CockpitView.new()
+	_sheet_cockpit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sheet_cockpit.visible = false
+	col.add_child(_sheet_cockpit)
 	_sheet_gestures.append(_label(col, "Gestes", 24, COL_ACCENT))
 	var flow := HFlowContainer.new()
 	_sheet_gestures.append(flow)
@@ -438,6 +444,8 @@ func _open_briefing(slot_i: int, dest: String, on_go: Callable) -> void:
 	for id in ids:
 		if Data.HEROES[id]["class"] == d.role:
 			who = id
+	if GameState.tuto_active() and ids.has("rex"):
+		who = "rex"                          # dans le tutoriel, c'est toujours Rex qui est à la barre
 	if who == "":
 		who = ids[randi() % ids.size()]
 	_open_sheet(who)
@@ -447,14 +455,15 @@ func _open_briefing(slot_i: int, dest: String, on_go: Callable) -> void:
 	_sheet_go.visible = true
 	_sheet_close.text = "Annuler"
 	_set_sheet_mode(true)
+	_sheet_cockpit.show_pilot(who)
 
 
 ## Fiche d'équipier (gestes en boutons, fond uni) ou scène narrative (briefing : poste de pilotage, pas de boutons de gestes ; recrutement : sans gestes).
 func _set_sheet_mode(briefing: bool, recruit := false) -> void:
-	_sheet_bg.visible = briefing
-	_sheet_shade.visible = briefing
-	if briefing:
-		_sheet_bg.texture = load("res://assets/intro/cockpit.jpg")
+	_sheet_bg.visible = false
+	_sheet_shade.visible = false
+	_sheet_cockpit.visible = briefing
+	_sheet_view.visible = not briefing
 	for c in _sheet_gestures:
 		(c as Control).visible = not (briefing or recruit)
 
@@ -477,7 +486,7 @@ func _open_sheet(id: String, is_new := false) -> void:
 	var gen := _sheet_gen
 	get_tree().create_timer(3.0).timeout.connect(func():
 		if gen == _sheet_gen and _sheet.visible:
-			_sheet_view.play("Work" if (GameState.hero_room(id) != "" and not is_new) or _sheet_bg.visible else "Wave"))
+			_sheet_view.play("Work" if (GameState.hero_room(id) != "" and not is_new) or _sheet_cockpit.visible else "Wave"))
 
 
 func _build_header(parent: Control) -> void:
