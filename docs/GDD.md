@@ -1,72 +1,36 @@
-# Altopia — Game Design Document (v0.1)
+# Altopia : document de conception (v0)
 
-## Pitch
-Vous dirigez un vaisseau d'exploration. Votre équipage explore automatiquement
-des secteurs de la galaxie, récupère des ressources et découvre de nouveaux
-mondes. Le joueur ne pilote pas : il **recrute, compose, améliore et choisit
-où aller**. Tout continue hors-ligne.
+## Vision
+Space opera en RPG idle de combat automatique pour mobile. Le joueur est le Capitaine d'un vaisseau qui part vers un signal inconnu : il recrute des héros (humains, robots, extraterrestres), les équipe, les fait progresser, et ses escouades affrontent des vagues d'ennemis sans qu'il ait à les piloter. Il joue par sessions courtes de 2 à 5 minutes, plusieurs fois par jour ; le jeu avance aussi hors ligne.
 
-## Piliers
-1. **Simple à reprendre** : une session de 1 à 3 minutes doit être satisfaisante.
-2. **Composition d'équipe** : les rôles et leurs synergies comptent plus que la puissance brute.
-3. **Exploration** : toujours un nouveau secteur / une découverte à l'horizon.
-4. **Progression visible** : chiffres qui montent, carte qui s'agrandit.
+Références : **Top Heroes** (collection de héros, composition d'escouade, progression par chapitres, gains hors ligne) et **Mini Legion** (combats de foule lisibles à l'écran, escouades nombreuses, pouvoirs qu'on déclenche).
 
-## Boucle principale
-1. L'équipage explore le secteur actuel (gain passif de **Crédits** et de **Données**).
-2. Le joueur dépense pour recruter / améliorer l'équipage.
-3. Les **Données** débloquent de nouveaux secteurs (plus rentables, plus risqués).
-4. Un boss / anomalie ferme chaque secteur → il faut une bonne composition.
-5. **Prestige** : « Saut hyperspatial » — reset contre un bonus permanent.
-6. Retour hors-ligne : récap des gains (plafonné, ex. 8 h).
+## Boucle de jeu
+1. **Combat** : une escouade de 5 héros affronte des vagues d'un chapitre ; le combat est automatique, le joueur déclenche les pouvoirs spéciaux.
+2. **Butin** : crédits, matériaux, équipement, fragments de héros.
+3. **Progression** : monter les héros en niveau, les équiper, les faire évoluer (étoiles), améliorer le vaisseau.
+4. **Chapitre suivant** : un boss garde chaque palier ; le battre ouvre un nouveau secteur de l'espace.
+5. **Hors ligne** : le vaisseau continue de combattre ; au retour, le joueur récupère le butin accumulé (plafonné).
 
-## Couche RPG (V1)
-Les membres d'équipage sont des **héros nommés** à collectionner (classe, rareté, niveau, étoiles),
-regroupés en **escouades de 3** qui partent en expédition et **combattent automatiquement**.
-Détails et chiffres : [V1.md](V1.md).
+## Systèmes (par ordre d'importance)
+- **Héros** : trois rôles (Pilote : dégâts à distance ; Ingénieur : solide, protège ; Scientifique : soutien, soins, contrôle), trois espèces (humain, robot, extraterrestre), trois raretés (commun, rare, épique). Chaque héros a un pouvoir spécial.
+- **Escouade** : 5 emplacements (ligne de front, ligne arrière) ; synergies entre rôles et espèces.
+- **Combat automatique** : lisible, sur un seul écran ; cibles choisies par rôle ; pouvoirs à déclencher à la main (recharge).
+- **Chapitres** : secteurs de l'espace, vagues puis boss ; difficulté croissante.
+- **Équipement** : emplacements arme, armure, module ; raretés avec bonus aléatoires.
+- **Recrutement** : tirage avec taux affichés, sans achat en argent réel dans la première version.
+- **Vaisseau** : salles qui donnent des bonus permanents et la production hors ligne.
 
-## Équipage (v0.1, remplacé par les héros)
-| Rôle | Fonction | Bonus de synergie |
-|---|---|---|
-| Pilote | Vitesse d'exploration | Avec Ingénieur : +10 % |
-| Ingénieur | Efficacité / coûts | Avec Scientifique : +10 % |
-| Scientifique | Génère des Données | Avec Pilote : +10 % |
+## À faire plus tard (hors première version)
+Guilde, classement, événements, achats intégrés, dérive et routes (modes déjà essayés dans l'ancienne version).
 
-Équipage complet (les 3 rôles) : bonus global supplémentaire.
-Plus tard : raretés, classes, formation en slots, équipements, vaisseaux.
+## Première version jouable (MVP)
+Un chapitre complet : 1 écran de combat automatique, 5 héros jouables, un boss, butin, montée de niveau, gains hors ligne, sauvegarde. Un APK de test construit par la CI.
 
-## Exploration : types de destinations
-Chaque secteur contient plusieurs **corps célestes**. Chacun a sa propre phase
-d'exploration (auto, avec un petit choix du joueur avant l'envoi) :
+## Technique
+- **Moteur** : Godot 4.3, GL Compatibility, orientation portrait 720×1280, Android arm64.
+- **Rendu** : héros en 3D basse définition sur un décor, ou en 2D animée ; décision à prendre selon le coût réel sur téléphone (cible : Xiaomi 11T).
+- **Qualité** : tests de logique en ligne de commande, parcours en jeu par clics et construction d'APK en CI (déjà éprouvés dans l'ancienne version).
 
-| Destination | Phase d'exploration | Récompenses | Rôle clé | Risques / événements |
-|---|---|---|---|---|
-| **Planète** | Orbite → scan → atterrissage → expédition au sol (étapes avec événements : ruines, faune, météo) | Données, Crédits, artefacts, nouveaux membres d'équipage | Scientifique | Tempêtes, créatures hostiles |
-| **Étoile** | Approche → collecte d'énergie / échantillons stellaires, sans atterrir | Énergie (améliore vaisseau), Données rares | Ingénieur | Éruptions solaires, chaleur (exige un bouclier) |
-| **Astéroïdes** | Champ à traverser → minage automatique | Minerais (Crédits, matériaux de craft) | Pilote | Collisions, pirates |
-| **Anomalie** *(plus tard)* | Énigme / événement unique | Récompenses uniques | Équipage complet | Imprévisible |
-
-### Fonctionnement
-- Une **expédition** = destination + équipage assigné + durée (de 30 s à plusieurs heures, terminable hors-ligne).
-- Le **rôle adapté** accélère l'expédition et augmente les gains ; une mauvaise composition la ralentit ou augmente les risques.
-- Chaque destination se **découvre** (scan) avant d'être explorable, puis peut être explorée à plusieurs niveaux de profondeur.
-- Les ressources collectées alimentent : améliorations du vaisseau, équipement, déblocage de nouveaux secteurs.
-- Visuellement : chaque type a sa petite scène 2D (planète en orbite, étoile en gros plan, champ d'astéroïdes en parallaxe).
-
-## Ressources
-- **Crédits** : monnaie principale (recrutement, améliorations).
-- **Données** : débloquent secteurs et recherche.
-- **Énergie** (étoiles) et **Minerais** (astéroïdes) : améliorations du vaisseau et craft.
-- *(plus tard)* **Cristaux** premium / prestige.
-
-## Direction artistique
-2D stylisée, fond spatial en plusieurs plans (parallaxe) pour donner du
-volume. Palette sombre + accents néon. Passage à des éléments 3D possible
-ensuite (Godot gère les deux).
-
-## Monétisation (à décider plus tard)
-Pubs récompensées (boost x2 gains), achats intégrés cosmétiques / confort.
-Éviter le « pay-to-win » dur.
-
-## Hors périmètre v1
-Multijoueur, PvP, chat. Priorité : un solo solide et hors-ligne.
+## Questions ouvertes
+Direction visuelle (3D basse définition ou 2D), rythme de progression, premier ensemble de 5 héros, nom et histoire du premier chapitre.
