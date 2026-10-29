@@ -29,8 +29,11 @@ Un chapitre complet : 1 écran de combat automatique, 5 héros jouables, un boss
 
 ## Technique
 - **Moteur** : Godot 4.3, GL Compatibility, orientation portrait 720×1280, Android arm64.
-- **Rendu** : héros en 3D basse définition sur un décor, ou en 2D animée ; décision à prendre selon le coût réel sur téléphone (cible : Xiaomi 11T).
+- **Rendu** : 2D animée entièrement vectorielle (aucune image) : héros, ennemis et décor sont dessinés par code (`scripts/art.gd`) et animés par paramètres (respiration, attaque, pouvoir, coup reçu, étourdissement).
 - **Qualité** : tests de logique en ligne de commande, parcours en jeu par clics et construction d'APK en CI (déjà éprouvés dans l'ancienne version).
 
 ## Questions ouvertes
-Direction visuelle (3D basse définition ou 2D), rythme de progression, premier ensemble de 5 héros, nom et histoire du premier chapitre.
+Rythme de progression, boutique et recrutement, équipement, chapitres suivants.
+
+## État du prototype
+Jouable : combat automatique de 5 héros (Mara Voss, Kaï Renn, Zyra, T-9, Oru) contre des vagues de la Ceinture d'astéroïdes, boss tous les 5 secteurs (Foreur Titan), pouvoirs manuels ou automatiques, vitesse x1 à x3, amélioration des héros, sauvegarde et gains hors ligne.
