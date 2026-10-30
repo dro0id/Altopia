@@ -362,6 +362,21 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 # ---------------------------------------------------------------- vue de face (caméra 2,5D)
 ## Les héros sont vus de dos (ils font face aux ennemis, en haut de l'écran), les ennemis de face.
 
+## Phases d'une attaque (atk 0..1) : préparation 0..0.3, frappe 0.3..0.45, retour ensuite.
+static func _wind(atk: float) -> float:
+	if atk <= 0.0:
+		return 0.0
+	if atk < 0.3:
+		return smoothstep(0.0, 0.3, atk)
+	return 1.0 - smoothstep(0.3, 0.42, atk)
+
+
+static func _strike(atk: float) -> float:
+	if atk < 0.3:
+		return 0.0
+	return pow(1.0 - smoothstep(0.3, 0.75, atk), 1.5)
+
+
 static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
 	var look: Dictionary = h.look
 	var t: float = p.get("t", 0.0)
@@ -369,72 +384,112 @@ static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void
 	var cast: float = p.get("cast", 0.0)
 	var fall: float = p.get("dead", 0.0)
 	var stun: bool = p.get("stun", false)
+	var hurt: float = p.get("hurt", 0.0)
+	var stride: float = p.get("stride", 0.0)
+	var move: float = p.get("move", 0.0)
 	var suit: Color = look.suit
 	var accent: Color = look.accent
 	var dark := _shade(suit, 0.62)
-	var bob := sin(t * 2.2) * 2.0 + (sin(t * 11.0) * 1.5 if stun else 0.0)
-	var kick := sin(PI * atk) * 5.0
-	var raise := cast * -10.0
-	ci.draw_set_transform(Vector2(0, -fall * 14.0), fall * 1.0, Vector2.ONE)
-	ellipse(ci, Vector2(0, 2), 32.0 * (1.0 - fall * 0.4), 9.0, Color(0, 0, 0, 0.35))
-	for s in [-1, 1]:
-		rrect(ci, Rect2(s * 11 - 8, -34, 16, 34), 6, _shade(suit, 0.8))
-		rrect(ci, Rect2(s * 11 - 10, -10, 20, 12), 5, dark)
-	# bras (derrière le torse) et armes tenues vers l'avant
+	var wind := _wind(atk)
+	var hit := _strike(atk)
+	var breathe := sin(t * 2.2)
+	var sway := sin(t * 1.3) * 1.6 * (1.0 - move)
+	var lean_x := sway + sin(t * 45.0) * hurt * 2.5
+	var jump := cast * -16.0
+	var body_y := breathe * 1.2 + wind * 5.0 - hit * 6.0 + jump + hurt * 3.0 + absf(sin(stride)) * -2.5 * move
 	var weapon: String = look.weapon
-	var gun_col := Color(0.2, 0.24, 0.32)
-	var lh := Vector2(-33, -46 + bob)
-	var rh := Vector2(33, -46 + bob)
+	# écrasement à la mort : le héros s'affaisse
+	ci.draw_set_transform(Vector2(0, 0), fall * 0.25, Vector2(1.0 + fall * 0.35, 1.0 - fall * 0.7))
+	ellipse(ci, Vector2(0, 2), 32.0 * (1.0 - cast * 0.35), 9.0 * (1.0 - cast * 0.3), Color(0, 0, 0, 0.35))
+	# jambes : pas alternés quand ça avance, appui sur une jambe sinon
+	for s in [-1, 1]:
+		var ph := stride + (0.0 if s < 0 else PI)
+		var lift := maxf(0.0, sin(ph)) * 10.0 * move + (maxf(0.0, sin(t * 1.3 + (0.0 if s < 0 else PI))) * 1.5 * (1.0 - move))
+		var x: float = s * 11 - 8 + lean_x * 0.3
+		var top := -34.0 + body_y * 0.5
+		rrect(ci, Rect2(x, top, 16, -top - lift * 0.5), 6, _shade(suit, 0.8))
+		rrect(ci, Rect2(x - 2, -10 - lift, 20, 12), 5, dark)
+	# bras (dessinés derrière le torse) : position de repos puis pose de l'arme
+	var swing := sin(stride) * 8.0 * move
+	var idle := sin(t * 2.2 + 1.0) * 2.0
+	var lh := Vector2(-33 + lean_x * 1.2, -46 + body_y + idle - swing)
+	var rh := Vector2(33 + lean_x * 1.2, -46 + body_y - idle + swing)
+	var gun_len := 44.0 if weapon == "sniper" else 28.0
 	if weapon in ["shield", "tablet"]:
-		lh = Vector2(-37, -66 + bob + raise)
+		lh = Vector2(-37 + lean_x, -66 + body_y + wind * 8.0 - hit * 16.0)
 	else:
-		rh = Vector2(36, -70 + bob + raise - kick)
-	limb(ci, Vector2(-27, -74 + bob), lh, 11, _shade(suit, 0.8))
-	limb(ci, Vector2(27, -74 + bob), rh, 11, _shade(suit, 0.8))
-	rrect(ci, Rect2(-25, -90 + bob, 50, 60), 16, suit)
-	rrect(ci, Rect2(-25, -52 + bob, 50, 7), 3, accent)
-	rrect(ci, Rect2(-17, -84 + bob, 34, 38), 8, dark)
-	rrect(ci, Rect2(-11, -76 + bob, 8, 4), 2, accent)
-	rrect(ci, Rect2(3, -76 + bob, 8, 4), 2, accent)
-	rrect(ci, Rect2(-2, -70 + bob, 4, 18), 2, _shade(suit, 0.5))
+		rh = Vector2(36 + lean_x, -70 + body_y + wind * 7.0 - hit * 4.0)
+	lh = lh.lerp(Vector2(-24, -122 + body_y), cast)
+	rh = rh.lerp(Vector2(24, -122 + body_y), cast)
+	limb(ci, Vector2(-27 + lean_x, -74 + body_y), lh, 11, _shade(suit, 0.8))
+	limb(ci, Vector2(27 + lean_x, -74 + body_y), rh, 11, _shade(suit, 0.8))
+	# torse et sac à dos
+	rrect(ci, Rect2(-25 + lean_x - breathe * 0.4, -90 + body_y, 50 + breathe * 0.8, 60 - wind * 2.0), 16, suit)
+	rrect(ci, Rect2(-25 + lean_x, -52 + body_y, 50, 7), 3, accent)
+	rrect(ci, Rect2(-17 + lean_x, -84 + body_y, 34, 38), 8, dark)
+	rrect(ci, Rect2(-11 + lean_x, -76 + body_y, 8, 4), 2, accent)
+	rrect(ci, Rect2(3 + lean_x, -76 + body_y, 8, 4), 2, accent)
+	rrect(ci, Rect2(-2 + lean_x, -70 + body_y, 4, 18), 2, _shade(suit, 0.5))
+	# réacteur du sac à dos quand on avance ou qu'on lance un pouvoir
+	var thrust := maxf(move, cast)
+	if thrust > 0.2:
+		var fl := 8.0 + sin(t * 40.0) * 3.0
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(-8 + lean_x, -44 + body_y), Vector2(8 + lean_x, -44 + body_y), Vector2(lean_x, -44 + body_y + fl * thrust * 2.0)]), Color(1.0, 0.65, 0.25, 0.85 * thrust))
 	match weapon:
 		"shield":
 			var c := lh + Vector2(-8, -14)
-			ellipse(ci, c, 20, 28, OUTLINE)
-			ellipse(ci, c, 17.5, 25.5, accent)
-			ellipse(ci, c, 12, 19, _shade(suit, 0.9))
-			star(ci, c, 8, accent, t)
+			var sk := 1.0 + hit * 0.3
+			ellipse(ci, c, 20 * sk, 28 * sk, OUTLINE)
+			ellipse(ci, c, 17.5 * sk, 25.5 * sk, accent)
+			ellipse(ci, c, 12 * sk, 19 * sk, _shade(suit, 0.9))
+			star(ci, c, 8 * sk, accent, t)
+			if hit > 0.3:
+				ci.draw_arc(c, 30 + (1.0 - hit) * 24.0, PI * 1.1, PI * 1.9, 5, Color(1, 1, 1, hit), 4.0)
 			if cast > 0.0:
 				ci.draw_arc(c, 36 + cast * 26.0, PI * 0.9, PI * 2.1, 5, Color(0.6, 0.9, 1.0, 0.8 * cast), 4.0)
 		"blaster", "sniper":
-			var length := 44.0 if weapon == "sniper" else 28.0
-			rrect(ci, Rect2(rh.x - 7, rh.y - length, 14, length + 6), 4, OUTLINE)
-			rrect(ci, Rect2(rh.x - 5, rh.y - length + 2, 10, length), 3, gun_col)
-			rrect(ci, Rect2(rh.x - 5, rh.y - length + 2, 10, 6), 2, accent)
-			if atk > 0.05 and atk < 0.4:
-				star(ci, Vector2(rh.x, rh.y - length - 4), 15.0 * (1.0 - atk * 1.4), Color(1.0, 0.85, 0.4), t * 8.0)
+			var kick := hit * 9.0
+			rrect(ci, Rect2(rh.x - 7, rh.y - gun_len + kick, 14, gun_len + 6), 4, OUTLINE)
+			rrect(ci, Rect2(rh.x - 5, rh.y - gun_len + 2 + kick, 10, gun_len), 3, Color(0.2, 0.24, 0.32))
+			rrect(ci, Rect2(rh.x - 5, rh.y - gun_len + 2 + kick, 10, 6), 2, accent)
+			# chargeur : la lueur monte pendant la préparation
+			if wind > 0.0:
+				rrect(ci, Rect2(rh.x - 3, rh.y - gun_len * wind, 6, gun_len * wind), 2, Color(accent.r, accent.g, accent.b, 0.9))
+			if hit > 0.6:
+				var tip := Vector2(rh.x, rh.y - gun_len - 2 + kick)
+				var fk := (hit - 0.55) / 0.45
+				ci.draw_colored_polygon(PackedVector2Array([tip + Vector2(-9, 4), tip + Vector2(0, -34 * fk), tip + Vector2(9, 4)]), Color(1.0, 0.85, 0.4, 0.9))
+				star(ci, tip, 18.0 * fk, Color(1, 1, 1, 0.95), t * 10.0)
 		"tablet":
 			var c2 := lh + Vector2(-6, -26 + sin(t * 2.5) * 2.0)
-			ci.draw_colored_polygon(PackedVector2Array([c2 + Vector2(-14, 14), c2 + Vector2(-10, -18), c2 + Vector2(14, -18), c2 + Vector2(18, 14)]), Color(accent.r, accent.g, accent.b, 0.32))
-			ci.draw_polyline(PackedVector2Array([c2 + Vector2(-14, 14), c2 + Vector2(-10, -18), c2 + Vector2(14, -18), c2 + Vector2(18, 14), c2 + Vector2(-14, 14)]), accent, 2.5)
-			ci.draw_line(c2 + Vector2(0, -12), c2 + Vector2(2, 8), accent, 3)
-			ci.draw_line(c2 + Vector2(-8, -2), c2 + Vector2(12, -2), accent, 3)
-			if cast > 0.0 or atk > 0.1:
-				ci.draw_arc(c2, 22 + 18 * maxf(cast, atk), 0, TAU, 6, Color(accent.r, accent.g, accent.b, 0.6), 3.0)
+			var a := 0.32 + 0.3 * maxf(wind, hit)
+			var pts := PackedVector2Array([c2 + Vector2(-14, 14), c2 + Vector2(-10, -18), c2 + Vector2(14, -18), c2 + Vector2(18, 14)])
+			ci.draw_colored_polygon(pts, Color(accent.r, accent.g, accent.b, a))
+			pts.append(pts[0])
+			ci.draw_polyline(pts, accent, 2.5)
+			for k in 3:
+				var yy := fposmod(t * 24.0 + k * 10.0, 30.0) - 16.0
+				ci.draw_line(c2 + Vector2(-9, yy), c2 + Vector2(11, yy), Color(accent.r, accent.g, accent.b, 0.8), 2)
+			if wind > 0.0 or hit > 0.0:
+				ci.draw_arc(c2, 14 + 26.0 * maxf(wind * 0.6, 1.0 - hit), 0, TAU, 6, Color(accent.r, accent.g, accent.b, 0.7), 3.0)
 		_:
-			var oc := rh + Vector2(0, -22 + sin(t * 3.0) * 3.0)
-			disc(ci, oc, 15 + cast * 8, Color(accent.r, accent.g, accent.b, 0.25))
-			disc(ci, oc, 10, accent)
+			var charge := 15.0 + wind * 11.0 + cast * 8.0
+			var oc := rh + Vector2(0, -22 + sin(t * 3.0) * 3.0 - hit * 6.0)
+			disc(ci, oc, charge + 5.0, Color(accent.r, accent.g, accent.b, 0.25))
+			disc(ci, oc, charge * (1.0 - hit * 0.6) * 0.7, accent)
 			disc(ci, oc + Vector2(-3, -3), 3.4, Color(1, 1, 1, 0.9))
-			if atk > 0.05 and atk < 0.5:
-				ci.draw_arc(oc, 14 + atk * 30.0, 0, TAU, 6, Color(accent.r, accent.g, accent.b, 1.0 - atk * 2.0), 3.0)
-	_draw_head_back(ci, h, look, Vector2(0, -112 + bob * 1.2 - kick * 0.4), t)
+			for k in 4:
+				var ang := t * 5.0 + k * TAU / 4.0
+				shard(ci, oc + Vector2(cos(ang), sin(ang)) * (charge + 6.0), 4.0 + wind * 3.0, ang * 2.0, Color(accent.r, accent.g, accent.b, 0.7))
+			if hit > 0.2:
+				ci.draw_arc(oc, 14 + (1.0 - hit) * 34.0, 0, TAU, 6, Color(accent.r, accent.g, accent.b, hit), 3.0)
+	_draw_head_back(ci, h, look, Vector2(lean_x * 1.3, -112 + body_y * 1.1 - hit * 2.0 + wind * 2.0), t, hit - wind * 0.6 + hurt)
 	aura(ci, Vector2(0, -70), cast, t, accent)
 	shatter(ci, Vector2(0, -60), accent, fall)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vector2, t: float) -> void:
+static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vector2, t: float, lag: float) -> void:
 	var suit: Color = look.suit
 	var accent: Color = look.accent
 	match String(h.species):
@@ -446,13 +501,15 @@ static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: 
 				disc(ci, c + Vector2(-9 + k * 9, 8), 2.4, accent if int(t * 3.0 + k) % 3 != 0 else Color(0.2, 0.3, 0.3))
 			ellipse(ci, c + Vector2(-34, 2), 5, 11, _shade(suit, 0.7))
 			ellipse(ci, c + Vector2(34, 2), 5, 11, _shade(suit, 0.7))
-			ci.draw_line(c + Vector2(0, -32), c + Vector2(4, -46), OUTLINE, 3)
-			disc(ci, c + Vector2(4, -47), 4.5, accent)
+			var ax := 4.0 + lag * 7.0 + sin(t * 3.0) * 1.5
+			ci.draw_line(c + Vector2(0, -32), c + Vector2(ax, -46 + absf(lag) * 3.0), OUTLINE, 3)
+			disc(ci, c + Vector2(ax, -47 + absf(lag) * 3.0), 4.5, accent)
 		"alien":
 			var skin: Color = look.skin
 			for s in [-1, 1]:
-				ci.draw_line(c + Vector2(s * 16, -28), c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), OUTLINE, 3)
-				disc(ci, c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), 4.5, accent)
+				var tip := c + Vector2(s * 26 + lag * 7.0 * s * 0.5 + lag * 4.0, -46 + sin(t * 3.0 + s) * 2 + absf(lag) * 3.0)
+				ci.draw_line(c + Vector2(s * 16, -28), tip, OUTLINE, 3)
+				disc(ci, tip, 4.5, accent)
 			ellipse(ci, c + Vector2(0, 2), 38, 35, OUTLINE)
 			ellipse(ci, c + Vector2(0, 2), 36, 33, skin)
 			for k in 3:
@@ -462,15 +519,17 @@ static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: 
 		_:
 			var hair: Color = look.hair
 			var skin: Color = look.skin
+			# les cheveux suivent le mouvement avec du retard
+			var fl := lag * 6.0 + sin(t * 2.0) * 1.5
 			match int(look.style):
 				1:
-					ellipse(ci, c + Vector2(0, 24), 17, 10, hair)
+					ellipse(ci, c + Vector2(fl * 0.5, 24), 17, 10, hair)
 				2:
-					ellipse(ci, c + Vector2(0, 28), 8, 17, hair)
-					ellipse(ci, c + Vector2(0, 14), 6, 5, _shade(hair, 1.4))
+					ellipse(ci, c + Vector2(fl, 28), 8, 17, hair)
+					ellipse(ci, c + Vector2(fl * 0.3, 14), 6, 5, _shade(hair, 1.4))
 				_:
 					for k in 5:
-						shard(ci, c + Vector2(-16 + k * 8, -30), 11, -PI * 0.5, hair)
+						shard(ci, c + Vector2(-16 + k * 8 + fl * 0.3, -30), 11, -PI * 0.5, hair)
 			ellipse(ci, c, 37, 36, OUTLINE)
 			ellipse(ci, c, 35, 34, _shade(suit, 1.12))
 			rrect(ci, Rect2(c.x - 11, c.y + 2, 22, 16), 5, _shade(suit, 0.65))
@@ -480,66 +539,123 @@ static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: 
 			ellipse(ci, c + Vector2(34, 4), 5, 9, skin)
 
 
+## Pince de crabe : deux mâchoires qui s'ouvrent et se referment.
+static func _claw(ci: CanvasItem, at: Vector2, side: float, open: float, col: Color) -> void:
+	var a := open * 0.7
+	for k in [-1, 1]:
+		var ang: float = PI * 0.5 + k * a * side
+		var tip: Vector2 = at + Vector2(cos(ang), sin(ang)) * 17.0
+		var left: Vector2 = at + Vector2(cos(ang + 1.9), sin(ang + 1.9)) * 6.0
+		var right: Vector2 = at + Vector2(cos(ang - 1.9), sin(ang - 1.9)) * 6.0
+		ci.draw_colored_polygon(PackedVector2Array([left, tip, right]), OUTLINE)
+		ci.draw_colored_polygon(PackedVector2Array([left * 0.92 + at * 0.08, tip * 0.94 + at * 0.06, right * 0.92 + at * 0.08]), col)
+
+
 static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 	var t: float = p.get("t", 0.0)
 	var atk: float = p.get("atk", 0.0)
+	var cast: float = p.get("cast", 0.0)
 	var dead: float = p.get("dead", 0.0)
 	var stun: bool = p.get("stun", false)
-	var lunge := sin(PI * atk) * 14.0
-	ci.draw_set_transform(Vector2(0, -dead * 10.0), dead * -1.0, Vector2.ONE)
-	ellipse(ci, Vector2(0, 2), 30, 8, Color(0, 0, 0, 0.3))
+	var hurt: float = p.get("hurt", 0.0)
+	var wind := _wind(atk)
+	var hit := _strike(atk)
+	ci.draw_set_transform(Vector2(0, -dead * 6.0), dead * -0.6, Vector2(1.0 + dead * 0.3, 1.0 - dead * 0.7))
+	var air := cast * 34.0 if kind == "titan" else 0.0
+	ellipse(ci, Vector2(0, 2), 30.0 * (1.0 - air * 0.008), 8.0 * (1.0 - air * 0.008), Color(0, 0, 0, 0.3))
 	match kind:
 		"mite":
-			var bob := absf(sin(t * 6.0)) * 4.0
+			var scut: float = 1.0 + float(p.get("move", 0.0)) * 2.0
+			var bob := absf(sin(t * 6.0 * scut)) * 4.0 - wind * 3.0
+			# pattes : chaque patte lève et pose le pied en décalé
 			for s in [-1, 1]:
 				for k in 3:
-					ci.draw_line(Vector2(s * 12, -14 - bob), Vector2(s * (26 + k * 8), -2 - k * 3), OUTLINE, 5)
-			ellipse(ci, Vector2(0, -22 - bob), 27, 20, OUTLINE)
-			ellipse(ci, Vector2(0, -22 - bob), 25, 18, Color(0.55, 0.42, 0.3))
-			ellipse(ci, Vector2(-6, -28 - bob), 12, 5, Color(0.7, 0.58, 0.42))
-			ellipse(ci, Vector2(-9, -20 - bob), 5.5, 6, Color(1, 0.25, 0.2))
-			ellipse(ci, Vector2(9, -20 - bob), 5.5, 6, Color(1, 0.25, 0.2))
+					var ph: float = t * 9.0 * scut + k * 2.1 + (0.0 if s < 0 else PI)
+					var hip := Vector2(s * 12, -14 - bob)
+					var foot := Vector2(s * (28 + k * 8) + cos(ph) * 4.0, -2 - k * 3 - maxf(0.0, sin(ph)) * 6.0)
+					var knee := (hip + foot) * 0.5 + Vector2(s * 6, -10)
+					ci.draw_line(hip, knee, OUTLINE, 5)
+					ci.draw_line(knee, foot, OUTLINE, 5)
+			var sq := wind * 3.0
+			ellipse(ci, Vector2(0, -22 - bob + sq), 27, 20 - sq * 0.5, OUTLINE)
+			ellipse(ci, Vector2(0, -22 - bob + sq), 25, 18 - sq * 0.5, Color(0.55, 0.42, 0.3))
+			ellipse(ci, Vector2(-6, -28 - bob + sq), 12, 5, Color(0.7, 0.58, 0.42))
+			var ey := 6.0 + wind * 2.0
+			ellipse(ci, Vector2(-9, -20 - bob + sq), 5.5, ey, Color(1, 0.25, 0.2))
+			ellipse(ci, Vector2(9, -20 - bob + sq), 5.5, ey, Color(1, 0.25, 0.2))
+			# pinces : grandes ouvertes à la préparation, claquent à la frappe
+			var open := wind * 1.0 + 0.15 + (1.0 - hit) * 0.0
+			if hit > 0.0 and atk > 0.3:
+				open = 0.15 + (1.0 - hit) * 0.0
 			for s in [-1, 1]:
-				ci.draw_colored_polygon(PackedVector2Array([Vector2(s * 10, -8 - bob), Vector2(s * 24, -10 - bob), Vector2(s * 15, 4 + lunge - bob)]), Color(0.85, 0.8, 0.7))
+				_claw(ci, Vector2(s * 14, -6 - bob + hit * 4.0), s, open, Color(0.85, 0.8, 0.7))
 		"drone", "gunner":
-			var hover := sin(t * 2.6) * 5.0
 			var gun := kind == "gunner"
+			var hover := sin(t * 2.6) * 5.0 + wind * 6.0 - hit * 4.0
 			var body := Color(0.38, 0.4, 0.5) if not gun else Color(0.5, 0.3, 0.3)
-			ellipse(ci, Vector2(0, -18 + hover * 0.3), 22.0 + sin(t * 20.0) * 2.0, 6, Color(1.0, 0.6, 0.2, 0.5))
+			var wob := sin(t * 40.0) * hurt * 3.0
+			# réacteur : la flamme grandit à la préparation
+			var fl := 8.0 + sin(t * 30.0) * 3.0 + wind * 8.0
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-10 + wob, -30 + hover), Vector2(10 + wob, -30 + hover), Vector2(wob, -30 + hover + fl * 2.0)]), Color(1.0, 0.6, 0.2, 0.85))
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-5 + wob, -30 + hover), Vector2(5 + wob, -30 + hover), Vector2(wob, -30 + hover + fl)]), Color(1.0, 0.95, 0.6, 0.9))
+			# canons qui reculent à chaque tir
 			for s in [-1, 1]:
-				rrect(ci, Rect2(s * 36 - 5, -66 + hover, 10, (30 if gun else 20) + lunge * 0.5), 3, Color(0.22, 0.24, 0.3))
-			ellipse(ci, Vector2(0, -60 + hover), 36, 30, OUTLINE)
-			ellipse(ci, Vector2(0, -60 + hover), 34, 28, body)
-			rrect(ci, Rect2(-34, -64 + hover, 68, 9), 4, _shade(body, 0.7))
-			ellipse(ci, Vector2(0, -50 + hover), 14, 14, Color(0.05, 0.05, 0.1))
-			ellipse(ci, Vector2(0, -50 + hover), 9, 9, Color(1.0, 0.2, 0.2))
-			disc(ci, Vector2(-3, -53 + hover), 3, Color(1, 1, 1, 0.9))
+				var barrel := (30.0 if gun else 20.0) - hit * 8.0 + wind * 5.0
+				rrect(ci, Rect2(s * 36 - 5 + wob, -66 + hover, 10, barrel), 3, Color(0.22, 0.24, 0.3))
+			# hélices latérales : fines ellipses qui oscillent
+			for s in [-1, 1]:
+				ellipse(ci, Vector2(s * 42 + wob, -86 + hover), 4.0 + 10.0 * absf(cos(t * 28.0 + s)), 2.5, Color(0.7, 0.75, 0.85, 0.7))
+			ellipse(ci, Vector2(wob, -60 + hover), 36, 30, OUTLINE)
+			ellipse(ci, Vector2(wob, -60 + hover), 34, 28, body)
+			rrect(ci, Rect2(-34 + wob, -64 + hover, 68, 9), 4, _shade(body, 0.7))
+			ellipse(ci, Vector2(wob, -50 + hover), 14, 14, Color(0.05, 0.05, 0.1))
+			# l'œil se charge (rouge vif) avant le tir
+			var eye := Color(1.0, 0.2 + 0.4 * wind, 0.2 + 0.3 * wind)
+			ellipse(ci, Vector2(wob, -50 + hover), 9 + wind * 3.0, 9 + wind * 3.0, eye)
+			disc(ci, Vector2(-3 + wob, -53 + hover), 3, Color(1, 1, 1, 0.9))
 			for s in [-1, 1]:
 				ci.draw_line(Vector2(s * 20, -86 + hover), Vector2(s * 28, -98 + hover), OUTLINE, 3)
 				disc(ci, Vector2(s * 28, -99 + hover), 4, Color(1.0, 0.8, 0.2))
-			if atk > 0.05 and atk < 0.4:
+			if hit > 0.6:
+				var fk := (hit - 0.5) / 0.5
 				for s in [-1, 1]:
-					star(ci, Vector2(s * 36, -34 + hover + (14 if gun else 0)), 12.0 * (1.0 - atk * 1.4), Color(1.0, 0.55, 0.3), t * 9.0)
+					var mz := Vector2(s * 36, -66 + hover + (30 if gun else 20))
+					ci.draw_colored_polygon(PackedVector2Array([mz + Vector2(-7, 0), mz + Vector2(0, 26 * fk), mz + Vector2(7, 0)]), Color(1.0, 0.6, 0.3, 0.9))
+					star(ci, mz, 13.0 * fk, Color(1, 0.9, 0.6), t * 9.0)
 		_:
-			var shake := sin(t * 30.0) * 1.2
+			var stomp := maxf(0.0, sin(t * 2.0))
+			var crouch := wind * 9.0 + cast * 0.0
+			var sy := 1.0 - 0.03 * stomp - wind * 0.08 + hit * 0.04
+			var by := -air + crouch * 0.5
 			for s in [-1, 1]:
-				rrect(ci, Rect2(s * 44 - 20, -24, 40, 24), 8, OUTLINE)
-				rrect(ci, Rect2(s * 44 - 18, -22, 36, 20), 7, Color(0.25, 0.27, 0.32))
-			rrect(ci, Rect2(-62, -118 + shake, 124, 98), 22, OUTLINE)
-			rrect(ci, Rect2(-59, -115 + shake, 118, 92), 20, Color(0.46, 0.34, 0.24))
-			rrect(ci, Rect2(-59, -70 + shake, 118, 12), 4, Color(0.8, 0.55, 0.2))
+				var lift := maxf(0.0, sin(t * 2.0 + (0.0 if s < 0 else PI))) * 4.0
+				rrect(ci, Rect2(s * 44 - 20, -24 - lift + by * 0.2, 40, 24), 8, OUTLINE)
+				rrect(ci, Rect2(s * 44 - 18, -22 - lift + by * 0.2, 36, 20), 7, Color(0.25, 0.27, 0.32))
+			var shake := sin(t * 30.0) * 1.2 + sin(t * 50.0) * hurt * 3.0
+			rrect(ci, Rect2(-62, -118 * sy + shake + by + crouch, 124, 98 * sy), 22, OUTLINE)
+			rrect(ci, Rect2(-59, -115 * sy + shake + by + crouch, 118, 92 * sy), 20, Color(0.46, 0.34, 0.24))
+			rrect(ci, Rect2(-59, -70 + shake + by + crouch, 118, 12), 4, Color(0.8, 0.55, 0.2))
 			for k in 3:
 				var ex := -30.0 + k * 30.0
-				ellipse(ci, Vector2(ex, -92 + shake), 9, 9, Color(0.05, 0.03, 0.05))
-				ellipse(ci, Vector2(ex, -92 + shake), 5.5, 5.5, Color(1.0, 0.25 + 0.1 * sin(t * 3.0 + k), 0.2))
-			ci.draw_colored_polygon(PackedVector2Array([Vector2(-26, -56 + shake), Vector2(26, -56 + shake), Vector2(0, 8 + lunge + shake)]), OUTLINE)
-			ci.draw_colored_polygon(PackedVector2Array([Vector2(-21, -54 + shake), Vector2(21, -54 + shake), Vector2(0, 0 + lunge + shake)]), Color(0.72, 0.74, 0.8))
-			for k in 4:
-				var yy := -50.0 + fposmod(t * 40.0 + k * 11.0, 44.0)
-				var half := 21.0 * (1.0 - (yy + 54.0) / 56.0)
-				ci.draw_line(Vector2(-half, yy + shake), Vector2(half, yy + shake), Color(0.35, 0.37, 0.44), 3)
-			ci.draw_line(Vector2(0, -118 + shake), Vector2(0, -138 + shake), OUTLINE, 5)
-			disc(ci, Vector2(0, -140 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
+				var glow := 0.25 + 0.1 * sin(t * 3.0 + k) + wind * 0.5
+				ellipse(ci, Vector2(ex, -92 + shake + by + crouch), 9, 9, Color(0.05, 0.03, 0.05))
+				ellipse(ci, Vector2(ex, -92 + shake + by + crouch), 5.5 + wind * 2.0, 5.5 + wind * 2.0, Color(1.0, glow, 0.2))
+			# foreuse : tourne en permanence, s'enfonce à la frappe
+			var spin := 1.0 + wind * 2.0
+			var tip := 8.0 + hit * 22.0 - wind * 10.0
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-26, -56 + shake + by + crouch), Vector2(26, -56 + shake + by + crouch), Vector2(0, tip + shake + by + crouch)]), OUTLINE)
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-21, -54 + shake + by + crouch), Vector2(21, -54 + shake + by + crouch), Vector2(0, tip - 8.0 + shake + by + crouch)]), Color(0.72, 0.74, 0.8))
+			for k in 5:
+				var f := fposmod(t * 1.2 * spin + k * 0.2, 1.0)
+				var yy := lerpf(-52.0, tip - 12.0, f) + shake + by + crouch
+				var half := 21.0 * (1.0 - f) * 0.95
+				ci.draw_line(Vector2(-half, yy), Vector2(half, yy), Color(0.35, 0.37, 0.44), 3)
+			ci.draw_line(Vector2(0, -118 * sy + shake + by + crouch), Vector2(sin(t * 2.0) * 4.0, -138 + shake + by + crouch), OUTLINE, 5)
+			disc(ci, Vector2(sin(t * 2.0) * 4.0, -140 + shake + by + crouch), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
+			# poussière sous les chenilles à l'atterrissage
+			if cast > 0.0 and cast < 0.15:
+				for s in [-1, 1]:
+					shard(ci, Vector2(s * 70, -4), 12, -PI * 0.5 + s * 0.8, Color(0.6, 0.55, 0.5, 0.7))
 	shatter(ci, Vector2(0, -50 if kind != "titan" else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
