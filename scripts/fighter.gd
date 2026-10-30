@@ -23,7 +23,7 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 	home = pos
 	position = pos
 	flip = 1.0 if u.side == 0 else -1.0       # sens de la mêlée : l'escouade avance vers le haut, les ennemis vers le bas
-	var depth := 0.5 + 0.45 * clampf((pos.y - 150.0) / 400.0, 0.0, 1.0)
+	var depth := 0.62 + 0.38 * clampf((pos.y - 110.0) / 430.0, 0.0, 1.0)
 	scale_k = depth * (1.7 if u.boss else (1.25 if u.kind == "mite" else 1.4) if u.side == 1 else 1.05)
 	t = randf() * 4.0
 

@@ -572,7 +572,7 @@ static func _ridge(ci: CanvasItem, rect: Rect2, base: float, h: float, step: flo
 static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: PackedVector2Array, boss: bool) -> void:
 	var top := Color(0.02, 0.03, 0.09)
 	var bot := Color(0.09, 0.07, 0.2) if not boss else Color(0.18, 0.05, 0.1)
-	var fy := rect.position.y + 150.0
+	var fy := rect.position.y + 110.0
 	var cx := rect.position.x + rect.size.x * 0.5
 	for i in 5:
 		var k := float(i) / 5.0
@@ -580,12 +580,12 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	for i in stars.size():
 		var s := stars[i]
 		var x := fposmod(s.x * rect.size.x - t * (6.0 + (i % 3) * 5.0), rect.size.x)
-		var y := s.y * 130.0
+		var y := s.y * 95.0
 		var a := 0.35 + 0.6 * (0.5 + 0.5 * sin(t * 1.8 + i))
 		var r := 1.5 + (i % 3) * 0.8
 		var c := rect.position + Vector2(x, y)
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 1.6), c + Vector2(r, 0), c + Vector2(0, r * 1.6), c + Vector2(-r, 0)]), Color(1, 1, 1, a))
-	var pc := rect.position + Vector2(rect.size.x * 0.8, 62.0)
+	var pc := rect.position + Vector2(rect.size.x * 0.8, 48.0)
 	ellipse(ci, pc, 50, 50, Color(0.14, 0.34, 0.66) if not boss else Color(0.6, 0.2, 0.16), t * 0.05, 10)
 	var ring := PackedVector2Array()
 	for i in 7:
@@ -595,9 +595,9 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	ci.draw_polyline(ring, Color(0.7, 0.85, 1.0, 0.45), 2.5)
 	for k in 3:
 		var x := fposmod(120.0 + k * 260.0 - t * 14.0, rect.size.x + 80.0) - 40.0
-		ellipse(ci, Vector2(rect.position.x + x, rect.position.y + 30 + k * 26 + sin(t * 0.8 + k) * 3.0), 12 + k * 3, 8 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
-	_ridge(ci, rect, fy - 4, 60.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
-	_ridge(ci, rect, fy, 34.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
+		ellipse(ci, Vector2(rect.position.x + x, rect.position.y + 22 + k * 20 + sin(t * 0.8 + k) * 3.0), 12 + k * 3, 8 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
+	_ridge(ci, rect, fy - 4, 48.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
+	_ridge(ci, rect, fy, 28.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
 	# sol en perspective : bandes sombres vers lointain, claires vers la caméra
 	var h := rect.end.y - fy
 	var floor_far := Color(0.06, 0.08, 0.15)
@@ -619,8 +619,8 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	var ap := PackedVector2Array()
 	for i in 8:
 		var a := TAU * i / 8.0 + 0.39
-		ep.append(Vector2(cx, fy + 135.0) + Vector2(cos(a) * 300.0, sin(a) * 58.0))
-		ap.append(Vector2(cx, fy + 300.0) + Vector2(cos(a) * 320.0, sin(a) * 96.0))
+		ep.append(Vector2(cx, fy + 100.0) + Vector2(cos(a) * 300.0, sin(a) * 62.0))
+		ap.append(Vector2(cx, fy + 380.0) + Vector2(cos(a) * 330.0, sin(a) * 92.0))
 	ci.draw_colored_polygon(ep, enemy_col)
 	ci.draw_colored_polygon(ap, ally_col)
 	ep.append(ep[0])

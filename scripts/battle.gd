@@ -9,8 +9,8 @@ signal wave_started(wave: int, total: int, boss: bool)
 
 const Data = preload("res://scripts/data.gd")
 const SIZE := Vector2(720, 560)
-const ALLY_POS := [Vector2(360, 420), Vector2(190, 432), Vector2(530, 432), Vector2(275, 515), Vector2(445, 515)]
-const ENEMY_POS := [Vector2(360, 292), Vector2(215, 286), Vector2(505, 286), Vector2(290, 220), Vector2(430, 220), Vector2(150, 222)]
+const ALLY_POS := [Vector2(360, 445), Vector2(185, 455), Vector2(535, 455), Vector2(270, 538), Vector2(450, 538)]
+const ENEMY_POS := [Vector2(360, 262), Vector2(210, 256), Vector2(510, 256), Vector2(285, 196), Vector2(435, 196), Vector2(140, 198)]
 
 var sim: BattleSim
 var speed := 1.0
@@ -60,7 +60,7 @@ func _add_fighter(u: BattleSim.Unit) -> void:
 	var f := Fighter.new()
 	var pos: Vector2 = ALLY_POS[u.slot] if u.side == 0 else ENEMY_POS[mini(u.slot, ENEMY_POS.size() - 1)]
 	if u.boss:
-		pos = Vector2(360, 300)
+		pos = Vector2(360, 272)
 	f.setup(u, pos)
 	add_child(f)
 	fighters[u] = f
@@ -158,13 +158,13 @@ func _cast_fx(e: Dictionary) -> void:
 		"pierce":
 			shots.append({"from": _center(u), "to": _center(e.target), "t": 0.0, "dur": 0.4, "col": Color(0.9, 0.6, 1.0), "kind": "beam"})
 		"gravity":
-			fx.append({"pos": Vector2(360, 250), "t": 0.0, "dur": 0.8, "kind": "wave"})
+			fx.append({"pos": Vector2(360, 225), "t": 0.0, "dur": 0.8, "kind": "wave"})
 		"shield", "repair":
 			for a in sim.allies():
 				if a.alive:
 					fx.append({"pos": _center(a), "t": 0.0, "dur": 0.7, "kind": "heal" if e.kind == "repair" else "shield"})
 		"slam":
-			fx.append({"pos": Vector2(360, 470), "t": 0.0, "dur": 0.6, "kind": "wave"})
+			fx.append({"pos": Vector2(360, 490), "t": 0.0, "dur": 0.6, "kind": "wave"})
 
 
 func _draw() -> void:
