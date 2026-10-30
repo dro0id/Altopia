@@ -23,7 +23,7 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 	home = pos
 	position = pos
 	flip = 1.0 if u.side == 0 else -1.0
-	scale_k = 1.9 if u.boss else (1.0 if u.kind == "mite" else 1.2) if u.side == 1 else 1.25
+	scale_k = 1.9 if u.boss else (0.95 if u.kind == "mite" else 1.1) if u.side == 1 else 1.1
 	t = randf() * 4.0
 
 

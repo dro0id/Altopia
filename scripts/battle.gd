@@ -9,8 +9,8 @@ signal wave_started(wave: int, total: int, boss: bool)
 
 const Data = preload("res://scripts/data.gd")
 const SIZE := Vector2(720, 560)
-const ALLY_POS := [Vector2(320, 470), Vector2(240, 380), Vector2(240, 545), Vector2(140, 425), Vector2(140, 520)]
-const ENEMY_POS := [Vector2(440, 470), Vector2(510, 380), Vector2(510, 545), Vector2(600, 425), Vector2(600, 520), Vector2(670, 470)]
+const ALLY_POS := [Vector2(335, 478), Vector2(250, 400), Vector2(250, 552), Vector2(150, 440), Vector2(150, 530)]
+const ENEMY_POS := [Vector2(445, 478), Vector2(530, 400), Vector2(530, 552), Vector2(630, 440), Vector2(630, 530), Vector2(690, 485)]
 
 var sim: BattleSim
 var speed := 1.0

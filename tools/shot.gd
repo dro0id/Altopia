@@ -10,6 +10,8 @@ func _initialize() -> void:
 		g.stage = int(a[2])
 		g.best_stage = int(a[2])
 	g.credits = 500.0
+	if a.size() > 3:
+		g.speed = float(a[3])
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	var secs := float(a[1]) if a.size() > 1 else 4.0
