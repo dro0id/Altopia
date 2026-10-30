@@ -359,6 +359,195 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+# ---------------------------------------------------------------- vue de face (caméra 2,5D)
+## Les héros sont vus de dos (ils font face aux ennemis, en haut de l'écran), les ennemis de face.
+
+static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
+	var look: Dictionary = h.look
+	var t: float = p.get("t", 0.0)
+	var atk: float = p.get("atk", 0.0)
+	var cast: float = p.get("cast", 0.0)
+	var fall: float = p.get("dead", 0.0)
+	var stun: bool = p.get("stun", false)
+	var suit: Color = look.suit
+	var accent: Color = look.accent
+	var dark := _shade(suit, 0.62)
+	var bob := sin(t * 2.2) * 2.0 + (sin(t * 11.0) * 1.5 if stun else 0.0)
+	var kick := sin(PI * atk) * 5.0
+	var raise := cast * -10.0
+	ci.draw_set_transform(Vector2(0, -fall * 14.0), fall * 1.0, Vector2.ONE)
+	ellipse(ci, Vector2(0, 2), 32.0 * (1.0 - fall * 0.4), 9.0, Color(0, 0, 0, 0.35))
+	for s in [-1, 1]:
+		rrect(ci, Rect2(s * 11 - 8, -34, 16, 34), 6, _shade(suit, 0.8))
+		rrect(ci, Rect2(s * 11 - 10, -10, 20, 12), 5, dark)
+	# bras (derrière le torse) et armes tenues vers l'avant
+	var weapon: String = look.weapon
+	var gun_col := Color(0.2, 0.24, 0.32)
+	var lh := Vector2(-33, -46 + bob)
+	var rh := Vector2(33, -46 + bob)
+	if weapon in ["shield", "tablet"]:
+		lh = Vector2(-37, -66 + bob + raise)
+	else:
+		rh = Vector2(36, -70 + bob + raise - kick)
+	limb(ci, Vector2(-27, -74 + bob), lh, 11, _shade(suit, 0.8))
+	limb(ci, Vector2(27, -74 + bob), rh, 11, _shade(suit, 0.8))
+	rrect(ci, Rect2(-25, -90 + bob, 50, 60), 16, suit)
+	rrect(ci, Rect2(-25, -52 + bob, 50, 7), 3, accent)
+	rrect(ci, Rect2(-17, -84 + bob, 34, 38), 8, dark)
+	rrect(ci, Rect2(-11, -76 + bob, 8, 4), 2, accent)
+	rrect(ci, Rect2(3, -76 + bob, 8, 4), 2, accent)
+	rrect(ci, Rect2(-2, -70 + bob, 4, 18), 2, _shade(suit, 0.5))
+	match weapon:
+		"shield":
+			var c := lh + Vector2(-8, -14)
+			ellipse(ci, c, 20, 28, OUTLINE)
+			ellipse(ci, c, 17.5, 25.5, accent)
+			ellipse(ci, c, 12, 19, _shade(suit, 0.9))
+			star(ci, c, 8, accent, t)
+			if cast > 0.0:
+				ci.draw_arc(c, 36 + cast * 26.0, PI * 0.9, PI * 2.1, 5, Color(0.6, 0.9, 1.0, 0.8 * cast), 4.0)
+		"blaster", "sniper":
+			var length := 44.0 if weapon == "sniper" else 28.0
+			rrect(ci, Rect2(rh.x - 7, rh.y - length, 14, length + 6), 4, OUTLINE)
+			rrect(ci, Rect2(rh.x - 5, rh.y - length + 2, 10, length), 3, gun_col)
+			rrect(ci, Rect2(rh.x - 5, rh.y - length + 2, 10, 6), 2, accent)
+			if atk > 0.05 and atk < 0.4:
+				star(ci, Vector2(rh.x, rh.y - length - 4), 15.0 * (1.0 - atk * 1.4), Color(1.0, 0.85, 0.4), t * 8.0)
+		"tablet":
+			var c2 := lh + Vector2(-6, -26 + sin(t * 2.5) * 2.0)
+			ci.draw_colored_polygon(PackedVector2Array([c2 + Vector2(-14, 14), c2 + Vector2(-10, -18), c2 + Vector2(14, -18), c2 + Vector2(18, 14)]), Color(accent.r, accent.g, accent.b, 0.32))
+			ci.draw_polyline(PackedVector2Array([c2 + Vector2(-14, 14), c2 + Vector2(-10, -18), c2 + Vector2(14, -18), c2 + Vector2(18, 14), c2 + Vector2(-14, 14)]), accent, 2.5)
+			ci.draw_line(c2 + Vector2(0, -12), c2 + Vector2(2, 8), accent, 3)
+			ci.draw_line(c2 + Vector2(-8, -2), c2 + Vector2(12, -2), accent, 3)
+			if cast > 0.0 or atk > 0.1:
+				ci.draw_arc(c2, 22 + 18 * maxf(cast, atk), 0, TAU, 6, Color(accent.r, accent.g, accent.b, 0.6), 3.0)
+		_:
+			var oc := rh + Vector2(0, -22 + sin(t * 3.0) * 3.0)
+			disc(ci, oc, 15 + cast * 8, Color(accent.r, accent.g, accent.b, 0.25))
+			disc(ci, oc, 10, accent)
+			disc(ci, oc + Vector2(-3, -3), 3.4, Color(1, 1, 1, 0.9))
+			if atk > 0.05 and atk < 0.5:
+				ci.draw_arc(oc, 14 + atk * 30.0, 0, TAU, 6, Color(accent.r, accent.g, accent.b, 1.0 - atk * 2.0), 3.0)
+	_draw_head_back(ci, h, look, Vector2(0, -112 + bob * 1.2 - kick * 0.4), t)
+	aura(ci, Vector2(0, -70), cast, t, accent)
+	shatter(ci, Vector2(0, -60), accent, fall)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+static func _draw_head_back(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vector2, t: float) -> void:
+	var suit: Color = look.suit
+	var accent: Color = look.accent
+	match String(h.species):
+		"robot":
+			ellipse(ci, c, 35, 33, OUTLINE)
+			ellipse(ci, c, 32, 30, Color(0.72, 0.77, 0.86))
+			rrect(ci, Rect2(c.x - 18, c.y + 2, 36, 12), 4, Color(0.4, 0.44, 0.54))
+			for k in 3:
+				disc(ci, c + Vector2(-9 + k * 9, 8), 2.4, accent if int(t * 3.0 + k) % 3 != 0 else Color(0.2, 0.3, 0.3))
+			ellipse(ci, c + Vector2(-34, 2), 5, 11, _shade(suit, 0.7))
+			ellipse(ci, c + Vector2(34, 2), 5, 11, _shade(suit, 0.7))
+			ci.draw_line(c + Vector2(0, -32), c + Vector2(4, -46), OUTLINE, 3)
+			disc(ci, c + Vector2(4, -47), 4.5, accent)
+		"alien":
+			var skin: Color = look.skin
+			for s in [-1, 1]:
+				ci.draw_line(c + Vector2(s * 16, -28), c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), OUTLINE, 3)
+				disc(ci, c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), 4.5, accent)
+			ellipse(ci, c + Vector2(0, 2), 38, 35, OUTLINE)
+			ellipse(ci, c + Vector2(0, 2), 36, 33, skin)
+			for k in 3:
+				shard(ci, c + Vector2(-14 + k * 14, -6), 12, -PI * 0.5, _shade(skin, 0.7))
+			ellipse(ci, c + Vector2(0, 2), 41, 38, Color(0.7, 0.9, 1.0, 0.13))
+			ci.draw_arc(c + Vector2(0, 2), 40, 0, TAU, 8, Color(accent.r, accent.g, accent.b, 0.8), 3.0)
+		_:
+			var hair: Color = look.hair
+			var skin: Color = look.skin
+			match int(look.style):
+				1:
+					ellipse(ci, c + Vector2(0, 24), 17, 10, hair)
+				2:
+					ellipse(ci, c + Vector2(0, 28), 8, 17, hair)
+					ellipse(ci, c + Vector2(0, 14), 6, 5, _shade(hair, 1.4))
+				_:
+					for k in 5:
+						shard(ci, c + Vector2(-16 + k * 8, -30), 11, -PI * 0.5, hair)
+			ellipse(ci, c, 37, 36, OUTLINE)
+			ellipse(ci, c, 35, 34, _shade(suit, 1.12))
+			rrect(ci, Rect2(c.x - 11, c.y + 2, 22, 16), 5, _shade(suit, 0.65))
+			disc(ci, c + Vector2(0, 10), 3.0, accent)
+			ci.draw_arc(c + Vector2(-4, -2), 28, PI * 1.05, PI * 1.38, 3, Color(1, 1, 1, 0.5), 3.0)
+			ellipse(ci, c + Vector2(-34, 4), 5, 9, skin)
+			ellipse(ci, c + Vector2(34, 4), 5, 9, skin)
+
+
+static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> void:
+	var t: float = p.get("t", 0.0)
+	var atk: float = p.get("atk", 0.0)
+	var dead: float = p.get("dead", 0.0)
+	var stun: bool = p.get("stun", false)
+	var lunge := sin(PI * atk) * 14.0
+	ci.draw_set_transform(Vector2(0, -dead * 10.0), dead * -1.0, Vector2.ONE)
+	ellipse(ci, Vector2(0, 2), 30, 8, Color(0, 0, 0, 0.3))
+	match kind:
+		"mite":
+			var bob := absf(sin(t * 6.0)) * 4.0
+			for s in [-1, 1]:
+				for k in 3:
+					ci.draw_line(Vector2(s * 12, -14 - bob), Vector2(s * (26 + k * 8), -2 - k * 3), OUTLINE, 5)
+			ellipse(ci, Vector2(0, -22 - bob), 27, 20, OUTLINE)
+			ellipse(ci, Vector2(0, -22 - bob), 25, 18, Color(0.55, 0.42, 0.3))
+			ellipse(ci, Vector2(-6, -28 - bob), 12, 5, Color(0.7, 0.58, 0.42))
+			ellipse(ci, Vector2(-9, -20 - bob), 5.5, 6, Color(1, 0.25, 0.2))
+			ellipse(ci, Vector2(9, -20 - bob), 5.5, 6, Color(1, 0.25, 0.2))
+			for s in [-1, 1]:
+				ci.draw_colored_polygon(PackedVector2Array([Vector2(s * 10, -8 - bob), Vector2(s * 24, -10 - bob), Vector2(s * 15, 4 + lunge - bob)]), Color(0.85, 0.8, 0.7))
+		"drone", "gunner":
+			var hover := sin(t * 2.6) * 5.0
+			var gun := kind == "gunner"
+			var body := Color(0.38, 0.4, 0.5) if not gun else Color(0.5, 0.3, 0.3)
+			ellipse(ci, Vector2(0, -18 + hover * 0.3), 22.0 + sin(t * 20.0) * 2.0, 6, Color(1.0, 0.6, 0.2, 0.5))
+			for s in [-1, 1]:
+				rrect(ci, Rect2(s * 36 - 5, -66 + hover, 10, (30 if gun else 20) + lunge * 0.5), 3, Color(0.22, 0.24, 0.3))
+			ellipse(ci, Vector2(0, -60 + hover), 36, 30, OUTLINE)
+			ellipse(ci, Vector2(0, -60 + hover), 34, 28, body)
+			rrect(ci, Rect2(-34, -64 + hover, 68, 9), 4, _shade(body, 0.7))
+			ellipse(ci, Vector2(0, -50 + hover), 14, 14, Color(0.05, 0.05, 0.1))
+			ellipse(ci, Vector2(0, -50 + hover), 9, 9, Color(1.0, 0.2, 0.2))
+			disc(ci, Vector2(-3, -53 + hover), 3, Color(1, 1, 1, 0.9))
+			for s in [-1, 1]:
+				ci.draw_line(Vector2(s * 20, -86 + hover), Vector2(s * 28, -98 + hover), OUTLINE, 3)
+				disc(ci, Vector2(s * 28, -99 + hover), 4, Color(1.0, 0.8, 0.2))
+			if atk > 0.05 and atk < 0.4:
+				for s in [-1, 1]:
+					star(ci, Vector2(s * 36, -34 + hover + (14 if gun else 0)), 12.0 * (1.0 - atk * 1.4), Color(1.0, 0.55, 0.3), t * 9.0)
+		_:
+			var shake := sin(t * 30.0) * 1.2
+			for s in [-1, 1]:
+				rrect(ci, Rect2(s * 44 - 20, -24, 40, 24), 8, OUTLINE)
+				rrect(ci, Rect2(s * 44 - 18, -22, 36, 20), 7, Color(0.25, 0.27, 0.32))
+			rrect(ci, Rect2(-62, -118 + shake, 124, 98), 22, OUTLINE)
+			rrect(ci, Rect2(-59, -115 + shake, 118, 92), 20, Color(0.46, 0.34, 0.24))
+			rrect(ci, Rect2(-59, -70 + shake, 118, 12), 4, Color(0.8, 0.55, 0.2))
+			for k in 3:
+				var ex := -30.0 + k * 30.0
+				ellipse(ci, Vector2(ex, -92 + shake), 9, 9, Color(0.05, 0.03, 0.05))
+				ellipse(ci, Vector2(ex, -92 + shake), 5.5, 5.5, Color(1.0, 0.25 + 0.1 * sin(t * 3.0 + k), 0.2))
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-26, -56 + shake), Vector2(26, -56 + shake), Vector2(0, 8 + lunge + shake)]), OUTLINE)
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-21, -54 + shake), Vector2(21, -54 + shake), Vector2(0, 0 + lunge + shake)]), Color(0.72, 0.74, 0.8))
+			for k in 4:
+				var yy := -50.0 + fposmod(t * 40.0 + k * 11.0, 44.0)
+				var half := 21.0 * (1.0 - (yy + 54.0) / 56.0)
+				ci.draw_line(Vector2(-half, yy + shake), Vector2(half, yy + shake), Color(0.35, 0.37, 0.44), 3)
+			ci.draw_line(Vector2(0, -118 + shake), Vector2(0, -138 + shake), OUTLINE, 5)
+			disc(ci, Vector2(0, -140 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
+	shatter(ci, Vector2(0, -50 if kind != "titan" else -70), Color(1.0, 0.5, 0.3), dead)
+	if stun:
+		for k in 3:
+			var a := t * 4.0 + k * TAU / 3.0
+			star(ci, Vector2(cos(a) * 26, (-120.0 if kind == "titan" else -110.0) + sin(a) * 6), 5, Color(1, 0.9, 0.3))
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 # ---------------------------------------------------------------- icône et décor
 
 ## Portrait rond d'un héros (boutons de pouvoir, liste) : on dessine la tête agrandie, sans le corps.
@@ -383,47 +572,60 @@ static func _ridge(ci: CanvasItem, rect: Rect2, base: float, h: float, step: flo
 static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: PackedVector2Array, boss: bool) -> void:
 	var top := Color(0.02, 0.03, 0.09)
 	var bot := Color(0.09, 0.07, 0.2) if not boss else Color(0.18, 0.05, 0.1)
-	var bands := 8
-	for i in bands:
-		var k := float(i) / bands
-		ci.draw_rect(Rect2(rect.position.x, rect.position.y + rect.size.y * k, rect.size.x, rect.size.y / bands + 1.0), top.lerp(bot, k))
-	# étoiles en losanges qui scintillent
+	var fy := rect.position.y + 150.0
+	var cx := rect.position.x + rect.size.x * 0.5
+	for i in 5:
+		var k := float(i) / 5.0
+		ci.draw_rect(Rect2(rect.position.x, rect.position.y + (fy - rect.position.y) * k, rect.size.x, (fy - rect.position.y) / 5.0 + 1.0), top.lerp(bot, k))
 	for i in stars.size():
 		var s := stars[i]
 		var x := fposmod(s.x * rect.size.x - t * (6.0 + (i % 3) * 5.0), rect.size.x)
-		var y := s.y * rect.size.y * 0.55
+		var y := s.y * 130.0
 		var a := 0.35 + 0.6 * (0.5 + 0.5 * sin(t * 1.8 + i))
-		var r := 1.6 + (i % 3) * 0.9
+		var r := 1.5 + (i % 3) * 0.8
 		var c := rect.position + Vector2(x, y)
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 1.6), c + Vector2(r, 0), c + Vector2(0, r * 1.6), c + Vector2(-r, 0)]), Color(1, 1, 1, a))
-	# planète à facettes et son anneau
-	var pc := rect.position + Vector2(rect.size.x * 0.78, rect.size.y * 0.27)
-	var pcol := Color(0.14, 0.34, 0.66) if not boss else Color(0.6, 0.2, 0.16)
-	ellipse(ci, pc, 86, 86, pcol, t * 0.05, 10)
+	var pc := rect.position + Vector2(rect.size.x * 0.8, 62.0)
+	ellipse(ci, pc, 50, 50, Color(0.14, 0.34, 0.66) if not boss else Color(0.6, 0.2, 0.16), t * 0.05, 10)
 	var ring := PackedVector2Array()
 	for i in 7:
 		var a := TAU * i / 7.0 + t * 0.2
-		ring.append(pc + Vector2(cos(a) * 130, sin(a) * 26).rotated(-0.35))
+		ring.append(pc + Vector2(cos(a) * 80, sin(a) * 16).rotated(-0.35))
 	ring.append(ring[0])
-	ci.draw_polyline(ring, Color(0.7, 0.85, 1.0, 0.45), 3.0)
-	# astéroïdes qui tournent
-	for k in 4:
-		var x := fposmod(120.0 + k * 210.0 - t * 14.0, rect.size.x + 80.0) - 40.0
-		var y := rect.position.y + rect.size.y * (0.12 + 0.12 * k) + sin(t * 0.8 + k) * 4.0
-		ellipse(ci, Vector2(rect.position.x + x, y), 16 + k * 4, 11 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
-	var fy := rect.position.y + rect.size.y * 0.62
-	# chaînes de montagnes en parallaxe
-	_ridge(ci, rect, fy - 6, 90.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
-	_ridge(ci, rect, fy, 55.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
-	# sol : plateforme à dalles triangulaires
-	ci.draw_rect(Rect2(rect.position.x, fy, rect.size.x, rect.end.y - fy), Color(0.07, 0.1, 0.17))
+	ci.draw_polyline(ring, Color(0.7, 0.85, 1.0, 0.45), 2.5)
+	for k in 3:
+		var x := fposmod(120.0 + k * 260.0 - t * 14.0, rect.size.x + 80.0) - 40.0
+		ellipse(ci, Vector2(rect.position.x + x, rect.position.y + 30 + k * 26 + sin(t * 0.8 + k) * 3.0), 12 + k * 3, 8 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
+	_ridge(ci, rect, fy - 4, 60.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
+	_ridge(ci, rect, fy, 34.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
+	# sol en perspective : bandes sombres vers lointain, claires vers la caméra
+	var h := rect.end.y - fy
+	var floor_far := Color(0.06, 0.08, 0.15)
+	var floor_near := Color(0.11, 0.15, 0.27)
+	for i in 6:
+		var y0 := fy + h * pow(float(i) / 6.0, 1.7)
+		var y1 := fy + h * pow(float(i + 1) / 6.0, 1.7)
+		ci.draw_rect(Rect2(rect.position.x, y0, rect.size.x, y1 - y0 + 1.0), floor_far.lerp(floor_near, float(i) / 5.0))
 	ci.draw_line(Vector2(rect.position.x, fy), Vector2(rect.end.x, fy), Color(0.3, 0.8, 1.0, 0.7), 3.0)
-	for k in 12:
-		var x := rect.position.x + k * 70.0 - fposmod(t * 20.0, 70.0)
-		ci.draw_line(Vector2(x, fy), Vector2(x - 60, rect.end.y), Color(0.3, 0.8, 1.0, 0.12), 2.0)
-	for k in 5:
-		var y := fy + (rect.end.y - fy) * pow(float(k + 1) / 5.0, 1.6)
-		ci.draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), Color(0.3, 0.8, 1.0, 0.12), 2.0)
-	# impulsion lumineuse qui balaie le sol
+	for k in range(-9, 10):
+		ci.draw_line(Vector2(cx + k * 14.0, fy), Vector2(cx + k * 120.0, rect.end.y), Color(0.3, 0.8, 1.0, 0.13), 2.0)
+	for k in 8:
+		var u := (float(k) + fposmod(t * 0.35, 1.0)) / 8.0
+		ci.draw_line(Vector2(rect.position.x, fy + h * u * u), Vector2(rect.end.x, fy + h * u * u), Color(0.3, 0.8, 1.0, 0.05 + 0.2 * u), 2.0)
+	# plots d'équipe : ennemis en haut (rouge), escouade en bas (cyan)
+	var enemy_col := Color(1.0, 0.35, 0.3, 0.1) if not boss else Color(1.0, 0.35, 0.3, 0.16)
+	var ally_col := Color(0.3, 0.85, 1.0, 0.1)
+	var ep := PackedVector2Array()
+	var ap := PackedVector2Array()
+	for i in 8:
+		var a := TAU * i / 8.0 + 0.39
+		ep.append(Vector2(cx, fy + 135.0) + Vector2(cos(a) * 300.0, sin(a) * 58.0))
+		ap.append(Vector2(cx, fy + 300.0) + Vector2(cos(a) * 320.0, sin(a) * 96.0))
+	ci.draw_colored_polygon(ep, enemy_col)
+	ci.draw_colored_polygon(ap, ally_col)
+	ep.append(ep[0])
+	ap.append(ap[0])
+	ci.draw_polyline(ep, Color(enemy_col.r, enemy_col.g, enemy_col.b, 0.55), 2.0)
+	ci.draw_polyline(ap, Color(ally_col.r, ally_col.g, ally_col.b, 0.55), 2.0)
 	var sx := rect.position.x + fposmod(t * 140.0, rect.size.x + 200.0) - 100.0
-	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx, fy), Vector2(sx + 60, fy), Vector2(sx + 20, rect.end.y), Vector2(sx - 120, rect.end.y)]), Color(0.3, 0.8, 1.0, 0.06))
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx, fy), Vector2(sx + 60, fy), Vector2(sx + 20, rect.end.y), Vector2(sx - 120, rect.end.y)]), Color(0.3, 0.8, 1.0, 0.05))
