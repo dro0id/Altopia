@@ -7,37 +7,63 @@ extends RefCounted
 const OUTLINE := Color(0.05, 0.07, 0.12)
 
 
-static func ellipse(ci: CanvasItem, c: Vector2, rx: float, ry: float, col: Color, rot: float = 0.0, n: int = 28) -> void:
+const LIGHT := -2.3          # direction de la lumière (haut-gauche) pour les facettes
+
+
+static func _fan(ci: CanvasItem, c: Vector2, pts: PackedVector2Array, col: Color) -> void:
+	var n := pts.size()
+	for i in n:
+		var a := pts[i]
+		var b := pts[(i + 1) % n]
+		var mid := ((a + b) * 0.5 - c).angle()
+		var k := 0.9 + 0.2 * cos(mid - LIGHT) + (0.04 if i % 2 == 0 else -0.04)
+		ci.draw_colored_polygon(PackedVector2Array([c, a, b]), _shade(col, k))
+
+
+## Disque low poly : quelques facettes éclairées depuis le haut-gauche.
+static func ellipse(ci: CanvasItem, c: Vector2, rx: float, ry: float, col: Color, rot: float = 0.0, n: int = 7) -> void:
 	if rx < 0.5 or ry < 0.5:
 		return
+	if col.a < 0.99:
+		n = 8
 	var pts := PackedVector2Array()
 	for i in n:
-		var a := TAU * i / n
-		var v := Vector2(cos(a) * rx, sin(a) * ry).rotated(rot)
-		pts.append(c + v)
-	ci.draw_colored_polygon(pts, col)
+		var a := TAU * i / n + 0.3
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry).rotated(rot))
+	if col.a < 0.99:
+		ci.draw_colored_polygon(pts, col)
+	else:
+		_fan(ci, c, pts, col)
 
 
+static func disc(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
+	ellipse(ci, c, r, r, col)
+
+
+## Rectangle à pans coupés, facettes en éventail.
 static func rrect(ci: CanvasItem, r: Rect2, rad: float, col: Color) -> void:
-	var pts := PackedVector2Array()
-	var corners := [
-		[Vector2(r.position.x + rad, r.position.y + rad), PI],
-		[Vector2(r.end.x - rad, r.position.y + rad), PI * 1.5],
-		[Vector2(r.end.x - rad, r.end.y - rad), 0.0],
-		[Vector2(r.position.x + rad, r.end.y - rad), PI * 0.5],
-	]
-	for c in corners:
-		for k in 5:
-			var a: float = c[1] + (PI * 0.5) * k / 4.0
-			pts.append(c[0] + Vector2(cos(a), sin(a)) * rad)
-	ci.draw_colored_polygon(pts, col)
+	var k := minf(rad * 0.7, minf(r.size.x, r.size.y) * 0.45)
+	var p := r.position
+	var e := r.end
+	var pts := PackedVector2Array([
+		Vector2(p.x + k, p.y), Vector2(e.x - k, p.y), Vector2(e.x, p.y + k), Vector2(e.x, e.y - k),
+		Vector2(e.x - k, e.y), Vector2(p.x + k, e.y), Vector2(p.x, e.y - k), Vector2(p.x, p.y + k),
+	])
+	if col.a < 0.99:
+		ci.draw_colored_polygon(pts, col)
+	else:
+		_fan(ci, r.get_center() + Vector2(0, r.size.y * 0.08), pts, col)
 
 
 static func limb(ci: CanvasItem, a: Vector2, b: Vector2, w: float, col: Color) -> void:
-	ci.draw_line(a, b, OUTLINE, w + 4.0, true)
-	ci.draw_line(a, b, col, w, true)
-	ci.draw_circle(a, w * 0.5, col)
-	ci.draw_circle(b, w * 0.5, col)
+	var d := (b - a).normalized()
+	var n := Vector2(-d.y, d.x) * (w * 0.5)
+	var o := n * (1.0 + 4.0 / w)
+	ci.draw_colored_polygon(PackedVector2Array([a + o, b + o, b - o, a - o]), OUTLINE)
+	ci.draw_colored_polygon(PackedVector2Array([a + n, b + n, b - n, a - n]), _shade(col, 0.82))
+	ci.draw_colored_polygon(PackedVector2Array([a + n, b + n, b, a]), _shade(col, 1.12))
+	disc(ci, a, w * 0.5, col)
+	disc(ci, b, w * 0.5, col)
 
 
 static func star(ci: CanvasItem, c: Vector2, r: float, col: Color, rot: float = 0.0) -> void:
@@ -49,6 +75,40 @@ static func star(ci: CanvasItem, c: Vector2, r: float, col: Color, rot: float = 
 		var rr := r if i % 2 == 0 else r * 0.42
 		pts.append(c + Vector2(cos(a), sin(a)) * rr)
 	ci.draw_colored_polygon(pts, col)
+
+
+static func shard(ci: CanvasItem, c: Vector2, r: float, rot: float, col: Color) -> void:
+	if r < 0.8:
+		return
+	var pts := PackedVector2Array()
+	for a in [0.0, 2.5, 3.8]:
+		pts.append(c + Vector2(cos(rot + a), sin(rot + a)) * r * (1.0 if a == 0.0 else 0.55))
+	ci.draw_colored_polygon(pts, col)
+
+
+## Cristaux triangulaires qui tournent autour d'un héros qui lance un pouvoir.
+static func aura(ci: CanvasItem, c: Vector2, k: float, t: float, col: Color) -> void:
+	if k <= 0.0:
+		return
+	for i in 6:
+		var a := t * 3.0 + i * TAU / 6.0
+		var rr := 46.0 + k * 22.0 + sin(t * 5.0 + i) * 3.0
+		shard(ci, c + Vector2(cos(a) * rr, sin(a) * rr * 0.55), 9.0 * k + 3.0, a * 2.0, Color(col.r, col.g, col.b, 0.85 * k))
+	var ring := PackedVector2Array()
+	for i in 6:
+		var a := t * 1.5 + i * TAU / 6.0
+		ring.append(Vector2(0, -2) + Vector2(cos(a) * (34.0 + k * 20.0), sin(a) * (9.0 + k * 5.0)))
+	ci.draw_polyline(ring + PackedVector2Array([ring[0]]), Color(col.r, col.g, col.b, 0.8 * k), 3.0)
+
+
+## Fragments qui s'éparpillent à la mort.
+static func shatter(ci: CanvasItem, c: Vector2, col: Color, dead: float) -> void:
+	if dead <= 0.0:
+		return
+	for i in 7:
+		var a := i * 0.9 + 0.4
+		var d := dead * (30.0 + (i % 3) * 14.0)
+		shard(ci, c + Vector2(cos(a) * d, sin(a) * d * 0.7 - dead * 12.0), 11.0 * (1.0 - dead * 0.6), a + dead * 6.0, Color(col.r, col.g, col.b, 1.0 - dead))
 
 
 static func _shade(c: Color, k: float) -> Color:
@@ -87,13 +147,15 @@ static func draw_hero(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
 	rrect(ci, Rect2(-23 + lean * 0.4, -86 + bob + breathe * 0.3, 46, 58), 16, suit)
 	rrect(ci, Rect2(-23 + lean * 0.4, -52 + bob, 46, 8), 3, accent)
 	rrect(ci, Rect2(-10 + lean * 0.4, -78 + bob, 20, 14), 4, _shade(suit, 0.7))
-	ci.draw_circle(Vector2(-4 + lean * 0.4, -71 + bob), 2.2, accent)
-	ci.draw_circle(Vector2(4 + lean * 0.4, -71 + bob), 2.2, Color(1, 0.4, 0.4) if p.get("hurt", 0.0) > 0.0 else accent)
+	disc(ci, Vector2(-4 + lean * 0.4, -71 + bob), 2.2, accent)
+	disc(ci, Vector2(4 + lean * 0.4, -71 + bob), 2.2, Color(1, 0.4, 0.4) if p.get("hurt", 0.0) > 0.0 else accent)
 	# tête
 	var hc := Vector2(2 + lean * 0.8, -112 + bob * 1.2 + breathe)
 	_draw_head(ci, h, look, hc, t, atk, cast, stun)
 	# bras avant + arme
 	_draw_front_arm(ci, look, suit, accent, Vector2(16 + lean * 0.4, -68 + bob), atk, cast, t)
+	aura(ci, Vector2(0, -70), cast, t, accent)
+	shatter(ci, Vector2(0, -60), accent, fall)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -116,7 +178,7 @@ static func _draw_head(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vecto
 			ellipse(ci, Vector2(c.x + 9, c.y - 4), 6, ey + 1.0, glow)
 			ci.draw_arc(Vector2(c.x, c.y + 4), 7, 0.3, PI - 0.3, 8, glow, 2.0)
 			ci.draw_line(Vector2(c.x, c.y - 33), Vector2(c.x + 4, c.y - 46), OUTLINE, 3)
-			ci.draw_circle(Vector2(c.x + 4, c.y - 47), 4.5, accent)
+			disc(ci, Vector2(c.x + 4, c.y - 47), 4.5, accent)
 			ellipse(ci, Vector2(c.x - 33, c.y), 5, 10, _shade(suit, 0.7))
 			ellipse(ci, Vector2(c.x + 33, c.y), 5, 10, _shade(suit, 0.7))
 		"alien":
@@ -126,18 +188,18 @@ static func _draw_head(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vecto
 			# antennes
 			for s in [-1, 1]:
 				ci.draw_line(c + Vector2(s * 16, -28), c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), OUTLINE, 3)
-				ci.draw_circle(c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), 4.5, accent)
+				disc(ci, c + Vector2(s * 26, -46 + sin(t * 3.0 + s) * 2), 4.5, accent)
 			# grands yeux
 			for s in [-1, 1]:
 				var ec := c + Vector2(s * 15 + 1, 2)
 				ellipse(ci, ec, 11, 14 * blink + 1.0, Color(0.04, 0.04, 0.08), s * 0.35)
 				ellipse(ci, ec + Vector2(-2, -3), 5, 6 * blink + 0.5, Color(eye.r, eye.g, eye.b, 1.0), s * 0.35)
-				ci.draw_circle(ec + Vector2(-4, -6), 2.2, Color(1, 1, 1, 0.9))
+				disc(ci, ec + Vector2(-4, -6), 2.2, Color(1, 1, 1, 0.9))
 			ci.draw_arc(c + Vector2(0, 20), 7, 0.4, PI - 0.4, 8, _shade(skin, 0.6), 2.0)
 			# bulle de casque
-			ci.draw_circle(c + Vector2(0, 2), 40, Color(0.7, 0.9, 1.0, 0.13))
-			ci.draw_arc(c + Vector2(0, 2), 40, 0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.8), 3.0)
-			ci.draw_arc(c + Vector2(-4, -2), 33, PI * 1.1, PI * 1.45, 8, Color(1, 1, 1, 0.55), 3.0)
+			disc(ci, c + Vector2(0, 2), 40, Color(0.7, 0.9, 1.0, 0.13))
+			ci.draw_arc(c + Vector2(0, 2), 40, 0, TAU, 8, Color(accent.r, accent.g, accent.b, 0.8), 3.0)
+			ci.draw_arc(c + Vector2(-4, -2), 33, PI * 1.1, PI * 1.45, 3, Color(1, 1, 1, 0.55), 3.0)
 		_:
 			# humain : casque, visière, visage, cheveux
 			var skin: Color = look.skin
@@ -163,8 +225,8 @@ static func _draw_head(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vecto
 			ellipse(ci, c + Vector2(12, 3), 3.2, ey, eye)
 			ellipse(ci, c + Vector2(0, 3), 3.2, ey, eye)
 			ci.draw_arc(c + Vector2(7, 12), 4.5, 0.2, PI - 0.2, 6, _shade(skin, 0.55), 1.8)
-			ci.draw_arc(c + Vector2(4, 2), 28, PI * 1.05, PI * 1.38, 8, Color(1, 1, 1, 0.5), 3.0)
-			ci.draw_circle(c + Vector2(-26, 8), 5, accent)
+			ci.draw_arc(c + Vector2(4, 2), 28, PI * 1.05, PI * 1.38, 3, Color(1, 1, 1, 0.5), 3.0)
+			disc(ci, c + Vector2(-26, 8), 5, accent)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
@@ -186,7 +248,7 @@ static func _draw_front_arm(ci: CanvasItem, look: Dictionary, suit: Color, accen
 			ellipse(ci, c, 14, 21, _shade(suit, 0.9))
 			star(ci, c, 9, accent, t)
 			if cast > 0.0:
-				ci.draw_arc(c, 36 + cast * 26.0, -1.2, 1.2, 14, Color(0.6, 0.9, 1.0, 0.8 * cast), 4.0)
+				ci.draw_arc(c, 36 + cast * 26.0, -1.2, 1.2, 5, Color(0.6, 0.9, 1.0, 0.8 * cast), 4.0)
 		"blaster", "sniper":
 			var length := 56.0 if weapon == "sniper" else 34.0
 			var hand := sh + Vector2(26 - recoil * 0.6, 14 + raise)
@@ -207,16 +269,16 @@ static func _draw_front_arm(ci: CanvasItem, look: Dictionary, suit: Color, accen
 			ci.draw_line(Vector2(hand.x + 9, hand.y - 15), Vector2(hand.x + 9, hand.y + 3), accent, 3)
 			ci.draw_line(Vector2(hand.x + 1, hand.y - 6), Vector2(hand.x + 17, hand.y - 6), accent, 3)
 			if cast > 0.0 or atk > 0.1:
-				ci.draw_arc(Vector2(hand.x + 9, hand.y - 6), 18 + 18 * maxf(cast, atk), 0, TAU, 20, Color(accent.r, accent.g, accent.b, 0.6), 3.0)
+				ci.draw_arc(Vector2(hand.x + 9, hand.y - 6), 18 + 18 * maxf(cast, atk), 0, TAU, 6, Color(accent.r, accent.g, accent.b, 0.6), 3.0)
 		_:
 			var hand := sh + Vector2(18, 4 + raise - sin(PI * atk) * 6)
 			limb(ci, sh, hand, 11, arm)
 			var oc := hand + Vector2(10, -24 + sin(t * 3.0) * 3.0)
-			ci.draw_circle(oc, 15 + cast * 8, Color(accent.r, accent.g, accent.b, 0.25))
-			ci.draw_circle(oc, 10, accent)
-			ci.draw_circle(oc + Vector2(-3, -3), 3.4, Color(1, 1, 1, 0.9))
+			disc(ci, oc, 15 + cast * 8, Color(accent.r, accent.g, accent.b, 0.25))
+			disc(ci, oc, 10, accent)
+			disc(ci, oc + Vector2(-3, -3), 3.4, Color(1, 1, 1, 0.9))
 			if atk > 0.05 and atk < 0.5:
-				ci.draw_arc(oc, 14 + atk * 30.0, 0, TAU, 20, Color(accent.r, accent.g, accent.b, 1.0 - atk * 2.0), 3.0)
+				ci.draw_arc(oc, 14 + atk * 30.0, 0, TAU, 6, Color(accent.r, accent.g, accent.b, 1.0 - atk * 2.0), 3.0)
 
 
 # ---------------------------------------------------------------- ennemis
@@ -253,12 +315,12 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 			rrect(ci, Rect2(-34, -66 + hover, 68, 10), 4, _shade(body, 0.7))
 			ellipse(ci, Vector2(8, -66 + hover), 15, 15, Color(0.05, 0.05, 0.1))
 			ellipse(ci, Vector2(10, -66 + hover), 9, 9, Color(1.0, 0.2, 0.2))
-			ci.draw_circle(Vector2(7, -69 + hover), 3, Color(1, 1, 1, 0.9))
+			disc(ci, Vector2(7, -69 + hover), 3, Color(1, 1, 1, 0.9))
 			var recoil := sin(PI * atk) * 8.0
 			rrect(ci, Rect2(20 - recoil, -52 + hover, 30 if gun else 18, 11 if gun else 8), 3, Color(0.22, 0.24, 0.3))
 			for s in [-1, 1]:
 				ci.draw_line(Vector2(s * 22, -86 + hover), Vector2(s * 30, -98 + hover), OUTLINE, 3)
-			ci.draw_circle(Vector2(-22, -88 + hover), 4, Color(1.0, 0.8, 0.2))
+			disc(ci, Vector2(-22, -88 + hover), 4, Color(1.0, 0.8, 0.2))
 			if atk > 0.05 and atk < 0.4:
 				star(ci, Vector2(52 if gun else 40, -48 + hover), 12.0 * (1.0 - atk * 1.4), Color(1.0, 0.55, 0.3), t * 9.0)
 		_:
@@ -287,7 +349,8 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 			for k in 6:
 				ci.draw_line(Vector2(-36 + k * 9, -54 + shake), Vector2(-36 + k * 9, -44 + shake), Color(0.8, 0.8, 0.75), 2)
 			ci.draw_line(Vector2(-26, -112 + shake), Vector2(-30, -134 + shake), OUTLINE, 5)
-			ci.draw_circle(Vector2(-30, -136 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
+			disc(ci, Vector2(-30, -136 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
+	shatter(ci, Vector2(0, -50 if kind != "titan" else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
@@ -306,32 +369,54 @@ static func draw_portrait(ci: CanvasItem, h: Dictionary, center: Vector2, radius
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
+static func _ridge(ci: CanvasItem, rect: Rect2, base: float, h: float, step: float, speed: float, seed_: float, t: float, col: Color) -> void:
+	var first := int(floor((rect.position.x + t * speed) / step)) - 1
+	var count := int(rect.size.x / step) + 3
+	for j in count:
+		var idx := first + j
+		var x := rect.position.x + idx * step - t * speed - rect.position.x
+		var peak := Vector2(x, base - (0.35 + 0.65 * absf(sin(idx * 2.7 + seed_))) * h)
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(x - step * 0.75, base), peak, Vector2(x, base)]), _shade(col, 1.15))
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(x, base), peak, Vector2(x + step * 0.75, base)]), _shade(col, 0.8))
+
+
 static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: PackedVector2Array, boss: bool) -> void:
 	var top := Color(0.02, 0.03, 0.09)
 	var bot := Color(0.09, 0.07, 0.2) if not boss else Color(0.18, 0.05, 0.1)
-	var bands := 14
+	var bands := 8
 	for i in bands:
 		var k := float(i) / bands
 		ci.draw_rect(Rect2(rect.position.x, rect.position.y + rect.size.y * k, rect.size.x, rect.size.y / bands + 1.0), top.lerp(bot, k))
+	# étoiles en losanges qui scintillent
 	for i in stars.size():
 		var s := stars[i]
 		var x := fposmod(s.x * rect.size.x - t * (6.0 + (i % 3) * 5.0), rect.size.x)
-		var y := s.y * rect.size.y * 0.8
-		var a := 0.4 + 0.5 * (0.5 + 0.5 * sin(t * 1.5 + i))
-		ci.draw_circle(rect.position + Vector2(x, y), 1.2 + (i % 3) * 0.5, Color(1, 1, 1, a))
-	# planète
-	var pc := rect.position + Vector2(rect.size.x * 0.78, rect.size.y * 0.3)
-	ci.draw_circle(pc, 90, Color(0.12, 0.3, 0.6) if not boss else Color(0.55, 0.18, 0.15))
-	ci.draw_arc(pc, 90, 0, TAU, 40, Color(0.5, 0.8, 1.0, 0.35), 3.0)
-	ci.draw_circle(pc + Vector2(-26, -22), 56, Color(1, 1, 1, 0.05))
-	# astéroïdes lointains
+		var y := s.y * rect.size.y * 0.55
+		var a := 0.35 + 0.6 * (0.5 + 0.5 * sin(t * 1.8 + i))
+		var r := 1.6 + (i % 3) * 0.9
+		var c := rect.position + Vector2(x, y)
+		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 1.6), c + Vector2(r, 0), c + Vector2(0, r * 1.6), c + Vector2(-r, 0)]), Color(1, 1, 1, a))
+	# planète à facettes et son anneau
+	var pc := rect.position + Vector2(rect.size.x * 0.78, rect.size.y * 0.27)
+	var pcol := Color(0.14, 0.34, 0.66) if not boss else Color(0.6, 0.2, 0.16)
+	ellipse(ci, pc, 86, 86, pcol, t * 0.05, 10)
+	var ring := PackedVector2Array()
+	for i in 7:
+		var a := TAU * i / 7.0 + t * 0.2
+		ring.append(pc + Vector2(cos(a) * 130, sin(a) * 26).rotated(-0.35))
+	ring.append(ring[0])
+	ci.draw_polyline(ring, Color(0.7, 0.85, 1.0, 0.45), 3.0)
+	# astéroïdes qui tournent
 	for k in 4:
 		var x := fposmod(120.0 + k * 210.0 - t * 14.0, rect.size.x + 80.0) - 40.0
-		var y := rect.position.y + rect.size.y * (0.15 + 0.16 * k)
-		ellipse(ci, Vector2(rect.position.x + x, y), 18 + k * 4, 12 + k * 2, Color(0.2, 0.18, 0.26))
-	# sol : plateforme métallique
+		var y := rect.position.y + rect.size.y * (0.12 + 0.12 * k) + sin(t * 0.8 + k) * 4.0
+		ellipse(ci, Vector2(rect.position.x + x, y), 16 + k * 4, 11 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
 	var fy := rect.position.y + rect.size.y * 0.62
-	ci.draw_rect(Rect2(rect.position.x, fy, rect.size.x, rect.size.y - rect.size.y * 0.62), Color(0.07, 0.1, 0.17))
+	# chaînes de montagnes en parallaxe
+	_ridge(ci, rect, fy - 6, 90.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
+	_ridge(ci, rect, fy, 55.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
+	# sol : plateforme à dalles triangulaires
+	ci.draw_rect(Rect2(rect.position.x, fy, rect.size.x, rect.end.y - fy), Color(0.07, 0.1, 0.17))
 	ci.draw_line(Vector2(rect.position.x, fy), Vector2(rect.end.x, fy), Color(0.3, 0.8, 1.0, 0.7), 3.0)
 	for k in 12:
 		var x := rect.position.x + k * 70.0 - fposmod(t * 20.0, 70.0)
@@ -339,3 +424,6 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	for k in 5:
 		var y := fy + (rect.end.y - fy) * pow(float(k + 1) / 5.0, 1.6)
 		ci.draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), Color(0.3, 0.8, 1.0, 0.12), 2.0)
+	# impulsion lumineuse qui balaie le sol
+	var sx := rect.position.x + fposmod(t * 140.0, rect.size.x + 200.0) - 100.0
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx, fy), Vector2(sx + 60, fy), Vector2(sx + 20, rect.end.y), Vector2(sx - 120, rect.end.y)]), Color(0.3, 0.8, 1.0, 0.06))

@@ -201,12 +201,12 @@ func _draw_overlay() -> void:
 			"boom":
 				_ov.draw_circle(e.pos, 14 + 36 * k2, Color(1.0, 0.6, 0.25, 0.7 * (1.0 - k2)))
 			"heal":
-				_ov.draw_arc(e.pos, 24 + 10 * k2, 0, TAU, 20, Color(0.5, 1.0, 0.7, 1.0 - k2), 4.0)
+				_ov.draw_arc(e.pos, 24 + 10 * k2, 0, TAU, 6, Color(0.5, 1.0, 0.7, 1.0 - k2), 4.0)
 				_ov.draw_line(e.pos + Vector2(0, -20 - 30 * k2), e.pos + Vector2(0, -34 - 30 * k2), Color(0.5, 1.0, 0.7, 1.0 - k2), 4.0)
 			"shield":
-				_ov.draw_arc(e.pos, 52, 0, TAU, 28, Color(0.5, 0.85, 1.0, 0.9 * (1.0 - k2)), 5.0)
+				_ov.draw_arc(e.pos, 52, 0, TAU, 6, Color(0.5, 0.85, 1.0, 0.9 * (1.0 - k2)), 5.0)
 			"wave":
-				_ov.draw_arc(e.pos, 20 + 300 * k2, 0, TAU, 40, Color(0.7, 0.5, 1.0, 0.8 * (1.0 - k2)), 6.0)
+				_ov.draw_arc(e.pos, 20 + 300 * k2, 0, TAU, 8, Color(0.7, 0.5, 1.0, 0.8 * (1.0 - k2)), 6.0)
 	for x in texts:
 		var k3: float = x.t / 0.9
 		var pos: Vector2 = x.pos + Vector2(0, -34 * k3)
