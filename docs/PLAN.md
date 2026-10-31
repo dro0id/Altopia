@@ -19,8 +19,10 @@ Prototype de combat automatique 2D animé : 5 héros, ennemis, boss tous les 5 s
 - **Principe de difficulté (décidé)** : la difficulté monte doucement pour limiter la frustration, mais reste assez dure pour donner envie de revenir farmer des ressources. Concrètement : un indicateur de puissance recommandée sur la carte, le butin des étages déjà vaincus rejouable pour farmer, la persévérance après une défaite, et un pic de difficulté modéré aux mini-boss (étages 5, 15...) et plus marqué aux gros boss (10, 20...). Les chiffres sont à régler en test.
 - **Contenu technique** : formation, écran de résultat, carte des étages, mini-boss et gros boss, coffre et renfort, paliers, persévérance, combos, retour hors ligne, réglages, icône et nom, écran d'entrée du Trou de verre.
 - **Livrable** : APK de test jouable de bout en bout sur le Xiaomi 11T.
-- **Décisions prises** : tout le contenu ci-dessus est gardé dans cette branche ; carte des étages ; mini-boss tous les 5, gros boss tous les 10.
-- **À valider** : durée d'une session (viser 5 à 10 min), difficulté du premier mini-boss, noms et apparence du mini-boss de l'étage 5 et du gros boss de l'étage 10, ton du texte d'entrée.
+- **Décisions prises** : tout le contenu ci-dessus est gardé dans cette branche ; carte des étages ; mini-boss tous les 5, gros boss tous les 10 ; **session visée de 15 à 20 minutes** (environ 10 étages montés, un boss, un coffre et un renfort par étage, un peu de farm) ; difficulté douce mais exigeante, qui pousse à farmer.
+- **Ressources** : les crédits (améliorations des héros) et les **éclats de verre** (paliers d'évolution), gagnés dans les coffres et sur les boss.
+- **Maquette** : 12 écrans (entrée, combat, résultat, carte des étages, hors ligne, réglages, coffre, renfort, mini-boss, gros boss, défaite avec persévérance, palier d'évolution).
+- **À valider** : difficulté du premier mini-boss, noms et apparence du mini-boss de l'étage 5 et du gros boss de l'étage 10, ton du texte d'entrée.
 
 ## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
