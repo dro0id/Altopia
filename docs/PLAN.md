@@ -8,10 +8,15 @@ Légende de taille : S = une session courte, M = quelques sessions, L = un gros 
 Prototype de combat automatique 2D animé : 5 héros, ennemis, boss tous les 5 secteurs, pouvoirs, amélioration, sauvegarde, gains hors ligne, tests de logique.
 
 ## Branche 1 · `feat/boucle-de-jeu` (M) : une partie qui tient debout
-- **Objectif** : une boucle complète et claire pour les 10 premières minutes.
-- **Contenu** : formation resserrée à l'écran, écran de résultat (butin, étoiles), choix du secteur, bouton « combat de boss », retour hors ligne avec récapitulatif, réglages (son, vitesse), icône et nom.
+- **Objectif** : une boucle complète, claire et qui donne envie de rejouer, pour les 10 premières minutes.
+- **La boucle en quatre temps**
+  1. **Combat (10 à 40 s)** : combat automatique, le joueur déclenche les pouvoirs au bon moment. Un combo est compté quand deux pouvoirs sont lancés à moins de 3 s d'intervalle : bonus de dégâts et de butin.
+  2. **Sortie de secteur (5 s)** : écran de résultat avec butin, étoiles (3 selon les héros vivants) et un **coffre de secteur** (crédits, plus tard fragments et objets). Choix de **un renfort sur trois** (bonus temporaire jusqu'au prochain boss, par exemple + vitesse d'attaque, bouclier de départ, pouvoirs plus rapides).
+  3. **Progression (1 à 3 min)** : améliorer les héros avec les crédits. Aux niveaux 10 et 20, **palier d'évolution** qui renforce le pouvoir (effet visible). Le bouton « Améliorer » indique le meilleur achat du moment.
+  4. **Mur et retour** : devant un boss, bouton « Combat de boss ». En cas de défaite, un **bonus de persévérance** (+5 % de statistiques par défaite, cumulable, remis à zéro à la victoire) évite de rester bloqué. Hors ligne, gains plafonnés à 8 h avec récapitulatif, et un **coffre gratuit toutes les 4 h** pour inciter au retour.
+- **Contenu technique** : formation resserrée, écran de résultat, carte des secteurs, combat de boss, coffre et choix de renfort, paliers d'évolution, bonus de persévérance, combos, retour hors ligne, réglages (son, vitesse), icône et nom.
 - **Livrable** : APK de test jouable de bout en bout sur le Xiaomi 11T.
-- **À valider** : durée visée d'une session, difficulté du premier mur, un seul écran de combat ou une carte des secteurs.
+- **À valider** : durée visée d'une session (viser 5 à 10 min), difficulté du premier mur, carte des secteurs ou écran unique, et si les renforts et le bonus de persévérance restent dans cette branche ou passent plus tard.
 
 ## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
