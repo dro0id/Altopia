@@ -45,8 +45,10 @@ const ENEMIES := {
 	"mite": {"name": "Mite de roche", "hp": 0.6, "atk": 0.9, "def": 0.5, "interval": 1.0, "ranged": false, "gold": 1.0},
 	"drone": {"name": "Drone foreur", "hp": 1.0, "atk": 1.0, "def": 1.0, "interval": 1.5, "ranged": true, "gold": 1.5},
 	"gunner": {"name": "Canonnier", "hp": 0.8, "atk": 1.7, "def": 0.8, "interval": 2.0, "ranged": true, "gold": 2.0},
-	"titan": {"name": "Foreur Titan", "hp": 14.0, "atk": 2.0, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 25.0},
+	"foreur": {"name": "Foreur éclaté", "hp": 11.0, "atk": 1.7, "def": 1.5, "interval": 1.6, "ranged": false, "gold": 12.0},
+	"titan": {"name": "Gardien de verre", "hp": 40.0, "atk": 2.6, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 30.0},
 }
+const BOSS_KINDS := ["foreur", "titan"]
 
 const ENEMY_HP := 62.0
 const ENEMY_ATK := 8.0
@@ -56,7 +58,8 @@ const LEVEL_GROWTH := 1.14       # puissance d'un héros par niveau
 const COST_BASE := 30.0
 const COST_GROWTH := 1.17
 const WAVES_PER_STAGE := 3
-const BOSS_EVERY := 5
+const MINI_BOSS_EVERY := 5       # mini-boss aux étages 5, 15, 25...
+const BIG_BOSS_EVERY := 10       # gros boss aux étages 10, 20, 30...
 const OFFLINE_CAP_HOURS := 8.0
 
 
@@ -72,8 +75,97 @@ static func level_cost(level: int) -> int:
 	return int(round(COST_BASE * pow(COST_GROWTH, float(level - 1))))
 
 
+## "" (étage normal), "mini" (tous les 5) ou "big" (tous les 10).
+static func boss_type(stage: int) -> String:
+	if stage % BIG_BOSS_EVERY == 0:
+		return "big"
+	if stage % MINI_BOSS_EVERY == 0:
+		return "mini"
+	return ""
+
+
 static func is_boss_stage(stage: int) -> bool:
-	return stage % BOSS_EVERY == 0
+	return boss_type(stage) != ""
+
+
+## Puissance d'une escouade : somme pondérée des statistiques, pour comparer à la puissance recommandée.
+static func team_power(levels: Dictionary) -> float:
+	var p := 0.0
+	for id in HERO_ORDER:
+		var h: Dictionary = HEROES[id]
+		var m := hero_mult(int(levels.get(id, 1)))
+		p += (h.hp * 0.25 + h.atk * 6.0 + h.def * 3.0) * m
+	return p
+
+
+## Niveau moyen d'escouade recommandé pour un étage (ajusté sur les simulations de tools/calibrate.gd).
+static func recommended_level(stage: int) -> int:
+	var lv := 0.65 * float(stage) - 3.4
+	match boss_type(stage):
+		"mini":
+			lv += 1.0
+		"big":
+			lv += 4.5 + 0.1 * float(stage)
+	return maxi(1, int(round(lv)))
+
+
+static func recommended_power(stage: int) -> float:
+	var lv := {}
+	for id in HERO_ORDER:
+		lv[id] = recommended_level(stage)
+	return team_power(lv)
+
+
+## Étoiles : 3 si personne ne tombe, 2 si un héros tombe, 1 sinon.
+static func stars_for(fallen: int) -> int:
+	return 3 if fallen == 0 else (2 if fallen == 1 else 1)
+
+
+# ---------------------------------------------------------------- coffres
+
+const RARITIES := ["commun", "normal", "rare", "epique", "legendaire", "ultime"]
+const RARITY_NAMES := {"commun": "Commun", "normal": "Normal", "rare": "Rare", "epique": "Épique", "legendaire": "Légendaire", "ultime": "Ultime"}
+const CHEST_COLORS := {
+	"commun": Color("e0a82e"), "normal": Color("5be08a"), "rare": Color("4fa8ff"),
+	"epique": Color("c084ff"), "legendaire": Color("ffa23a"), "ultime": Color("ff3b3b"),
+}
+const CHEST_CREDITS := {"commun": 1.5, "normal": 3.0, "rare": 7.0, "epique": 16.0, "legendaire": 38.0, "ultime": 100.0}
+const CHEST_SHARDS := {"commun": 2, "normal": 4, "rare": 8, "epique": 18, "legendaire": 40, "ultime": 120}
+const EPIC_CHANCE := {1: 0.10, 2: 0.10, 3: 0.20}
+const LEGENDARY_CHANCE := 0.03
+const ULTIMATE_CHANCE := 0.005
+const LEGENDARY_PITY := 2        # garanti au 2e gros boss en 3 étoiles sans légendaire
+const ULTIMATE_PITY := 10        # garanti au 10e gros boss en 3 étoiles sans ultime
+const FREE_CHEST_HOURS := 4.0
+
+
+## Tire la rareté du coffre d'un étage vaincu. `pity` = {"leg": n, "ult": n} (gros boss en 3 étoiles sans légendaire / sans ultime) ; modifié sur place.
+static func roll_chest(stage: int, stars: int, rng: RandomNumberGenerator, pity: Dictionary) -> String:
+	match boss_type(stage):
+		"":
+			return "normal" if stars >= 3 else "commun"
+		"mini":
+			return "rare"
+	var r := rng.randf()
+	var out := "rare"
+	if stars >= 3:
+		var leg_miss := int(pity.get("leg", 0))
+		var ult_miss := int(pity.get("ult", 0))
+		if ult_miss >= ULTIMATE_PITY - 1 or r < ULTIMATE_CHANCE:
+			out = "ultime"
+		elif leg_miss >= LEGENDARY_PITY - 1 or r < ULTIMATE_CHANCE + LEGENDARY_CHANCE:
+			out = "legendaire"
+		elif r < ULTIMATE_CHANCE + LEGENDARY_CHANCE + EPIC_CHANCE[3]:
+			out = "epique"
+		pity["leg"] = 0 if out in ["legendaire", "ultime"] else leg_miss + 1
+		pity["ult"] = 0 if out == "ultime" else ult_miss + 1
+	elif r < EPIC_CHANCE[stars]:
+		out = "epique"
+	return out
+
+
+static func chest_rewards(stage: int, rarity: String) -> Dictionary:
+	return {"credits": round(12.0 * stage_scale(stage) * CHEST_CREDITS[rarity]), "shards": CHEST_SHARDS[rarity]}
 
 
 static func chapter_of(stage: int) -> int:

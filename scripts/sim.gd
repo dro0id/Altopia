@@ -28,6 +28,8 @@ class Unit:
 	var alive := true
 	var ranged := false
 	var boss := false
+	var phase2 := false          # le gros boss passe en phase 2 sous 50 % de PV
+	var warned := false          # avertissement du coup puissant déjà émis
 	var gold := 0.0
 	var data: Dictionary = {}
 
@@ -44,6 +46,8 @@ var waves_total := Data.WAVES_PER_STAGE
 var state := "fighting"          # fighting | clear | defeat
 var time := 0.0
 var credits := 0.0               # butin gagné pendant ce combat
+var fallen := 0                  # héros tombés pendant l'étage
+var stars := 0                   # étoiles à la victoire (voir Data.stars_for)
 var clear_bonus := 0.0
 var auto_cast := true
 var rng := RandomNumberGenerator.new()
@@ -120,7 +124,8 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	u.name = e.name
 	u.role = "boss" if boss else "enemy"
 	u.boss = boss
-	u.max_hp = Data.ENEMY_HP * s * e.hp
+	var boss_k := 1.0 + (0.035 * stage if kind == "titan" else (0.015 * stage if kind == "foreur" else 0.0))   # les boss durcissent avec la profondeur
+	u.max_hp = Data.ENEMY_HP * s * e.hp * boss_k
 	u.hp = u.max_hp
 	u.atk = Data.ENEMY_ATK * s * e.atk
 	u.def = (Data.ENEMY_DEF + stage * 0.6) * e.def
@@ -141,8 +146,10 @@ func _wave_kinds() -> Array:
 	var w := wave
 	var kinds: Array = []
 	var last := w == waves_total
-	if last and Data.is_boss_stage(stage):
-		return ["titan", "mite", "mite"]
+	if last and Data.boss_type(stage) == "big":
+		return ["titan", "drone", "drone"]
+	if last and Data.boss_type(stage) == "mini":
+		return ["foreur", "mite", "mite"]
 	match w:
 		1:
 			kinds = ["mite", "mite", "mite"]
@@ -162,11 +169,11 @@ func _spawn_wave() -> void:
 	var kinds := _wave_kinds()
 	var slot := 0
 	for k in kinds:
-		var u := _make_enemy(String(k), slot, k == "titan")
+		var u := _make_enemy(String(k), slot, Data.BOSS_KINDS.has(k))
 		units.append(u)
 		events.append({"type": "spawn", "unit": u})
 		slot += 1
-	events.append({"type": "wave", "wave": wave, "total": waves_total, "boss": kinds.has("titan")})
+	events.append({"type": "wave", "wave": wave, "total": waves_total, "boss": kinds.has("titan") or kinds.has("foreur"), "boss_type": Data.boss_type(stage) if wave == waves_total else ""})
 
 
 func cast(slot: int) -> bool:
@@ -180,6 +187,7 @@ func _cast(u: Unit) -> bool:
 	if not u.alive or u.stun_t > 0.0 or u.skill_cd > 0.0 or state != "fighting":
 		return false
 	u.skill_cd = u.skill_max
+	u.warned = false
 	match u.skill_kind:
 		"shield":
 			for a in _alive(0):
@@ -211,7 +219,8 @@ func _cast(u: Unit) -> bool:
 			events.append({"type": "cast", "unit": u, "kind": "gravity"})
 		"slam":
 			for a in _alive(0):
-				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * 1.6, "fx": "slam"})
+				var k := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
+				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * k, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
 	return true
 
@@ -250,6 +259,23 @@ func _apply_hit(p: Dictionary) -> void:
 		events.append({"type": "death", "unit": dst})
 		if dst.side == 1:
 			credits += dst.gold
+		else:
+			fallen += 1
+	elif dst.kind == "titan" and not dst.phase2 and dst.hp <= dst.max_hp * 0.5:
+		_enter_phase2(dst)
+
+
+## Phase 2 du gros boss : plus rapide et plus fort, et deux mites arrivent en renfort.
+func _enter_phase2(b: Unit) -> void:
+	b.phase2 = true
+	b.atk *= 1.35
+	b.interval *= 0.8
+	b.skill_max *= 0.75
+	events.append({"type": "phase", "unit": b})
+	for i in 2:
+		var m := _make_enemy("mite", 4 + i, false)
+		units.append(m)
+		events.append({"type": "spawn", "unit": m})
 
 
 func _act(u: Unit) -> void:
@@ -292,6 +318,9 @@ func step(dt: float) -> void:
 				u.shield = 0.0
 		if u.stun_t > 0.0:
 			continue
+		if u.side == 1 and u.boss and u.skill_cd <= 0.9 and u.skill_cd > 0.0 and not u.warned:
+			u.warned = true
+			events.append({"type": "warn", "unit": u})
 		if u.side == 1 and u.boss and u.skill_cd <= 0.0:
 			_cast(u)
 		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0:
@@ -317,8 +346,9 @@ func step(dt: float) -> void:
 		else:
 			clear_bonus = 25.0 * Data.stage_scale(stage)
 			credits += clear_bonus
+			stars = Data.stars_for(fallen)
 			state = "clear"
-			events.append({"type": "clear", "credits": credits})
+			events.append({"type": "clear", "credits": credits, "stars": stars})
 
 
 ## Combat sans dessin, jusqu'à la fin ou jusqu'à max_seconds (pour les tests et l'équilibrage).
