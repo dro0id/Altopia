@@ -173,15 +173,23 @@ func _build_hint() -> void:
 			var k := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 200.0)
 			_hl.draw_rect(r.grow(4.0 + 3.0 * k), Color(1.0, 0.85, 0.3, 0.5 + 0.5 * k), false, 4.0))
 	_hl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hl.z_index = 3000
 	add_child(_hl)
 	_hint = PanelContainer.new()
-	_hint.position = Vector2(40, 132)
-	_hint.size = Vector2(640, 90)
+	_hint.position = Vector2(30, 618)
+	_hint.size = Vector2(660, 64)
 	_hint.add_theme_stylebox_override("panel", UI.box(Color(0.1, 0.16, 0.3, 0.96), UI.GOLD, 12, 14))
-	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.mouse_filter = Control.MOUSE_FILTER_STOP
+	_hint.gui_input.connect(func(ev: InputEvent):
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			_tuto = mini(_tuto + 1, 4)
+			if _tuto == 4:
+				Game.tutorial_done = true
+			_tuto_t = 0.0)
 	_hint.visible = false
+	_hint.z_index = 3000
 	add_child(_hint)
-	_hint_label = UI.label(_hint, "", 25, Color.WHITE)
+	_hint_label = UI.label(_hint, "", 22, Color.WHITE)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -199,11 +207,12 @@ func _open_modal(ov: Control) -> void:
 		_modal.queue_free()
 	_modal = ov
 	add_child(ov)
-	get_tree().paused = true
+	var tr := get_tree()
+	tr.paused = true
 	ov.tree_exited.connect(func():
 		if _modal == ov:
 			_modal = null
-			get_tree().paused = false)
+			tr.paused = false)
 
 
 func _open_map() -> void:
@@ -253,6 +262,8 @@ func _start_battle() -> void:
 	for u in battle.sim.units:
 		if u.side == 0:
 			skill_buttons[u.slot].unit = u
+			if _tuto < 2 and u.slot == 0:
+				u.skill_cd = 0.5        # pendant le tutoriel, le premier pouvoir est prêt tout de suite
 	_refresh()
 
 
@@ -262,7 +273,7 @@ func _on_cleared(_credits: float) -> void:
 	var frontier := Game.is_frontier()
 	var chest: Dictionary = Game.stage_cleared(stars)
 	Game.save_game()
-	if _tuto < 4:
+	if _tuto == 3:
 		_tuto = 4
 		Game.tutorial_done = true
 	if frontier or Data.is_boss_stage(stage):
@@ -320,7 +331,7 @@ func _tuto_update(delta: float) -> void:
 	match _tuto:
 		0:
 			text = "Tes héros combattent tout seuls. Regarde-les faire !"
-			if _tuto_t > 6.0:
+			if _tuto_t > 2.5:
 				_tuto = 1
 		1:
 			var ready := false
@@ -345,7 +356,7 @@ func _tuto_update(delta: float) -> void:
 			if total > Data.HERO_ORDER.size():
 				_tuto = 3
 		3:
-			text = "Vaincs l'étage pour ouvrir ton premier coffre !"
+			text = "Bien joué ! Monte les étages : un mini-boss t'attend à l'étage 5."
 	_hint.visible = text != ""
 	_hint_label.text = text
 	if target.size != Vector2.ZERO:

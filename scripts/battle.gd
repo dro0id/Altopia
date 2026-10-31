@@ -412,6 +412,6 @@ func _draw_overlay() -> void:
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(0, 0, 0, a))
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
 	if sim != null and sim.state != "fighting":
-		var txt := "SECTEUR VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
+		var txt := "ÉTAGE VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250) + Vector2(2, 2), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0, 0, 0))
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0.5, 1, 0.7) if sim.state == "clear" else Color(1, 0.5, 0.45))
