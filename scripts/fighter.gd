@@ -32,6 +32,11 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 	t = randf() * 4.0
 	if u.side == 1:
 		appear = -randf() * 0.25      # les ennemis arrivent en décalé
+	if u.kind == "foreur":
+		scale_k *= 0.8
+		self_modulate = Color(1.0, 0.86, 0.62)
+	elif u.kind == "titan":
+		self_modulate = Color(0.72, 0.9, 1.25)       # le Gardien de verre est translucide et bleuté
 
 
 func play_attack(melee: bool) -> void:
@@ -105,8 +110,8 @@ func _draw() -> void:
 	if unit.alive:
 		var w := 62.0
 		var top := -165.0 if unit.side == 0 else (-62.0 if unit.kind == "mite" else -118.0)
-		if unit.kind == "titan":
-			top = -150.0
+		if unit.boss:
+			top = -155.0
 		draw_set_transform(Vector2(0, top), 0.0, Vector2.ONE)
 		draw_rect(Rect2(-w * 0.5 - 1, -1, w + 2, 9), Color(0, 0, 0, 0.7))
 		var col := Color(0.35, 0.9, 0.5) if unit.side == 0 else Color(1.0, 0.4, 0.35)

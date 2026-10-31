@@ -4,6 +4,7 @@ extends RefCounted
 ## Origine = pieds du personnage, il regarde vers la droite (les ennemis sont retournés par le nœud).
 ## p : {t: temps, atk: 0..1 progression de l'attaque, cast: 0..1 pouvoir, hurt: 0..1, dead: 0..1, stun: bool}
 
+const Data = preload("res://scripts/data.gd")
 const OUTLINE := Color(0.05, 0.07, 0.12)
 
 
@@ -350,11 +351,11 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 				ci.draw_line(Vector2(-36 + k * 9, -54 + shake), Vector2(-36 + k * 9, -44 + shake), Color(0.8, 0.8, 0.75), 2)
 			ci.draw_line(Vector2(-26, -112 + shake), Vector2(-30, -134 + shake), OUTLINE, 5)
 			disc(ci, Vector2(-30, -136 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
-	shatter(ci, Vector2(0, -50 if kind != "titan" else -70), Color(1.0, 0.5, 0.3), dead)
+	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur"] else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
-			var top := -120.0 if kind == "titan" else -110.0
+			var top := -120.0 if kind in ["titan", "foreur"] else -110.0
 			star(ci, Vector2(cos(a) * 26, top + sin(a) * 6), 5, Color(1, 0.9, 0.3))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
@@ -561,7 +562,7 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 	var wind := _wind(atk)
 	var hit := _strike(atk)
 	ci.draw_set_transform(Vector2(0, -dead * 6.0), dead * -0.6, Vector2(1.0 + dead * 0.3, 1.0 - dead * 0.7))
-	var air := cast * 34.0 if kind == "titan" else 0.0
+	var air := cast * 34.0 if kind in ["titan", "foreur"] else 0.0
 	ellipse(ci, Vector2(0, 2), 30.0 * (1.0 - air * 0.008), 8.0 * (1.0 - air * 0.008), Color(0, 0, 0, 0.3))
 	match kind:
 		"mite":
@@ -656,11 +657,11 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 			if cast > 0.0 and cast < 0.15:
 				for s in [-1, 1]:
 					shard(ci, Vector2(s * 70, -4), 12, -PI * 0.5 + s * 0.8, Color(0.6, 0.55, 0.5, 0.7))
-	shatter(ci, Vector2(0, -50 if kind != "titan" else -70), Color(1.0, 0.5, 0.3), dead)
+	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur"] else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
-			star(ci, Vector2(cos(a) * 26, (-120.0 if kind == "titan" else -110.0) + sin(a) * 6), 5, Color(1, 0.9, 0.3))
+			star(ci, Vector2(cos(a) * 26, (-120.0 if kind in ["titan", "foreur"] else -110.0) + sin(a) * 6), 5, Color(1, 0.9, 0.3))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -745,3 +746,89 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	ci.draw_polyline(ap, Color(ally_col.r, ally_col.g, ally_col.b, 0.55), 2.0)
 	var sx := rect.position.x + fposmod(t * 140.0, rect.size.x + 200.0) - 100.0
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx, fy), Vector2(sx + 60, fy), Vector2(sx + 20, rect.end.y), Vector2(sx - 120, rect.end.y)]), Color(0.3, 0.8, 1.0, 0.05))
+
+
+# ---------------------------------------------------------------- coffres
+
+const CHEST_PAL := {
+	"commun": {"b": [Color("8a5528"), Color("6f421f"), Color("5c3516")], "m": [Color("e0a82e"), Color("c48a1a"), Color("f2c24a")], "l": [Color("bd7637"), Color("a8672f"), Color("8a5528"), Color("c98543")], "g": Color("4fd8ff"), "glow": Color("ffd166")},
+	"normal": {"b": [Color("3e7a4a"), Color("2f6039"), Color("244b2d")], "m": [Color("c9d6c0"), Color("a1b093"), Color("e4efd9")], "l": [Color("4d9059"), Color("3e7a4a"), Color("2f6039"), Color("62a86e")], "g": Color("7dffb0"), "glow": Color("5be08a")},
+	"rare": {"b": [Color("2f5fa8"), Color("244b86"), Color("1b3a6a")], "m": [Color("cfd9ea"), Color("a7b6d0"), Color("eef3fb")], "l": [Color("3c75c4"), Color("2f5fa8"), Color("244b86"), Color("5189d6")], "g": Color("4fd8ff"), "glow": Color("4fa8ff")},
+	"epique": {"b": [Color("7a3fb5"), Color("62318f"), Color("4b256f")], "m": [Color("e6c36a"), Color("c9a24a"), Color("f7e3a1")], "l": [Color("8f50cc"), Color("7a3fb5"), Color("62318f"), Color("a865de")], "g": Color("ff8fe8"), "glow": Color("c084ff")},
+	"legendaire": {"b": [Color("d9731f"), Color("b85c14"), Color("944810")], "m": [Color("ffe08a"), Color("f0c04a"), Color("fff4c4")], "l": [Color("ee8a33"), Color("d9731f"), Color("b85c14"), Color("ffa04d")], "g": Color("fff2a0"), "glow": Color("ffa23a")},
+	"ultime": {"b": [Color("a31f2d"), Color("7f1722"), Color("5f101a")], "m": [Color("3a3a48"), Color("262630"), Color("5a5a6c")], "l": [Color("bf2a3a"), Color("a31f2d"), Color("7f1722"), Color("d83a4b")], "g": Color("ff5a5a"), "glow": Color("ff3b3b")},
+}
+
+
+static func _pts(arr: Array, off: Vector2) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in arr:
+		out.append(Vector2(p[0], p[1]) - off)
+	return out
+
+
+## Coffre low poly d'une rareté donnée. `open` 0..1 : couvercle levé et lumière qui jaillit. Origine = centre du bas du coffre.
+static func draw_chest(ci: CanvasItem, c: Vector2, sc: float, rarity: String, t: float, open: float, shake: float = 0.0) -> void:
+	var pal: Dictionary = CHEST_PAL[rarity]
+	var glow: Color = pal.glow
+	var o := Vector2(140, 210)
+	var tier := Data.RARITIES.find(rarity)
+	ci.draw_set_transform(c + Vector2(sin(t * 50.0) * shake, 0), sin(t * 38.0) * shake * 0.01, Vector2(sc, sc))
+	ellipse(ci, Vector2(0, 14), 100, 12, Color(0, 0, 0, 0.35))
+	# halo, d'autant plus fort que la rareté est haute
+	ellipse(ci, Vector2(0, -60), 110 + tier * 6.0, 62 + tier * 5.0, Color(glow.r, glow.g, glow.b, (0.12 + 0.05 * tier + 0.5 * open * 0.4) * (0.8 + 0.2 * sin(t * 2.5))))
+	if open > 0.0:
+		for i in 8:
+			var a := t * 0.6 + i * TAU / 8.0
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(0, -88), Vector2(cos(a - 0.07), sin(a - 0.07) * 0.9 - 88.0 / 120.0) * 320.0 + Vector2(0, -88), Vector2(cos(a + 0.07), sin(a + 0.07) * 0.9 - 88.0 / 120.0) * 320.0 + Vector2(0, -88)]), Color(glow.r, glow.g, glow.b, 0.22 * open))
+	if tier >= 3:
+		for i in 3:
+			var a2 := t * (1.2 + tier * 0.15) + i * TAU / 3.0
+			shard(ci, Vector2(cos(a2) * 118.0, -60.0 + sin(a2) * 40.0), 10.0, a2 * 2.0, Color(pal.g.r, pal.g.g, pal.g.b, 0.85))
+	if tier == 5:
+		var ring := PackedVector2Array()
+		for i in 7:
+			var a3 := t * 0.8 + i * TAU / 6.0
+			ring.append(Vector2(cos(a3) * 128.0, -70.0 + sin(a3) * 46.0))
+		ci.draw_polyline(ring, Color(1.0, 0.25, 0.25, 0.8), 3.0)
+	var b: Array = pal.b
+	var m: Array = pal.m
+	var l: Array = pal.l
+	ci.draw_colored_polygon(_pts([[58, 122], [222, 122], [212, 210], [68, 210]], o), b[1])
+	ci.draw_colored_polygon(_pts([[58, 122], [113, 122], [108, 210], [68, 210]], o), b[0])
+	ci.draw_colored_polygon(_pts([[168, 122], [222, 122], [212, 210], [172, 210]], o), b[2])
+	ci.draw_colored_polygon(_pts([[56, 122], [70, 122], [76, 210], [66, 210]], o), m[0])
+	ci.draw_colored_polygon(_pts([[210, 122], [224, 122], [214, 210], [204, 210]], o), m[1])
+	ci.draw_colored_polygon(_pts([[58, 160], [222, 160], [220, 170], [60, 170]], o), m[0])
+	if tier >= 2:
+		ci.draw_colored_polygon(_pts([[58, 196], [222, 196], [220, 206], [60, 206]], o), m[0])
+	if tier == 5:
+		for ln in [[[90, 210], [98, 186], [88, 170], [100, 150]], [[190, 210], [182, 190], [194, 172]]]:
+			ci.draw_polyline(_pts(ln, o), Color(1.0, 0.35, 0.35, 0.5 + 0.5 * sin(t * 3.0)), 3.0)
+	var g: Color = pal.g
+	ci.draw_colored_polygon(_pts([[140, 150], [154, 166], [140, 182], [126, 166]], o), Color(g.r, g.g, g.b, 0.7 + 0.3 * sin(t * 4.0)))
+	# intérieur lumineux puis couvercle (levé et incliné quand ouvert)
+	if open > 0.0:
+		ci.draw_colored_polygon(_pts([[62, 124], [218, 124], [208, 108], [72, 108]], o), Color(glow.r, glow.g, glow.b, 0.95 * open))
+	var lift := Vector2(0, -52.0 * open)
+	var sy := 1.0 - 0.45 * open
+	var lid := func(pts: Array, col: Color) -> void:
+		var arr := PackedVector2Array()
+		for p in pts:
+			var v := Vector2(p[0], p[1]) - o
+			arr.append(Vector2(v.x, -88.0 + (v.y + 88.0) * sy) + lift)
+		ci.draw_colored_polygon(arr, col)
+	lid.call([[56, 122], [224, 122], [208, 80], [72, 80]], l[1])
+	lid.call([[56, 122], [140, 122], [140, 80], [72, 80]], l[0])
+	lid.call([[140, 122], [224, 122], [208, 80], [140, 80]], l[2])
+	lid.call([[72, 80], [208, 80], [200, 66], [80, 66]], l[3])
+	lid.call([[56, 112], [224, 112], [223, 124], [57, 124]], m[0])
+	lid.call([[120, 124], [160, 124], [154, 98], [126, 98]], m[2])
+	if tier >= 3:
+		for sp in [[92, 66, 100, 44, 108, 66], [132, 66, 140, 38, 148, 66], [172, 66, 180, 44, 188, 66]]:
+			lid.call([[sp[0], sp[1]], [sp[2], sp[3]], [sp[4], sp[5]]], m[0])
+	if tier == 4:
+		for k in 3:
+			var fl := 1.0 + 0.35 * sin(t * 9.0 + k * 2.0)
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(-46 + k * 46, -150) + lift, Vector2(-36 + k * 46, -150 - 40.0 * fl) + lift, Vector2(-26 + k * 46, -150) + lift]), Color(glow.r, glow.g, glow.b, 0.85))
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

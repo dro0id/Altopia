@@ -30,6 +30,7 @@ var _timer := 0.0
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	rng.randomize()
 	reset()
 	load_game()

@@ -125,11 +125,26 @@ func _consume() -> void:
 					_burst(f.home, 5, Color(0.7, 0.6, 0.5), 40.0, 110.0, 0.5, 200.0, 2.5)
 			"wave":
 				boss_wave = e.boss
-				banner = "BOSS !" if e.boss else "Vague %d / %d" % [e.wave, e.total]
+				var bt: String = e.get("boss_type", "")
+				banner = ("GROS BOSS !" if bt == "big" else "MINI-BOSS !") if e.boss else "Vague %d / %d" % [e.wave, e.total]
 				banner_t = 1.6
 				wave_started.emit(e.wave, e.total, e.boss)
 				if e.boss:
 					shake = maxf(shake, 6.0)
+			"warn":
+				fx.append({"kind": "warn", "pos": Vector2(360, 480), "t": 0.0, "dur": 0.9, "col": Color(1.0, 0.3, 0.25), "r": 300.0})
+				banner = "Attention !"
+				banner_t = 0.9
+				Sfx.play("warn")
+			"phase":
+				banner = "PHASE 2 !"
+				banner_t = 1.6
+				boss_wave = true
+				shake = maxf(shake, 9.0)
+				var bf: Fighter = fighters.get(e.unit)
+				if bf != null:
+					fx.append({"kind": "flash", "pos": _center(e.unit), "t": 0.0, "dur": 0.4, "r": 90.0})
+				Sfx.play("boom")
 			"attack":
 				var src: BattleSim.Unit = e.src
 				var f2: Fighter = fighters.get(src)
@@ -144,6 +159,7 @@ func _consume() -> void:
 					else:
 						origin += Vector2((36.0 if src.slot % 2 == 0 else -36.0) * sc, 10.0 * sc)
 					var lead := 0.15
+					Sfx.play("shoot", -8.0, randf_range(0.9, 1.15))
 					shots.append({"from": origin, "to": _center(e.dst), "t": -lead, "dur": maxf(0.1, e.delay - lead), "col": col, "kind": "bolt"})
 			"hit":
 				var u: BattleSim.Unit = e.unit
@@ -152,6 +168,7 @@ func _consume() -> void:
 					f3.play_hurt()
 				texts.append({"pos": _center(u) + Vector2(randf_range(-14, 14), -40), "txt": str(int(round(e.amount))), "col": Color(1, 0.95, 0.6) if u.side == 1 else Color(1, 0.5, 0.45), "t": 0.0, "dx": randf_range(-18, 18)})
 				_impact(u, e.amount, String(e.get("fx", "")))
+				Sfx.play("hit", -10.0, randf_range(0.85, 1.2))
 			"heal":
 				var u2: BattleSim.Unit = e.unit
 				if e.amount >= 1.0:
@@ -165,10 +182,12 @@ func _consume() -> void:
 					cf.play_cast()
 				banner = String(cu.data.get("skill", {}).get("name", "")) if cu.side == 0 else "Écrasement !"
 				banner_t = 1.0
+				Sfx.play("cast", -4.0)
 				_cast_fx(e)
 			"death":
 				var dc := _center(e.unit)
 				var boss: bool = e.unit.boss
+				Sfx.play("boom", -4.0 if boss else -9.0, 1.0 if boss else randf_range(0.9, 1.2))
 				fx.append({"kind": "flash", "pos": dc, "t": 0.0, "dur": 0.3, "r": 60.0 if boss else 34.0})
 				_burst(dc, 22 if boss else 12, Color(1.0, 0.6, 0.25), 80.0, 340.0 if boss else 240.0, 0.7)
 				for i in (7 if boss else 3):
@@ -355,6 +374,10 @@ func _draw_overlay() -> void:
 				pts.append(pts[0])
 				_ov.draw_polyline(pts, Color(e.col.r, e.col.g, e.col.b, 0.9 * fade), 3.0)
 				_ellipse_line(e.pos + Vector2(0, 26), e.r * rise, Color(e.col.r, e.col.g, e.col.b, 0.7 * fade), 3.0)
+			"warn":
+				var wk := sin(k2 * PI * 5.0)
+				_ellipse_line(e.pos, e.r, Color(e.col.r, e.col.g, e.col.b, 0.35 + 0.35 * wk), 8.0, 0.32)
+				Art.ellipse(_ov, e.pos, e.r, e.r * 0.32, Color(e.col.r, e.col.g, e.col.b, 0.10 + 0.08 * wk), 0.0, 12)
 			"pull":
 				_ellipse_line(e.pos, e.r * (1.0 - k2), Color(e.col.r, e.col.g, e.col.b, 0.8 * (1.0 - k2 * 0.5)), 5.0, 0.38)
 	for p in parts:

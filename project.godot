@@ -25,3 +25,4 @@ textures/vram_compression/import_etc2_astc=true
 [autoload]
 
 Game="*res://scripts/game.gd"
+Sfx="*res://scripts/sfx.gd"
