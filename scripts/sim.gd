@@ -141,7 +141,7 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	return u
 
 
-## Composition des vagues : plus de monstres et d'ennemis solides au fil des vagues, un boss à la fin des secteurs multiples de 5.
+## Composition des vagues : plus de monstres et d'ennemis solides au fil des vagues, un boss à la fin des étages 5 (mini-boss) et 10 (gros boss).
 func _wave_kinds() -> Array:
 	var w := wave
 	var kinds: Array = []

@@ -40,7 +40,7 @@ const HEROES := {
 }
 const HERO_ORDER := ["mara", "kai", "zyra", "t9", "oru"]
 
-## Ennemis : multiplicateurs appliqués aux statistiques de base du secteur.
+## Ennemis : multiplicateurs appliqués aux statistiques de base de l'étage.
 const ENEMIES := {
 	"mite": {"name": "Mite de roche", "hp": 0.6, "atk": 0.9, "def": 0.5, "interval": 1.0, "ranged": false, "gold": 1.0},
 	"drone": {"name": "Drone foreur", "hp": 1.0, "atk": 1.0, "def": 1.0, "interval": 1.5, "ranged": true, "gold": 1.5},
@@ -53,7 +53,7 @@ const BOSS_KINDS := ["foreur", "titan"]
 const ENEMY_HP := 62.0
 const ENEMY_ATK := 8.0
 const ENEMY_DEF := 3.0
-const STAGE_GROWTH := 1.13       # puissance des ennemis par secteur
+const STAGE_GROWTH := 1.13       # puissance des ennemis par étage
 const LEVEL_GROWTH := 1.14       # puissance d'un héros par niveau
 const COST_BASE := 30.0
 const COST_GROWTH := 1.17

@@ -9,6 +9,8 @@ func _initialize() -> void:
 	if a.size() > 2:
 		g.stage = int(a[2])
 		g.best_stage = int(a[2])
+	g.tutorial_done = true
+	g.intro_seen = true
 	g.credits = 500.0
 	if a.size() > 3:
 		g.speed = float(a[3])

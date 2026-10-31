@@ -9,21 +9,21 @@ Prototype de combat automatique 2D animé : 5 héros, ennemis, boss tous les 5 s
 
 ## Branche 1 · `feat/boucle-de-jeu` (M) : le Trou de verre
 - **Histoire** : on entre dans un trou de verre qui s'est ouvert dans la Ceinture. Toute la boucle de jeu est cette ascension, étage après étage.
-- **Structure (décidée)** : une montée d'étages comme dans un donjon. Plus on gagne, plus on monte. **Mini-boss tous les 5 étages, gros boss tous les 10.** Écran de **carte des étages** pour choisir et suivre sa progression.
-- **Vocabulaire** : « étage » pour le donjon, « niveau » seulement pour les héros, afin d'éviter la confusion.
-- **La boucle en quatre temps**
-  1. **Combat (10 à 40 s)** : combat automatique, pouvoirs déclenchés au bon moment. Deux pouvoirs à moins de 3 s d'intervalle forment un combo (bonus de dégâts et de butin).
-  2. **Sortie d'étage (5 s)** : butin, étoiles (3 selon les héros vivants), **coffre d'étage**, puis choix de **un renfort sur trois** valable jusqu'au prochain boss.
-  3. **Progression (1 à 3 min)** : améliorer les héros ; aux niveaux 10 et 20, **palier d'évolution** qui renforce le pouvoir. Le bouton « Améliorer » signale le meilleur achat.
-  4. **Mur et retour** : mini-boss (étages 5, 15, 25...) et gros boss (10, 20, 30...). Après une défaite, **bonus de persévérance** (+5 % de statistiques par défaite, remis à zéro à la victoire). Hors ligne : gains plafonnés à 8 h, récapitulatif, coffre gratuit toutes les 4 h.
-- **Principe de difficulté (décidé)** : la difficulté monte doucement pour limiter la frustration, mais reste assez dure pour donner envie de revenir farmer des ressources. Concrètement : un indicateur de puissance recommandée sur la carte, le butin des étages déjà vaincus rejouable pour farmer, la persévérance après une défaite, et un pic de difficulté modéré aux mini-boss (étages 5, 15...) et plus marqué aux gros boss (10, 20...). Les chiffres sont à régler en test.
-- **Contenu technique** : formation, écran de résultat, carte des étages, mini-boss et gros boss, coffre et renfort, paliers, persévérance, combos, retour hors ligne, réglages, icône et nom, écran d'entrée du Trou de verre.
-- **Livrable** : APK de test jouable de bout en bout sur le Xiaomi 11T.
-- **Décisions prises** : tout le contenu ci-dessus est gardé dans cette branche ; carte des étages ; mini-boss tous les 5, gros boss tous les 10 ; **session visée de 15 à 20 minutes** (environ 10 étages montés, un boss, un coffre et un renfort par étage, un peu de farm) ; difficulté douce mais exigeante, qui pousse à farmer.
-- **Raretés de coffre** : commun (marron et or, chaque étage vaincu), normal (vert, étage en 3 étoiles), rare (bleu, mini-boss vaincu), puis trois raretés de plus en plus difficiles à obtenir, uniquement sur les **gros boss** : **épique** (violet, 10 % en 1 ou 2 étoiles, 20 % en 3 étoiles), **légendaire** (orange, 3 % en 3 étoiles, garanti au 2e gros boss en 3 étoiles sans légendaire (soit 20 étages)), **ultime** (rouge, 0,5 % en 3 étoiles, garanti au 10e gros boss en 3 étoiles sans ultime (soit 100 étages)). Les taux sont affichés dans le jeu et la garantie évite le blocage ; les seuils de garantie (2 et 10 gros boss) sont décidés. Plus la rareté monte, plus les crédits, les éclats de verre et le renfort proposé sont généreux. Chiffres d'exemple à régler au test.
-- **Ressources** : les crédits (améliorations des héros) et les **éclats de verre** (paliers d'évolution), gagnés dans les coffres et sur les boss.
-- **Maquette** : 12 écrans (entrée, combat, résultat, carte des étages, hors ligne, réglages, coffre, renfort, mini-boss, gros boss, défaite avec persévérance, palier d'évolution).
-- **À valider** : difficulté du premier mini-boss, noms et apparence du mini-boss de l'étage 5 et du gros boss de l'étage 10, ton du texte d'entrée.
+- **Structure (décidée)** : une montée d'étages comme dans un donjon. **Mini-boss tous les 5 étages, gros boss tous les 10.** Carte des étages. Vocabulaire : « étage » pour le donjon, « niveau » pour les héros.
+- **Session visée (décidée)** : 15 à 20 minutes, environ 10 à 20 étages, un coffre par étage, du farm.
+- **Difficulté (décidée)** : douce, mais assez dure pour pousser à farmer. Réglée par simulation (`docs/BALANCE.md`).
+- **Étoiles** : 3 si aucun héros ne tombe, 2 si un héros tombe, 1 sinon. Si tous les héros tombent, c'est une défaite : choix entre réessayer, farmer l'étage d'avant ou améliorer.
+
+### Branche 1a · le noyau jouable (FAIT dans le code)
+Étages et carte, mini-boss (Foreur éclaté, étage 5) et gros boss (Gardien de verre, étage 10, deux phases, avertissement avant son gros coup), étoiles, coffre à six raretés avec garanties, éclats de verre, farm automatique des étages déjà vaincus, meilleur achat signalé, coffre gratuit toutes les 4 h, retour hors ligne (plafond 8 h), réglages, écran d'entrée, tutoriel intégré, sons synthétisés, sauvegarde versionnée, tests et outils d'équilibrage.
+
+### Branche 1b · la profondeur (À FAIRE)
+Choix d'un renfort parmi trois après chaque coffre, paliers d'évolution (niveaux 10 et 20, payés en crédits et éclats), bonus de persévérance après défaite, combos de pouvoirs, écran de coffre d'une rareté propre à chaque rareté (mise en scène), gros boss avec davantage de variété.
+
+- **Raretés de coffre** : commun (chaque étage vaincu), normal (étage en 3 étoiles), rare (mini-boss), épique / légendaire / ultime sur les gros boss : épique 10 % en 1 ou 2 étoiles et 20 % en 3 étoiles ; légendaire 3 % (garanti au 2e gros boss en 3 étoiles sans légendaire) ; ultime 0,5 % (garanti au 10e sans ultime).
+- **Ressources** : crédits (améliorations) et éclats de verre (paliers d'évolution, plus tard).
+- **Maquette** : 14 écrans (voir le canvas).
+- **À valider** : ton du texte d'entrée, noms des boss, chiffres d'économie après test sur téléphone.
 
 ## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
