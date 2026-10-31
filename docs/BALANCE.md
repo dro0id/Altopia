@@ -14,15 +14,15 @@ La difficulté monte doucement, mais reste assez dure pour donner envie de farme
 | Étage | Type | Niveau minimal | Niveau conseillé affiché |
 |---|---|---|---|
 | 5 | mini-boss | 1 | 1 |
-| 10 | gros boss | 8 | 8 |
+| 10 | gros boss | 8 | 9 |
 | 15 | mini-boss | 7 | 7 |
 | 20 | gros boss | 16 | 16 |
 | 25 | mini-boss | 14 | 14 |
 | 30 | gros boss | 23 | 24 |
-| 35 | mini-boss | 21 | 21 |
-| 40 | gros boss | 30 | 30 |
+| 35 | mini-boss | 21 | 20 |
+| 40 | gros boss | 30 | 31 |
 
-Niveau conseillé : `0,65 × étage − 3,4`, plus 1 pour un mini-boss, plus `4,5 + 0,1 × étage` pour un gros boss (voir `Data.recommended_level`).
+Le niveau conseillé affiché est à peu près le niveau minimal, à ±1. Formule : `0,65 × étage − 3,4`, plus 1 pour un mini-boss, plus `4,5 + 0,1 × étage` pour un gros boss (voir `Data.recommended_level`).
 
 ## Joueur type (dépense tout dans le meilleur achat, farme l'étage précédent après une défaite)
 | Étage | Temps cumulé de combat | Temps passé sur l'étage | Niveau moyen | Défaites avant victoire |
