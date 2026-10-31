@@ -7,16 +7,19 @@ Légende de taille : S = une session courte, M = quelques sessions, L = un gros 
 ## Socle (fait)
 Prototype de combat automatique 2D animé : 5 héros, ennemis, boss tous les 5 secteurs, pouvoirs, amélioration, sauvegarde, gains hors ligne, tests de logique.
 
-## Branche 1 · `feat/boucle-de-jeu` (M) : une partie qui tient debout
-- **Objectif** : une boucle complète, claire et qui donne envie de rejouer, pour les 10 premières minutes.
+## Branche 1 · `feat/boucle-de-jeu` (M) : le Trou de verre
+- **Histoire** : on entre dans un trou de verre qui s'est ouvert dans la Ceinture. Toute la boucle de jeu est cette ascension, étage après étage.
+- **Structure (décidée)** : une montée d'étages comme dans un donjon. Plus on gagne, plus on monte. **Mini-boss tous les 5 étages, gros boss tous les 10.** Écran de **carte des étages** pour choisir et suivre sa progression.
+- **Vocabulaire** : « étage » pour le donjon, « niveau » seulement pour les héros, afin d'éviter la confusion.
 - **La boucle en quatre temps**
-  1. **Combat (10 à 40 s)** : combat automatique, le joueur déclenche les pouvoirs au bon moment. Un combo est compté quand deux pouvoirs sont lancés à moins de 3 s d'intervalle : bonus de dégâts et de butin.
-  2. **Sortie de secteur (5 s)** : écran de résultat avec butin, étoiles (3 selon les héros vivants) et un **coffre de secteur** (crédits, plus tard fragments et objets). Choix de **un renfort sur trois** (bonus temporaire jusqu'au prochain boss, par exemple + vitesse d'attaque, bouclier de départ, pouvoirs plus rapides).
-  3. **Progression (1 à 3 min)** : améliorer les héros avec les crédits. Aux niveaux 10 et 20, **palier d'évolution** qui renforce le pouvoir (effet visible). Le bouton « Améliorer » indique le meilleur achat du moment.
-  4. **Mur et retour** : devant un boss, bouton « Combat de boss ». En cas de défaite, un **bonus de persévérance** (+5 % de statistiques par défaite, cumulable, remis à zéro à la victoire) évite de rester bloqué. Hors ligne, gains plafonnés à 8 h avec récapitulatif, et un **coffre gratuit toutes les 4 h** pour inciter au retour.
-- **Contenu technique** : formation resserrée, écran de résultat, carte des secteurs, combat de boss, coffre et choix de renfort, paliers d'évolution, bonus de persévérance, combos, retour hors ligne, réglages (son, vitesse), icône et nom.
+  1. **Combat (10 à 40 s)** : combat automatique, pouvoirs déclenchés au bon moment. Deux pouvoirs à moins de 3 s d'intervalle forment un combo (bonus de dégâts et de butin).
+  2. **Sortie d'étage (5 s)** : butin, étoiles (3 selon les héros vivants), **coffre d'étage**, puis choix de **un renfort sur trois** valable jusqu'au prochain boss.
+  3. **Progression (1 à 3 min)** : améliorer les héros ; aux niveaux 10 et 20, **palier d'évolution** qui renforce le pouvoir. Le bouton « Améliorer » signale le meilleur achat.
+  4. **Mur et retour** : mini-boss (étages 5, 15, 25...) et gros boss (10, 20, 30...). Après une défaite, **bonus de persévérance** (+5 % de statistiques par défaite, remis à zéro à la victoire). Hors ligne : gains plafonnés à 8 h, récapitulatif, coffre gratuit toutes les 4 h.
+- **Contenu technique** : formation, écran de résultat, carte des étages, mini-boss et gros boss, coffre et renfort, paliers, persévérance, combos, retour hors ligne, réglages, icône et nom, écran d'entrée du Trou de verre.
 - **Livrable** : APK de test jouable de bout en bout sur le Xiaomi 11T.
-- **À valider** : durée visée d'une session (viser 5 à 10 min), difficulté du premier mur, carte des secteurs ou écran unique, et si les renforts et le bonus de persévérance restent dans cette branche ou passent plus tard.
+- **Décisions prises** : tout le contenu ci-dessus est gardé dans cette branche ; carte des étages ; mini-boss tous les 5, gros boss tous les 10.
+- **À valider** : durée d'une session (viser 5 à 10 min), difficulté du premier mini-boss, noms et apparence du mini-boss de l'étage 5 et du gros boss de l'étage 10, ton du texte d'entrée.
 
 ## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
