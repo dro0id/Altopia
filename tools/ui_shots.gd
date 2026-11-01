@@ -24,6 +24,16 @@ func _initialize() -> void:
 	await _shot(out + "/settings.png", main, SettingsScreen.new(), 0.5)
 	await _shot(out + "/defeat.png", main, DefeatScreen.new(9), 0.5)
 	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 4860.0}), 0.5)
+	g.shards = 12
+	g.credits = 5000.0
+	g.levels["mara"] = 10
+	g.perseverance = 3
+	g.boosts = ["tir", "vitalite"]
+	await _shot(out + "/boost.png", main, BoostScreen.new(["tir", "bouclier", "butin"], 10), 0.6)
+	await _shot(out + "/evolve.png", main, EvolveScreen.new("mara"), 0.6)
+	await _shot(out + "/defeat2.png", main, DefeatScreen.new(10), 0.6)
+	main._refresh()
+	await process_frame
 	var intro := IntroScreen.new()
 	main.add_child(intro)
 	for i in 240:

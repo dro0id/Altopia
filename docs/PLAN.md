@@ -17,8 +17,8 @@ Prototype de combat automatique 2D animé : 5 héros, ennemis, boss tous les 5 s
 ### Branche 1a · le noyau jouable (FAIT dans le code)
 Étages et carte, mini-boss (Foreur éclaté, étage 5) et gros boss (Gardien de verre, étage 10, deux phases, avertissement avant son gros coup), étoiles, coffre à six raretés avec garanties, éclats de verre, farm automatique des étages déjà vaincus, meilleur achat signalé, coffre gratuit toutes les 4 h, retour hors ligne (plafond 8 h), réglages, écran d'entrée, tutoriel intégré, sons synthétisés, sauvegarde versionnée, tests et outils d'équilibrage.
 
-### Branche 1b · la profondeur (À FAIRE)
-Choix d'un renfort parmi trois après chaque coffre, paliers d'évolution (niveaux 10 et 20, payés en crédits et éclats), bonus de persévérance après défaite, combos de pouvoirs, écran de coffre d'une rareté propre à chaque rareté (mise en scène), gros boss avec davantage de variété.
+### Branche 1b · la profondeur (FAIT dans le code, à tester sur téléphone)
+Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : tir accéléré, bouclier de départ, pouvoirs rapides, vitalité, butin doré), paliers d'évolution (un héros doit évoluer au niveau 10 puis 20 : crédits et éclats de verre, pouvoir ×1,4 puis ×1,8, statistiques +10 % puis +20 %), bonus de persévérance (+5 % par défaite jusqu'à +30 %, remis à zéro à la victoire), combos (deux pouvoirs à moins de 3 s : +10 % par pouvoir jusqu'à +50 % de puissance, et jusqu'à +25 % de crédits dans le coffre). Reste : mise en scène propre à chaque rareté de coffre à l'ouverture, plus de variété de gros boss.
 
 - **Raretés de coffre** : commun (chaque étage vaincu), normal (étage en 3 étoiles), rare (mini-boss), épique / légendaire / ultime sur les gros boss : épique 10 % en 1 ou 2 étoiles et 20 % en 3 étoiles ; légendaire 3 % (garanti au 2e gros boss en 3 étoiles sans légendaire) ; ultime 0,5 % (garanti au 10e sans ultime).
 - **Ressources** : crédits (améliorations) et éclats de verre (paliers d'évolution, plus tard).

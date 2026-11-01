@@ -45,8 +45,8 @@ const ENEMIES := {
 	"mite": {"name": "Mite de roche", "hp": 0.6, "atk": 0.9, "def": 0.5, "interval": 1.0, "ranged": false, "gold": 1.0},
 	"drone": {"name": "Drone foreur", "hp": 1.0, "atk": 1.0, "def": 1.0, "interval": 1.5, "ranged": true, "gold": 1.5},
 	"gunner": {"name": "Canonnier", "hp": 0.8, "atk": 1.7, "def": 0.8, "interval": 2.0, "ranged": true, "gold": 2.0},
-	"foreur": {"name": "Foreur éclaté", "hp": 11.0, "atk": 1.7, "def": 1.5, "interval": 1.6, "ranged": false, "gold": 12.0},
-	"titan": {"name": "Gardien de verre", "hp": 40.0, "atk": 2.6, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 30.0},
+	"foreur": {"name": "Foreur éclaté", "hp": 16.0, "atk": 2.0, "def": 1.5, "interval": 1.6, "ranged": false, "gold": 12.0},
+	"titan": {"name": "Gardien de verre", "hp": 140.0, "atk": 3.6, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 30.0},
 }
 const BOSS_KINDS := ["foreur", "titan"]
 
@@ -105,7 +105,7 @@ static func recommended_level(stage: int) -> int:
 		"mini":
 			lv += 1.0
 		"big":
-			lv += 4.5 + 0.1 * float(stage)
+			lv += 5.5 + 0.12 * float(stage)
 	return maxi(1, int(round(lv)))
 
 
@@ -119,6 +119,44 @@ static func recommended_power(stage: int) -> float:
 ## Étoiles : 3 si personne ne tombe, 2 si un héros tombe, 1 sinon.
 static func stars_for(fallen: int) -> int:
 	return 3 if fallen == 0 else (2 if fallen == 1 else 1)
+
+
+# ---------------------------------------------------------------- branche 1b : renforts, persévérance, paliers, combos
+
+const BOOSTS := {
+	"tir": {"name": "Tir accéléré", "desc": "+20 % de vitesse d'attaque", "color": Color("ffb142")},
+	"bouclier": {"name": "Bouclier de départ", "desc": "Chaque combat commence avec un bouclier de 20 % des PV", "color": Color("4fd8ff")},
+	"pouvoirs": {"name": "Pouvoirs rapides", "desc": "Recharge des pouvoirs réduite de 25 %", "color": Color("b88cff")},
+	"vitalite": {"name": "Vitalité", "desc": "+20 % de PV pour toute l'escouade", "color": Color("7dffb0")},
+	"butin": {"name": "Butin doré", "desc": "+25 % de crédits sur les ennemis vaincus", "color": Color("ffd166")},
+}
+const BOOST_IDS := ["tir", "bouclier", "pouvoirs", "vitalite", "butin"]
+const PERSEVERANCE_STEP := 0.05          # +5 % de statistiques par défaite
+const PERSEVERANCE_MAX := 6              # jusqu'à +30 %
+const EVO_LEVELS := [10, 20]             # niveaux où il faut évoluer pour continuer
+const EVO_SKILL_MULT := [1.0, 1.4, 1.8]  # puissance du pouvoir selon le palier
+const EVO_STAT_MULT := [1.0, 1.1, 1.2]   # statistiques selon le palier
+const EVO_SHARDS := [3, 8]               # éclats de verre demandés pour chaque palier
+const COMBO_WINDOW := 3.0                # deux pouvoirs à moins de 3 s forment un combo
+
+
+## Niveau maximal d'un héros selon son palier d'évolution (le dernier palier lève la limite).
+static func level_cap(tier: int) -> int:
+	return EVO_LEVELS[tier] if tier < EVO_LEVELS.size() else 999
+
+
+static func evolve_cost(level: int, tier: int) -> Dictionary:
+	return {"credits": 4 * level_cost(level), "shards": EVO_SHARDS[mini(tier, EVO_SHARDS.size() - 1)]}
+
+
+## Bonus de dégâts d'un enchaînement de `n` pouvoirs rapprochés : +10 % par pouvoir au-delà du premier, plafonné à +50 %.
+static func combo_mult(n: int) -> float:
+	return 1.0 + minf(0.5, 0.1 * float(maxi(0, n - 1)))
+
+
+## Bonus de crédits du coffre selon le meilleur combo de l'étage : +5 % par combo, plafonné à +25 %.
+static func combo_loot(n: int) -> float:
+	return minf(0.25, 0.05 * float(maxi(0, n - 1)))
 
 
 # ---------------------------------------------------------------- coffres

@@ -10,8 +10,15 @@ func _initialize() -> void:
 	var max_stage := int(a[0]) if a.size() > 0 else 40
 	var seed_v := int(a[1]) if a.size() > 1 else 1
 	var levels := {}
+	var evo := {}
 	for id in Data.HERO_ORDER:
 		levels[id] = 1
+		evo[id] = 0
+	var shards := 0
+	var boosts: Array = []
+	var perseverance := 0
+	var pick_order := ["tir", "vitalite", "pouvoirs", "bouclier", "butin"]
+	var picks := 0
 	var credits := 0.0
 	var stage := 1
 	var best := 1
@@ -23,17 +30,13 @@ func _initialize() -> void:
 	var fails := 0
 	while best <= max_stage and total_time < 3600.0 * 6.0:
 		# dépense tous les crédits dans le meilleur achat
-		while true:
-			var pick := _best_buy(levels)
-			var cost := Data.level_cost(int(levels[pick]))
-			if credits < cost:
-				break
-			credits -= cost
-			levels[pick] = int(levels[pick]) + 1
+		_spend(levels, evo, credits, shards)
+		credits = _spent.credits
+		shards = _spent.shards
 		var team: Array = []
 		for id in Data.HERO_ORDER:
-			team.append({"id": id, "level": int(levels[id])})
-		var sim := BattleSim.new(team, stage, seed_v + attempts)
+			team.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance})
+		var sim := BattleSim.new(team, stage, seed_v + attempts, boosts)
 		var res := sim.run(240.0)
 		attempts += 1
 		total_time += sim.time
@@ -41,8 +44,15 @@ func _initialize() -> void:
 		credits += sim.credits
 		if res == "clear":
 			# coffre : on compte seulement les crédits
-			credits += Data.chest_rewards(stage, Data.roll_chest(stage, sim.stars, RandomNumberGenerator.new(), {})).credits
+			var rw := Data.chest_rewards(stage, Data.roll_chest(stage, sim.stars, RandomNumberGenerator.new(), {}))
+			credits += rw.credits * (1.0 + Data.combo_loot(sim.max_combo))
+			shards += int(rw.shards)
+			perseverance = 0
+			if Data.is_boss_stage(stage):
+				boosts = []
 			if stage >= best:
+				boosts.append(pick_order[picks % pick_order.size()])
+				picks += 1
 				rows.append({"stage": stage, "time": total_time, "stage_time": stage_time, "power": Data.team_power(levels), "reco": Data.recommended_power(stage), "fails": fails, "stars": sim.stars, "avg": _avg(levels)})
 				best = stage + 1
 				stage_time = 0.0
@@ -50,14 +60,15 @@ func _initialize() -> void:
 			stage = best
 		else:
 			fails += 1
+			perseverance = mini(Data.PERSEVERANCE_MAX, perseverance + 1)
 			# défaite : on farme l'étage précédent jusqu'à pouvoir retenter
 			stage = maxi(1, best - 1)
 			var farmed := 0
 			while farmed < 12:
 				var t2: Array = []
 				for id in Data.HERO_ORDER:
-					t2.append({"id": id, "level": int(levels[id])})
-				var s2 := BattleSim.new(t2, stage, seed_v + attempts)
+					t2.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance})
+				var s2 := BattleSim.new(t2, stage, seed_v + attempts, boosts)
 				s2.run(240.0)
 				attempts += 1
 				total_time += s2.time
@@ -65,9 +76,13 @@ func _initialize() -> void:
 				farm_time += s2.time
 				credits += s2.credits + Data.chest_rewards(stage, "commun").credits
 				farmed += 1
-				var pick2 := _best_buy(levels)
-				if credits >= Data.level_cost(int(levels[pick2])) * 3.0:
+				var pick2 := _best_buy(levels, evo)
+				if pick2 == "" or credits >= Data.level_cost(int(levels[pick2])) * 3.0:
 					break
+				shards += 2
+				_spend(levels, evo, credits, shards)
+				credits = _spent.credits
+				shards = _spent.shards
 			stage = best
 	print("étage ; temps cumulé (min) ; temps sur l'étage (s) ; niveau moyen ; puissance ; reco ; défaites ; étoiles")
 	for r in rows:
@@ -76,10 +91,37 @@ func _initialize() -> void:
 	quit()
 
 
-func _best_buy(levels: Dictionary) -> String:
+var _spent := {}
+
+
+## Dépense : évolue dès que possible, sinon achète le meilleur niveau.
+func _spend(levels: Dictionary, evo: Dictionary, credits: float, shards: int) -> void:
+	while true:
+		var did := false
+		for id in Data.HERO_ORDER:
+			if int(levels[id]) >= Data.level_cap(int(evo[id])) and int(evo[id]) < 2:
+				var c: Dictionary = Data.evolve_cost(int(levels[id]), int(evo[id]))
+				if credits >= c.credits and shards >= c.shards:
+					credits -= c.credits
+					shards -= int(c.shards)
+					evo[id] = int(evo[id]) + 1
+					did = true
+		var pick := _best_buy(levels, evo)
+		if pick != "" and credits >= Data.level_cost(int(levels[pick])):
+			credits -= Data.level_cost(int(levels[pick]))
+			levels[pick] = int(levels[pick]) + 1
+			did = true
+		if not did:
+			break
+	_spent = {"credits": credits, "shards": shards}
+
+
+func _best_buy(levels: Dictionary, evo: Dictionary = {}) -> String:
 	var best := ""
 	var best_ratio := -1.0
 	for id in Data.HERO_ORDER:
+		if not evo.is_empty() and int(levels[id]) >= Data.level_cap(int(evo[id])):
+			continue
 		var h: Dictionary = Data.HEROES[id]
 		var lv := int(levels[id])
 		var gain: float = (h.hp * 0.25 + h.atk * 6.0 + h.def * 3.0) * (Data.hero_mult(lv + 1) - Data.hero_mult(lv))

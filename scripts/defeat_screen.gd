@@ -23,7 +23,18 @@ func _init(stage: int) -> void:
 	else:
 		tip += "\nVous êtes au bon niveau : retente, en lançant les pouvoirs au bon moment."
 	centered(tip, 22, Color(0.85, 0.92, 1.0))
-	var r := UI.button(box, "Réessayer l'étage %d" % stage, 28, "main")
+	var pb := PanelContainer.new()
+	pb.add_theme_stylebox_override("panel", UI.box(Color(0.06, 0.16, 0.14, 0.98), UI.GREEN, 12, 12))
+	box.add_child(pb)
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 4)
+	pb.add_child(pv)
+	var l1 := UI.label(pv, "Bonus de persévérance : + %d %%" % Game.perseverance_pct(), 28, UI.GREEN)
+	l1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var l2 := UI.label(pv, "+ 5 % de statistiques à chaque défaite (jusqu'à + 30 %). Remis à zéro à la victoire.", 18, UI.MUTED)
+	l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var r := UI.button(box, "Réessayer avec + %d %%" % Game.perseverance_pct(), 28, "main")
 	r.custom_minimum_size = Vector2(0, 68)
 	r.pressed.connect(func():
 		retry_pressed.emit()

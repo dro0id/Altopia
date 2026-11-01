@@ -41,6 +41,8 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String) -
 	box.add_child(_rewards)
 	_reward_row("Crédits", "+ %s" % Data.fmt(chest.credits), UI.GOLD)
 	_reward_row("Éclats de verre", "+ %d" % int(chest.shards), Color(0.5, 0.86, 1.0))
+	if chest.get("combo_bonus", 0.0) > 0.0:
+		_reward_row("Bonus de combo", "+ %d %%" % int(round(chest.combo_bonus * 100.0)), UI.GREEN)
 	_buttons = VBoxContainer.new()
 	_buttons.add_theme_constant_override("separation", 8)
 	_buttons.modulate.a = 0.0

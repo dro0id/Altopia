@@ -28,6 +28,7 @@ class Unit:
 	var alive := true
 	var ranged := false
 	var boss := false
+	var evo := 0                 # palier d'évolution du héros
 	var phase2 := false          # le gros boss passe en phase 2 sous 50 % de PV
 	var warned := false          # avertissement du coup puissant déjà émis
 	var gold := 0.0
@@ -48,21 +49,49 @@ var time := 0.0
 var credits := 0.0               # butin gagné pendant ce combat
 var fallen := 0                  # héros tombés pendant l'étage
 var stars := 0                   # étoiles à la victoire (voir Data.stars_for)
+var combo := 0                   # enchaînement de pouvoirs en cours
+var max_combo := 0
+var gold_mult := 1.0
+var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
 var rng := RandomNumberGenerator.new()
 var _wave_timer := 0.0
 
 
-func _init(team: Array, p_stage: int, p_seed: int = 1) -> void:
+func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> void:
 	stage = p_stage
 	rng.seed = p_seed + p_stage * 1009
 	var slot := 0
 	for e in team:
-		var u := _make_hero(String(e.id), int(e.level), slot)
+		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)))
 		units.append(u)
 		slot += 1
+	_apply_boosts(boosts)
 	_spawn_wave()
+
+
+## Renforts choisis (peuvent se cumuler).
+func _apply_boosts(boosts: Array) -> void:
+	var n := {}
+	for b in boosts:
+		n[b] = int(n.get(b, 0)) + 1
+	for u in units:
+		if u.side != 0:
+			continue
+		if n.has("tir"):
+			u.interval *= pow(0.8, n.tir)
+		if n.has("pouvoirs"):
+			u.skill_max *= pow(0.75, n.pouvoirs)
+			u.skill_cd *= pow(0.75, n.pouvoirs)
+		if n.has("vitalite"):
+			u.max_hp *= pow(1.2, n.vitalite)
+			u.hp = u.max_hp
+		if n.has("bouclier"):
+			u.shield = u.max_hp * 0.2 * n.bouclier
+			u.shield_t = 6.0
+	if n.has("butin"):
+		gold_mult = pow(1.25, n.butin)
 
 
 func allies() -> Array[Unit]:
@@ -89,9 +118,9 @@ func _alive(side: int) -> Array[Unit]:
 	return out
 
 
-func _make_hero(id: String, level: int, slot: int) -> Unit:
+func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int = 0) -> Unit:
 	var h: Dictionary = Data.HEROES[id]
-	var m := Data.hero_mult(level)
+	var m: float = Data.hero_mult(level) * bonus * Data.EVO_STAT_MULT[evo]
 	var u := Unit.new()
 	u.side = 0
 	u.slot = slot
@@ -99,6 +128,7 @@ func _make_hero(id: String, level: int, slot: int) -> Unit:
 	u.name = h.name
 	u.role = h.role
 	u.level = level
+	u.evo = evo
 	u.max_hp = h.hp * m
 	u.hp = u.max_hp
 	u.atk = h.atk * m
@@ -188,16 +218,24 @@ func _cast(u: Unit) -> bool:
 		return false
 	u.skill_cd = u.skill_max
 	u.warned = false
+	var k := 1.0
+	if u.side == 0:
+		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
+		_last_cast = time
+		max_combo = maxi(max_combo, combo)
+		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo]
+		if combo >= 2:
+			events.append({"type": "combo", "n": combo, "mult": Data.combo_mult(combo)})
 	match u.skill_kind:
 		"shield":
 			for a in _alive(0):
-				a.shield = u.atk * 3.5
+				a.shield = u.atk * 3.5 * k
 				a.shield_t = 6.0
 			events.append({"type": "cast", "unit": u, "kind": "shield"})
 		"volley":
 			var i := 0
 			for e in _alive(1):
-				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 2.4, "fx": "missile"})
+				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 2.4 * k, "fx": "missile"})
 				i += 1
 			events.append({"type": "cast", "unit": u, "kind": "volley", "targets": _alive(1)})
 		"pierce":
@@ -206,21 +244,21 @@ func _cast(u: Unit) -> bool:
 				if best == null or e.hp > best.hp:
 					best = e
 			if best != null:
-				pending.append({"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0, "fx": "pierce"})
+				pending.append({"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0 * k, "fx": "pierce"})
 				events.append({"type": "cast", "unit": u, "kind": "pierce", "target": best})
 		"repair":
 			for a in _alive(0):
-				_heal(a, u.atk * 2.4)
+				_heal(a, u.atk * 2.4 * k)
 			events.append({"type": "cast", "unit": u, "kind": "repair"})
 		"gravity":
 			for e in _alive(1):
-				e.stun_t = 2.0
-				pending.append({"t": 0.3, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 1.3, "fx": "gravity"})
+				e.stun_t = 2.0 + 0.5 * u.evo
+				pending.append({"t": 0.3, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 1.3 * k, "fx": "gravity"})
 			events.append({"type": "cast", "unit": u, "kind": "gravity"})
 		"slam":
 			for a in _alive(0):
-				var k := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
-				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * k, "fx": "slam"})
+				var sk := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
+				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * sk, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
 	return true
 
@@ -258,7 +296,7 @@ func _apply_hit(p: Dictionary) -> void:
 		dst.hp = 0.0
 		events.append({"type": "death", "unit": dst})
 		if dst.side == 1:
-			credits += dst.gold
+			credits += dst.gold * gold_mult
 		else:
 			fallen += 1
 	elif dst.kind == "titan" and not dst.phase2 and dst.hp <= dst.max_hp * 0.5:
@@ -348,7 +386,7 @@ func step(dt: float) -> void:
 			credits += clear_bonus
 			stars = Data.stars_for(fallen)
 			state = "clear"
-			events.append({"type": "clear", "credits": credits, "stars": stars})
+			events.append({"type": "clear", "credits": credits, "stars": stars, "combo": max_combo})
 
 
 ## Combat sans dessin, jusqu'à la fin ou jusqu'à max_seconds (pour les tests et l'équilibrage).

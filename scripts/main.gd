@@ -17,6 +17,7 @@ var _claimed := 0.0
 var _refresh_t := 0.0
 var _modal: Control
 var _scroll: ScrollContainer
+var _buffs: Label
 # tutoriel
 var _hint: PanelContainer
 var _hint_label: Label
@@ -41,6 +42,7 @@ func _ready() -> void:
 	_build_heroes()
 	_build_toast()
 	_build_hint()
+	_build_buffs()
 	_start_battle()
 	_tuto = 4 if Game.tutorial_done else 0
 	if not Game.intro_seen:
@@ -144,7 +146,9 @@ func _build_heroes() -> void:
 		var up := UI.button(hb, "", 21)
 		up.custom_minimum_size = Vector2(190, 0)
 		up.pressed.connect(func():
-			if Game.level_up(id):
+			if Game.can_evolve(id):
+				_open_evolve(id)
+			elif Game.level_up(id):
 				Sfx.play("coin", -4.0)
 			_refresh())
 		rows[id] = {"name": nm, "info": info, "stats": stats, "up": up}
@@ -195,6 +199,17 @@ func _build_hint() -> void:
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
+func _build_buffs() -> void:
+	_buffs = UI.label(self, "", 19, UI.GOLD)
+	_buffs.position = Vector2(16, 124)
+	_buffs.size = Vector2(500, 60)
+	_buffs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_buffs.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_buffs.add_theme_constant_override("outline_size", 6)
+	_buffs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_buffs.z_index = 3000
+
+
 func _show_toast(text: String, secs: float = 2.5) -> void:
 	_toast.text = text
 	_toast.modulate.a = 1.0
@@ -239,6 +254,13 @@ func _open_settings() -> void:
 	_open_modal(s)
 
 
+func _open_evolve(id: String) -> void:
+	var e := EvolveScreen.new(id)
+	e.evolved.connect(func():
+		_start_battle())
+	_open_modal(e)
+
+
 func _open_offline() -> void:
 	var o := OfflineScreen.new(Game.offline_report)
 	Game.offline_report = {}
@@ -272,7 +294,7 @@ func _on_cleared(_credits: float) -> void:
 	var stage := Game.stage
 	var stars: int = battle.sim.stars
 	var frontier := Game.is_frontier()
-	var chest: Dictionary = Game.stage_cleared(stars)
+	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo)
 	Game.save_game()
 	if _tuto == 3:
 		_tuto = 4
@@ -280,14 +302,17 @@ func _on_cleared(_credits: float) -> void:
 	if frontier or Data.is_boss_stage(stage):
 		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label)
+		# après un étage de progression, on choisit un renfort avant de repartir
 		r.next_pressed.connect(func():
-			if Game.best_stage > stage:
-				Game.advance()
-			_start_battle())
-		r.replay_pressed.connect(_start_battle)
+			_pick_boost(func():
+				if Game.best_stage > stage:
+					Game.advance()
+				_start_battle()))
+		r.replay_pressed.connect(func(): _pick_boost(_start_battle))
 		r.map_pressed.connect(func():
-			_start_battle()
-			_open_map.call_deferred())
+			_pick_boost(func():
+				_start_battle()
+				_open_map.call_deferred()))
 		_open_modal(r)
 	else:
 		_show_toast("Étage %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
@@ -295,7 +320,26 @@ func _on_cleared(_credits: float) -> void:
 		_start_battle()
 
 
+## Propose trois renforts puis continue ; `then` est appelé après le choix.
+func _pick_boost(then: Callable) -> void:
+	var next_boss := Game.stage + 1
+	while not Data.is_boss_stage(next_boss):
+		next_boss += 1
+	var offer: Array = Game.offer_boosts()
+	# la fenêtre de résultat se ferme juste après ce signal : on ouvre le choix à l'image suivante
+	var open := func():
+		var bs := BoostScreen.new(offer, next_boss)
+		bs.picked.connect(func(id: String):
+			Game.add_boost(id)
+			Game.save_game()
+			then.call())
+		_open_modal(bs)
+	open.call_deferred()
+
+
 func _on_failed() -> void:
+	Game.defeated()
+	Game.save_game()
 	var d := DefeatScreen.new(Game.stage)
 	d.retry_pressed.connect(_start_battle)
 	d.farm_pressed.connect(func():
@@ -381,16 +425,31 @@ func _refresh() -> void:
 	_auto_btn.text = "Auto ✓" if Game.auto_cast else "Auto ✗"
 	_speed_btn.text = "x%d" % int(Game.speed)
 	_map_btn.text = "Carte ●" if Game.free_chest_ready() else "Carte"
+	var parts: Array = []
+	if Game.perseverance > 0:
+		parts.append("Persévérance + %d %%" % Game.perseverance_pct())
+	if not Game.boosts.is_empty():
+		var names: Array = []
+		for b in Game.boosts:
+			names.append(Data.BOOSTS[b].name)
+		parts.append("Renforts : " + ", ".join(names))
+	_buffs.text = "\n".join(parts)
 	var best := Game.best_buy()
 	for id in Data.HERO_ORDER:
 		var h: Dictionary = Data.HEROES[id]
 		var lv: int = Game.levels[id]
 		var m := Data.hero_mult(lv)
 		var r: Dictionary = rows[id]
-		r.name.text = "%s  niv. %d" % [h.name, lv]
+		r.name.text = "%s%s  niv. %d" % [h.name, ["", " II", " III"][Game.tier(id)], lv]
 		r.info.text = "%s · %s · %s" % [h.job, Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]]
 		r.stats.text = "PV %d   ATQ %d   DÉF %d" % [h.hp * m, h.atk * m, h.def * m]
 		var cost := Game.level_cost(id)
-		r.up.text = "%sAméliorer\n%s cr" % ["★ Meilleur achat\n" if id == best and Game.credits >= cost else "", Data.fmt(cost)]
-		r.up.disabled = Game.credits < cost
-		r.up.modulate = Color(1.0, 0.92, 0.55) if id == best and Game.credits >= cost else Color.WHITE
+		if Game.can_evolve(id):
+			var ec: Dictionary = Game.evolve_cost(id)
+			r.up.text = "★ Évoluer\n%s cr · %d ✦" % [Data.fmt(ec.credits), int(ec.shards)]
+			r.up.disabled = false
+			r.up.modulate = Color(1.0, 0.85, 0.35) if Game.can_afford_evolve(id) else Color(0.8, 0.8, 0.85)
+		else:
+			r.up.text = "%sAméliorer\n%s cr" % ["★ Meilleur achat\n" if id == best and Game.credits >= cost else "", Data.fmt(cost)]
+			r.up.disabled = Game.credits < cost
+			r.up.modulate = Color(1.0, 0.92, 0.55) if id == best and Game.credits >= cost else Color.WHITE

@@ -5,7 +5,7 @@ const Data = preload("res://scripts/data.gd")
 
 signal changed
 
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 const AUTOSAVE_EVERY := 10.0
 
 var save_path := "user://save.json"
@@ -16,6 +16,9 @@ var stage := 1                  # étage en cours
 var best_stage := 1             # étage le plus haut débloqué
 var stars := {}                 # étage -> meilleures étoiles (1 à 3)
 var pity := {"leg": 0, "ult": 0}
+var perseverance := 0          # défaites d'affilée : +5 % de statistiques chacune, remis à zéro à la victoire
+var boosts: Array = []         # renforts actifs jusqu'au prochain boss
+var evolved := {}              # héros -> palier d'évolution (0 à 2)
 var auto_cast := true
 var speed := 1.0
 var sfx_on := true
@@ -58,6 +61,9 @@ func reset() -> void:
 	best_stage = 1
 	stars = {}
 	pity = {"leg": 0, "ult": 0}
+	perseverance = 0
+	boosts = []
+	evolved = {}
 	auto_cast = true
 	speed = 1.0
 	sfx_on = true
@@ -71,7 +77,7 @@ func reset() -> void:
 func team() -> Array:
 	var out: Array = []
 	for id in Data.HERO_ORDER:
-		out.append({"id": id, "level": int(levels[id])})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance})
 	return out
 
 
@@ -88,13 +94,46 @@ func level_cost(id: String) -> int:
 	return Data.level_cost(int(levels[id]))
 
 
+func tier(id: String) -> int:
+	return int(evolved.get(id, 0))
+
+
+func at_cap(id: String) -> bool:
+	return int(levels[id]) >= Data.level_cap(tier(id))
+
+
 func can_level(id: String) -> bool:
-	return credits >= level_cost(id)
+	return not at_cap(id) and credits >= level_cost(id)
+
+
+## Un héros au niveau maximal de son palier doit évoluer pour continuer.
+func can_evolve(id: String) -> bool:
+	return at_cap(id) and tier(id) < Data.EVO_LEVELS.size()
+
+
+func evolve_cost(id: String) -> Dictionary:
+	return Data.evolve_cost(int(levels[id]), tier(id))
+
+
+func can_afford_evolve(id: String) -> bool:
+	var c := evolve_cost(id)
+	return can_evolve(id) and credits >= c.credits and shards >= c.shards
+
+
+func evolve(id: String) -> bool:
+	if not can_afford_evolve(id):
+		return false
+	var c := evolve_cost(id)
+	credits -= c.credits
+	shards -= int(c.shards)
+	evolved[id] = tier(id) + 1
+	changed.emit()
+	return true
 
 
 func level_up(id: String) -> bool:
 	var c := level_cost(id)
-	if credits < c:
+	if at_cap(id) or credits < c:
 		return false
 	credits -= c
 	levels[id] = int(levels[id]) + 1
@@ -107,6 +146,8 @@ func best_buy() -> String:
 	var best := ""
 	var best_ratio := -1.0
 	for id in Data.HERO_ORDER:
+		if at_cap(id):
+			continue
 		var h: Dictionary = Data.HEROES[id]
 		var lv := int(levels[id])
 		var gain: float = (h.hp * 0.25 + h.atk * 6.0 + h.def * 3.0) * (Data.hero_mult(lv + 1) - Data.hero_mult(lv))
@@ -124,21 +165,52 @@ func is_frontier() -> bool:
 
 
 ## Étage vaincu : enregistre les étoiles, débloque le suivant. Renvoie le coffre obtenu {rarity, credits, shards}.
-func stage_cleared(star_count: int) -> Dictionary:
+func stage_cleared(star_count: int, combo: int = 1) -> Dictionary:
 	stars[stage] = maxi(int(stars.get(stage, 0)), star_count)
-	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage)
+	perseverance = 0
+	var loot := Data.combo_loot(combo)
+	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot)
+	if Data.is_boss_stage(stage):
+		boosts = []
 	if stage >= best_stage:
 		best_stage = stage + 1
 	changed.emit()
 	return chest
 
 
-func open_chest(rarity: String, at_stage: int) -> Dictionary:
+func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0) -> Dictionary:
 	var rw := Data.chest_rewards(at_stage, rarity)
-	credits += rw.credits
+	var cr: float = round(rw.credits * (1.0 + loot_bonus))
+	credits += cr
 	shards += int(rw.shards)
 	changed.emit()
-	return {"rarity": rarity, "credits": rw.credits, "shards": rw.shards}
+	return {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus}
+
+
+## Défaite : un cran de persévérance en plus.
+func defeated() -> void:
+	perseverance = mini(Data.PERSEVERANCE_MAX, perseverance + 1)
+	changed.emit()
+
+
+func perseverance_pct() -> int:
+	return int(round(perseverance * Data.PERSEVERANCE_STEP * 100.0))
+
+
+## Trois renforts distincts tirés au hasard.
+func offer_boosts() -> Array:
+	var pool: Array = Data.BOOST_IDS.duplicate()
+	var out: Array = []
+	for i in 3:
+		var k := rng.randi() % pool.size()
+		out.append(pool[k])
+		pool.remove_at(k)
+	return out
+
+
+func add_boost(id: String) -> void:
+	boosts.append(id)
+	changed.emit()
 
 
 func go_to(n: int) -> void:
@@ -203,6 +275,7 @@ func save_game() -> void:
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
 		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
+		"perseverance": perseverance, "boosts": boosts, "evolved": evolved,
 	}))
 
 
@@ -214,7 +287,7 @@ func load_game() -> bool:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return false
 	var ver := int(parsed.get("version", 0))
-	if ver != SAVE_VERSION and ver != 1:
+	if ver < 1 or ver > SAVE_VERSION:
 		return false
 	credits = float(parsed.get("credits", 0.0))
 	shards = int(parsed.get("shards", 0))
@@ -237,6 +310,15 @@ func load_game() -> bool:
 	intro_seen = bool(parsed.get("intro", ver == 1))
 	last_seen = int(parsed.get("last_seen", 0))
 	last_free_chest = int(parsed.get("free_chest", 0))
+	perseverance = clampi(int(parsed.get("perseverance", 0)), 0, Data.PERSEVERANCE_MAX)
+	boosts = []
+	for b in parsed.get("boosts", []):
+		if Data.BOOSTS.has(String(b)):
+			boosts.append(String(b))
+	evolved = {}
+	var ev: Dictionary = parsed.get("evolved", {})
+	for id in Data.HERO_ORDER:
+		evolved[id] = clampi(int(ev.get(id, 0)), 0, 2)
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)
 	if last_seen > 0 and away > 60:
 		offline_report = compute_offline(float(away))

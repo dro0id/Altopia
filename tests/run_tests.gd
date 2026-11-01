@@ -207,3 +207,87 @@ func test_save_and_offline() -> void:
 	_check(is_equal_approx(off.seconds, Data.OFFLINE_CAP_HOURS * 3600.0), "gains hors ligne plafonnés")
 	_check(off.credits > 0.0, "des crédits hors ligne")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))
+
+
+func test_perseverance() -> void:
+	_check(_g.perseverance == 0 and _g.team()[0].bonus == 1.0, "pas de bonus au départ")
+	for i in 8:
+		_g.defeated()
+	_check(_g.perseverance == Data.PERSEVERANCE_MAX and _g.perseverance_pct() == 30, "persévérance plafonnée à +30 %")
+	_check(is_equal_approx(_g.team()[0].bonus, 1.3), "la persévérance gonfle les statistiques")
+	var weak := BattleSim.new(_team(1), 12, 3)
+	var strong_team: Array = _g.team()
+	var boosted := BattleSim.new(strong_team, 12, 3)
+	var hp_a := 0.0
+	var hp_b := 0.0
+	for u in weak.allies():
+		hp_a += u.max_hp
+	for u in boosted.allies():
+		hp_b += u.max_hp
+	_check(hp_b > hp_a * 1.25, "les PV augmentent de 30 % en simulation")
+	_g.stage = 1
+	_g.stage_cleared(3)
+	_check(_g.perseverance == 0, "une victoire remet la persévérance à zéro")
+
+
+func test_boosts() -> void:
+	var base := BattleSim.new(_team(5), 4, 2)
+	var tir := BattleSim.new(_team(5), 4, 2, ["tir", "bouclier", "pouvoirs", "vitalite", "butin"])
+	var a: BattleSim.Unit = base.allies()[0]
+	var b: BattleSim.Unit = tir.allies()[0]
+	_check(b.interval < a.interval * 0.81 and b.skill_max < a.skill_max * 0.76, "tir et pouvoirs accélérés")
+	_check(b.max_hp > a.max_hp * 1.19 and b.shield > 0.0, "vitalité et bouclier de départ")
+	_check(is_equal_approx(tir.gold_mult, 1.25), "butin doré")
+	var offer: Array = _g.offer_boosts()
+	_check(offer.size() == 3 and offer[0] != offer[1] and offer[1] != offer[2] and offer[0] != offer[2], "trois renforts distincts proposés")
+	_g.add_boost("tir")
+	_g.stage = 5
+	_g.best_stage = 5
+	_g.stage_cleared(3)
+	_check(_g.boosts.is_empty(), "les renforts disparaissent après un boss")
+
+
+func test_evolution_gate() -> void:
+	_g.levels["mara"] = 10
+	_check(_g.at_cap("mara") and _g.can_evolve("mara") and not _g.level_up("mara"), "au niveau 10 il faut évoluer")
+	_g.credits = 1.0e6
+	_g.shards = 0
+	_check(not _g.evolve("mara"), "pas d'évolution sans éclats")
+	_g.shards = 3
+	var c: Dictionary = _g.evolve_cost("mara")
+	_check(c.shards == 3 and _g.evolve("mara") and _g.tier("mara") == 1 and _g.shards == 0, "évolution payée en crédits et éclats")
+	_check(not _g.at_cap("mara") and _g.level_up("mara"), "après l'évolution on peut monter jusqu'au niveau 20")
+	var evo := BattleSim.new(_g.team(), 3, 1)
+	var plain := BattleSim.new(_team(11), 3, 1)
+	var m1: BattleSim.Unit = evo.allies()[0]
+	var m2: BattleSim.Unit = plain.allies()[0]
+	_check(m1.evo == 1 and m1.atk > m2.atk * 1.05, "les statistiques montent de 10 %")
+
+
+func test_combo() -> void:
+	var s := BattleSim.new(_team(8), 12, 1)
+	s.auto_cast = false
+	for i in 120:
+		s.step(0.05)
+	_check(s.cast(0) and s.combo == 1, "un premier pouvoir démarre l'enchaînement")
+	s.step(0.5)
+	_check(s.cast(1) and s.combo == 2 and s.max_combo == 2, "deux pouvoirs rapprochés forment un combo")
+	var got := false
+	for e in s.events:
+		got = got or e.type == "combo"
+	_check(got, "un événement de combo est émis")
+	for i in 100:
+		s.step(0.05)
+	_check(s.cast(2) and s.combo == 1, "l'enchaînement retombe après 3 s")
+	_check(Data.combo_mult(2) > 1.09 and Data.combo_mult(20) <= 1.5 and Data.combo_loot(20) <= 0.25, "bonus plafonnés")
+
+
+func test_save_v3() -> void:
+	_g.perseverance = 3
+	_g.boosts = ["tir", "butin"]
+	_g.evolved["kai"] = 2
+	_g.save_game()
+	_g.reset()
+	_check(_g.load_game(), "rechargement v3")
+	_check(_g.perseverance == 3 and _g.boosts == ["tir", "butin"] and _g.tier("kai") == 2, "persévérance, renforts et paliers conservés")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))

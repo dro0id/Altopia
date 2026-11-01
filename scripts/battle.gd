@@ -136,6 +136,12 @@ func _consume() -> void:
 				banner = "Attention !"
 				banner_t = 0.9
 				Sfx.play("warn")
+			"combo":
+				banner = "COMBO x%d !" % e.n
+				banner_t = 1.2
+				boss_wave = false
+				Sfx.play("star", -2.0, 0.9 + 0.1 * minf(e.n, 5.0))
+				fx.append({"kind": "ring", "pos": Vector2(360, 470), "t": 0.0, "dur": 0.5, "col": Color(1.0, 0.75, 0.3), "r": 200.0 + 30.0 * e.n, "shake": 0.0})
 			"phase":
 				banner = "PHASE 2 !"
 				banner_t = 1.6

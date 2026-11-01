@@ -24,14 +24,20 @@ func _initialize() -> void:
 				results += 1
 				m.next_pressed.emit()
 				m.close()
+			elif m is BoostScreen:
+				m.picked.emit(m.offer[0])
+				m.close()
 			elif m is DefeatScreen:
 				defeats += 1
 				m.farm_pressed.emit()
 				m.close()
-		# on dépense les crédits comme un joueur
+		# on évolue dès que possible, puis on dépense les crédits comme un joueur
+		for id in g.levels.keys():
+			if g.can_afford_evolve(id):
+				g.evolve(id)
 		for id in g.levels.keys():
 			if g.can_level(id):
 				g.level_up(id)
-	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), g.credits, g.shards])
+	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0
 	quit()
