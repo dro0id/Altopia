@@ -39,6 +39,29 @@ jobs:
           yes | $SDKM --sdk_root=/usr/lib/android-sdk --licenses > /dev/null || true
           $SDKM --sdk_root=/usr/lib/android-sdk "platforms;android-34" "build-tools;34.0.0"
           ls /usr/lib/android-sdk/platforms /usr/lib/android-sdk/build-tools
+      # Clé de signature de debug : prise dans le secret GitHub ANDROID_DEBUG_KEYSTORE_B64 si il existe (clé fixe, mises à jour sans désinstaller).
+      # Sinon une clé est générée une fois puis gardée en cache, pour que les builds ne dépendent d'aucun fichier du dépôt.
+      - name: Restaurer la clé de debug en cache
+        uses: actions/cache@v4
+        with:
+          path: tools/debug.keystore
+          key: debug-keystore-v1
+      - name: Clé de debug (secret ou générée)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          mkdir -p tools
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > tools/debug.keystore
+            echo "Clé de debug : secret GitHub"
+          elif [ -f tools/debug.keystore ]; then
+            echo "Clé de debug : cache"
+          else
+            keytool -genkeypair -keystore tools/debug.keystore -alias androiddebugkey -storepass android -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            echo "Clé de debug : générée"
+          fi
+          ls -la tools/debug.keystore
       - name: Configurer Android (SDK + clé de debug)
         run: |
           mkdir -p ~/.config/godot
