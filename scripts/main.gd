@@ -114,6 +114,7 @@ func _build_heroes() -> void:
 	_scroll.size = Vector2(696, 464)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_scroll)
+	DragScroll.attach(_scroll)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 8)

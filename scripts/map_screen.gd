@@ -30,6 +30,7 @@ func _init() -> void:
 	sc.custom_minimum_size = Vector2(0, 820)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(sc)
+	DragScroll.attach(sc)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 8)
