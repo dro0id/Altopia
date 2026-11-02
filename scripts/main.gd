@@ -18,6 +18,7 @@ var _refresh_t := 0.0
 var _modal: Control
 var _scroll: ScrollContainer
 var _buffs: Label
+var _recruit_btn: Button
 # tutoriel
 var _hint: PanelContainer
 var _hint_label: Label
@@ -98,10 +99,10 @@ func _build_skills() -> void:
 	row.size = Vector2(696, 108)
 	row.add_theme_constant_override("separation", 4)
 	add_child(row)
-	for i in Data.HERO_ORDER.size():
+	for i in Data.SQUAD_SIZE:
 		var b := SkillButton.new()
 		b.slot = i
-		b.hero = Data.HEROES[Data.HERO_ORDER[i]]
+		b.hero = Data.HEROES[Game.squad[i]]
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func(slot: int):
 			if battle.sim != null and battle.sim.cast(slot):
@@ -111,9 +112,24 @@ func _build_skills() -> void:
 
 
 func _build_heroes() -> void:
+	# barre d'accès : collection, recrutement, boutique
+	var bar := HBoxContainer.new()
+	bar.position = Vector2(12, 800)
+	bar.size = Vector2(696, 52)
+	bar.add_theme_constant_override("separation", 8)
+	add_child(bar)
+	var b1 := UI.button(bar, "Héros", 22, "ghost")
+	b1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b1.pressed.connect(_open_collection)
+	_recruit_btn = UI.button(bar, "Recruter", 22, "gold")
+	_recruit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_recruit_btn.pressed.connect(_open_recruit)
+	var b3 := UI.button(bar, "Boutique", 22, "ghost")
+	b3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b3.pressed.connect(_open_shop)
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(12, 804)
-	_scroll.size = Vector2(696, 464)
+	_scroll.position = Vector2(12, 860)
+	_scroll.size = Vector2(696, 408)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_scroll)
 	DragScroll.attach(_scroll)
@@ -121,37 +137,32 @@ func _build_heroes() -> void:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 8)
 	_scroll.add_child(col)
-	for id in Data.HERO_ORDER:
-		var h: Dictionary = Data.HEROES[id]
+	for slot in Data.SQUAD_SIZE:
 		var panel := PanelContainer.new()
 		panel.custom_minimum_size = Vector2(684, 96)
-		var rc: Color = Data.RARITY_COLORS[h.rarity]
-		var sb := UI.box(UI.PANEL, rc, 10, 8)
-		sb.border_width_left = 6
-		panel.add_theme_stylebox_override("panel", sb)
 		col.add_child(panel)
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 12)
 		panel.add_child(hb)
 		var icon := HeroIcon.new()
-		icon.hero = h
 		hb.add_child(icon)
 		var vb := VBoxContainer.new()
 		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		vb.add_theme_constant_override("separation", 0)
 		hb.add_child(vb)
-		var nm := UI.label(vb, "", 26, rc)
+		var nm := UI.label(vb, "", 26, Color.WHITE)
 		var info := UI.label(vb, "", 18, Color(0.6, 0.78, 0.86))
 		var stats := UI.label(vb, "", 19, Color(0.9, 0.97, 1.0))
 		var up := UI.button(hb, "", 21)
 		up.custom_minimum_size = Vector2(190, 0)
 		up.pressed.connect(func():
+			var id: String = Game.squad[slot]
 			if Game.can_evolve(id):
 				_open_evolve(id)
 			elif Game.level_up(id):
 				Sfx.play("coin", -4.0)
 			_refresh())
-		rows[id] = {"name": nm, "info": info, "stats": stats, "up": up}
+		rows[slot] = {"panel": panel, "icon": icon, "name": nm, "info": info, "stats": stats, "up": up, "id": ""}
 
 
 func _build_toast() -> void:
@@ -261,6 +272,22 @@ func _open_evolve(id: String) -> void:
 	_open_modal(e)
 
 
+func _open_collection() -> void:
+	var c := CollectionScreen.new()
+	c.squad_changed.connect(_start_battle)
+	_open_modal(c)
+
+
+func _open_recruit() -> void:
+	_open_modal(RecruitScreen.new())
+
+
+func _open_shop() -> void:
+	var sh := ShopScreen.new()
+	sh.bought.connect(_show_toast.bind(3.0))
+	_open_modal(sh)
+
+
 func _open_offline() -> void:
 	var o := OfflineScreen.new(Game.offline_report)
 	Game.offline_report = {}
@@ -285,6 +312,7 @@ func _start_battle() -> void:
 	for u in battle.sim.units:
 		if u.side == 0:
 			skill_buttons[u.slot].unit = u
+			skill_buttons[u.slot].hero = Data.HEROES[u.id]
 			if _tuto < 2 and u.slot == 0:
 				u.skill_cd = 0.5        # pendant le tutoriel, le premier pouvoir est prêt tout de suite
 	_refresh()
@@ -391,15 +419,15 @@ func _tuto_update(delta: float) -> void:
 				_tuto = 2
 		2:
 			var cheapest := 1.0e18
-			for id in Data.HERO_ORDER:
+			for id in Game.squad_ids():
 				cheapest = minf(cheapest, float(Game.level_cost(id)))
 			if Game.credits >= cheapest:
 				text = "Tu as assez de crédits : améliore un héros pour devenir plus fort."
-				target = Rect2(12, 804 - _scroll.scroll_vertical, 696, 104)
+				target = Rect2(12, 860 - _scroll.scroll_vertical, 696, 104)
 			var total := 0
-			for id in Data.HERO_ORDER:
+			for id in Game.squad_ids():
 				total += int(Game.levels[id])
-			if total > Data.HERO_ORDER.size():
+			if total > Game.squad_ids().size():
 				_tuto = 3
 		3:
 			text = "Bien joué ! Monte les étages : un mini-boss t'attend à l'étage 5."
@@ -436,12 +464,25 @@ func _refresh() -> void:
 		parts.append("Renforts : " + ", ".join(names))
 	_buffs.text = "\n".join(parts)
 	var best := Game.best_buy()
-	for id in Data.HERO_ORDER:
+	_recruit_btn.text = "Recruter · %d" % Game.tokens
+	for slot in Data.SQUAD_SIZE:
+		var id: String = Game.squad[slot]
+		var r: Dictionary = rows[slot]
+		r.panel.visible = id != ""
+		if id == "":
+			continue
 		var h: Dictionary = Data.HEROES[id]
+		if r.id != id:
+			r.id = id
+			r.icon.hero = h
+			var rc: Color = Data.RARITY_COLORS[h.rarity]
+			var sb := UI.box(UI.PANEL, rc, 10, 8)
+			sb.border_width_left = 6
+			r.panel.add_theme_stylebox_override("panel", sb)
+			r.name.add_theme_color_override("font_color", rc)
 		var lv: int = Game.levels[id]
-		var m := Data.hero_mult(lv)
-		var r: Dictionary = rows[id]
-		r.name.text = "%s%s  niv. %d" % [h.name, ["", " II", " III"][Game.tier(id)], lv]
+		var m: float = Data.hero_mult(lv) * Data.star_mult(Game.hero_stars[id]) * Data.EVO_STAT_MULT[Game.tier(id)]
+		r.name.text = "%s%s  niv. %d  %s" % [h.name, ["", " II", " III"][Game.tier(id)], lv, "★".repeat(int(Game.hero_stars[id]))]
 		r.info.text = "%s · %s · %s" % [h.job, Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]]
 		r.stats.text = "PV %d   ATQ %d   DÉF %d" % [h.hp * m, h.atk * m, h.def * m]
 		var cost := Game.level_cost(id)

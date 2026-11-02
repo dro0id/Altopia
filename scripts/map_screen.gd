@@ -35,10 +35,7 @@ func _init() -> void:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 8)
 	sc.add_child(col)
-	var avg := 0.0
-	for id in Data.HERO_ORDER:
-		avg += float(Game.levels[id])
-	avg /= Data.HERO_ORDER.size()
+	var avg: float = Game.squad_avg_level()
 	var top := Game.best_stage + 2
 	var current_row: Control = null
 	for n in range(top, 0, -1):

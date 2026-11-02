@@ -31,11 +31,17 @@ Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : ti
 - **Livrable** : le chapitre 1 se joue avec son histoire de bout en bout.
 - **À valider** : ton (sérieux ou léger), longueur des dialogues, voix du Capitaine (silencieux ou personnage).
 
-## Branche 3 · `feat/heros-collection` (L) : recruter et faire évoluer
+## Branche 3 · `feat/heros-collection` (L) : recruter et faire évoluer (FAIT dans le code, à tester sur téléphone)
 - **Objectif** : la collection est le moteur de rétention, comme dans Top Heroes.
-- **Contenu** : 15 héros au total (trois raretés, trois espèces, trois rôles), recrutement par tirage avec taux affichés et jeton gagné en jeu, doublons en fragments, étoiles et paliers d'évolution, formation de 5 à placer (ligne avant/arrière), synergies d'espèce et de rôle.
-- **Livrable** : on recrute, on compose son escouade, on voit l'effet des synergies.
-- **À valider** : nombre de héros, système de rareté, monnaie de recrutement (aucun achat en argent réel dans la première version).
+- **Collection** : 15 héros (5 communs, 6 rares, 4 épiques ; trois espèces : humain, robot, extraterrestre ; quatre rôles : rempart, dégâts, soutien, contrôle). Les cinq héros d'origine sont conservés et forment l'escouade de départ.
+- **Monnaies (décidé)** : les **crédits** (niveaux), les **éclats de verre** (paliers d'évolution), les **jetons de recrutement** (gagnés en jeu : coffres, coffre gratuit ; 6 jetons offerts au départ) et les **cristaux d'Altopia** (monnaie de la boutique, gagnés sur les gros boss ; **l'achat de cristaux contre de l'argent réel viendra avec la publication**, branche 10, et n'est pas branché : le bouton affiche « bientôt »).
+- **Recrutement** : 3 jetons le tirage, 27 jetons les dix. Taux affichés : commun 70 %, rare 25 %, épique 5 %. Garanties : rare ou mieux au plus tard au 10e tirage, épique au plus tard au 30e.
+- **Doublons et étoiles** : un héros déjà possédé donne des fragments (commun 10, rare 6, épique 4). Les étoiles (1 à 5) coûtent 10, 20, 40 puis 80 fragments ; chaque étoile ajoute 12 % de statistiques.
+- **Formation** : cinq emplacements. Les emplacements 1 à 3 forment la première ligne (le 1 est la cible principale des ennemis), les emplacements 4 et 5 la deuxième ligne.
+- **Synergies** : par espèce (deux, trois, quatre héros ou plus de la même espèce : +6 %, +12 %, +20 % d'attaque pour les humains, de défense pour les robots, de PV pour les extraterrestres), et par rôle (rempart + soutien : +10 % PV ; deux héros de dégâts : +8 % attaque ; un contrôle : +10 % de puissance des pouvoirs).
+- **Boutique (décidé)** : cinq offres payées en cristaux (jetons, coffres rares et épiques, coffre gratuit immédiat).
+- **Interface** : barre « Héros / Recruter / Boutique » sous les pouvoirs ; écrans Collection, fiche de héros, Recrutement, Boutique.
+- **À valider** : noms et apparences des 10 nouveaux héros, prix de la boutique, taux, vitesse de gain des jetons.
 
 ## Branche 4 · `feat/equipement` (M) : butin et build
 - **Contenu** : 4 emplacements par héros, raretés et bonus aléatoires, fusion et recyclage, inventaire, comparaison avant équipement.

@@ -13,10 +13,7 @@ func _init(stage: int) -> void:
 	centered("ESCOUADE TOMBÉE", 38, UI.RED)
 	centered("Étage %d" % stage, 24, UI.MUTED)
 	var need: int = Data.recommended_level(stage)
-	var avg := 0.0
-	for id in Data.HERO_ORDER:
-		avg += float(Game.levels[id])
-	avg /= Data.HERO_ORDER.size()
+	var avg: float = Game.squad_avg_level()
 	var tip := "Niveau conseillé : %d. Ton escouade est en moyenne niveau %.0f." % [need, avg]
 	if avg < need:
 		tip += "\nAméliore tes héros ou farme l'étage précédent pour gagner des crédits."

@@ -37,8 +37,74 @@ const HEROES := {
 		"skill": {"name": "Onde gravitationnelle", "kind": "gravity", "cd": 13.0, "desc": "Étourdit tous les ennemis 2 s."},
 		"look": {"suit": Color("7a4fc9"), "accent": Color("ffd9fb"), "skin": Color("5fd0c8"), "hair": Color("000000"), "style": 0, "weapon": "orb", "eye": Color("ffb43a")},
 	},
+	"dax": {
+		"name": "Dax Moreau", "job": "Pilote", "species": "human", "role": "dps", "rarity": "common", "ranged": true,
+		"hp": 125.0, "atk": 24.0, "def": 6.0, "interval": 0.95,
+		"skill": {"name": "Tir de barrage", "kind": "volley", "cd": 9.0, "desc": "Frappe tous les ennemis."},
+		"look": {"suit": Color("d6453a"), "accent": Color("ffd9c8"), "skin": Color("e2b08a"), "hair": Color("3a2418"), "style": 0, "weapon": "blaster", "eye": Color("2a1c18")},
+	},
+	"pim": {
+		"name": "Pim", "job": "Mécano", "species": "robot", "role": "tank", "rarity": "common", "ranged": false,
+		"hp": 240.0, "atk": 13.0, "def": 13.0, "interval": 1.3,
+		"skill": {"name": "Blindage", "kind": "shield", "cd": 11.0, "desc": "Protège toute l'escouade pendant 6 s."},
+		"look": {"suit": Color("8fa3b8"), "accent": Color("ffb347"), "skin": Color("9aa6b2"), "hair": Color("000000"), "style": 0, "weapon": "shield", "eye": Color("ffb347")},
+	},
+	"neelo": {
+		"name": "Neelo", "job": "Médecin", "species": "alien", "role": "healer", "rarity": "common", "ranged": true,
+		"hp": 145.0, "atk": 14.0, "def": 7.0, "interval": 1.4,
+		"skill": {"name": "Spores apaisantes", "kind": "repair", "cd": 12.0, "desc": "Soigne toute l'escouade."},
+		"look": {"suit": Color("3fae6a"), "accent": Color("eaffd9"), "skin": Color("7fd1a0"), "hair": Color("000000"), "style": 0, "weapon": "tablet", "eye": Color("1a3d2a")},
+	},
+	"vance": {
+		"name": "Vance Holt", "job": "Commandant en second", "species": "human", "role": "tank", "rarity": "rare", "ranged": false,
+		"hp": 280.0, "atk": 16.0, "def": 16.0, "interval": 1.25,
+		"skill": {"name": "Rempart de commandement", "kind": "shield", "cd": 11.0, "desc": "Protège toute l'escouade pendant 6 s."},
+		"look": {"suit": Color("3b4a8a"), "accent": Color("e0e6ff"), "skin": Color("d4a080"), "hair": Color("7a7a80"), "style": 1, "weapon": "shield", "eye": Color("202840")},
+	},
+	"sora": {
+		"name": "Sora Ito", "job": "Tireuse d'élite", "species": "human", "role": "dps", "rarity": "rare", "ranged": true,
+		"hp": 115.0, "atk": 33.0, "def": 5.0, "interval": 1.5,
+		"skill": {"name": "Tir de précision", "kind": "pierce", "cd": 10.0, "desc": "Un tir dévastateur sur l'ennemi le plus solide."},
+		"look": {"suit": Color("2a8f8f"), "accent": Color("d0fff8"), "skin": Color("e8c2a0"), "hair": Color("1a1a24"), "style": 2, "weapon": "sniper", "eye": Color("164040")},
+	},
+	"brix": {
+		"name": "Brix", "job": "Artilleur", "species": "robot", "role": "dps", "rarity": "rare", "ranged": true,
+		"hp": 135.0, "atk": 29.0, "def": 7.0, "interval": 1.05,
+		"skill": {"name": "Salve à fragmentation", "kind": "volley", "cd": 9.0, "desc": "Frappe tous les ennemis."},
+		"look": {"suit": Color("b8602a"), "accent": Color("fff0c0"), "skin": Color("8a8f98"), "hair": Color("000000"), "style": 0, "weapon": "blaster", "eye": Color("ff7a3a")},
+	},
+	"lumi": {
+		"name": "Lumi", "job": "Navigatrice", "species": "alien", "role": "control", "rarity": "rare", "ranged": true,
+		"hp": 130.0, "atk": 19.0, "def": 6.0, "interval": 1.3,
+		"skill": {"name": "Puits de lumière", "kind": "gravity", "cd": 13.0, "desc": "Étourdit tous les ennemis 2 s."},
+		"look": {"suit": Color("c04a9a"), "accent": Color("ffe0f4"), "skin": Color("8ae0f0"), "hair": Color("000000"), "style": 0, "weapon": "orb", "eye": Color("3a1030")},
+	},
+	"aria": {
+		"name": "Aria Quill", "job": "Cheffe médecin", "species": "human", "role": "healer", "rarity": "epic", "ranged": true,
+		"hp": 170.0, "atk": 16.0, "def": 9.0, "interval": 1.35,
+		"skill": {"name": "Régénération de masse", "kind": "repair", "cd": 11.0, "desc": "Soigne toute l'escouade."},
+		"look": {"suit": Color("f0f0f8"), "accent": Color("ff6a8a"), "skin": Color("d9a07a"), "hair": Color("c04040"), "style": 2, "weapon": "tablet", "eye": Color("402030")},
+	},
+	"gorn": {
+		"name": "Gorn", "job": "Gardien", "species": "alien", "role": "tank", "rarity": "epic", "ranged": false,
+		"hp": 330.0, "atk": 18.0, "def": 18.0, "interval": 1.3,
+		"skill": {"name": "Carapace cristalline", "kind": "shield", "cd": 12.0, "desc": "Protège toute l'escouade pendant 6 s."},
+		"look": {"suit": Color("6a5acd"), "accent": Color("c8f0ff"), "skin": Color("5a9a8a"), "hair": Color("000000"), "style": 0, "weapon": "shield", "eye": Color("ffd24a")},
+	},
+	"omega": {
+		"name": "Oméga-7", "job": "Unité de combat", "species": "robot", "role": "dps", "rarity": "epic", "ranged": true,
+		"hp": 140.0, "atk": 38.0, "def": 8.0, "interval": 1.5,
+		"skill": {"name": "Lance d'ion", "kind": "pierce", "cd": 10.0, "desc": "Un tir dévastateur sur l'ennemi le plus solide."},
+		"look": {"suit": Color("222838"), "accent": Color("55ffc8"), "skin": Color("3a4250"), "hair": Color("000000"), "style": 0, "weapon": "sniper", "eye": Color("55ffc8")},
+	},
 }
-const HERO_ORDER := ["mara", "kai", "zyra", "t9", "oru"]
+const STARTER := ["mara", "kai", "zyra", "t9", "oru"]     # escouade de départ, dans l'ordre des emplacements
+## Collection complète : 15 héros, rangés par rareté puis par rôle.
+const ALL_HEROES := ["kai", "oru", "dax", "pim", "neelo", "mara", "t9", "vance", "sora", "brix", "lumi", "zyra", "aria", "gorn", "omega"]
+const HERO_ORDER := ALL_HEROES
+const SQUAD_SIZE := 5
+const RARITY_NAMES_HERO := {"common": "Commun", "rare": "Rare", "epic": "Épique"}
+const RARITIES_HERO := ["common", "rare", "epic"]
 
 ## Ennemis : multiplicateurs appliqués aux statistiques de base de l'étage.
 const ENEMIES := {
@@ -111,9 +177,9 @@ static func is_boss_stage(stage: int) -> bool:
 
 
 ## Puissance d'une escouade : somme pondérée des statistiques, pour comparer à la puissance recommandée.
-static func team_power(levels: Dictionary) -> float:
+static func team_power(levels: Dictionary, ids: Array = STARTER) -> float:
 	var p := 0.0
-	for id in HERO_ORDER:
+	for id in ids:
 		var h: Dictionary = HEROES[id]
 		var m := hero_mult(int(levels.get(id, 1)))
 		p += (h.hp * 0.25 + h.atk * 6.0 + h.def * 3.0) * m
@@ -133,14 +199,102 @@ static func recommended_level(stage: int) -> int:
 
 static func recommended_power(stage: int) -> float:
 	var lv := {}
-	for id in HERO_ORDER:
+	for id in STARTER:
 		lv[id] = recommended_level(stage)
-	return team_power(lv)
+	return team_power(lv, STARTER)
 
 
 ## Étoiles : 3 si personne ne tombe, 2 si un héros tombe, 1 sinon.
 static func stars_for(fallen: int) -> int:
 	return 3 if fallen == 0 else (2 if fallen == 1 else 1)
+
+
+# ---------------------------------------------------------------- branche 3 : collection, recrutement, étoiles, synergies
+
+const RECRUIT_COST := 3                       # jetons de recrutement pour un tirage
+const RECRUIT_COST_10 := 27                   # dix tirages (un tirage offert)
+const RECRUIT_RATES := {"common": 0.70, "rare": 0.25, "epic": 0.05}
+const PITY_RARE := 10                          # un héros rare ou mieux garanti au plus tard au 10e tirage
+const PITY_EPIC := 30                          # un héros épique garanti au plus tard au 30e tirage
+const DUP_FRAGMENTS := {"common": 10, "rare": 6, "epic": 4}   # fragments gagnés quand on tire un héros déjà possédé
+const STAR_COSTS := [10, 20, 40, 80]           # fragments pour passer de 1 à 2 étoiles, puis 3, 4, 5
+const MAX_STARS := 5
+const STAR_STAT := 0.12                        # +12 % de statistiques et de puissance de pouvoir par étoile
+const CHEST_TOKENS := {"commun": 0, "normal": 1, "rare": 3, "epique": 5, "legendaire": 10, "ultime": 25}
+const BIG_BOSS_CRYSTALS := {1: 5, 2: 5, 3: 10}  # cristaux gagnés en battant un gros boss (selon les étoiles)
+
+# boutique : prix en cristaux d'Altopia (monnaie premium ; l'achat de cristaux contre argent réel viendra avec la publication)
+const SHOP_ITEMS := [
+	{"id": "token1", "name": "1 jeton de recrutement", "desc": "Un tirage de héros.", "cost": 10, "tokens": 1},
+	{"id": "token10", "name": "10 jetons de recrutement", "desc": "Trois tirages de plus.", "cost": 90, "tokens": 10},
+	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats de verre.", "cost": 40, "chest": "rare"},
+	{"id": "chest_epic", "name": "Coffre épique", "desc": "Beaucoup de crédits et d'éclats.", "cost": 120, "chest": "epique"},
+	{"id": "free_chest", "name": "Coffre gratuit immédiat", "desc": "Supprime l'attente de 4 h.", "cost": 20, "free_chest": true},
+]
+
+
+static func star_mult(star_count: int) -> float:
+	return 1.0 + STAR_STAT * float(maxi(0, star_count - 1))
+
+
+static func star_cost(star_count: int) -> int:
+	return STAR_COSTS[clampi(star_count - 1, 0, STAR_COSTS.size() - 1)]
+
+
+## Tire la rareté d'un recrutement. `pity` = {"rare": n, "epic": n} : tirages depuis le dernier héros rare ou mieux / épique ; modifié sur place.
+static func roll_recruit(rng: RandomNumberGenerator, pity: Dictionary) -> String:
+	var rare_miss := int(pity.get("rare", 0))
+	var epic_miss := int(pity.get("epic", 0))
+	var r := rng.randf()
+	var out := "common"
+	if epic_miss >= PITY_EPIC - 1 or r < float(RECRUIT_RATES.epic):
+		out = "epic"
+	elif rare_miss >= PITY_RARE - 1 or r < float(RECRUIT_RATES.epic) + float(RECRUIT_RATES.rare):
+		out = "rare"
+	pity["rare"] = 0 if out != "common" else rare_miss + 1
+	pity["epic"] = 0 if out == "epic" else epic_miss + 1
+	return out
+
+
+static func heroes_of_rarity(rarity: String) -> Array:
+	var out: Array = []
+	for id in ALL_HEROES:
+		if HEROES[id].rarity == rarity:
+			out.append(id)
+	return out
+
+
+## Synergies d'une escouade (liste d'identifiants) : multiplicateurs PV / ATQ / DÉF / puissance des pouvoirs et description des bonus actifs.
+static func synergies(ids: Array) -> Dictionary:
+	var mods := {"hp": 1.0, "atk": 1.0, "def": 1.0, "skill": 1.0}
+	var list: Array = []
+	var species := {}
+	var roles := {}
+	for id in ids:
+		if id == null or not HEROES.has(id):
+			continue
+		var h: Dictionary = HEROES[id]
+		species[h.species] = int(species.get(h.species, 0)) + 1
+		roles[h.role] = int(roles.get(h.role, 0)) + 1
+	var tier_bonus := {2: 0.06, 3: 0.12, 4: 0.20, 5: 0.20}
+	var stat_of := {"human": "atk", "robot": "def", "alien": "hp"}
+	var stat_name := {"atk": "ATQ", "def": "DÉF", "hp": "PV"}
+	for sp in species:
+		var n: int = species[sp]
+		if n >= 2:
+			var b: float = tier_bonus[mini(n, 5)]
+			mods[stat_of[sp]] *= 1.0 + b
+			list.append({"name": "%s ×%d" % [SPECIES_NAMES[sp], n], "desc": "+%d %% %s" % [int(round(b * 100.0)), stat_name[stat_of[sp]]]})
+	if int(roles.get("tank", 0)) >= 1 and int(roles.get("healer", 0)) >= 1:
+		mods.hp *= 1.10
+		list.append({"name": "Rempart + Soutien", "desc": "+10 % PV"})
+	if int(roles.get("dps", 0)) >= 2:
+		mods.atk *= 1.08
+		list.append({"name": "Double dégâts", "desc": "+8 % ATQ"})
+	if int(roles.get("control", 0)) >= 1:
+		mods.skill *= 1.10
+		list.append({"name": "Contrôle", "desc": "+10 % puissance des pouvoirs"})
+	return {"mods": mods, "list": list}
 
 
 # ---------------------------------------------------------------- branche 1b : renforts, persévérance, paliers, combos

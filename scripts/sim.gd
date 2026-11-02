@@ -29,6 +29,7 @@ class Unit:
 	var ranged := false
 	var boss := false
 	var evo := 0                 # palier d'évolution du héros
+	var skill_mod := 1.0         # synergies et étoiles : puissance du pouvoir
 	var phase2 := false          # le gros boss passe en phase 2 sous 50 % de PV
 	var warned := false          # avertissement du coup puissant déjà émis
 	var gold := 0.0
@@ -64,7 +65,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	rng.seed = p_seed + p_stage * 1009
 	var slot := 0
 	for e in team:
-		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)))
+		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}))
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)
@@ -118,9 +119,9 @@ func _alive(side: int) -> Array[Unit]:
 	return out
 
 
-func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int = 0) -> Unit:
+func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int = 0, star_count: int = 1, mods: Dictionary = {}) -> Unit:
 	var h: Dictionary = Data.HEROES[id]
-	var m: float = Data.hero_mult(level) * bonus * Data.EVO_STAT_MULT[evo]
+	var m: float = Data.hero_mult(level) * bonus * Data.EVO_STAT_MULT[evo] * Data.star_mult(star_count)
 	var u := Unit.new()
 	u.side = 0
 	u.slot = slot
@@ -129,10 +130,11 @@ func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int 
 	u.role = h.role
 	u.level = level
 	u.evo = evo
-	u.max_hp = h.hp * m
+	u.max_hp = h.hp * m * float(mods.get("hp", 1.0))
 	u.hp = u.max_hp
-	u.atk = h.atk * m
-	u.def = h.def * m
+	u.atk = h.atk * m * float(mods.get("atk", 1.0))
+	u.def = h.def * m * float(mods.get("def", 1.0))
+	u.skill_mod = float(mods.get("skill", 1.0))
 	u.interval = h.interval
 	u.ranged = h.ranged
 	u.skill_kind = h.skill.kind
@@ -228,7 +230,7 @@ func _cast(u: Unit) -> bool:
 		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
 		_last_cast = time
 		max_combo = maxi(max_combo, combo)
-		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo]
+		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo] * u.skill_mod
 		if combo >= 2:
 			events.append({"type": "combo", "n": combo, "mult": Data.combo_mult(combo)})
 	match u.skill_kind:
