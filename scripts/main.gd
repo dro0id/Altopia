@@ -294,12 +294,13 @@ func _on_cleared(_credits: float) -> void:
 	var stage := Game.stage
 	var stars: int = battle.sim.stars
 	var frontier := Game.is_frontier()
-	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo)
+	var shows_chest := frontier or Data.is_boss_stage(stage)
+	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if _tuto == 3:
 		_tuto = 4
 		Game.tutorial_done = true
-	if frontier or Data.is_boss_stage(stage):
+	if shows_chest:
 		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label)
 		# après un étage de progression, on choisit un renfort avant de repartir

@@ -19,6 +19,7 @@ var pity := {"leg": 0, "ult": 0}
 var perseverance := 0          # défaites d'affilée : +5 % de statistiques chacune, remis à zéro à la victoire
 var boosts: Array = []         # renforts actifs jusqu'au prochain boss
 var evolved := {}              # héros -> palier d'évolution (0 à 2)
+var pending_chest := {}        # coffre gagné mais pas encore ouvert à l'écran
 var auto_cast := true
 var speed := 1.0
 var sfx_on := true
@@ -64,6 +65,7 @@ func reset() -> void:
 	perseverance = 0
 	boosts = []
 	evolved = {}
+	pending_chest = {}
 	auto_cast = true
 	speed = 1.0
 	sfx_on = true
@@ -165,11 +167,13 @@ func is_frontier() -> bool:
 
 
 ## Étage vaincu : enregistre les étoiles, débloque le suivant. Renvoie le coffre obtenu {rarity, credits, shards}.
-func stage_cleared(star_count: int, combo: int = 1) -> Dictionary:
+## Avec `defer`, le butin du coffre n'est versé qu'à l'ouverture (voir claim_pending) : l'écran de résultat l'affiche après l'animation.
+func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dictionary:
 	stars[stage] = maxi(int(stars.get(stage, 0)), star_count)
 	perseverance = 0
 	var loot := Data.combo_loot(combo)
-	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot)
+	claim_pending()    # un coffre oublié est toujours versé avant le suivant
+	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot, defer)
 	if Data.is_boss_stage(stage):
 		boosts = []
 	if stage >= best_stage:
@@ -178,13 +182,27 @@ func stage_cleared(star_count: int, combo: int = 1) -> Dictionary:
 	return chest
 
 
-func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0) -> Dictionary:
+func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: bool = false) -> Dictionary:
 	var rw := Data.chest_rewards(at_stage, rarity)
 	var cr: float = round(rw.credits * (1.0 + loot_bonus))
-	credits += cr
-	shards += int(rw.shards)
+	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus}
+	if defer:
+		pending_chest = chest
+	else:
+		credits += cr
+		shards += int(rw.shards)
 	changed.emit()
-	return {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus}
+	return chest
+
+
+## Verse le coffre en attente (à l'ouverture, ou à la fermeture de l'écran si on le quitte avant).
+func claim_pending() -> void:
+	if pending_chest.is_empty():
+		return
+	credits += float(pending_chest.credits)
+	shards += int(pending_chest.shards)
+	pending_chest = {}
+	changed.emit()
 
 
 ## Défaite : un cran de persévérance en plus.
@@ -275,7 +293,7 @@ func save_game() -> void:
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
 		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
-		"perseverance": perseverance, "boosts": boosts, "evolved": evolved,
+		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 	}))
 
 
@@ -316,6 +334,11 @@ func load_game() -> bool:
 		if Data.BOOSTS.has(String(b)):
 			boosts.append(String(b))
 	evolved = {}
+	pending_chest = {}
+	var pc: Dictionary = parsed.get("pending", {})
+	if pc.has("credits"):
+		credits += float(pc.credits)          # un coffre non ouvert avant la fermeture est versé au rechargement
+		shards += int(pc.get("shards", 0))
 	var ev: Dictionary = parsed.get("evolved", {})
 	for id in Data.HERO_ORDER:
 		evolved[id] = clampi(int(ev.get(id, 0)), 0, 2)

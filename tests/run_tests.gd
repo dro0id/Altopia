@@ -151,6 +151,16 @@ func test_chests() -> void:
 	var chest: Dictionary = _g.stage_cleared(3)
 	_check(chest.rarity == "normal" and _g.credits > 0.0 and _g.shards > 0, "un étage vaincu en 3 étoiles donne un coffre normal")
 	_check(_g.best_stage == 2 and _g.stars[1] == 3, "l'étage suivant se débloque et les étoiles sont gardées")
+	# butin différé : rien n'est versé avant l'ouverture
+	_g.credits = 0.0
+	_g.shards = 0
+	_g.stage = 2
+	var held: Dictionary = _g.stage_cleared(3, 1, true)
+	_check(_g.credits == 0.0 and _g.shards == 0 and not _g.pending_chest.is_empty(), "le coffre en attente ne verse rien avant l'ouverture")
+	_g.claim_pending()
+	_check(is_equal_approx(_g.credits, held.credits) and _g.shards == int(held.shards) and _g.pending_chest.is_empty(), "l'ouverture verse le butin une seule fois")
+	_g.claim_pending()
+	_check(is_equal_approx(_g.credits, held.credits), "pas de double versement")
 
 
 func test_free_chest() -> void:

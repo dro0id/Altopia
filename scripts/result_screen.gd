@@ -62,11 +62,17 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String) -
 		map_pressed.emit()
 		close())
 	cv.opened.connect(func():
+		Game.claim_pending()
 		var tw := create_tween().set_parallel(true)
 		tw.tween_property(rl, "modulate:a", 1.0, 0.3)
 		tw.tween_property(_rewards, "modulate:a", 1.0, 0.4)
 		tw.tween_property(_buttons, "modulate:a", 1.0, 0.5))
 	Sfx.play("win")
+
+
+func close() -> void:
+	Game.claim_pending()    # si on quitte l'écran avant l'ouverture, le butin est quand même versé
+	super.close()
 
 
 func _reward_row(name_text: String, value: String, col: Color) -> void:
