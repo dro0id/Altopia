@@ -24,6 +24,7 @@ var clock := 0.0
 var boss_wave := false
 var banner := ""
 var banner_t := 0.0
+var banner_sub := ""
 var shake := 0.0
 var _base := Vector2.ZERO
 var _result_timer := 0.0
@@ -127,6 +128,7 @@ func _consume() -> void:
 				boss_wave = e.boss
 				var bt: String = e.get("boss_type", "")
 				banner = ("GROS BOSS !" if bt == "big" else "MINI-BOSS !") if e.boss else "Vague %d / %d" % [e.wave, e.total]
+				banner_sub = String(e.get("boss_name", "")) if e.boss else ""
 				banner_t = 1.6
 				wave_started.emit(e.wave, e.total, e.boss)
 				if e.boss:
@@ -186,7 +188,7 @@ func _consume() -> void:
 				var cf: Fighter = fighters.get(cu)
 				if cf != null:
 					cf.play_cast()
-				banner = String(cu.data.get("skill", {}).get("name", "")) if cu.side == 0 else "Écrasement !"
+				banner = String(cu.data.get("skill", {}).get("name", "")) if cu.side == 0 else {"prism": "Faisceau prismatique !", "swarm": "Appel des mites !"}.get(String(e.kind), "Écrasement !")
 				banner_t = 1.0
 				Sfx.play("cast", -4.0)
 				_cast_fx(e)
@@ -230,6 +232,14 @@ func _cast_fx(e: Dictionary) -> void:
 				if a.alive:
 					for i in 4:
 						parts.append({"kind": "cross", "pos": _center(a) + Vector2(randf_range(-26, 26), randf_range(0, 40)), "vel": Vector2(randf_range(-10, 10), -50 - randf() * 40), "t": -i * 0.12, "dur": 0.9, "col": Color(0.5, 1.0, 0.7), "size": 8.0, "grav": 0.0})
+		"prism":
+			for tgt in e.targets:
+				shots.append({"from": _center(u), "to": _center(tgt), "t": 0.0, "dur": 0.5, "col": Color(0.8, 0.55, 1.0), "kind": "beam"})
+			fx.append({"kind": "flash", "pos": _center(u), "t": 0.0, "dur": 0.4, "r": 70.0})
+			shake = maxf(shake, 5.0)
+		"swarm":
+			_ring_fx(_center(u) + Vector2(0, 40), Color(1.0, 0.5, 0.9), 150.0, 0.5)
+			_burst(_center(u), 14, Color(1.0, 0.6, 0.9), 80.0, 220.0, 0.6)
 		"slam":
 			# le Titan bondit puis retombe : l'onde de choc et les secousses partent à l'atterrissage
 			_ring_fx(Vector2(360, 480), Color(1.0, 0.5, 0.35), 340.0, 0.7, 0.5, 12.0)
@@ -417,6 +427,9 @@ func _draw_overlay() -> void:
 		var slide := (1.0 - minf(1.0, (1.6 - banner_t) * 6.0)) * 40.0 if banner_t > 1.0 else 0.0
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(0, 0, 0, a))
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
+		if banner_sub != "" and boss_wave and banner_t > 0.2:
+			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 132) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
+			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 132), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))
 	if sim != null and sim.state != "fighting":
 		var txt := "ÉTAGE VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250) + Vector2(2, 2), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0, 0, 0))

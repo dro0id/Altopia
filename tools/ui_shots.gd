@@ -1,4 +1,6 @@
 extends SceneTree
+
+const Data = preload("res://scripts/data.gd")
 ## Captures des fenêtres (xvfb-run -a godot --path . --resolution 720x1280 -s tools/ui_shots.gd -- <dossier>).
 func _initialize() -> void:
 	var out := OS.get_cmdline_user_args()[0]
@@ -17,10 +19,20 @@ func _initialize() -> void:
 	for i in 120:
 		await process_frame
 	await _shot(out + "/map.png", main, MapScreen.new(), 0.8)
-	var chest := {"rarity": "rare", "credits": 1200.0, "shards": 8}
-	await _shot(out + "/result.png", main, ResultScreen.new(5, 3, chest, "Monter à l'étage 6"), 3.2)
-	await _shot(out + "/result_ultime.png", main, ResultScreen.new(10, 3, {"rarity": "ultime", "credits": 40000.0, "shards": 120}, "Monter à l'étage 11"), 3.2)
-	await _shot(out + "/result_legendaire.png", main, ResultScreen.new(10, 3, {"rarity": "legendaire", "credits": 9000.0, "shards": 40}, "Monter à l'étage 11"), 3.2)
+	for r in ["commun", "rare", "epique", "legendaire", "ultime"]:
+		var tier: int = Data.RARITIES.find(r)
+		var rs := ResultScreen.new(10, 3, {"rarity": r, "credits": 1200.0, "shards": 8}, "Monter")
+		main._open_modal(rs)
+		await process_frame
+		var cv: ChestView = _find_chest(rs)
+		cv.t = cv.open_at - 0.02
+		for i in 14:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_viewport().get_texture().get_image().save_png(out + "/open_%s.png" % r)
+		rs.queue_free()
+		await process_frame
+		await process_frame
 	await _shot(out + "/settings.png", main, SettingsScreen.new(), 0.5)
 	await _shot(out + "/defeat.png", main, DefeatScreen.new(9), 0.5)
 	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 4860.0}), 0.5)
@@ -55,3 +67,13 @@ func _shot(path: String, main: Control, ov: Control, secs: float) -> void:
 	ov.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _find_chest(n: Node) -> ChestView:
+	if n is ChestView:
+		return n
+	for c in n.get_children():
+		var r := _find_chest(c)
+		if r != null:
+			return r
+	return null

@@ -35,6 +35,12 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 	if u.kind == "foreur":
 		scale_k *= 0.8
 		self_modulate = Color(1.0, 0.86, 0.62)
+	elif u.kind == "sentinelle":
+		scale_k *= 1.15
+		self_modulate = Color(0.78, 0.7, 1.3)
+	elif u.kind == "reine":
+		scale_k *= 1.7
+		self_modulate = Color(1.25, 0.6, 1.1)
 	elif u.kind == "titan":
 		self_modulate = Color(0.72, 0.9, 1.25)       # le Gardien de verre est translucide et bleuté
 
@@ -112,6 +118,10 @@ func _draw() -> void:
 		var top := -165.0 if unit.side == 0 else (-62.0 if unit.kind == "mite" else -118.0)
 		if unit.boss:
 			top = -155.0
+		if unit.kind == "reine":
+			top = -78.0
+		elif unit.kind == "sentinelle":
+			top = -125.0
 		draw_set_transform(Vector2(0, top), 0.0, Vector2.ONE)
 		draw_rect(Rect2(-w * 0.5 - 1, -1, w + 2, 9), Color(0, 0, 0, 0.7))
 		var col := Color(0.35, 0.9, 0.5) if unit.side == 0 else Color(1.0, 0.4, 0.35)

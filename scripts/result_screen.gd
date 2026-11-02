@@ -29,8 +29,7 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String) -
 	var note := "Aucun héros tombé" if star_count == 3 else ("Un héros est tombé" if star_count == 2 else "Plusieurs héros sont tombés")
 	centered(note, 20, UI.MUTED)
 	var cv := ChestView.new()
-	cv.rarity = chest.rarity
-	cv.open_at = 1.2
+	cv.setup(chest.rarity)
 	box.add_child(cv)
 	var rname: String = Data.RARITY_NAMES[chest.rarity]
 	var rl := centered("Coffre %s" % rname.to_lower(), 28, Data.CHEST_COLORS[chest.rarity])

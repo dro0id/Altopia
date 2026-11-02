@@ -96,10 +96,8 @@ func _row(n: int, avg_level: float) -> Control:
 	v.add_theme_constant_override("separation", 0)
 	h.add_child(v)
 	var title := "Étage %d" % n
-	if bt == "mini":
-		title += " · MINI-BOSS"
-	elif bt == "big":
-		title += " · GROS BOSS"
+	if bt != "":
+		title += " · %s" % Data.boss_name(n)
 	UI.label(v, title, 24, Color.WHITE)
 	var s := int(Game.stars.get(n, 0))
 	var need: int = Data.recommended_level(n)

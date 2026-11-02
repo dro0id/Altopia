@@ -351,11 +351,11 @@ static func draw_enemy(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 				ci.draw_line(Vector2(-36 + k * 9, -54 + shake), Vector2(-36 + k * 9, -44 + shake), Color(0.8, 0.8, 0.75), 2)
 			ci.draw_line(Vector2(-26, -112 + shake), Vector2(-30, -134 + shake), OUTLINE, 5)
 			disc(ci, Vector2(-30, -136 + shake), 7, Color(1.0, 0.3 + 0.3 * sin(t * 6.0), 0.2))
-	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur"] else -70), Color(1.0, 0.5, 0.3), dead)
+	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur", "sentinelle", "reine"] else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
-			var top := -120.0 if kind in ["titan", "foreur"] else -110.0
+			var top := -120.0 if kind in ["titan", "foreur", "sentinelle", "reine"] else -110.0
 			star(ci, Vector2(cos(a) * 26, top + sin(a) * 6), 5, Color(1, 0.9, 0.3))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
@@ -562,10 +562,10 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 	var wind := _wind(atk)
 	var hit := _strike(atk)
 	ci.draw_set_transform(Vector2(0, -dead * 6.0), dead * -0.6, Vector2(1.0 + dead * 0.3, 1.0 - dead * 0.7))
-	var air := cast * 34.0 if kind in ["titan", "foreur"] else 0.0
+	var air := cast * 34.0 if kind in ["titan", "foreur", "sentinelle", "reine"] else 0.0
 	ellipse(ci, Vector2(0, 2), 30.0 * (1.0 - air * 0.008), 8.0 * (1.0 - air * 0.008), Color(0, 0, 0, 0.3))
 	match kind:
-		"mite":
+		"mite", "reine":
 			var scut: float = 1.0 + float(p.get("move", 0.0)) * 2.0
 			var bob := absf(sin(t * 6.0 * scut)) * 4.0 - wind * 3.0
 			# pattes : chaque patte lève et pose le pied en décalé
@@ -590,8 +590,8 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 				open = 0.15 + (1.0 - hit) * 0.0
 			for s in [-1, 1]:
 				_claw(ci, Vector2(s * 14, -6 - bob + hit * 4.0), s, open, Color(0.85, 0.8, 0.7))
-		"drone", "gunner":
-			var gun := kind == "gunner"
+		"drone", "gunner", "sentinelle":
+			var gun := kind in ["gunner", "sentinelle"]
 			var hover := sin(t * 2.6) * 5.0 + wind * 6.0 - hit * 4.0
 			var body := Color(0.38, 0.4, 0.5) if not gun else Color(0.5, 0.3, 0.3)
 			var wob := sin(t * 40.0) * hurt * 3.0
@@ -657,11 +657,11 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 			if cast > 0.0 and cast < 0.15:
 				for s in [-1, 1]:
 					shard(ci, Vector2(s * 70, -4), 12, -PI * 0.5 + s * 0.8, Color(0.6, 0.55, 0.5, 0.7))
-	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur"] else -70), Color(1.0, 0.5, 0.3), dead)
+	shatter(ci, Vector2(0, -50 if kind not in ["titan", "foreur", "sentinelle", "reine"] else -70), Color(1.0, 0.5, 0.3), dead)
 	if stun:
 		for k in 3:
 			var a := t * 4.0 + k * TAU / 3.0
-			star(ci, Vector2(cos(a) * 26, (-120.0 if kind in ["titan", "foreur"] else -110.0) + sin(a) * 6), 5, Color(1, 0.9, 0.3))
+			star(ci, Vector2(cos(a) * 26, (-120.0 if kind in ["titan", "foreur", "sentinelle", "reine"] else -110.0) + sin(a) * 6), 5, Color(1, 0.9, 0.3))
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

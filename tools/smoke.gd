@@ -15,9 +15,14 @@ func _initialize() -> void:
 	var results := 0
 	var defeats := 0
 	var last_stage := 1
+	var last_print := -1
+	var farm_t := 0.0
 	while t < secs:
 		await process_frame
 		t += 1.0 / 60.0 * Engine.time_scale / Engine.time_scale * 6.0
+		if int(t) % 60 == 0 and int(t) != last_print:
+			last_print = int(t)
+			print("t=%d étage=%d meilleur=%d modal=%s" % [int(t), g.stage, g.best_stage, str(main._modal)])
 		var m = main._modal
 		if m != null and is_instance_valid(m):
 			if m is ResultScreen:
@@ -31,6 +36,13 @@ func _initialize() -> void:
 				defeats += 1
 				m.farm_pressed.emit()
 				m.close()
+		# après un moment de farm, on retente l'étage le plus haut
+		if g.stage < g.best_stage and m == null:
+			farm_t += 1.0 / 60.0 * 6.0
+			if farm_t > 40.0:
+				farm_t = 0.0
+				g.go_to(g.best_stage)
+				main._start_battle()
 		# on évolue dès que possible, puis on dépense les crédits comme un joueur
 		for id in g.levels.keys():
 			if g.can_afford_evolve(id):

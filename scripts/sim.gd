@@ -154,7 +154,7 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	u.name = e.name
 	u.role = "boss" if boss else "enemy"
 	u.boss = boss
-	var boss_k := 1.0 + (0.035 * stage if kind == "titan" else (0.015 * stage if kind == "foreur" else 0.0))   # les boss durcissent avec la profondeur
+	var boss_k := 1.0 + (0.035 * stage if kind in Data.BIG_BOSSES else (0.015 * stage if kind == "foreur" else 0.0))   # les boss durcissent avec la profondeur
 	u.max_hp = Data.ENEMY_HP * s * e.hp * boss_k
 	u.hp = u.max_hp
 	u.atk = Data.ENEMY_ATK * s * e.atk
@@ -164,8 +164,8 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	u.gold = 3.0 * s * e.gold
 	u.cd = 0.6 + 0.2 * slot
 	if boss:
-		u.skill_kind = "slam"
-		u.skill_max = 7.0
+		u.skill_kind = {"foreur": "slam", "titan": "slam", "sentinelle": "prism", "reine": "swarm"}[kind]
+		u.skill_max = {"prism": 7.5, "swarm": 9.0}.get(u.skill_kind, 7.0)
 		u.skill_cd = 5.0
 	u.data = e
 	return u
@@ -177,6 +177,11 @@ func _wave_kinds() -> Array:
 	var kinds: Array = []
 	var last := w == waves_total
 	if last and Data.boss_type(stage) == "big":
+		match Data.big_boss_kind(stage):
+			"sentinelle":
+				return ["sentinelle", "drone", "gunner"]
+			"reine":
+				return ["reine", "mite", "mite"]
 		return ["titan", "drone", "drone"]
 	if last and Data.boss_type(stage) == "mini":
 		return ["foreur", "mite", "mite"]
@@ -203,7 +208,7 @@ func _spawn_wave() -> void:
 		units.append(u)
 		events.append({"type": "spawn", "unit": u})
 		slot += 1
-	events.append({"type": "wave", "wave": wave, "total": waves_total, "boss": kinds.has("titan") or kinds.has("foreur"), "boss_type": Data.boss_type(stage) if wave == waves_total else ""})
+	events.append({"type": "wave", "wave": wave, "total": waves_total, "boss": kinds.has("titan") or kinds.has("foreur") or kinds.has("sentinelle") or kinds.has("reine"), "boss_type": Data.boss_type(stage) if wave == waves_total else "", "boss_name": Data.boss_name(stage) if wave == waves_total else ""})
 
 
 func cast(slot: int) -> bool:
@@ -255,12 +260,38 @@ func _cast(u: Unit) -> bool:
 				e.stun_t = 2.0 + 0.5 * u.evo
 				pending.append({"t": 0.3, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 1.3 * k, "fx": "gravity"})
 			events.append({"type": "cast", "unit": u, "kind": "gravity"})
+		"prism":
+			# la Sentinelle tire un faisceau sur chaque héros, plus un tir lourd sur le plus fragile
+			var weakest: Unit = null
+			for a in _alive(0):
+				pending.append({"t": 0.5, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * (1.1 if not u.phase2 else 1.4), "fx": "slam"})
+				if weakest == null or a.hp_frac() < weakest.hp_frac():
+					weakest = a
+			if weakest != null:
+				pending.append({"t": 0.75, "kind": "hit", "src": u, "dst": weakest, "dmg": u.atk * 2.0, "fx": "pierce"})
+			events.append({"type": "cast", "unit": u, "kind": "prism", "targets": _alive(0)})
+		"swarm":
+			# la Reine appelle des mites en renfort (jamais plus de huit ennemis à l'écran)
+			var added := 0
+			for i in (3 if u.phase2 else 2):
+				if _alive(1).size() < 8:
+					var m := _make_enemy("mite", 3 + added, false)
+					units.append(m)
+					events.append({"type": "spawn", "unit": m})
+					added += 1
+			events.append({"type": "cast", "unit": u, "kind": "swarm"})
 		"slam":
 			for a in _alive(0):
 				var sk := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
 				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * sk, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
 	return true
+
+
+## Déclenche tout de suite le pouvoir d'un ennemi (pour les tests).
+func cast_enemy(u: Unit) -> bool:
+	u.skill_cd = 0.0
+	return _cast(u)
 
 
 func _heal(a: Unit, amount: float) -> void:
@@ -299,7 +330,7 @@ func _apply_hit(p: Dictionary) -> void:
 			credits += dst.gold * gold_mult
 		else:
 			fallen += 1
-	elif dst.kind == "titan" and not dst.phase2 and dst.hp <= dst.max_hp * 0.5:
+	elif dst.kind in Data.BIG_BOSSES and not dst.phase2 and dst.hp <= dst.max_hp * 0.5:
 		_enter_phase2(dst)
 
 
@@ -310,8 +341,9 @@ func _enter_phase2(b: Unit) -> void:
 	b.interval *= 0.8
 	b.skill_max *= 0.75
 	events.append({"type": "phase", "unit": b})
+	var helper := "drone" if b.kind == "sentinelle" else "mite"
 	for i in 2:
-		var m := _make_enemy("mite", 4 + i, false)
+		var m := _make_enemy(helper, 4 + i, false)
 		units.append(m)
 		events.append({"type": "spawn", "unit": m})
 

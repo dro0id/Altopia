@@ -47,8 +47,11 @@ const ENEMIES := {
 	"gunner": {"name": "Canonnier", "hp": 0.8, "atk": 1.7, "def": 0.8, "interval": 2.0, "ranged": true, "gold": 2.0},
 	"foreur": {"name": "Foreur éclaté", "hp": 16.0, "atk": 2.0, "def": 1.5, "interval": 1.6, "ranged": false, "gold": 12.0},
 	"titan": {"name": "Gardien de verre", "hp": 140.0, "atk": 3.6, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 30.0},
+	"sentinelle": {"name": "Sentinelle prismatique", "hp": 110.0, "atk": 3.0, "def": 2.0, "interval": 2.0, "ranged": true, "gold": 30.0},
+	"reine": {"name": "Reine des mites", "hp": 120.0, "atk": 3.2, "def": 1.5, "interval": 1.4, "ranged": false, "gold": 30.0},
 }
-const BOSS_KINDS := ["foreur", "titan"]
+const BOSS_KINDS := ["foreur", "titan", "sentinelle", "reine"]
+const BIG_BOSSES := ["titan", "sentinelle", "reine"]   # un gros boss différent tous les 10 étages, en boucle
 
 const ENEMY_HP := 62.0
 const ENEMY_ATK := 8.0
@@ -82,6 +85,25 @@ static func boss_type(stage: int) -> String:
 	if stage % MINI_BOSS_EVERY == 0:
 		return "mini"
 	return ""
+
+
+## Type de gros boss d'un étage multiple de 10 (Gardien de verre, Sentinelle prismatique, Reine des mites, puis on recommence).
+static func big_boss_kind(stage: int) -> String:
+	return BIG_BOSSES[(stage / BIG_BOSS_EVERY - 1) % BIG_BOSSES.size()]
+
+
+static func boss_kind(stage: int) -> String:
+	match boss_type(stage):
+		"mini":
+			return "foreur"
+		"big":
+			return big_boss_kind(stage)
+	return ""
+
+
+static func boss_name(stage: int) -> String:
+	var k := boss_kind(stage)
+	return ENEMIES[k].name if k != "" else ""
 
 
 static func is_boss_stage(stage: int) -> bool:

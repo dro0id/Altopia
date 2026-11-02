@@ -40,6 +40,9 @@ Le niveau conseillé tient compte des renforts et des paliers d'évolution, que 
 - Les gros boss forment chacun un mur de 2,5 à 4 minutes. C'est voulu : c'est là qu'on revient farmer.
 - Les renforts et les paliers rendent le joueur nettement plus fort : sans correction, les gros boss ne bloquaient plus du tout. Leurs points de vie ont donc été relevés (Gardien de verre ×140, Foreur éclaté ×16).
 
+## Gros boss différents
+Les étages 10, 20, 30, 40… présentent à tour de rôle le Gardien de verre (étage 10, 40), la Sentinelle prismatique (20) et la Reine des mites (30). Niveau minimal mesuré sans renfort ni évolution : 11, 17, 26, 39. Le niveau conseillé affiché reste une moyenne de ces murs.
+
 ## Limites
 - Joueur simulé : il joue en automatique, sans lancer les pouvoirs à la main, donc sans combos. Un vrai joueur ira un peu plus vite. Il choisit les renforts dans un ordre fixe, ce qui n'est pas optimal.
 - Les chiffres de coffre et d'économie sont à régler au test sur téléphone.

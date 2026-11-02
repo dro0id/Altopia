@@ -89,6 +89,8 @@ func test_boss_rules() -> void:
 	_check(_boss_kinds(5) == ["foreur"], "le Foreur éclaté arrive à l'étage 5")
 	_check(_boss_kinds(10) == ["titan"], "le Gardien de verre arrive à l'étage 10")
 	_check(_boss_kinds(4).is_empty(), "pas de boss à l'étage 4")
+	_check(_boss_kinds(20) == ["sentinelle"] and _boss_kinds(30) == ["reine"] and _boss_kinds(40) == ["titan"], "un gros boss différent tous les 10 étages, en boucle")
+	_check(Data.boss_name(20) == "Sentinelle prismatique" and Data.boss_name(5) == "Foreur éclaté" and Data.boss_name(4) == "", "noms des boss")
 
 
 func test_big_boss_phase_two() -> void:
@@ -291,3 +293,38 @@ func test_save_v3() -> void:
 	_check(_g.load_game(), "rechargement v3")
 	_check(_g.perseverance == 3 and _g.boosts == ["tir", "butin"] and _g.tier("kai") == 2, "persévérance, renforts et paliers conservés")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))
+
+
+func test_boss_variants_skills() -> void:
+	# la Sentinelle touche toute l'escouade ; la Reine appelle des mites ; les deux passent en phase 2
+	var sent := BattleSim.new(_team(15), 20, 1)
+	sent.wave = 2
+	sent._spawn_wave()
+	var b: BattleSim.Unit
+	for u in sent.enemies():
+		if u.kind == "sentinelle":
+			b = u
+	_check(b != null and b.skill_kind == "prism" and b.ranged, "la Sentinelle tire à distance avec son faisceau")
+	b.skill_cd = 0.0
+	sent.cast_enemy(b)
+	var hits := 0
+	for p in sent.pending:
+		if p.src == b:
+			hits += 1
+	_check(hits >= 5, "le faisceau vise chaque héros, plus le plus fragile")
+	var reine := BattleSim.new(_team(15), 30, 1)
+	reine.wave = 2
+	reine._spawn_wave()
+	var q: BattleSim.Unit
+	for u in reine.enemies():
+		if u.kind == "reine":
+			q = u
+	for u in reine.enemies():
+		if u != q:
+			u.alive = false
+	var before := reine.enemies().size()
+	reine.cast_enemy(q)
+	_check(reine.enemies().size() == before + 2, "la Reine appelle deux mites")
+	q.hp = q.max_hp * 0.4
+	reine._apply_hit({"dst": q, "dmg": 1.0, "fx": ""})
+	_check(q.phase2, "la Reine passe en phase 2")

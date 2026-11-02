@@ -11,6 +11,9 @@ func _initialize() -> void:
 		g.best_stage = int(a[2])
 	g.tutorial_done = true
 	g.intro_seen = true
+	if a.size() > 4:
+		for id in g.levels.keys():
+			g.levels[id] = int(a[4])
 	g.credits = 500.0
 	if a.size() > 3:
 		g.speed = float(a[3])
