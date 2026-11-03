@@ -10,6 +10,7 @@ var slot := 0
 var hero: Dictionary = {}
 var level := 1
 var affordable := false
+var pips: Array = []             # quatre couleurs : l'équipement porté (couleur de rareté, vide si l'emplacement est libre)
 var t := 0.0
 
 
@@ -35,12 +36,17 @@ func _draw() -> void:
 	var sb := UI.box(UI.PANEL, rc, 20, 0)
 	sb.set_border_width_all(3)
 	draw_style_box(sb, Rect2(Vector2.ZERO, size))
-	var c := Vector2(size.x * 0.5, 10.0 + 48.0)
-	UI.portrait(self, hero, c, 47.0, t)
+	var c := Vector2(size.x * 0.5, 8.0 + 45.0)
+	UI.portrait(self, hero, c, 44.0, t)
 	var f := ThemeDB.fallback_font
 	var nm: String = hero.name.split(" ")[0]
-	draw_string(UI.bold_font(), Vector2(0, 131), nm, HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, Color.WHITE)
-	draw_string(f, Vector2(0, 153), "Nv %d" % level, HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, UI.GOLD)
+	draw_string(UI.bold_font(), Vector2(0, 123), nm, HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, Color.WHITE)
+	draw_string(f, Vector2(0, 145), "Nv %d" % level, HORIZONTAL_ALIGNMENT_CENTER, size.x, 20, UI.GOLD)
+	# quatre pastilles : l'équipement porté
+	var px := size.x * 0.5 - (4.0 * 18.0 + 3.0 * 6.0) * 0.5
+	for i in 4:
+		var col: Color = pips[i] if i < pips.size() and pips[i] != null else UI.LINE2
+		draw_style_box(UI.box(col, Color(0, 0, 0, 0), 5, 0), Rect2(px + i * 24.0, 152, 18, 12))
 	if affordable:
 		var b := Vector2(size.x - 12.0, 4.0)
 		draw_circle(b, 20, UI.BG)

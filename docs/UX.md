@@ -34,3 +34,6 @@ Mécaniques ajoutées pour que ces écrans soient vrais : offre du jour (pack l�
 - les portraits sont ronds sur fond sombre (la planche les montre sur un carré gris, artefact d'export) ;
 - les raretés de héros sont celles du jeu (Normal, Rare, Épique) et non les six couleurs de la collection ;
 - le texte des conseils et des renforts vient des vraies données du jeu.
+
+### Branche 4 : équipement (planches S à AC)
+Quatre emplacements par héros (arme, armure, module, relique), débloqués aux niveaux 1, 5, 10 et 15 du héros. Les objets ont six raretés, de 0 à 3 bonus secondaires, un niveau (plafonné par celui de son héros) et, à partir de rare, un ensemble (Prisme, Bastion, Sillage) avec des bonus à 2 et 4 pièces. Un objet équipé est lié au héros : le premier changement est gratuit, les suivants coûtent 400 crédits. Chaque coffre donne un objet (chances selon la rareté du coffre, un légendaire garanti au plus tard au 3e gros boss). La puissance d'un objet est un seul chiffre ; l'écran « À qui l'équiper ? » classe les héros par gain. L'inventaire contient 60 objets (les communs peuvent être recyclés automatiquement) ; la forge fusionne trois objets en un de rareté supérieure ou les recycle. L'équipement compte dans la puissance de l'escouade et dans le combat (attaque, PV, défense, critique, vitesse, soins, recharge, dégâts aux boss).

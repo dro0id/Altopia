@@ -175,6 +175,37 @@ static func icon(kind: String, px: int = 28) -> Texture2D:
 	return tex
 
 
+## Contenu d'un bouton fait de textes et d'icônes alignés au centre : parts = ["Texte", Texture2D, "12", ...].
+static func set_button_parts(b: Button, parts: Array, fs: int, col: Color) -> void:
+	b.text = ""
+	b.icon = null
+	var old := b.get_node_or_null("Parts")
+	if old != null:
+		old.free()
+	var hb := HBoxContainer.new()
+	hb.name = "Parts"
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_theme_constant_override("separation", 10)
+	hb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(hb)
+	for p in parts:
+		if p is Texture2D:
+			var tr := TextureRect.new()
+			tr.texture = p
+			tr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(tr)
+		else:
+			var l := Label.new()
+			l.text = str(p)
+			l.add_theme_font_override("font", bold_font())
+			l.add_theme_font_size_override("font_size", fs)
+			l.add_theme_color_override("font_color", col)
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(l)
+
+
 static func duration(seconds: float) -> String:
 	var s := int(seconds)
 	var h := s / 3600

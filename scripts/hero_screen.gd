@@ -4,16 +4,19 @@ extends Overlay
 
 signal changed
 signal evolve_requested(id: String)
+signal item_slot_requested(slot: String)
 
 var _id := ""
 var _stage: Control
 var _t := 0.0
 var _picker: Control
+var _page := 0
 
 
-func _init(id: String) -> void:
+func _init(id: String, page: int = 0) -> void:
 	super._init(720.0)
 	_id = id
+	_page = page
 	panel.custom_minimum_size = Vector2(720, 1280)
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
@@ -29,18 +32,48 @@ func _rebuild() -> void:
 	var h: Dictionary = Data.HEROES[_id]
 	var have := Game.is_owned(_id)
 	var rc: Color = Data.RARITY_COLORS[h.rarity]
-	# retour et titre
+	# retour et titre (la page Équipement a le bandeau des écrans d'équipement)
+	if _page == 1:
+		var band := ColorRect.new()
+		band.color = UI.BAR
+		band.size = Vector2(720, 128)
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stage.add_child(band)
 	var back := Button.new()
 	back.text = "‹"
-	back.position = Vector2(32, 20)
-	back.size = Vector2(96, 96)
+	back.position = Vector2(32, 20) if _page == 0 else Vector2(32, 24)
+	back.size = Vector2(96, 96) if _page == 0 else Vector2(80, 80)
 	back.add_theme_font_size_override("font_size", 40)
 	for st in ["normal", "hover", "pressed"]:
 		back.add_theme_stylebox_override(st, UI.box(UI.LINE2, Color(0, 0, 0, 0), 24, 0))
 	back.pressed.connect(close)
 	_stage.add_child(back)
-	var title := UI.label(_stage, "Fiche héros", 36, Color.WHITE, true)
-	title.position = Vector2(152, 38)
+	var title := UI.label(_stage, "Fiche héros", 36 if _page == 0 else 32, Color.WHITE, true)
+	title.position = Vector2(152, 38) if _page == 0 else Vector2(132, 40)
+	var tx := 400.0 if _page == 0 else 380.0
+	for pg in 2:
+		var tb := HudButton.new()
+		tb.font_size = 22
+		tb.bold = true
+		tb.radius = 22.0
+		var nm: String = ["Fiche", "Équipement"][pg]
+		tb.set_texts(nm)
+		tb.size = Vector2(UI.bold_font().get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + 40.0, 48)
+		tb.position = Vector2(tx, 36 if _page == 0 else 40)
+		tx += tb.size.x + 10.0
+		var on: bool = pg == _page
+		tb.fill = UI.ACCENT if on else UI.HUD
+		tb.border = UI.ACCENT if on else UI.LINE
+		tb.text_color = UI.DARK if on else UI.TEXT
+		var target := pg
+		tb.pressed.connect(func():
+			if target != _page:
+				_page = target
+				_rebuild())
+		_stage.add_child(tb)
+	if _page == 1:
+		_build_equipment(h, rc, have)
+		return
 	# carte du héros
 	var lv: int = int(Game.levels[_id])
 	var stars: int = int(Game.hero_stars[_id]) if have else 0
@@ -176,8 +209,10 @@ func _rebuild() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if _stage != null:
-		_stage.get_child(2).queue_redraw()
+	if _stage != null and _page == 0:
+		for ch in _stage.get_children():
+			if ch is Control and ch.size.y == 416.0:
+				ch.queue_redraw()
 
 
 ## Choix de l'emplacement dans l'escouade (3 devant, 2 derrière).
@@ -215,3 +250,161 @@ func _open_picker() -> void:
 	var cancel := UI.button(v, "Annuler", 24, "ghost")
 	cancel.custom_minimum_size = Vector2(0, 64)
 	cancel.pressed.connect(func(): _picker.queue_free())
+
+
+## Page Équipement (maquette S) : carte du héros avec ses statistiques équipées, quatre emplacements, ensemble, conseil et boutons.
+func _build_equipment(h: Dictionary, rc: Color, have: bool) -> void:
+	var lv: int = int(Game.levels[_id])
+	var stars: int = int(Game.hero_stars[_id]) if have else 1
+	var m: float = Data.hero_mult(lv) * Data.star_mult(stars) * Data.EVO_STAT_MULT[Game.tier(_id)]
+	var eq: Dictionary = Items.totals(Game.hero_items(_id))
+	var hp0: float = h.hp * m
+	var atk0: float = h.atk * m
+	var def0: float = h.def * m
+	var hp1: float = (hp0 + float(eq.hp)) * (1.0 + float(eq.hp_pct))
+	var atk1: float = (atk0 + float(eq.atk)) * (1.0 + float(eq.atk_pct))
+	var def1: float = (def0 + float(eq.def)) * (1.0 + float(eq.def_pct))
+	var card := Control.new()
+	card.position = Vector2(32, 148)
+	card.size = Vector2(656, 262)
+	card.draw.connect(func():
+		var sb := UI.box(UI.PANEL, rc, 28, 0)
+		sb.set_border_width_all(3)
+		card.draw_style_box(sb, Rect2(Vector2.ZERO, card.size))
+		UI.portrait(card, h, Vector2(80, 78), 56.0, _t)
+		card.draw_string(UI.bold_font(), Vector2(156, 70), String(h.name).split(" ")[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color.WHITE)
+		card.draw_string(ThemeDB.fallback_font, Vector2(156, 102), "%s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
+		var rows := [["PV", hp1, hp1 - hp0, UI.GREEN, 24.0, 172.0], ["ATQ", atk1, atk1 - atk0, UI.RED, 24.0, 214.0], ["DÉF", def1, def1 - def0, UI.ACCENT, 336.0, 172.0]]
+		for r in rows:
+			var x: float = r[4]
+			var y: float = r[5]
+			card.draw_string(ThemeDB.fallback_font, Vector2(x, y), r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
+			card.draw_string(UI.bold_font(), Vector2(x + 72.0, y + 2.0), str(int(r[1])), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, r[3])
+			if float(r[2]) >= 1.0:
+				var vw := UI.bold_font().get_string_size(str(int(r[1])), HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+				card.draw_string(UI.bold_font(), Vector2(x + 82.0 + vw, y), "+%d" % int(r[2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.GREEN))
+	_stage.add_child(card)
+	# équipement
+	var tl := UI.label(_stage, "Équipement", 32, Color.WHITE, true)
+	tl.position = Vector2(32, 438)
+	var base_p: float = Data.team_power({_id: lv}, [_id])
+	var item_p: float = Game.hero_item_power(_id)
+	var chip := HudButton.new()
+	chip.font_size = 20
+	chip.bold = true
+	chip.radius = 22.0
+	chip.tappable = false
+	chip.text_color = UI.GREEN
+	chip.border = Color(UI.GREEN, 0.4)
+	chip.set_texts("Puissance +%s · +%d %%" % [UI.num(item_p), int(round(item_p / maxf(1.0, base_p) * 100.0))])
+	chip.size = Vector2(UI.bold_font().get_string_size(chip.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 40.0, 44)
+	chip.position = Vector2(688.0 - chip.size.x, 436)
+	_stage.add_child(chip)
+	var slots := Control.new()
+	slots.position = Vector2(32, 492)
+	slots.size = Vector2(656, 190)
+	var better := {}
+	for it in Game.inventory_items():
+		if Game.slot_unlocked(_id, it.slot) and (it.bound == "" or it.bound == _id) and Game.power_gain(it, _id) > 0.0:
+			better[it.slot] = true
+	slots.draw.connect(func():
+		for i in 4:
+			var slot: String = Items.SLOTS[i]
+			var r := Rect2(i * 164.0 + 18.0, 0, 128, 128)
+			if not Game.slot_unlocked(_id, slot):
+				ItemUI.locked(slots, r)
+				slots.draw_string(ThemeDB.fallback_font, Vector2(i * 164.0, 160), "Niveau %d" % int(Items.SLOT_UNLOCK[slot]), HORIZONTAL_ALIGNMENT_CENTER, 164.0, 20, UI.MUTED)
+				continue
+			var it: Dictionary = Game.slot_item(_id, slot)
+			if it.is_empty():
+				ItemUI.empty(slots, r)
+			else:
+				ItemUI.tile(slots, r, it, true)
+			if better.has(slot):
+				ItemUI.dot(slots, r.position + Vector2(r.size.x - 4.0, 4.0), "▲")
+			slots.draw_string(ThemeDB.fallback_font, Vector2(i * 164.0, 160), Items.SLOT_NAMES[slot], HORIZONTAL_ALIGNMENT_CENTER, 164.0, 20, UI.MUTED))
+	slots.gui_input.connect(func(ev: InputEvent):
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			var i := clampi(int(ev.position.x / 164.0), 0, 3)
+			var slot: String = Items.SLOTS[i]
+			if not Game.slot_unlocked(_id, slot):
+				Sfx.play("click", -10.0)
+				return
+			item_slot_requested.emit(slot)
+			close())
+	_stage.add_child(slots)
+	# ensemble en cours
+	var counts := Items.set_counts(Game.hero_items(_id))
+	var best_set := ""
+	for sid in counts:
+		if best_set == "" or counts[sid] > counts[best_set]:
+			best_set = sid
+	var sc := Control.new()
+	sc.position = Vector2(32, 700)
+	sc.size = Vector2(656, 96)
+	sc.draw.connect(func():
+		if best_set == "":
+			sc.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 24, 0), Rect2(Vector2.ZERO, sc.size))
+			sc.draw_string(ThemeDB.fallback_font, Vector2(24, 58), "Aucun ensemble : les objets rares et mieux en ont un.", HORIZONTAL_ALIGNMENT_LEFT, 610.0, 22, UI.MUTED)
+			return
+		var info: Dictionary = Items.SETS[best_set]
+		var col: Color = info.color
+		sc.draw_style_box(UI.box(UI.PANEL, Color(col.r, col.g, col.b, 0.33), 24, 0), Rect2(Vector2.ZERO, sc.size))
+		sc.draw_string(ThemeDB.fallback_font, Vector2(24, 62), "◈", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, col)
+		var n: int = counts[best_set]
+		sc.draw_string(UI.bold_font(), Vector2(76, 42), "Ensemble %s" % info.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, col)
+		var w := UI.bold_font().get_string_size("Ensemble %s" % info.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		sc.draw_string(ThemeDB.fallback_font, Vector2(88 + w, 42), "%d/4" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
+		sc.draw_string(ThemeDB.fallback_font, Vector2(76, 74), "(2) %s · (4) %s" % [info.b2, info.b4], HORIZONTAL_ALIGNMENT_LEFT, 560.0, 20, UI.MUTED))
+	_stage.add_child(sc)
+	# conseil : de meilleurs objets dans l'inventaire
+	var gain := 0.0
+	var n_better := 0
+	for slot in better:
+		n_better += 1
+	for slot in Items.SLOTS:
+		if not better.has(slot):
+			continue
+		var bg := 0.0
+		for it in Game.inventory_items():
+			if it.slot == slot and (it.bound == "" or it.bound == _id):
+				bg = maxf(bg, Game.power_gain(it, _id))
+		gain += bg
+	if n_better > 0:
+		var tip := Control.new()
+		tip.position = Vector2(32, 816)
+		tip.size = Vector2(656, 88)
+		tip.draw.connect(func():
+			tip.draw_style_box(UI.box(Color("10331f"), Color(UI.GREEN, 0.4), 24, 0), Rect2(Vector2.ZERO, tip.size))
+			tip.draw_colored_polygon(PackedVector2Array([Vector2(26, 52), Vector2(40, 52), Vector2(33, 36)]), UI.GREEN)
+			tip.draw_string(ThemeDB.fallback_font, Vector2(56, 40), "Ton inventaire a de meilleurs objets pour %d emplacement%s." % [n_better, "s" if n_better > 1 else ""], HORIZONTAL_ALIGNMENT_LEFT, 590.0, 22, UI.GREEN)
+			tip.draw_string(ThemeDB.fallback_font, Vector2(56, 70), "Gain possible : +%s de puissance." % UI.num(gain), HORIZONTAL_ALIGNMENT_LEFT, 590.0, 22, UI.GREEN))
+		_stage.add_child(tip)
+	# boutons
+	var best := UI.button(_stage, "Équiper au mieux", 32, "main")
+	best.position = Vector2(32, 1036)
+	best.size = Vector2(656, 104)
+	best.custom_minimum_size = Vector2(0, 104)
+	best.pressed.connect(func():
+		var cnt: int = Game.equip_best(_id)
+		Game.save_game()
+		Sfx.play("chest" if cnt > 0 else "click", -4.0)
+		changed.emit()
+		_rebuild())
+	var hand := UI.button(_stage, "Choisir à la main", 26, "ghost")
+	hand.position = Vector2(32, 1156)
+	hand.size = Vector2(320, 96)
+	hand.pressed.connect(func():
+		for slot in Items.SLOTS:
+			if Game.slot_unlocked(_id, slot):
+				item_slot_requested.emit(slot)
+				close()
+				return)
+	var clear := UI.button(_stage, "Tout retirer", 26, "ghost")
+	clear.position = Vector2(368, 1156)
+	clear.size = Vector2(320, 96)
+	clear.pressed.connect(func():
+		Game.unequip_all(_id)
+		Game.save_game()
+		changed.emit()
+		_rebuild())

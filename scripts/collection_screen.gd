@@ -4,12 +4,15 @@ extends Overlay
 
 signal squad_changed
 signal hero_requested(id: String)
+signal item_requested(id: int)
+signal forge_requested
 
 const FILTERS := ["Tous", "Rareté", "Rôle", "Espèce"]
 const PREVIEW := 7                  # nombre de cartes montrées avant la case « + N »
 
 var _form: Control
 var _grid: Control
+var _stage: Control
 var _scroll: ScrollContainer
 var _chip_btns: Array = []
 var _tokens_chip: HudButton
@@ -22,6 +25,13 @@ var _drag_slot := -1
 var _drag_pos := Vector2.ZERO
 var _press := Vector2.ZERO
 var _t := 0.0
+var _tab := 0
+var _hero_nodes: Array = []
+var _items_view: ItemsView
+var _sets_view: SetsView
+var _tabs: Control
+
+const TAB_NAMES := ["Héros", "Objets", "Ensembles"]
 
 
 func _init() -> void:
@@ -32,6 +42,7 @@ func _init() -> void:
 	var stage := Control.new()
 	stage.custom_minimum_size = Vector2(720, 1152)
 	box.add_child(stage)
+	_stage = stage
 	var t := UI.label(stage, "Héros", 36, Color.WHITE, true)
 	t.position = Vector2(32, 18)
 	_title_sub = UI.label(stage, "", 24, UI.MUTED, true)
@@ -43,7 +54,7 @@ func _init() -> void:
 	stage.add_child(_tokens_chip)
 	# formation
 	_form = Control.new()
-	_form.position = Vector2(24, 82)
+	_form.position = Vector2(24, 174)
 	_form.size = Vector2(672, 394)
 	_form.draw.connect(_draw_form)
 	_form.gui_input.connect(_form_input)
@@ -55,7 +66,7 @@ func _init() -> void:
 		b.font_size = 26
 		b.radius = 25.0
 		b.size = Vector2(UI.bold_font().get_string_size(FILTERS[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 56.0 + (20.0 if i == 0 else 0.0), 50)
-		b.position = Vector2(x, 492)
+		b.position = Vector2(x, 584)
 		x += b.size.x + 12.0
 		var idx := i
 		b.pressed.connect(func(): _on_filter(idx))
@@ -63,8 +74,8 @@ func _init() -> void:
 		_chip_btns.append(b)
 	# grille
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(0, 550)
-	_scroll.size = Vector2(720, 602)
+	_scroll.position = Vector2(0, 642)
+	_scroll.size = Vector2(720, 510)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	stage.add_child(_scroll)
@@ -74,6 +85,60 @@ func _init() -> void:
 	_grid.gui_input.connect(_grid_input)
 	_scroll.add_child(_grid)
 	_rebuild()
+	# onglets Héros / Objets / Ensembles
+	_tabs = Control.new()
+	_tabs.position = Vector2(32, 90)
+	_tabs.size = Vector2(656, 76)
+	_tabs.draw.connect(_draw_tabs)
+	_tabs.gui_input.connect(_tabs_input)
+	stage.add_child(_tabs)
+	_items_view = ItemsView.new()
+	_items_view.item_requested.connect(func(id: int): item_requested.emit(id))
+	_items_view.forge_requested.connect(func(): forge_requested.emit())
+	_items_view.changed.connect(func(): squad_changed.emit())
+	stage.add_child(_items_view)
+	_sets_view = SetsView.new()
+	stage.add_child(_sets_view)
+	for n in [_form, _scroll] + _chip_btns:
+		_hero_nodes.append(n)
+	_show_tab(0)
+
+
+func show_tab(i: int) -> void:
+	_show_tab(i)
+
+
+func _show_tab(i: int) -> void:
+	_tab = i
+	for n in _hero_nodes:
+		n.visible = i == 0
+	_title_sub.visible = i == 0
+	_items_view.visible = i == 1
+	_sets_view.visible = i == 2
+	if i == 1:
+		_items_view.refresh()
+	_tabs.queue_redraw()
+
+
+func _draw_tabs() -> void:
+	_tabs.draw_style_box(UI.box(UI.PANEL2, Color(0, 0, 0, 0), 28, 0), Rect2(Vector2.ZERO, _tabs.size))
+	var w := (_tabs.size.x - 12.0) / 3.0
+	for i in 3:
+		var r := Rect2(6.0 + i * w, 6, w, 64)
+		var on: bool = i == _tab
+		if on:
+			_tabs.draw_style_box(UI.box(UI.ACCENT, Color(0, 0, 0, 0), 20, 0), r)
+		var col := UI.DARK if on else UI.MUTED
+		var label: String = TAB_NAMES[i]
+		_tabs.draw_string(UI.bold_font(), Vector2(r.position.x, 48), label, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 26, col)
+
+
+func _tabs_input(ev: InputEvent) -> void:
+	if (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
+		var i := clampi(int(ev.position.x / (_tabs.size.x / 3.0)), 0, 2)
+		if i != _tab:
+			Sfx.play("click", -6.0)
+			_show_tab(i)
 
 
 # ---------------------------------------------------------------- données
@@ -145,7 +210,7 @@ func _rebuild() -> void:
 	_grid.custom_minimum_size = Vector2(720, 12.0 + rows * 196.0 + 20.0)
 	for i in FILTERS.size():
 		var b: HudButton = _chip_btns[i]
-		var on := (i == 0 and _fkind == 0) or (i > 0 and _fkind == i)
+		var on: bool = (i == 0 and _fkind == 0) or (i > 0 and _fkind == i)
 		var label: String = FILTERS[i]
 		if i > 0 and _fkind == i:
 			label = _value_name(i, _values(i)[_fval])

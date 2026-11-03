@@ -42,6 +42,12 @@ var tutorial_done := false
 var intro_seen := false
 var last_seen := 0
 var last_free_chest := 0
+var items: Array = []             # tous les objets possédés (portés ou en inventaire)
+var next_item := 1
+var stash: Array = []             # objets trouvés alors que l'inventaire était plein
+var auto_recycle := true          # recyclage automatique des objets communs
+var item_pity := 0                # gros boss de suite sans objet légendaire
+var last_drop: Dictionary = {}    # dernier objet reçu {item, status} pour l'écran de butin
 var last_pulls: Array = []       # derniers héros obtenus au recrutement (id, rareté), les plus récents en tête
 var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
 var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
@@ -70,6 +76,12 @@ func _notification(what: int) -> void:
 
 
 func reset() -> void:
+	items = []
+	next_item = 1
+	stash = []
+	auto_recycle = true
+	item_pity = 0
+	last_drop = {}
 	last_pulls = []
 	daily_day = -1
 	boost_until = 0
@@ -112,7 +124,7 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id))})
 	return out
 
 
@@ -138,7 +150,10 @@ func squad_avg_level() -> float:
 
 
 func power() -> float:
-	return Data.team_power(levels, squad_ids())
+	var p := Data.team_power(levels, squad_ids())
+	for id in squad_ids():
+		p += hero_item_power(id)
+	return p
 
 
 func is_owned(id: String) -> bool:
@@ -263,6 +278,258 @@ func boost_active() -> bool:
 	return boost_remaining() > 0.0
 
 
+# ---------------------------------------------------------------- équipement
+
+func item_by_id(id: int) -> Dictionary:
+	for it in items:
+		if int(it.id) == id:
+			return it
+	return {}
+
+
+func inventory_items() -> Array:
+	var out: Array = []
+	for it in items:
+		if it.on == "":
+			out.append(it)
+	return out
+
+
+func inventory_count() -> int:
+	return inventory_items().size()
+
+
+func hero_items(hid: String) -> Array:
+	var out: Array = []
+	for it in items:
+		if it.on == hid:
+			out.append(it)
+	return out
+
+
+func slot_item(hid: String, slot: String) -> Dictionary:
+	for it in items:
+		if it.on == hid and it.slot == slot:
+			return it
+	return {}
+
+
+func slot_unlocked(hid: String, slot: String) -> bool:
+	return int(levels.get(hid, 1)) >= int(Items.SLOT_UNLOCK[slot])
+
+
+## Ajoute un objet reçu. Renvoie {item, status} : "added", "recycled" (communs recyclés auto) ou "stash" (inventaire plein).
+func receive_item(item: Dictionary) -> Dictionary:
+	var norm := _load_items([item])
+	if norm.is_empty():
+		return {}
+	var it: Dictionary = norm[0]
+	it.id = next_item
+	next_item += 1
+	if auto_recycle and it.rarity == "commun":
+		shards += int(Items.RECYCLE_SHARDS[it.rarity])
+		credits += float(Items.recycle_credits(it))
+		return {"item": it, "status": "recycled"}
+	if inventory_count() >= Items.INVENTORY_MAX:
+		stash.append(it)
+		return {"item": it, "status": "stash"}
+	items.append(it)
+	return {"item": it, "status": "added"}
+
+
+## Remet dans l'inventaire les objets gardés de côté tant qu'il y a de la place.
+func release_stash() -> void:
+	while not stash.is_empty() and inventory_count() < Items.INVENTORY_MAX:
+		items.append(stash.pop_front())
+
+
+## Gain de puissance si `hero` porte `item` à la place de ce qu'il porte dans cet emplacement. Un tank frappe peu : son arme compte moins.
+func power_gain(item: Dictionary, hid: String) -> float:
+	var cur := slot_item(hid, item.slot)
+	var g := Items.power(item) - (Items.power(cur) if cur.get("id", -1) != item.id else 0.0)
+	if item.slot == "arme" and Data.HEROES[hid].role == "tank":
+		g *= 0.3
+	return round(g)
+
+
+## Héros de l'escouade qui profite le plus de l'objet : {hero, gain}.
+func best_hero_for(item: Dictionary) -> Dictionary:
+	var best := {"hero": "", "gain": -1.0e9}
+	for hid in squad_ids():
+		if not slot_unlocked(hid, item.slot):
+			continue
+		if item.bound != "" and item.bound != hid and int(item.moves) >= 1 and credits < Items.REBIND_COST:
+			continue
+		var g := power_gain(item, hid)
+		if g > best.gain:
+			best = {"hero": hid, "gain": g}
+	return best
+
+
+## Coût pour porter l'objet sur ce héros : 0 s'il n'est lié à personne, au premier changement ou s'il revient sur son héros.
+func equip_cost(item: Dictionary, hid: String) -> int:
+	if item.bound == "" or item.bound == hid or int(item.moves) < 1:
+		return 0
+	return Items.REBIND_COST
+
+
+func equip(item_id: int, hid: String) -> String:
+	var it := item_by_id(item_id)
+	if it.is_empty() or not is_owned(hid) or not slot_unlocked(hid, it.slot):
+		return "Emplacement verrouillé"
+	var cost := equip_cost(it, hid)
+	if cost > 0 and credits < cost:
+		return "Il manque %d crédits pour délier l'objet" % int(cost - credits)
+	if cost > 0:
+		credits -= cost
+	if it.bound != "" and it.bound != hid:
+		it.moves = int(it.moves) + 1
+	var old := slot_item(hid, it.slot)
+	if not old.is_empty():
+		old.on = ""
+	it.on = hid
+	it.bound = hid
+	changed.emit()
+	return ""
+
+
+func unequip(item_id: int) -> bool:
+	var it := item_by_id(item_id)
+	if it.is_empty() or it.on == "":
+		return false
+	if inventory_count() >= Items.INVENTORY_MAX:
+		return false
+	it.on = ""
+	changed.emit()
+	return true
+
+
+## Équipe le meilleur objet disponible dans chaque emplacement débloqué (objets libres ou déjà liés à ce héros).
+func equip_best(hid: String) -> int:
+	var n := 0
+	for slot in Items.SLOTS:
+		if not slot_unlocked(hid, slot):
+			continue
+		var best := {}
+		var best_gain := 0.0
+		for it in items:
+			if it.slot != slot or it.on != "" and it.on != hid:
+				continue
+			if it.bound != "" and it.bound != hid:
+				continue
+			var g := power_gain(it, hid)
+			if g > best_gain:
+				best_gain = g
+				best = it
+		if not best.is_empty() and equip(int(best.id), hid) == "":
+			n += 1
+	return n
+
+
+func equip_best_all() -> int:
+	var n := 0
+	for hid in squad_ids():
+		n += equip_best(hid)
+	return n
+
+
+func unequip_all(hid: String) -> void:
+	for it in hero_items(hid):
+		if inventory_count() < Items.INVENTORY_MAX:
+			it.on = ""
+	changed.emit()
+
+
+## Niveau maximum d'un objet : celui de son héros s'il est lié, sinon son maximum de rareté.
+func item_cap(it: Dictionary) -> int:
+	var cap := Items.max_level(it)
+	if it.bound != "":
+		cap = mini(cap, int(levels.get(it.bound, 1)))
+	return cap
+
+
+func upgrade_item(item_id: int) -> bool:
+	var it := item_by_id(item_id)
+	if it.is_empty() or int(it.level) >= item_cap(it):
+		return false
+	var c := Items.upgrade_cost(it)
+	if credits < c:
+		return false
+	credits -= c
+	it.level = int(it.level) + 1
+	changed.emit()
+	return true
+
+
+func recycle_items(ids: Array) -> Dictionary:
+	var sh := 0
+	var cr := 0
+	var n := 0
+	for id in ids:
+		var it := item_by_id(int(id))
+		if it.is_empty() or it.on != "" or it.locked:
+			continue
+		sh += int(Items.RECYCLE_SHARDS[it.rarity])
+		cr += Items.recycle_credits(it)
+		items.erase(it)
+		n += 1
+	shards += sh
+	credits += float(cr)
+	release_stash()
+	changed.emit()
+	return {"count": n, "shards": sh, "credits": cr}
+
+
+## Trois objets libres de même emplacement et même rareté donnent un objet de rareté supérieure. Renvoie l'objet ou {}.
+func fuse_items(ids: Array) -> Dictionary:
+	if ids.size() != 3:
+		return {}
+	var base := item_by_id(int(ids[0]))
+	if base.is_empty() or base.rarity == "ultime":
+		return {}
+	var lv := 0
+	for id in ids:
+		var it := item_by_id(int(id))
+		if it.is_empty() or it.on != "" or it.locked or it.slot != base.slot or it.rarity != base.rarity:
+			return {}
+		lv += int(it.level)
+	var nr: String = Items.RARITIES[Items.rarity_index(base.rarity) + 1]
+	var cost := Items.fuse_cost(nr)
+	if credits < cost:
+		return {}
+	credits -= cost
+	for id in ids:
+		items.erase(item_by_id(int(id)))
+	var out := Items.roll(rng, nr, maxi(1, best_stage - 1), base.slot, true)
+	out.level = clampi(int(round(float(lv) / 3.0)), 1, Items.max_level(out))
+	out.id = next_item
+	next_item += 1
+	items.append(out)
+	changed.emit()
+	return out
+
+
+## Puissance apportée par tout l'équipement d'un héros.
+func hero_item_power(hid: String) -> float:
+	var p := 0.0
+	for it in hero_items(hid):
+		p += Items.power(it)
+	return p
+
+
+func _load_items(raw: Array) -> Array:
+	var out: Array = []
+	for r in raw:
+		if typeof(r) != TYPE_DICTIONARY or not r.has("slot") or not Items.SLOTS.has(String(r.slot)) or not Items.RARITIES.has(String(r.get("rarity", ""))):
+			continue
+		var subs: Array = []
+		for s in r.get("subs", []):
+			if typeof(s) == TYPE_DICTIONARY and Items.BONUS.has(String(s.get("k", ""))):
+				subs.append({"k": String(s.k), "v": float(s.get("v", 1.0))})
+		out.append({"id": int(r.get("id", 0)), "slot": String(r.slot), "rarity": String(r.rarity), "name": String(r.get("name", "Objet")), "level": maxi(1, int(r.get("level", 1))), "scale": float(r.get("scale", 1.0)), "subs": subs, "set": String(r.get("set", "")), "on": String(r.get("on", "")), "bound": String(r.get("bound", "")), "moves": int(r.get("moves", 0)), "locked": bool(r.get("locked", false))})
+	return out
+
+
 ## Applique le réglage d'économie de batterie (30 images par seconde au lieu de 60).
 func apply_performance() -> void:
 	Engine.max_fps = 30 if battery_saver else 60
@@ -360,7 +627,7 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 	perseverance = 0
 	var loot := Data.combo_loot(combo)
 	claim_pending()    # un coffre oublié est toujours versé avant le suivant
-	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot, defer)
+	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot, defer, Data.boss_type(stage) == "big")
 	if Data.boss_type(stage) == "big":
 		chest["crystals"] = int(Data.BIG_BOSS_CRYSTALS[clampi(star_count, 1, 3)])
 		if defer:
@@ -375,10 +642,11 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 	return chest
 
 
-func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: bool = false) -> Dictionary:
+func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: bool = false, big_boss := false) -> Dictionary:
 	var rw := Data.chest_rewards(at_stage, rarity)
 	var cr: float = round(rw.credits * (1.0 + loot_bonus))
 	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus, "tokens": int(Data.CHEST_TOKENS[rarity]), "crystals": 0}
+	chest["item"] = _roll_chest_item(rarity, at_stage, big_boss)
 	if defer:
 		pending_chest = chest
 	else:
@@ -387,7 +655,23 @@ func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: b
 	return chest
 
 
+## Objet du coffre : tirage selon la rareté du coffre, avec la garantie d'un légendaire au plus tard au 3e gros boss.
+func _roll_chest_item(chest_rarity: String, at_stage: int, big_boss: bool) -> Dictionary:
+	var r := Items.roll_rarity(chest_rarity, rng)
+	if big_boss:
+		if Items.rarity_index(r) >= 4:
+			item_pity = 0
+		else:
+			item_pity += 1
+			if item_pity >= Items.PITY_BOSSES:
+				r = "legendaire"
+				item_pity = 0
+	return Items.roll(rng, r, at_stage)
+
+
 func _pay(chest: Dictionary) -> void:
+	if chest.has("item") and typeof(chest.item) == TYPE_DICTIONARY and not chest.item.is_empty():
+		last_drop = receive_item(chest.item)
 	credits += float(chest.credits)
 	shards += int(chest.shards)
 	tokens += int(chest.get("tokens", 0))
@@ -495,7 +779,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -510,6 +794,13 @@ func load_game() -> bool:
 	if ver < 1 or ver > SAVE_VERSION:
 		return false
 	daily_day = int(parsed.get("daily_day", -1))
+	items = _load_items(parsed.get("items", []))
+	stash = _load_items(parsed.get("stash", []))
+	next_item = maxi(1, int(parsed.get("next_item", 1)))
+	for it in items + stash:
+		next_item = maxi(next_item, int(it.id) + 1)
+	auto_recycle = bool(parsed.get("auto_recycle", true))
+	item_pity = int(parsed.get("item_pity", 0))
 	last_pulls = []
 	for lp in parsed.get("last_pulls", []):
 		if typeof(lp) == TYPE_DICTIONARY and Data.HEROES.has(String(lp.get("id", ""))):

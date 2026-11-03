@@ -6,6 +6,7 @@ extends Overlay
 signal next_pressed
 signal replay_pressed
 signal map_pressed
+signal who_requested(item_id: int)
 
 const FOOT := "Le butin se révèle à l'ouverture, puis « %s »."
 
@@ -23,6 +24,18 @@ var _opened := false
 var _next_label := ""
 var _rays: Control
 var _rcol := Color("ffb142")
+var _chest: Dictionary = {}
+var _item_phase := false
+var _hint_nodes: Array = []
+var _eyebrow: Control
+var _rarity := "commun"
+var _bt := ""
+var _loot_actions: Control
+var _banner_ctrl: Control
+var _item_card: Control
+var _drop: Dictionary = {}
+var _best := {}
+var _note_lab: Label
 
 
 func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, combo := 0) -> void:
@@ -37,6 +50,9 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 	box.add_child(_stage_ctrl)
 	var bt: String = Data.boss_type(stage)
 	var rarity: String = chest.rarity
+	_chest = chest
+	_rarity = rarity
+	_bt = bt
 	_rcol = Data.CHEST_COLORS[rarity]
 	# titre, étoiles, légende
 	var title := "ÉTAGE %d · %s" % [stage, "GROS BOSS VAINCU" if bt == "big" else ("MINI-BOSS VAINCU" if bt == "mini" else "ÉTAGE VAINCU")]
@@ -54,10 +70,11 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 			eb.draw_string(fb, Vector2(x, 28), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color("ffb142"))
 			x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0)
 	_stage_ctrl.add_child(eb)
+	_eyebrow = eb
 	var note := "Aucun héros tombé" if star_count == 3 else ("Un héros est tombé" if star_count == 2 else "Plusieurs héros sont tombés")
 	if combo > 1:
 		note += " · combo max ×%d" % combo
-	_lab(note, 22, UI.MUTED, Vector2(0, 148), 720.0)
+	_note_lab = _lab(note, 22, UI.MUTED, Vector2(0, 148), 720.0)
 	# rayons qui tournent derrière le coffre
 	_rays = Control.new()
 	_rays.position = Vector2(0, 0)
@@ -138,6 +155,12 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 	_main_btn.pressed.connect(func():
 		if not _opened:
 			_cv.arm()
+		elif _item_phase and _best.get("hero", "") != "" and _drop.status == "added":
+			Game.equip(int(_drop.item.id), _best.hero)
+			Game.save_game()
+			Sfx.play("chest", -4.0)
+			next_pressed.emit()
+			close()
 		else:
 			next_pressed.emit()
 			close())
@@ -166,7 +189,10 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 		_main_btn.text = "Étage suivant" if next_label.begins_with("Monter") else next_label
 		_foot.visible = false
 		_after.visible = true
-		_reveal())
+		_reveal()
+		_drop = Game.last_drop
+		if not _drop.is_empty():
+			get_tree().create_timer(1.1).timeout.connect(_show_item))
 	Sfx.play("win")
 
 
@@ -196,6 +222,111 @@ func _reveal() -> void:
 			tl.pop = 1.0
 			Sfx.play("coin", -8.0, 1.0 + 0.1 * i))
 		tw.tween_property(tl, "pop", 0.0, 0.25)
+
+
+## Après l'ouverture : l'objet du coffre prend la place du coffre (maquette Y), avec le héros qui en profite le plus.
+func _show_item() -> void:
+	if _drop.is_empty() or _item_phase:
+		return
+	_item_phase = true
+	_cv.visible = false
+	_note_lab.text = "Coffre %s ouvert" % String(Data.RARITY_NAMES[_rarity]).to_lower()
+	_note_lab.position.y = 76.0
+	_hint.visible = false
+	for n in _stage_ctrl.get_children():
+		if n is Label and n != _hint and n.position.y > 700.0 and n.position.y < 900.0:
+			n.visible = false
+		elif n is Control and n.size == Vector2(656, 88):
+			n.visible = false
+		elif n is Control and n.size == Vector2(656, 60) or (n is Label and n.text.begins_with("COFFRE")):
+			n.visible = false
+	for tl in _tiles:
+		tl.position.y = 130.0
+	_foot.visible = false
+	_after.visible = false
+	var it: Dictionary = _drop.item
+	_item_card = Control.new()
+	_item_card.position = Vector2(110, 330)
+	_item_card.size = Vector2(500, 520)
+	var col := ItemUI.color(it.rarity)
+	_item_card.draw.connect(func():
+		var k := 1.0 + 0.012 * sin(_t * 4.0)
+		var cc := _item_card
+		cc.draw_set_transform(cc.size * 0.5, 0.0, Vector2(k, k))
+		cc.draw_style_box(UI.box(UI.PANEL, col, 36, 0), Rect2(-cc.size * 0.5, cc.size))
+		cc.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var tw := 0.0
+		for ch in "NOUVEL OBJET":
+			tw += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 2.5
+		var x := (cc.size.x - tw) * 0.5
+		for ch in "NOUVEL OBJET":
+			cc.draw_string(UI.bold_font(), Vector2(x, 62), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, col)
+			x += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 2.5
+		ItemUI.tile(cc, Rect2((cc.size.x - 168.0) * 0.5, 88, 168, 168), it, false)
+		cc.draw_string(UI.bold_font(), Vector2(0, 306), it.name, HORIZONTAL_ALIGNMENT_CENTER, cc.size.x, 30, col)
+		if it.set != "":
+			var info: Dictionary = Items.SETS[it.set]
+			var sw := UI.bold_font().get_string_size(it.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+			ItemUI.set_badge(cc, Vector2(cc.size.x * 0.5 + sw * 0.5 + 10.0, 280), it.set)
+		cc.draw_string(ThemeDB.fallback_font, Vector2(0, 340), "%s %s" % [Items.SLOT_NAMES[it.slot], String(Data.RARITY_NAMES[it.rarity]).to_lower()], HORIZONTAL_ALIGNMENT_CENTER, cc.size.x, 22, UI.MUTED)
+		var lines: Array = [Items.main_text(it)]
+		lines.append_array(Items.sub_lines(it))
+		var y := 388.0
+		var half := ceili(lines.size() / 2.0)
+		for i in lines.size():
+			var line: String = lines[i]
+			cc.draw_string(UI.bold_font() if i == 0 else ThemeDB.fallback_font, Vector2(0, y + (i % half) * 36.0 if false else y + i * 34.0), line, HORIZONTAL_ALIGNMENT_CENTER, cc.size.x, 24, Color.WHITE if i == 0 else UI.MUTED))
+	_stage_ctrl.add_child(_item_card)
+	_rcol = col
+	# bandeau du meilleur héros
+	_best = Game.best_hero_for(it)
+	_banner_ctrl = Control.new()
+	_banner_ctrl.position = Vector2(32, 880)
+	_banner_ctrl.size = Vector2(656, 104)
+	_banner_ctrl.draw.connect(func():
+		var c2 := _banner_ctrl
+		var ok: bool = _drop.status == "added" and _best.get("hero", "") != ""
+		var bc := UI.GREEN if (ok and float(_best.gain) > 0.0) else (UI.RED if _drop.status != "added" else UI.LINE)
+		c2.draw_style_box(UI.box(Color(bc.r * 0.18, bc.g * 0.3, bc.b * 0.2, 1.0) if bc != UI.LINE else UI.PANEL, Color(bc.r, bc.g, bc.b, 0.4), 24, 0), Rect2(Vector2.ZERO, c2.size))
+		if _drop.status == "recycled":
+			c2.draw_string(UI.bold_font(), Vector2(28, 62), "Objet commun recyclé : +%d éclat" % int(Items.RECYCLE_SHARDS[it.rarity]), HORIZONTAL_ALIGNMENT_LEFT, 600.0, 24, UI.MUTED)
+		elif _drop.status == "stash":
+			c2.draw_string(UI.bold_font(), Vector2(28, 62), "Inventaire plein : l'objet attend de côté", HORIZONTAL_ALIGNMENT_LEFT, 600.0, 24, UI.RED)
+		elif ok:
+			UI.portrait(c2, Data.HEROES[_best.hero], Vector2(64, 52), 40.0, _t)
+			var nm: String = String(Data.HEROES[_best.hero].name).split(" ")[0]
+			c2.draw_string(ThemeDB.fallback_font, Vector2(124, 62), "Meilleur sur", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
+			var w := ThemeDB.fallback_font.get_string_size("Meilleur sur ", HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+			c2.draw_string(UI.bold_font(), Vector2(124 + w, 62), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
+			ItemUI.delta(c2, 632.0, 62.0, float(_best.gain))
+		else:
+			c2.draw_string(UI.bold_font(), Vector2(28, 62), "Aucun héros ne peut le porter pour l'instant", HORIZONTAL_ALIGNMENT_LEFT, 600.0, 22, UI.MUTED))
+	_stage_ctrl.add_child(_banner_ctrl)
+	# boutons
+	var can_equip: bool = _drop.status == "added" and _best.get("hero", "") != ""
+	if can_equip:
+		_main_btn.text = "Équiper sur %s" % String(Data.HEROES[_best.hero].name).split(" ")[0]
+	else:
+		_main_btn.text = "Étage suivant" if _next_label.begins_with("Monter") else _next_label
+	_main_btn.position = Vector2(32, 1032)
+	_loot_actions = HBoxContainer.new()
+	_loot_actions.position = Vector2(32, 1152)
+	_loot_actions.size = Vector2(656, 96)
+	_loot_actions.add_theme_constant_override("separation", 16)
+	_stage_ctrl.add_child(_loot_actions)
+	if _drop.status == "added":
+		var who := UI.button(_loot_actions, "À qui ?", 26, "ghost")
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.custom_minimum_size = Vector2(0, 96)
+		who.pressed.connect(func():
+			who_requested.emit(int(_drop.item.id))
+			close())
+	var nxt := UI.button(_loot_actions, "Étage suivant" if _next_label.begins_with("Monter") else _next_label, 26, "ghost")
+	nxt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nxt.custom_minimum_size = Vector2(0, 96)
+	nxt.pressed.connect(func():
+		next_pressed.emit()
+		close())
 
 
 func _process(delta: float) -> void:
@@ -232,8 +363,9 @@ func _draw_stars_on(ci: CanvasItem) -> void:
 
 
 func _draw_rays() -> void:
-	_draw_stars_on(_rays)
-	var c := Vector2(360, 470)
+	if not _item_phase:
+		_draw_stars_on(_rays)
+	var c := Vector2(360, 590 if _item_phase else 470)
 	var rot := _t * 0.26
 	for i in 12:
 		var a0 := rot + TAU * i / 12.0

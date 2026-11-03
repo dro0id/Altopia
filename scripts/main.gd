@@ -21,6 +21,10 @@ var _head: Label
 var _cards_row: HBoxContainer
 var _boss := ""
 var _fh := 600.0
+var _item_toast: Control
+var _equip_row: Control
+var _equip_hero := ""
+var _equip_btn: Button
 var _nav: NavBar
 var _tab_modal := false
 var _skill_row: HBoxContainer
@@ -84,6 +88,7 @@ func _ready() -> void:
 	_build_top()
 	_build_skills()
 	_build_squad()
+	_build_equip_row()
 	_build_tip()
 	_build_nav()
 	_build_toast()
@@ -266,6 +271,59 @@ func _build_squad() -> void:
 		_refresh())
 
 
+func _build_equip_row() -> void:
+	_equip_row = Control.new()
+	_equip_row.position = Vector2(24, 998)
+	_equip_row.size = Vector2(672, 118)
+	_equip_row.visible = false
+	_equip_row.draw.connect(func():
+		if _equip_hero == "":
+			return
+		var hd: Dictionary = Data.HEROES[_equip_hero]
+		_equip_row.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 24, 0), Rect2(Vector2.ZERO, _equip_row.size))
+		UI.portrait(_equip_row, hd, Vector2(64, 59), 40.0, 0.0)
+		var sg := _equip_suggestion()
+		var nm: String = String(hd.name).split(" ")[0]
+		var bare: bool = Game.hero_items(_equip_hero).is_empty()
+		_equip_row.draw_string(UI.bold_font(), Vector2(124, 52), "%s · %s" % [nm, "aucun équipement" if bare else "mieux équipé possible"], HORIZONTAL_ALIGNMENT_LEFT, 380.0, 26, Color.WHITE)
+		_equip_row.draw_string(ThemeDB.fallback_font, Vector2(124, 86), "%d objet%s de ton inventaire lui conviennent" % [int(sg.count), "s" if int(sg.count) > 1 else ""], HORIZONTAL_ALIGNMENT_LEFT, 390.0, 22, UI.MUTED))
+	add_child(_equip_row)
+	_equip_btn = UI.button(_equip_row, "Équiper", 26, "main")
+	_equip_btn.position = Vector2(528, 11)
+	_equip_btn.size = Vector2(130, 96)
+	_equip_btn.custom_minimum_size = Vector2(0, 96)
+	_equip_btn.pressed.connect(func():
+		if _equip_hero == "":
+			return
+		var n: int = Game.equip_best(_equip_hero)
+		Game.save_game()
+		Sfx.play("chest" if n > 0 else "click", -4.0)
+		_start_battle()
+		_show_toast("%d objet%s équipé%s" % [n, "s" if n > 1 else "", "s" if n > 1 else ""], 2.0))
+
+
+## Héros qui gagnerait le plus à être rééquipé : {hero, gain, count}.
+func _equip_suggestion() -> Dictionary:
+	var best := {"hero": "", "gain": 0.0, "count": 0}
+	for hid in Game.squad_ids():
+		var total := 0.0
+		var cnt := 0
+		for slot in Items.SLOTS:
+			if not Game.slot_unlocked(hid, slot):
+				continue
+			var top := 0.0
+			for it in Game.inventory_items():
+				if it.slot == slot and (it.bound == "" or it.bound == hid):
+					var g := Game.power_gain(it, hid)
+					if g > 0.0:
+						cnt += 1
+						top = maxf(top, g)
+			total += top
+		if total > float(best.gain):
+			best = {"hero": hid, "gain": total, "count": cnt}
+	return best
+
+
 func _build_tip() -> void:
 	_tip = PanelContainer.new()
 	_tip.add_theme_stylebox_override("panel", UI.box(Color("2a1626"), Color(1.0, 0.42, 0.42, 0.4), 24, 18))
@@ -369,7 +427,7 @@ func _build_hint() -> void:
 
 func _build_buffs() -> void:
 	_buffs = UI.label(self, "", 19, UI.GOLD)
-	_buffs.position = Vector2(24, 1000)
+	_buffs.position = Vector2(24, 1124)
 	_buffs.size = Vector2(688, 60)
 	_buffs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_buffs.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
@@ -442,7 +500,7 @@ func _open_evolve(id: String) -> void:
 	_open_modal(e)
 
 
-func _open_collection() -> void:
+func _open_collection(tab: int = 0) -> void:
 	var c := CollectionScreen.new()
 	c.squad_changed.connect(_start_battle)
 	c.hero_requested.connect(func(id: String):
@@ -451,10 +509,52 @@ func _open_collection() -> void:
 		hs.evolve_requested.connect(func(eid: String):
 			hs.close()
 			_open_evolve.call_deferred(eid))
+		hs.item_slot_requested.connect(func(slot: String):
+			_open_pick(id, slot))
 		# fiche en plein écran ; en la quittant on revient à la collection
 		hs.closed.connect(func(): _open_collection.call_deferred())
 		_open_modal(hs))
+	c.item_requested.connect(func(iid: int): _open_item(iid))
+	c.forge_requested.connect(_open_forge)
 	_open_modal(c, 1)
+	if tab > 0:
+		c.show_tab(tab)
+
+
+## Détail d'un objet (plein écran) ; en le quittant on revient à l'onglet Objets.
+func _open_item(iid: int) -> void:
+	var d := ItemDetailScreen.new(iid)
+	d.changed.connect(_start_battle)
+	d.who_requested.connect(func(id: int): _open_who(id, "À qui l'équiper ?"))
+	d.closed.connect(func(): _open_collection.call_deferred(1))
+	_open_modal(d)
+
+
+func _open_who(iid: int, title: String, back_to_items := true) -> void:
+	var w := ItemWhoScreen.new(iid, title)
+	w.changed.connect(_start_battle)
+	if back_to_items:
+		w.closed.connect(func(): _open_collection.call_deferred(1))
+	_open_modal(w)
+
+
+func _open_pick(hero_id: String, slot: String) -> void:
+	var p := ItemPickScreen.new(hero_id, slot)
+	p.changed.connect(_start_battle)
+	p.closed.connect(func():
+		var hs := HeroScreen.new(hero_id, 1)
+		hs.changed.connect(_start_battle)
+		hs.item_slot_requested.connect(func(sl: String): _open_pick(hero_id, sl))
+		hs.closed.connect(func(): _open_collection.call_deferred())
+		_open_modal.call_deferred(hs))
+	_open_modal(p)
+
+
+func _open_forge() -> void:
+	var f := ForgeScreen.new()
+	f.changed.connect(_start_battle)
+	f.closed.connect(func(): _open_collection.call_deferred(1))
+	_open_modal(f)
 
 
 func _open_recruit() -> void:
@@ -480,6 +580,52 @@ func _show_chest_toast(c: Dictionary) -> void:
 
 
 # ---------------------------------------------------------------- combat
+
+## Alerte « Objet trouvé » (planche du combat équipé) : l'objet, et un bouton pour l'équiper sur le héros qui en profite le plus.
+func _show_item_toast(drop: Dictionary) -> void:
+	if _item_toast != null and is_instance_valid(_item_toast):
+		_item_toast.queue_free()
+	var it: Dictionary = drop.item
+	var col := ItemUI.color(it.rarity)
+	var best: Dictionary = Game.best_hero_for(it) if drop.status == "added" else {"hero": "", "gain": 0.0}
+	var can: bool = best.hero != "" and float(best.gain) > 0.0
+	var c := Control.new()
+	c.position = Vector2(24, 120)
+	c.size = Vector2(672, 104)
+	c.z_index = 3000
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	var age := [0.0]
+	c.draw.connect(func():
+		c.draw_style_box(UI.box(Color(0.051, 0.082, 0.188, 0.87), col, 24, 0), Rect2(Vector2.ZERO, c.size))
+		ItemUI.tile(c, Rect2(16, 16, 72, 72), it, false)
+		var title := "Objet %s trouvé" % String(Data.RARITY_NAMES[it.rarity]).to_lower()
+		var sub: String = Items.summary(it)
+		if drop.status == "recycled":
+			title = "Objet commun recyclé"
+			sub = "+%d éclat · le recyclage automatique est activé" % int(Items.RECYCLE_SHARDS[it.rarity])
+		elif drop.status == "stash":
+			title = "Inventaire plein"
+			sub = "L'objet attend de côté : fais de la place"
+		c.draw_string(UI.bold_font(), Vector2(108, 46), title, HORIZONTAL_ALIGNMENT_LEFT, 360.0, 24, col)
+		c.draw_string(ThemeDB.fallback_font, Vector2(108, 78), "%s · %s" % [it.name, sub] if drop.status == "added" else sub, HORIZONTAL_ALIGNMENT_LEFT, 380.0, 20, UI.MUTED)
+		if can:
+			c.draw_style_box(UI.box(Color(UI.GREEN, 0.08), Color(UI.GREEN, 0.4), 24, 0), Rect2(498, 26, 150, 52))
+			c.draw_string(UI.bold_font(), Vector2(498, 62), "Équiper", HORIZONTAL_ALIGNMENT_CENTER, 130.0, 22, UI.GREEN)
+			c.draw_colored_polygon(PackedVector2Array([Vector2(620, 60), Vector2(636, 60), Vector2(628, 44)]), UI.GREEN))
+	c.gui_input.connect(func(ev: InputEvent):
+		if ((ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed)) and can:
+			if Game.equip(int(it.id), best.hero) == "":
+				Game.save_game()
+				Sfx.play("chest", -4.0)
+				_start_battle()
+				_show_toast("%s équipé sur %s" % [it.name, String(Data.HEROES[best.hero].name).split(" ")[0]], 2.4)
+				c.queue_free())
+	add_child(c)
+	_item_toast = c
+	get_tree().create_timer(5.0).timeout.connect(func():
+		if is_instance_valid(c):
+			c.queue_free())
+
 
 func _start_battle() -> void:
 	_layout()
@@ -511,6 +657,16 @@ func _on_cleared(_credits: float) -> void:
 	if shows_chest:
 		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
+		var go_next := func():
+			_pick_boost(func():
+				if Game.best_stage > stage:
+					Game.advance()
+				_start_battle())
+		r.who_requested.connect(func(iid: int):
+			var w := ItemWhoScreen.new(iid, "Nouvel objet")
+			w.changed.connect(_start_battle)
+			w.closed.connect(go_next)
+			_open_modal(w))
 		# après un étage de progression, on choisit un renfort avant de repartir
 		r.next_pressed.connect(func():
 			_pick_boost(func():
@@ -525,6 +681,8 @@ func _on_cleared(_credits: float) -> void:
 		_open_modal(r)
 	else:
 		_show_toast("Étage %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
+		if not Game.last_drop.is_empty():
+			_show_item_toast(Game.last_drop)
 		Sfx.play("coin", -6.0)
 		_start_battle()
 
@@ -702,6 +860,10 @@ func _refresh() -> void:
 		parts.append("Renforts : " + ", ".join(names))
 	_buffs.text = "\n".join(parts)
 	var syn: Array = Game.synergy().list
+	var eq_total := 0.0
+	for eid in Game.squad_ids():
+		eq_total += Game.hero_item_power(eid)
+	var eq_pct := int(round(eq_total / maxf(1.0, Data.team_power(Game.levels, Game.squad_ids())) * 100.0)) if eq_total > 0.0 else 0
 	_syn_label.add_theme_color_override("font_color", UI.GREEN)
 	if _boss != "":
 		var binfo: Dictionary = BOSS_INFO.get(Data.boss_kind(Game.stage), BOSS_INFO.titan)
@@ -710,6 +872,9 @@ func _refresh() -> void:
 		var aw: float = ThemeDB.fallback_font.get_string_size(KIND_NAMES[binfo.kind], HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 		_advice_icon.position = Vector2(_syn_label.position.x + _syn_label.size.x - aw - 34.0, _syn_label.position.y - 2.0)
 		_advice_icon.visible = true
+	elif eq_pct > 0:
+		_syn_label.text = "Équipement +%d %% puissance" % eq_pct
+		_advice_icon.visible = false
 	elif syn.is_empty():
 		_syn_label.text = ""
 		_advice_icon.visible = false
@@ -746,7 +911,21 @@ func _refresh() -> void:
 		c.hero = Data.HEROES[id]
 		c.level = int(Game.levels[id])
 		c.affordable = id == best and Game.credits >= Game.level_cost(id)
-	_nav.badges = [0, affordable, Game.tokens / Data.RECRUIT_COST, 0]
+		var pp: Array = []
+		for sl in Items.SLOTS:
+			var eqi: Dictionary = Game.slot_item(id, sl)
+			pp.append(ItemUI.color(eqi.rarity) if not eqi.is_empty() else null)
+		c.pips = pp
+	var sug := _equip_suggestion()
+	_equip_hero = String(sug.hero)
+	_equip_row.visible = _equip_hero != "" and _boss == ""
+	_equip_row.queue_redraw()
+	var ready_items := 0
+	for it in Game.inventory_items():
+		var bh: Dictionary = Game.best_hero_for(it)
+		if bh.hero != "" and float(bh.gain) > 0.0 and (it.bound == "" or it.bound == bh.hero):
+			ready_items += 1
+	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.tokens / Data.RECRUIT_COST, 0]
 	if up_id == "":
 		_up_panel.visible = false
 		return
