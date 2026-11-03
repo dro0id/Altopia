@@ -24,6 +24,9 @@ var owned := {}                # héros possédés (id -> true)
 var hero_stars := {}           # héros -> étoiles (1 à 5)
 var fragments := {}            # héros -> fragments pour la prochaine étoile
 var squad: Array = []          # les 5 héros au combat, un par emplacement (0 = première ligne au centre)
+var item_tokens := 0           # jetons d'objet (caisses d'équipement)
+var item_pack_pity := {"epic": 0, "leg": 0}
+var item_pulls: Array = []       # derniers objets ouverts {slot, rarity}, les plus récents en tête
 var tokens := 0                # jetons de recrutement (gagnés en jeu)
 var crystals := 0              # cristaux d'Altopia (monnaie de la boutique)
 var recruit_pity := {"rare": 0, "epic": 0}
@@ -83,6 +86,9 @@ func reset() -> void:
 	item_pity = 0
 	last_drop = {}
 	last_pulls = []
+	item_tokens = 4
+	item_pack_pity = {"epic": 0, "leg": 0}
+	item_pulls = []
 	daily_day = -1
 	boost_until = 0
 	credits = 0.0
@@ -228,6 +234,32 @@ func recruit(count: int) -> Array:
 	return out
 
 
+## Ouverture de caisses d'équipement : `count` 1 ou 10. Renvoie [{item, status}] (status : added / stash / recycled), vide si pas assez de jetons.
+func open_item_packs(count: int) -> Array:
+	var cost: int = Data.ITEM_PACK_COST_10 if count == 10 else Data.ITEM_PACK_COST * count
+	if item_tokens < cost:
+		return []
+	item_tokens -= cost
+	var out: Array = []
+	var guard := count >= 10
+	for i in count:
+		var r := Items.roll_pack_rarity(rng, item_pack_pity, guard and i == count - 1 and not _has_rare(out))
+		var res := receive_item(Items.roll(rng, r, maxi(1, best_stage)))
+		out.append(res)
+		item_pulls.push_front({"slot": res.item.slot, "rarity": res.item.rarity})
+		if item_pulls.size() > 6:
+			item_pulls.pop_back()
+	changed.emit()
+	return out
+
+
+func _has_rare(res: Array) -> bool:
+	for r in res:
+		if Items.rarity_index(r.item.rarity) >= 2:
+			return true
+	return false
+
+
 ## Achat en boutique avec des cristaux. Renvoie un texte de résultat, vide si l'achat est impossible.
 func buy(item_id: String) -> String:
 	var items: Array = Data.SHOP_ITEMS.duplicate()
@@ -249,6 +281,9 @@ func buy(item_id: String) -> String:
 		if it.has("tokens"):
 			tokens += int(it.tokens)
 			msg.append("+ %d jetons" % int(it.tokens))
+		if it.has("item_tokens"):
+			item_tokens += int(it.item_tokens)
+			msg.append("+ %d jetons d'objet" % int(it.item_tokens))
 		if it.has("chest"):
 			var c := open_chest(String(it.chest), maxi(1, best_stage - 1))
 			msg.append("Coffre %s : + %s crédits, + %d éclats" % [String(Data.RARITY_NAMES[c.rarity]).to_lower(), Data.fmt(c.credits), int(c.shards)])
@@ -645,7 +680,7 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: bool = false, big_boss := false) -> Dictionary:
 	var rw := Data.chest_rewards(at_stage, rarity)
 	var cr: float = round(rw.credits * (1.0 + loot_bonus))
-	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus, "tokens": int(Data.CHEST_TOKENS[rarity]), "crystals": 0}
+	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus, "tokens": int(Data.CHEST_TOKENS[rarity]), "crystals": 0, "item_tokens": 1 if big_boss else 0}
 	chest["item"] = _roll_chest_item(rarity, at_stage, big_boss)
 	if defer:
 		pending_chest = chest
@@ -675,6 +710,7 @@ func _pay(chest: Dictionary) -> void:
 	credits += float(chest.credits)
 	shards += int(chest.shards)
 	tokens += int(chest.get("tokens", 0))
+	item_tokens += int(chest.get("item_tokens", 0))
 	crystals += int(chest.get("crystals", 0))
 
 
@@ -779,7 +815,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -801,6 +837,13 @@ func load_game() -> bool:
 		next_item = maxi(next_item, int(it.id) + 1)
 	auto_recycle = bool(parsed.get("auto_recycle", true))
 	item_pity = int(parsed.get("item_pity", 0))
+	item_tokens = maxi(0, int(parsed.get("item_tokens", 4)))
+	var ipp: Dictionary = parsed.get("item_pack_pity", {})
+	item_pack_pity = {"epic": int(ipp.get("epic", 0)), "leg": int(ipp.get("leg", 0))}
+	item_pulls = []
+	for lp in parsed.get("item_pulls", []):
+		if typeof(lp) == TYPE_DICTIONARY and lp.has("slot") and Items.SLOTS.has(String(lp.slot)) and Items.RARITIES.has(String(lp.get("rarity", ""))):
+			item_pulls.append({"slot": String(lp.slot), "rarity": String(lp.rarity)})
 	last_pulls = []
 	for lp in parsed.get("last_pulls", []):
 		if typeof(lp) == TYPE_DICTIONARY and Data.HEROES.has(String(lp.get("id", ""))):

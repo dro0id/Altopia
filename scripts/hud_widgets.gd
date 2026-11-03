@@ -56,6 +56,9 @@ func _draw() -> void:
 		elif icon == "token":
 			draw_style_box(UI.box(Color("b388ff"), Color(0, 0, 0, 0), 5, 0), Rect2(c + Vector2(-14, -10), Vector2(28, 20)))
 			draw_circle(c, 4.5, Color("2a1450"))
+		elif icon == "itoken":
+			draw_style_box(UI.box(Color("ffb142"), Color(0, 0, 0, 0), 7, 0), Rect2(c + Vector2(-14, -12), Vector2(28, 24)))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -7), c + Vector2(6, 0), c + Vector2(0, 7), c + Vector2(-6, 0)]), Color("3a2000"))
 		else:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -13), c + Vector2(13, -2), c + Vector2(8, 13), c + Vector2(-8, 13), c + Vector2(-13, -2)]), Color("7fdcff"))
 		draw_string(f, Vector2(54, size.y * 0.5 + font_size * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_color)

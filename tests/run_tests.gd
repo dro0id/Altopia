@@ -428,6 +428,49 @@ func test_all_heroes_fight() -> void:
 		_check(s.state == "clear" or s.state == "defeat", "%s combat jusqu'au bout" % id)
 
 
+func test_item_packs() -> void:
+	_g.reset()
+	_g.best_stage = 15
+	_g.item_tokens = 1
+	_check(_g.open_item_packs(1).is_empty() and _g.item_tokens == 1, "pas de caisse sans assez de jetons d'objet")
+	_g.item_tokens = 40
+	var one: Array = _g.open_item_packs(1)
+	_check(one.size() == 1 and _g.item_tokens == 38 and _g.item_pulls.size() == 1, "une caisse coûte 2 jetons d'objet")
+	var ten: Array = _g.open_item_packs(10)
+	var has_rare := false
+	for r in ten:
+		if Items.rarity_index(r.item.rarity) >= 2:
+			has_rare = true
+	_check(ten.size() == 10 and _g.item_tokens == 20 and has_rare, "dix caisses coûtent 18 jetons et donnent un objet rare ou mieux")
+	_check(_g.item_pulls.size() == 6, "les six derniers objets sont gardés")
+	# garanties : épique au plus tard à la 10e, légendaire à la 40e
+	var pity := {"epic": 0, "leg": 0}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var since_epic := 0
+	var since_leg := 0
+	var worst_epic := 0
+	var worst_leg := 0
+	for i in 4000:
+		var r := Items.roll_pack_rarity(rng, pity)
+		since_epic = 0 if Items.rarity_index(r) >= 3 else since_epic + 1
+		since_leg = 0 if Items.rarity_index(r) >= 4 else since_leg + 1
+		worst_epic = maxi(worst_epic, since_epic)
+		worst_leg = maxi(worst_leg, since_leg)
+	_check(worst_epic <= 9 and worst_leg <= 39, "garanties épique 10 et légendaire 40")
+	_g.crystals = 100
+	var it0: int = _g.item_tokens
+	_check(_g.buy("itokens6") != "" and _g.item_tokens == it0 + 6 and _g.crystals == 92, "six jetons d'objet coûtent 8 cristaux")
+	var ch: Dictionary = _g.open_chest("rare", 5, 0.0, false, true)
+	_check(int(ch.item_tokens) == 1 and _g.item_tokens == it0 + 7, "un gros boss donne un jeton d'objet")
+	_g.save_game()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	g2.load_game()
+	_check(g2.item_tokens == _g.item_tokens and g2.item_pulls.size() == _g.item_pulls.size(), "jetons d'objet et derniers objets sauvegardés")
+	g2.free()
+
+
 func test_shop_and_tokens() -> void:
 	_g.crystals = 5
 	_check(_g.buy("tokens6") == "" and _g.crystals == 5, "pas d'achat sans assez de cristaux")

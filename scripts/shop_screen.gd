@@ -245,6 +245,8 @@ func _draw_card(c: Control, it: Dictionary) -> void:
 			_mini_chest(c, ctr + Vector2(0, 30), 108.0, CHEST_COLS.epique)
 		"tokens6":
 			_token(c, ctr)
+		"itokens6":
+			_token(c, ctr, true)
 		"boost2":
 			c.draw_circle(ctr, 40, Color("1d2a52"))
 			c.draw_arc(ctr, 39, 0, TAU, 40, UI.ACCENT, 4.0, true)
@@ -300,9 +302,9 @@ func _mini_chest(ci: Control, base: Vector2, w: float, pal: Array) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([P.call(68, 54), P.call(92, 54), P.call(96, 76), P.call(80, 86), P.call(64, 76)]), Color("ffd166"))
 
 
-func _token(ci: Control, c: Vector2) -> void:
-	ci.draw_style_box(UI.box(Color("9b6bf0"), Color("e6d6ff"), 14, 0), Rect2(c + Vector2(-44, -30), Vector2(88, 60)))
-	ci.draw_circle(c, 12.0, Color("2a1450"))
+func _token(ci: Control, c: Vector2, orange := false) -> void:
+	ci.draw_style_box(UI.box(Color("ffb142") if orange else Color("9b6bf0"), Color("ffe2a8") if orange else Color("e6d6ff"), 14, 0), Rect2(c + Vector2(-44, -30), Vector2(88, 60)))
+	ci.draw_circle(c, 12.0, Color("3a2000") if orange else Color("2a1450"))
 
 
 func _dashed(ci: Control, r: Rect2, col: Color) -> void:

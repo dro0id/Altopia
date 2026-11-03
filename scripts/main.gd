@@ -558,7 +558,10 @@ func _open_forge() -> void:
 
 
 func _open_recruit() -> void:
-	_open_modal(RecruitScreen.new(), 2)
+	var rs := RecruitScreen.new()
+	rs.inventory_requested.connect(func(): _open_collection.call_deferred(1))
+	rs.equipped.connect(_start_battle)
+	_open_modal(rs, 2)
 
 
 func _open_shop() -> void:

@@ -86,6 +86,29 @@ static func roll(rng: RandomNumberGenerator, rarity: String, stage: int, slot: S
 	return item
 
 
+## Ouverture d'une caisse d'équipement : rareté tirée avec les garanties (épique tous les 10, légendaire tous les 40) ; `pity` {"epic": n, "leg": n} est modifié sur place.
+static func roll_pack_rarity(rng: RandomNumberGenerator, pity: Dictionary, min_rare := false) -> String:
+	var total := 0
+	for e in Data.ITEM_PACK_RATES:
+		total += int(e[1])
+	var r := rng.randi() % total
+	var out := "normal"
+	for e in Data.ITEM_PACK_RATES:
+		if r < int(e[1]):
+			out = e[0]
+			break
+		r -= int(e[1])
+	if int(pity.get("leg", 0)) >= Data.ITEM_PITY_LEG - 1:
+		out = "legendaire"
+	elif int(pity.get("epic", 0)) >= Data.ITEM_PITY_EPIC - 1 and rarity_index(out) < 3:
+		out = "epique"
+	elif min_rare and rarity_index(out) < 2:
+		out = "rare"
+	pity["epic"] = 0 if rarity_index(out) >= 3 else int(pity.get("epic", 0)) + 1
+	pity["leg"] = 0 if rarity_index(out) >= 4 else int(pity.get("leg", 0)) + 1
+	return out
+
+
 ## Statistiques propres à l'objet (valeur principale selon le niveau, bonus secondaires).
 static func stats(item: Dictionary) -> Dictionary:
 	var out := {"hp": 0.0, "atk": 0.0, "def": 0.0, "skill": 0.0, "crit": 0.0, "speed": 0.0, "boss": 0.0, "heal": 0.0, "cdr": 0.0}

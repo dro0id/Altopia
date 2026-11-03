@@ -12,6 +12,12 @@ var _ten_sub: Label
 var _busy := false
 var _t := 0.0
 var _results: Control
+var _mode := 0
+var _seg: Array = []
+var _hero_nodes: Array = []
+var _view: ItemBoosterView
+signal inventory_requested
+signal equipped
 
 
 func _init() -> void:
@@ -30,8 +36,8 @@ func _init() -> void:
 	_tokens_chip.tappable = false
 	stage.add_child(_tokens_chip)
 	_banner = Control.new()
-	_banner.position = Vector2(32, 128)
-	_banner.size = Vector2(656, 397)
+	_banner.position = Vector2(32, 140)
+	_banner.size = Vector2(656, 385)
 	_banner.clip_contents = true
 	_banner.draw.connect(_draw_banner)
 	stage.add_child(_banner)
@@ -96,6 +102,25 @@ func _init() -> void:
 	var o2 := UI.label(orow, str(Data.RECRUIT_COST), 28, Color("e8eefc"), true)
 	o2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_one.pressed.connect(_pull.bind(1))
+	_hero_nodes = [_banner, cap, _last, _ten, _one]
+	_hero_nodes.append_array(_pity)
+	_view = ItemBoosterView.new()
+	_view.visible = false
+	_view.inventory_requested.connect(func(): inventory_requested.emit())
+	_view.equipped.connect(func(): equipped.emit())
+	stage.add_child(_view)
+	for i in 2:
+		var sb := HudButton.new()
+		sb.font_size = 26
+		sb.radius = 24.0
+		sb.set_texts(["Héros", "Objets"][i])
+		sb.size = Vector2(324, 56)
+		sb.position = Vector2(32.0 + i * 332.0, 76)
+		var idx := i
+		sb.pressed.connect(func(): _set_mode(idx))
+		stage.add_child(sb)
+		_seg.append(sb)
+	_set_mode(0)
 	_refresh()
 
 
@@ -105,15 +130,34 @@ func _process(delta: float) -> void:
 	_refresh()
 
 
+func _set_mode(m: int) -> void:
+	if _busy and m != _mode:
+		return
+	_mode = m
+	for n in _hero_nodes:
+		(n as Control).visible = m == 0
+	_view.visible = m == 1
+	for i in _seg.size():
+		var b: HudButton = _seg[i]
+		b.fill = UI.ACCENT if i == m else UI.HUD
+		b.border = UI.ACCENT if i == m else UI.LINE
+		b.text_color = UI.DARK if i == m else UI.TEXT
+		b.queue_redraw()
+	_tokens_chip.icon = "token" if m == 0 else "itoken"
+	_refresh()
+
+
 func _refresh() -> void:
-	_tokens_chip.set_texts(str(Game.tokens))
+	_tokens_chip.set_texts(str(Game.tokens if _mode == 0 else Game.item_tokens))
 	_tokens_chip.fit_chip()
 	_tokens_chip.position = Vector2(688.0 - _tokens_chip.size.x, 28)
 	_ten.disabled = Game.tokens < Data.RECRUIT_COST_10 or _busy
+	_tokens_chip.queue_redraw()
 	_one.disabled = Game.tokens < Data.RECRUIT_COST or _busy
-	for c in _pity:
-		c.queue_redraw()
-	_last.queue_redraw()
+	if _mode == 0:
+		for c in _pity:
+			c.queue_redraw()
+		_last.queue_redraw()
 
 
 # ---------------------------------------------------------------- dessin
@@ -168,7 +212,7 @@ func _draw_banner() -> void:
 	_ticket(b, Vector2(500, 200), 230.0, 330.0, 0.08, Color("4a2a9a"), Color("6a44c8"), fh, false)
 	_ticket(b, Vector2(478, 214), 230.0, 330.0, -0.04, Color("7a4de0"), Color("3b1f78"), fh, true)
 	# liseré du bas
-	b.draw_polygon(PackedVector2Array([Vector2(24, 389), Vector2(b.size.x - 24, 389), Vector2(b.size.x - 24, 397), Vector2(24, 397)]), PackedColorArray([Color("b388ff"), Color("4fa8ff"), Color("4fa8ff"), Color("b388ff")]))
+	b.draw_polygon(PackedVector2Array([Vector2(24, b.size.y - 8.0), Vector2(b.size.x - 24, b.size.y - 8.0), Vector2(b.size.x - 24, b.size.y), Vector2(24, b.size.y)]), PackedColorArray([Color("b388ff"), Color("4fa8ff"), Color("4fa8ff"), Color("b388ff")]))
 
 
 func _ticket(ci: Control, c: Vector2, w: float, h: float, rot: float, c_top: Color, c_bot: Color, hero_id: String, front: bool) -> void:

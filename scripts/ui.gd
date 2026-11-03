@@ -166,6 +166,8 @@ static func icon(kind: String, px: int = 28) -> Texture2D:
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><path d="M7 1l5 4-2 8H4L2 5z" fill="#7fdcff"/></svg>'
 		"token":
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><rect x="1" y="3" width="12" height="8" rx="2" fill="#b388ff"/><circle cx="7" cy="7" r="2" fill="#2a1450"/></svg>'
+		"itoken":
+			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><rect x="1" y="2" width="12" height="10" rx="3" fill="#ffb142"/><path d="M7 4l1.2 2.4 2.6.4-1.9 1.8.5 2.6L7 10l-2.4 1.2.5-2.6L3.2 6.8l2.6-.4z" fill="#3a2000"/></svg>'
 		_:
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><path d="M7 0l6 7-6 7-6-7z" fill="#ff7ad9"/></svg>'
 	var img := Image.new()
