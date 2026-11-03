@@ -425,11 +425,11 @@ func _draw_overlay() -> void:
 	if banner_t > 0.0:
 		var a := minf(1.0, banner_t * 2.0)
 		var slide := (1.0 - minf(1.0, (1.6 - banner_t) * 6.0)) * 40.0 if banner_t > 1.0 else 0.0
-		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(0, 0, 0, a))
-		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 90), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
+		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(0, 0, 0, a))
+		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
 		if banner_sub != "" and boss_wave and banner_t > 0.2:
-			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 132) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
-			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 132), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))
+			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
+			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))
 	if sim != null and sim.state != "fighting":
 		var txt := "ÉTAGE VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250) + Vector2(2, 2), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0, 0, 0))

@@ -12,7 +12,7 @@ var flash := 0.0
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(128, 104)
+	custom_minimum_size = Vector2(128, 96)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
@@ -29,7 +29,7 @@ func _gui_input(ev: InputEvent) -> void:
 
 
 func _draw() -> void:
-	var c := Vector2(size.x * 0.5, 46)
+	var c := Vector2(size.x * 0.5, 48)
 	var ready := unit != null and unit.alive and unit.skill_cd <= 0.0 and unit.stun_t <= 0.0
 	var accent: Color = hero.look.accent if not hero.is_empty() else Color.WHITE
 	draw_circle(c, 40, Color(0.04, 0.08, 0.14, 0.95))
@@ -49,5 +49,3 @@ func _draw() -> void:
 		draw_circle(c, 33, Color(0, 0, 0, 0.7))
 	if flash > 0.0:
 		draw_circle(c, 40, Color(1, 1, 1, flash * 0.5))
-	var nm: String = hero.skill.name
-	draw_string(ThemeDB.fallback_font, Vector2(0, 100), nm, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(0.82, 0.92, 1.0))

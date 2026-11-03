@@ -21,3 +21,7 @@ Maquettes : canvas Design, rangée « Propositions UI/UX » (planches A à J). R
 - **Recrutement (H)** : orbe central, deux barres de garantie, ×1 / ×10, historique des derniers appels, taux en lien.
 - **Boutique (I)** : onglets, offre du jour, cartes d'offres, cristaux « bientôt ».
 - **Navigation (J)** : barre basse partout sauf plein écran, retour en haut à gauche, actions dans le tiers bas, pastilles de notification, marges de sécurité, contraste ≥ 4,5:1, retour haptique.
+
+## Mise en œuvre (étape 1 : navigation et combat)
+Fait dans le jeu : barre de navigation du bas (Combat, Héros, Recruter, Boutique) avec pastilles ; elle reste visible quand on ouvre Héros, Recruter ou Boutique et permet de passer de l'un à l'autre. HUD allégé sur le terrain (crédits, éclats, réglages, étage cliquable qui ouvre la carte, Auto et vitesse en colonne à droite, combo). Pouvoirs en boutons ronds sous le terrain, sans texte. Escouade en 5 cartes (la pastille verte signale une amélioration possible) et une seule barre d'achat pour le héros choisi, par défaut le meilleur achat. Le bas de l'écran est accroché à la barre du bas, donc il suit les téléphones plus allongés. Bannières de combat (vague, pouvoir) déplacées entre ennemis et alliés.
+Reste à faire : carte en tour, écran de coffre, collection et fiche héros, recrutement, boutique, charte (cadres de rareté, états des boutons).

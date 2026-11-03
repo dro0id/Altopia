@@ -5,20 +5,32 @@ const Data = preload("res://scripts/data.gd")
 
 var battle: BattleView
 var skill_buttons: Array = []
-var rows := {}
+var cards: Array = []
 var _credits_label: Label
-var _stage_label: Label
+var _shards_label: Label
+var _stage_btn: Button
+var _combo_label: Label
 var _auto_btn: Button
 var _speed_btn: Button
-var _map_btn: Button
+var _nav: NavBar
+var _tab_modal := false
+var _skill_row: HBoxContainer
+var _squad_head: Label
+var _syn_label: Label
+var _cards_row: HBoxContainer
+var _up_panel: PanelContainer
+var _up_icon: HeroIcon
+var _up_name: Label
+var _up_info: Label
+var _up_btn: Button
+var _sel := -1                      # carte choisie ; -1 = le meilleur achat
+var _up_slot := 0
 var _toast: Label
 var _toast_t := 0.0
 var _claimed := 0.0
 var _refresh_t := 0.0
 var _modal: Control
-var _scroll: ScrollContainer
 var _buffs: Label
-var _recruit_btn: Button
 # tutoriel
 var _hint: PanelContainer
 var _hint_label: Label
@@ -34,24 +46,29 @@ func _ready() -> void:
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	battle = BattleView.new()
-	battle.position = Vector2(0, 118)
+	battle.position = Vector2.ZERO
 	add_child(battle)
 	battle.stage_cleared.connect(_on_cleared)
 	battle.stage_failed.connect(_on_failed)
 	_build_top()
 	_build_skills()
-	_build_heroes()
+	_build_squad()
+	_build_nav()
 	_build_toast()
 	_build_hint()
 	_build_buffs()
+	resized.connect(_layout)
+	_layout()
 	_start_battle()
 	_tuto = 4 if Game.tutorial_done else 0
 	if not Game.intro_seen:
 		var intro := IntroScreen.new()
 		add_child(intro)
 		get_tree().paused = true
+		_nav.visible = false
 		intro.finished.connect(func():
 			Game.intro_seen = true
+			_nav.visible = true
 			get_tree().paused = false)
 	elif not Game.offline_report.is_empty():
 		_open_offline()
@@ -59,46 +76,71 @@ func _ready() -> void:
 
 # ---------------------------------------------------------------- construction
 
+## Pastille d'information (fond sombre arrondi) ; renvoie son étiquette.
+func _chip(pos: Vector2, col: Color) -> Label:
+	var p := PanelContainer.new()
+	p.position = pos
+	p.add_theme_stylebox_override("panel", UI.box(Color(0.03, 0.06, 0.14, 0.82), UI.LINE, 24, 8))
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.z_index = 3000
+	add_child(p)
+	var l := UI.label(p, "", 24, col)
+	return l
+
+
 func _build_top() -> void:
-	var bar := PanelContainer.new()
-	bar.position = Vector2(12, 14)
-	bar.size = Vector2(696, 92)
-	bar.add_theme_stylebox_override("panel", UI.box(UI.PANEL))
-	add_child(bar)
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	bar.add_child(h)
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(v)
-	_stage_label = UI.label(v, "", 25, UI.ACCENT)
-	_credits_label = UI.label(v, "", 28, UI.GOLD)
-	_auto_btn = UI.button(h, "", 20)
-	_auto_btn.custom_minimum_size = Vector2(96, 0)
+	_credits_label = _chip(Vector2(12, 12), UI.GOLD)
+	_shards_label = _chip(Vector2(190, 12), Color(0.55, 0.9, 1.0))
+	var sb := UI.button(self, "⚙", 28, "ghost")
+	sb.z_index = 3000
+	sb.position = Vector2(652, 10)
+	sb.custom_minimum_size = Vector2(58, 58)
+	sb.size = Vector2(58, 58)
+	sb.pressed.connect(_open_settings)
+	# l'étage en cours ouvre la carte
+	_stage_btn = UI.button(self, "", 26, "ghost")
+	_stage_btn.z_index = 3000
+	_stage_btn.position = Vector2(210, 74)
+	_stage_btn.size = Vector2(300, 74)
+	_stage_btn.pressed.connect(_open_map)
+	_combo_label = UI.label(self, "", 24, UI.GOLD)
+	_combo_label.z_index = 3000
+	_combo_label.position = Vector2(210, 152)
+	_combo_label.size = Vector2(300, 32)
+	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_combo_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_combo_label.add_theme_constant_override("outline_size", 6)
+	_combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_auto_btn = UI.button(self, "", 20)
+	_auto_btn.z_index = 3000
+	_auto_btn.position = Vector2(642, 250)
+	_auto_btn.size = Vector2(66, 66)
 	_auto_btn.pressed.connect(func():
 		Game.auto_cast = not Game.auto_cast
 		battle.sim.auto_cast = Game.auto_cast
 		_refresh())
-	_speed_btn = UI.button(h, "", 20)
-	_speed_btn.custom_minimum_size = Vector2(62, 0)
+	_speed_btn = UI.button(self, "", 24)
+	_speed_btn.z_index = 3000
+	_speed_btn.position = Vector2(642, 326)
+	_speed_btn.size = Vector2(66, 66)
 	_speed_btn.pressed.connect(func():
 		Game.speed = 1.0 if Game.speed >= 3.0 else Game.speed + 1.0
 		battle.speed = Game.speed
 		_refresh())
-	_map_btn = UI.button(h, "Carte", 20)
-	_map_btn.custom_minimum_size = Vector2(96, 0)
-	_map_btn.pressed.connect(_open_map)
-	var sb := UI.button(h, "⚙", 24, "ghost")
-	sb.custom_minimum_size = Vector2(56, 0)
-	sb.pressed.connect(_open_settings)
 
 
 func _build_skills() -> void:
-	var row := HBoxContainer.new()
-	row.position = Vector2(12, 686)
-	row.size = Vector2(696, 108)
-	row.add_theme_constant_override("separation", 4)
-	add_child(row)
+	var band := ColorRect.new()
+	band.color = Color(0.02, 0.04, 0.09, 0.9)
+	band.position = Vector2(0, 560)
+	band.size = Vector2(720, 104)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(band)
+	_skill_row = HBoxContainer.new()
+	_skill_row.position = Vector2(12, 564)
+	_skill_row.size = Vector2(696, 96)
+	_skill_row.add_theme_constant_override("separation", 4)
+	add_child(_skill_row)
 	for i in Data.SQUAD_SIZE:
 		var b := SkillButton.new()
 		b.slot = i
@@ -107,62 +149,94 @@ func _build_skills() -> void:
 		b.pressed.connect(func(slot: int):
 			if battle.sim != null and battle.sim.cast(slot):
 				_manual_cast = true)
-		row.add_child(b)
+		_skill_row.add_child(b)
 		skill_buttons.append(b)
 
 
-func _build_heroes() -> void:
-	# barre d'accès : collection, recrutement, boutique
-	var bar := HBoxContainer.new()
-	bar.position = Vector2(12, 800)
-	bar.size = Vector2(696, 52)
-	bar.add_theme_constant_override("separation", 8)
-	add_child(bar)
-	var b1 := UI.button(bar, "Héros", 22, "ghost")
-	b1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b1.pressed.connect(_open_collection)
-	_recruit_btn = UI.button(bar, "Recruter", 22, "gold")
-	_recruit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_recruit_btn.pressed.connect(_open_recruit)
-	var b3 := UI.button(bar, "Boutique", 22, "ghost")
-	b3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b3.pressed.connect(_open_shop)
-	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(12, 860)
-	_scroll.size = Vector2(696, 408)
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(_scroll)
-	DragScroll.attach(_scroll)
-	var col := VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 8)
-	_scroll.add_child(col)
+func _build_squad() -> void:
+	_squad_head = UI.label(self, "Escouade", 28, Color.WHITE)
+	_syn_label = UI.label(self, "", 20, UI.GREEN)
+	_syn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_syn_label.clip_text = true
+	_cards_row = HBoxContainer.new()
+	_cards_row.add_theme_constant_override("separation", 14)
+	add_child(_cards_row)
 	for slot in Data.SQUAD_SIZE:
-		var panel := PanelContainer.new()
-		panel.custom_minimum_size = Vector2(684, 96)
-		col.add_child(panel)
-		var hb := HBoxContainer.new()
-		hb.add_theme_constant_override("separation", 12)
-		panel.add_child(hb)
-		var icon := HeroIcon.new()
-		hb.add_child(icon)
-		var vb := VBoxContainer.new()
-		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		vb.add_theme_constant_override("separation", 0)
-		hb.add_child(vb)
-		var nm := UI.label(vb, "", 26, Color.WHITE)
-		var info := UI.label(vb, "", 18, Color(0.6, 0.78, 0.86))
-		var stats := UI.label(vb, "", 19, Color(0.9, 0.97, 1.0))
-		var up := UI.button(hb, "", 21)
-		up.custom_minimum_size = Vector2(190, 0)
-		up.pressed.connect(func():
-			var id: String = Game.squad[slot]
-			if Game.can_evolve(id):
-				_open_evolve(id)
-			elif Game.level_up(id):
-				Sfx.play("coin", -4.0)
+		var c := SquadCard.new()
+		c.slot = slot
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.pressed.connect(func(sl: int):
+			_sel = sl
+			Sfx.play("click", -8.0)
 			_refresh())
-		rows[slot] = {"panel": panel, "icon": icon, "name": nm, "info": info, "stats": stats, "up": up, "id": ""}
+		_cards_row.add_child(c)
+		cards.append(c)
+	# une seule action d'achat : le héros choisi, ou le meilleur achat
+	_up_panel = PanelContainer.new()
+	_up_panel.add_theme_stylebox_override("panel", UI.box(UI.PANEL, UI.LINE, 16, 12))
+	add_child(_up_panel)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 14)
+	_up_panel.add_child(hb)
+	_up_icon = HeroIcon.new()
+	_up_icon.custom_minimum_size = Vector2(76, 76)
+	hb.add_child(_up_icon)
+	var vb := VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.add_theme_constant_override("separation", 0)
+	hb.add_child(vb)
+	_up_name = UI.label(vb, "", 26, Color.WHITE)
+	_up_info = UI.label(vb, "", 20, UI.MUTED)
+	_up_btn = UI.button(hb, "", 26)
+	_up_btn.custom_minimum_size = Vector2(210, 76)
+	_up_btn.pressed.connect(func():
+		var id: String = Game.squad[_up_slot]
+		if Game.can_evolve(id):
+			_open_evolve(id)
+		elif Game.level_up(id):
+			Sfx.play("coin", -4.0)
+		_refresh())
+
+
+func _build_nav() -> void:
+	_nav = NavBar.new()
+	_nav.z_index = 4095
+	add_child(_nav)
+	_nav.tab_pressed.connect(_on_tab)
+
+
+## Les zones du bas sont accrochées au bas de l'écran, y compris sur les téléphones plus allongés.
+func _layout() -> void:
+	var h := size.y if size.y > 0.0 else 1280.0
+	_nav.position = Vector2(0, h - NavBar.HEIGHT)
+	_nav.size = Vector2(720, NavBar.HEIGHT)
+	# le bloc escouade (titre, cartes, achat) est centré entre le bas du terrain et la barre du bas
+	var top := 676.0 + 40.0
+	var block := 42.0 + 190.0 + 14.0 + 94.0
+	var y_head := top + maxf(0.0, (_nav.position.y - top - block - 12.0) * 0.5)
+	var y_cards := y_head + 42.0
+	var y_up := y_cards + 190.0 + 14.0
+	_up_panel.position = Vector2(12, y_up)
+	_up_panel.size = Vector2(696, 94)
+	_cards_row.position = Vector2(12, y_cards)
+	_cards_row.size = Vector2(696, 190)
+	_squad_head.position = Vector2(16, y_cards - 42)
+	_syn_label.position = Vector2(250, y_cards - 38)
+	_syn_label.size = Vector2(454, 30)
+
+
+func _on_tab(i: int) -> void:
+	if i == 0:
+		if _modal != null and is_instance_valid(_modal) and _tab_modal:
+			(_modal as Overlay).close()
+		return
+	match i:
+		1:
+			_open_collection()
+		2:
+			_open_recruit()
+		3:
+			_open_shop()
 
 
 func _build_toast() -> void:
@@ -173,7 +247,7 @@ func _build_toast() -> void:
 	_toast.add_theme_constant_override("outline_size", 8)
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_toast.position = Vector2(30, 560)
+	_toast.position = Vector2(30, 440)
 	_toast.size = Vector2(660, 120)
 	_toast.modulate.a = 0.0
 	add_child(_toast)
@@ -192,7 +266,7 @@ func _build_hint() -> void:
 	_hl.z_index = 3000
 	add_child(_hl)
 	_hint = PanelContainer.new()
-	_hint.position = Vector2(30, 618)
+	_hint.position = Vector2(30, 476)
 	_hint.size = Vector2(660, 64)
 	_hint.add_theme_stylebox_override("panel", UI.box(Color(0.1, 0.16, 0.3, 0.96), UI.GOLD, 12, 14))
 	_hint.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -212,8 +286,8 @@ func _build_hint() -> void:
 
 func _build_buffs() -> void:
 	_buffs = UI.label(self, "", 19, UI.GOLD)
-	_buffs.position = Vector2(16, 124)
-	_buffs.size = Vector2(500, 60)
+	_buffs.position = Vector2(16, 676)
+	_buffs.size = Vector2(688, 60)
 	_buffs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_buffs.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	_buffs.add_theme_constant_override("outline_size", 6)
@@ -229,16 +303,25 @@ func _show_toast(text: String, secs: float = 2.5) -> void:
 
 # ---------------------------------------------------------------- fenêtres
 
-func _open_modal(ov: Control) -> void:
+## Ouvre une fenêtre. `tab` (1 à 3) : écran de la barre du bas, qui reste visible et permet de changer d'écran.
+func _open_modal(ov: Control, tab: int = -1) -> void:
 	if _modal != null and is_instance_valid(_modal):
 		_modal.queue_free()
 	_modal = ov
+	_tab_modal = tab > 0
+	if _tab_modal:
+		(ov as Overlay).reserve_bottom(NavBar.HEIGHT + 8.0)
+		_nav.active = tab
+	_nav.visible = _tab_modal
 	add_child(ov)
 	var tr := get_tree()
 	tr.paused = true
 	ov.tree_exited.connect(func():
 		if _modal == ov:
 			_modal = null
+			_tab_modal = false
+			_nav.active = 0
+			_nav.visible = true
 			tr.paused = false)
 
 
@@ -275,17 +358,17 @@ func _open_evolve(id: String) -> void:
 func _open_collection() -> void:
 	var c := CollectionScreen.new()
 	c.squad_changed.connect(_start_battle)
-	_open_modal(c)
+	_open_modal(c, 1)
 
 
 func _open_recruit() -> void:
-	_open_modal(RecruitScreen.new())
+	_open_modal(RecruitScreen.new(), 2)
 
 
 func _open_shop() -> void:
 	var sh := ShopScreen.new()
 	sh.bought.connect(_show_toast.bind(3.0))
-	_open_modal(sh)
+	_open_modal(sh, 3)
 
 
 func _open_offline() -> void:
@@ -414,7 +497,7 @@ func _tuto_update(delta: float) -> void:
 					ready = true
 			if ready:
 				text = "Touche un portrait pour lancer son pouvoir au bon moment."
-				target = Rect2(12, 686, 696, 108)
+				target = Rect2(12, 564, 696, 96)
 			if _manual_cast:
 				_tuto = 2
 		2:
@@ -423,7 +506,7 @@ func _tuto_update(delta: float) -> void:
 				cheapest = minf(cheapest, float(Game.level_cost(id)))
 			if Game.credits >= cheapest:
 				text = "Tu as assez de crédits : améliore un héros pour devenir plus fort."
-				target = Rect2(12, 860 - _scroll.scroll_vertical, 696, 104)
+				target = Rect2(_up_panel.position, _up_panel.size)
 			var total := 0
 			for id in Game.squad_ids():
 				total += int(Game.levels[id])
@@ -444,16 +527,18 @@ func _refresh() -> void:
 	var tag := ""
 	match Data.boss_type(Game.stage):
 		"mini":
-			tag = " · MINI-BOSS"
+			tag = "Mini-boss"
 		"big":
-			tag = " · GROS BOSS"
+			tag = "Gros boss"
 	if not Game.is_frontier() and tag == "":
-		tag = " · farm"
-	_stage_label.text = "Étage %d%s" % [Game.stage, tag]
-	_credits_label.text = "%s crédits" % Data.fmt(Game.credits)
-	_auto_btn.text = "Auto ✓" if Game.auto_cast else "Auto ✗"
-	_speed_btn.text = "x%d" % int(Game.speed)
-	_map_btn.text = "Carte ●" if Game.free_chest_ready() else "Carte"
+		tag = "Farm"
+	_stage_btn.text = "Étage %d  ▾%s\n%s" % [Game.stage, "  ●" if Game.free_chest_ready() else "", tag if tag != "" else "Vague %d / %d" % [mini(battle.sim.wave, battle.sim.waves_total), battle.sim.waves_total]]
+	_credits_label.text = "¢ %s" % Data.fmt(Game.credits)
+	_shards_label.text = "◆ %s" % Data.fmt(float(Game.shards))
+	_combo_label.text = "Combo ×%d" % battle.sim.combo if battle.sim.combo > 1 else ""
+	_auto_btn.text = "AUTO" if Game.auto_cast else "Auto\nOff"
+	_auto_btn.modulate = Color.WHITE if Game.auto_cast else Color(0.7, 0.7, 0.78)
+	_speed_btn.text = "×%d" % int(Game.speed)
 	var parts: Array = []
 	if Game.perseverance > 0:
 		parts.append("Persévérance + %d %%" % Game.perseverance_pct())
@@ -463,35 +548,66 @@ func _refresh() -> void:
 			names.append(Data.BOOSTS[b].name)
 		parts.append("Renforts : " + ", ".join(names))
 	_buffs.text = "\n".join(parts)
+	var syn: Array = Game.synergy().list
+	var syn_txt: Array = []
+	for e in syn.slice(0, 2):
+		syn_txt.append(String(e.name))
+	_syn_label.text = " · ".join(syn_txt) + (" +%d" % (syn.size() - 2) if syn.size() > 2 else "")
+	# achat : héros choisi, sinon le meilleur achat
 	var best := Game.best_buy()
-	_recruit_btn.text = "Recruter · %d" % Game.tokens
+	var up_id := ""
+	if _sel >= 0 and _sel < Data.SQUAD_SIZE and Game.squad[_sel] != "":
+		up_id = Game.squad[_sel]
+		_up_slot = _sel
+	else:
+		up_id = best
+		if up_id == "":
+			# rien d'abordable : on montre le héros le moins cher à améliorer
+			var cheapest := 1.0e18
+			for id in Game.squad_ids():
+				var c: float = float(Game.level_cost(id))
+				if c < cheapest:
+					cheapest = c
+					up_id = id
+		_up_slot = Game.squad.find(up_id)
+	var affordable := 0
 	for slot in Data.SQUAD_SIZE:
 		var id: String = Game.squad[slot]
-		var r: Dictionary = rows[slot]
-		r.panel.visible = id != ""
+		var c: SquadCard = cards[slot]
+		c.visible = id != ""
 		if id == "":
 			continue
-		var h: Dictionary = Data.HEROES[id]
-		if r.id != id:
-			r.id = id
-			r.icon.hero = h
-			var rc: Color = Data.RARITY_COLORS[h.rarity]
-			var sb := UI.box(UI.PANEL, rc, 10, 8)
-			sb.border_width_left = 6
-			r.panel.add_theme_stylebox_override("panel", sb)
-			r.name.add_theme_color_override("font_color", rc)
-		var lv: int = Game.levels[id]
-		var m: float = Data.hero_mult(lv) * Data.star_mult(Game.hero_stars[id]) * Data.EVO_STAT_MULT[Game.tier(id)]
-		r.name.text = "%s%s  niv. %d  %s" % [h.name, ["", " II", " III"][Game.tier(id)], lv, "★".repeat(int(Game.hero_stars[id]))]
-		r.info.text = "%s · %s · %s" % [h.job, Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]]
-		r.stats.text = "PV %d   ATQ %d   DÉF %d" % [h.hp * m, h.atk * m, h.def * m]
-		var cost := Game.level_cost(id)
-		if Game.can_evolve(id):
-			var ec: Dictionary = Game.evolve_cost(id)
-			r.up.text = "★ Évoluer\n%s cr · %d ✦" % [Data.fmt(ec.credits), int(ec.shards)]
-			r.up.disabled = false
-			r.up.modulate = Color(1.0, 0.85, 0.35) if Game.can_afford_evolve(id) else Color(0.8, 0.8, 0.85)
-		else:
-			r.up.text = "%sAméliorer\n%s cr" % ["★ Meilleur achat\n" if id == best and Game.credits >= cost else "", Data.fmt(cost)]
-			r.up.disabled = Game.credits < cost
-			r.up.modulate = Color(1.0, 0.92, 0.55) if id == best and Game.credits >= cost else Color.WHITE
+		var can := Game.credits >= Game.level_cost(id) and not Game.can_evolve(id)
+		if can:
+			affordable += 1
+		c.hero = Data.HEROES[id]
+		c.level = int(Game.levels[id])
+		c.stars = int(Game.hero_stars[id])
+		c.affordable = can or (Game.can_evolve(id) and Game.can_afford_evolve(id))
+		c.selected = slot == _up_slot
+	_nav.badges = [0, affordable, Game.tokens / Data.RECRUIT_COST, 0]
+	if up_id == "":
+		_up_panel.visible = false
+		return
+	_up_panel.visible = true
+	var h: Dictionary = Data.HEROES[up_id]
+	var lv: int = Game.levels[up_id]
+	var base: float = Data.star_mult(Game.hero_stars[up_id]) * Data.EVO_STAT_MULT[Game.tier(up_id)]
+	var m0: float = Data.hero_mult(lv) * base
+	var m1: float = Data.hero_mult(lv + 1) * base
+	_up_icon.hero = h
+	_up_name.text = "%s%s · Nv %d → %d" % [h.name, ["", " II", " III"][Game.tier(up_id)], lv, lv + 1]
+	_up_name.add_theme_color_override("font_color", Data.RARITY_COLORS[h.rarity])
+	_up_info.text = "PV +%d · ATQ +%d" % [h.hp * (m1 - m0), h.atk * (m1 - m0)]
+	var cost := Game.level_cost(up_id)
+	if Game.can_evolve(up_id):
+		var ec: Dictionary = Game.evolve_cost(up_id)
+		_up_name.text = "%s · palier d'évolution" % h.name
+		_up_info.text = "%s ¢ · %d ◆" % [Data.fmt(ec.credits), int(ec.shards)]
+		_up_btn.text = "Évoluer"
+		_up_btn.disabled = false
+		_up_btn.modulate = Color(1.0, 0.85, 0.35) if Game.can_afford_evolve(up_id) else Color(0.8, 0.8, 0.85)
+	else:
+		_up_btn.text = "¢ %s" % Data.fmt(cost)
+		_up_btn.disabled = Game.credits < cost
+		_up_btn.modulate = Color(1.0, 0.92, 0.55) if up_id == best and Game.credits >= cost else Color.WHITE
