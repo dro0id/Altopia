@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "plugins/ui-design/skills/mobile-android-design/SKILL.md",
       "computedHash": "bcb274bcc4e0ad076b5947f90e5a247f370ed4da1274b2b7347dc293ee396309"
+    },
+    "mobile-games": {
+      "source": "ranbot-ai/awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/game-development-mobile-games/SKILL.md",
+      "computedHash": "d5c3eac9f472754ec8e45cba2997891e6c4ea4c1459e955250ab179a970d747c"
     }
   }
 }
