@@ -10,17 +10,17 @@ func _init(title: String) -> void:
 	super._init(720.0)
 	st = use_stage(1.0)
 	var band := ColorRect.new()
-	band.color = UI.BAR
+	band.color = UI.BG
 	band.size = Vector2(720, 128)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	st.add_child(band)
 	var back := Button.new()
-	back.text = "‹"
-	back.position = Vector2(32, 24)
-	back.size = Vector2(80, 80)
+	back.text = "←"
+	back.position = Vector2(16, 16)
+	back.size = Vector2(96, 96)
 	back.add_theme_font_size_override("font_size", 36)
 	for sn in ["normal", "hover", "pressed"]:
-		back.add_theme_stylebox_override(sn, UI.box(UI.LINE2, Color(0, 0, 0, 0), 24, 0))
+		back.add_theme_stylebox_override(sn, UI.box(Color(0, 0, 0, 0) if sn == "normal" else Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 48, 0))
 	back.pressed.connect(close)
 	st.add_child(back)
 	var tl := UI.label(st, title, 32, Color.WHITE, true)

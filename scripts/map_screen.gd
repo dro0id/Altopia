@@ -23,18 +23,18 @@ func _init() -> void:
 	_sel = Game.stage
 	# bandeau : retour, titre, record, crédits
 	var hp := PanelContainer.new()
-	hp.add_theme_stylebox_override("panel", UI.box(UI.BAR, Color(0, 0, 0, 0), 0, 24))
+	hp.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 24))
 	hp.custom_minimum_size = Vector2(0, 128)
 	box.add_child(hp)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 16)
 	hp.add_child(head)
 	var back := Button.new()
-	back.text = "‹"
-	back.custom_minimum_size = Vector2(80, 80)
+	back.text = "←"
+	back.custom_minimum_size = Vector2(96, 96)
 	back.add_theme_font_size_override("font_size", 36)
 	for st in ["normal", "hover", "pressed"]:
-		back.add_theme_stylebox_override(st, UI.box(UI.LINE2, Color(0, 0, 0, 0), 24, 0))
+		back.add_theme_stylebox_override(st, UI.box(Color(0, 0, 0, 0) if st == "normal" else Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 48, 0))
 	back.pressed.connect(close)
 	head.add_child(back)
 	var tv := VBoxContainer.new()

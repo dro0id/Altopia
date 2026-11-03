@@ -45,3 +45,7 @@ Quatre emplacements par héros (arme, armure, module, relique), débloqués aux 
 - Taux : normal 50 %, rare 32 %, épique 15 %, légendaire 3 %. ×10 : au moins un objet rare. Garanties : épique à la 10e, légendaire à la 40e ouverture.
 - Le niveau de puissance suit le meilleur étage ; si l'inventaire est plein, le surplus part en réserve.
 - Écart assumé avec la maquette AE : les tuiles n'affichent pas « Nv 12 » (les objets neufs sont de niveau 1, la puissance vient de l'étage).
+
+## Refonte Android (en cours)
+
+Maquettes BA à BZ (canvas, rangées « Refonte Android »). Fait : lot 1 (bouton Retour, confirmation « Quitter ? », zones sûres, barre du bas 80 dp à pastille, boutons pilule 48 dp, zones d'appui 96 px) et flèche de retour plein écran. À faire : mise en page de chaque écran selon BB à BZ, réglage de la taille du texte, économie de batterie automatique.
