@@ -25,6 +25,8 @@ func _init() -> void:
 	_crystals = _chip(head, Color(1.0, 0.48, 0.85))
 	_tokens = _chip(head, Color(0.75, 0.6, 1.0))
 	_credits = _chip(head, UI.GOLD)
+	var x := UI.button(head, "Fermer", 20, "ghost")
+	x.pressed.connect(close)
 	# coffre gratuit : le plus important, en haut
 	_free_banner = PanelContainer.new()
 	_free_banner.add_theme_stylebox_override("panel", UI.box(Color(0.06, 0.2, 0.12, 0.98), UI.GREEN, 14, 12))

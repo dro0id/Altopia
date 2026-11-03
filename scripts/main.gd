@@ -314,6 +314,8 @@ func _open_modal(ov: Control, tab: int = -1) -> void:
 		_nav.active = tab
 	_nav.visible = _tab_modal
 	add_child(ov)
+	# la barre doit rester au-dessus de la fenêtre pour recevoir les appuis (le z_index ne suffit pas pour les clics)
+	move_child(_nav, get_child_count() - 1)
 	var tr := get_tree()
 	tr.paused = true
 	ov.tree_exited.connect(func():

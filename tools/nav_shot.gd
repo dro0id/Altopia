@@ -27,6 +27,11 @@ func _initialize() -> void:
 		print("onglet ", i, " actif=", main._nav.active, " barre visible=", main._nav.visible, " pause=", paused)
 		await RenderingServer.frame_post_draw
 		root.get_viewport().get_texture().get_image().save_png("%s/tab%d.png" % [a[0], i])
+	# vrais appuis sur la barre : Héros puis Boutique puis Combat
+	for x in [270.0, 630.0, 90.0]:
+		_click(Vector2(x, 1240))
+		await _wait(0.3)
+		print("clic x=", x, " actif=", main._nav.active, " modal=", main._modal != null, " pause=", paused)
 	main._on_tab(0)
 	await _wait(0.3)
 	print("retour combat actif=", main._nav.active, " modal=", main._modal, " pause=", paused)
@@ -38,3 +43,13 @@ func _wait(s: float) -> void:
 	while t < s:
 		await process_frame
 		t += 1.0 / 60.0
+
+
+func _click(p: Vector2) -> void:
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.position = p
+		ev.global_position = p
+		root.push_input(ev)
