@@ -18,7 +18,7 @@ var _reveal := 0.0
 
 func _init() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	size = Vector2(720, 1152)
+	size = Vector2(720, 1120)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_one = _pack_button("Ouvrir ×1", Data.ITEM_PACK_COST, "", 32.0, "main")
 	_one.pressed.connect(_pull.bind(1))
@@ -28,7 +28,7 @@ func _init() -> void:
 
 func _pack_button(title: String, cost: int, extra: String, x: float, kind: String) -> Button:
 	var b := UI.button(self, "", 30, kind)
-	b.position = Vector2(x, 1020)
+	b.position = Vector2(x, 988)
 	b.size = Vector2(320, 112)
 	b.custom_minimum_size = Vector2(0, 112)
 	var v := VBoxContainer.new()
@@ -82,6 +82,7 @@ func _spaced_center(font: Font, y: float, txt: String, fs: int, col: Color, gap:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2(0, -32), 0.0, Vector2.ONE)
 	var fb := UI.bold_font()
 	var f := ThemeDB.fallback_font
 	var ctr := Vector2(360, 470)
@@ -149,7 +150,7 @@ func _show_results(res: Array, count: int) -> void:
 	if _results != null:
 		_results.queue_free()
 	_results = Control.new()
-	_results.size = Vector2(720, 1152)
+	_results.size = Vector2(720, 1120)
 	_results.mouse_filter = Control.MOUSE_FILTER_STOP
 	_results.z_index = 20
 	add_child(_results)
@@ -158,7 +159,7 @@ func _show_results(res: Array, count: int) -> void:
 	var cost: int = Data.ITEM_PACK_COST_10 if count == 10 else Data.ITEM_PACK_COST
 	_results.draw.connect(func(): _draw_results(best, bg, count))
 	var eq := UI.button(_results, "Équiper au mieux", 32, "main")
-	eq.position = Vector2(32, 944)
+	eq.position = Vector2(32, 912)
 	eq.size = Vector2(656, 96)
 	eq.custom_minimum_size = Vector2(0, 96)
 	eq.pressed.connect(func():
@@ -168,14 +169,14 @@ func _show_results(res: Array, count: int) -> void:
 		equipped.emit()
 		_close_results())
 	var inv := UI.button(_results, "Voir l'inventaire", 28, "ghost")
-	inv.position = Vector2(32, 1056)
+	inv.position = Vector2(32, 1024)
 	inv.size = Vector2(320, 88)
 	inv.custom_minimum_size = Vector2(0, 88)
 	inv.pressed.connect(func():
 		_close_results()
 		inventory_requested.emit())
 	var again := UI.button(_results, "", 28, "gold")
-	again.position = Vector2(368, 1056)
+	again.position = Vector2(368, 1024)
 	again.size = Vector2(320, 88)
 	again.custom_minimum_size = Vector2(0, 88)
 	again.text = "Encore ×%d · %d" % [count, cost]

@@ -3,7 +3,7 @@ extends Control
 ## Onglet Ensembles de la collection (maquette W) : trois ensembles, quatre pièces chacun, bonus à 2 et 4 pièces.
 
 func _init() -> void:
-	size = Vector2(720, 1152)
+	size = Vector2(720, 1120)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 

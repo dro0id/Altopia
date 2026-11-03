@@ -34,6 +34,12 @@ func fit_chip() -> void:
 	size = Vector2(w + 40.0 + (34.0 if icon != "" else 0.0), 52.0)
 
 
+## Zone d'appui d'au moins 96 px (48 dp) autour du dessin, même pour les petites pastilles.
+func _has_point(point: Vector2) -> bool:
+	var grow := Vector2(maxf(0.0, 96.0 - size.x), maxf(0.0, 96.0 - size.y)) * 0.5
+	return Rect2(-grow, size + grow * 2.0).has_point(point)
+
+
 func _gui_input(ev: InputEvent) -> void:
 	if not tappable:
 		return

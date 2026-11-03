@@ -5,7 +5,12 @@ extends Control
 signal tab_pressed(index: int)
 
 const LABELS := ["Combat", "Héros", "Recruter", "Boutique"]
-const HEIGHT := 128.0
+const HEIGHT := 160.0          # 80 dp, comme les barres de navigation Android
+static var inset_bottom := 0.0  # barre de gestes du téléphone
+
+
+static func total() -> float:
+	return HEIGHT + inset_bottom
 
 var active := 0
 var badges: Array = [0, 0, 0, 0]
@@ -39,20 +44,23 @@ func _gui_input(ev: InputEvent) -> void:
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), UI.BAR)
 	draw_rect(Rect2(0, 0, size.x, 2), UI.LINE2)
-	var w := (size.x - 32.0) / 4.0
+	var w := (size.x - 16.0) / 4.0
 	var f := ThemeDB.fallback_font
 	for i in 4:
 		var on := i == active
 		var col := UI.ACCENT if on else UI.MUTED
-		var x0 := 16.0 + w * i
-		var c := Vector2(x0 + w * 0.5, 38)
-		_icon(i, c, col)
+		var x0 := 8.0 + w * i
+		var cx := x0 + w * 0.5
+		# pastille d'indicateur (64 × 32 dp) derrière l'icône de l'onglet actif
+		if on:
+			UI.draw_gradient_box(self, Rect2(cx - 64.0, 24.0, 128.0, 64.0), 32.0, UI.TONAL, UI.TONAL, UI.TONAL, 1.0)
+		_icon(i, Vector2(cx, 56), col)
 		var lab: String = LABELS[i]
-		draw_string(UI.bold_font() if on else f, Vector2(x0, 83), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 22, col)
+		draw_string(UI.bold_font() if on else f, Vector2(x0, 128), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 24, UI.TEXT if on else UI.MUTED)
 		var n: int = badges[i]
 		if n > 0:
-			var bc := Vector2(x0 + w - 56.0, 22.0)
-			draw_circle(bc, 20, UI.BG)
+			var bc := Vector2(cx + 40.0, 28.0)
+			draw_circle(bc, 20, UI.BAR)
 			draw_circle(bc, 16, UI.RED)
 			draw_string(UI.bold_font(), bc + Vector2(-16, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 22, Color.WHITE)
 

@@ -23,7 +23,7 @@ var _toggle_y := 0.0
 
 
 func _init() -> void:
-	size = Vector2(720, 1152)
+	size = Vector2(720, 1120)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var x := 32.0
 	var labels := ["Tous", "Arme", "Armure", "Module", "Relique"]
@@ -64,7 +64,7 @@ func _init() -> void:
 	_grid.gui_input.connect(_grid_input)
 	_scroll.add_child(_grid)
 	_auto_btn = UI.button(self, "Équiper au mieux", 26, "main")
-	_auto_btn.position = Vector2(32, 1048)
+	_auto_btn.position = Vector2(32, 1016)
 	_auto_btn.size = Vector2(402, 88)
 	_auto_btn.custom_minimum_size = Vector2(0, 88)
 	_auto_btn.pressed.connect(func():
@@ -74,7 +74,7 @@ func _init() -> void:
 		changed.emit()
 		refresh())
 	var forge := UI.button(self, "Forge", 26, "ghost")
-	forge.position = Vector2(450, 1048)
+	forge.position = Vector2(450, 1016)
 	forge.size = Vector2(238, 88)
 	forge.custom_minimum_size = Vector2(0, 88)
 	forge.pressed.connect(func(): forge_requested.emit())
@@ -132,7 +132,7 @@ func _draw() -> void:
 		var col := UI.RED if (full or not Game.stash.is_empty()) else Color("ffb142")
 		var msg := "Inventaire plein : %d objet%s gardé%s de côté" % [Game.stash.size(), "s" if Game.stash.size() > 1 else "", "s" if Game.stash.size() > 1 else ""] if not Game.stash.is_empty() else "Inventaire presque plein · %d / %d" % [n, Items.INVENTORY_MAX]
 		draw_style_box(UI.box(Color(col.r, col.g, col.b, 0.12), Color(col.r, col.g, col.b, 0.6), 24, 0), Rect2(32, 968, 656, 64))
-		draw_string(UI.bold_font(), Vector2(56, 1008), msg, HORIZONTAL_ALIGNMENT_LEFT, 600.0, 24, col)
+		draw_string(UI.bold_font(), Vector2(56, 976), msg, HORIZONTAL_ALIGNMENT_LEFT, 600.0, 24, col)
 
 
 func _cell(i: int) -> Rect2:

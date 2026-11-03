@@ -36,11 +36,11 @@ const TAB_NAMES := ["Héros", "Objets", "Ensembles"]
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1152)
+	panel.custom_minimum_size = Vector2(720, 1120)
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(720, 1152)
+	stage.custom_minimum_size = Vector2(720, 1120)
 	box.add_child(stage)
 	_stage = stage
 	var t := UI.label(stage, "Héros", 36, Color.WHITE, true)

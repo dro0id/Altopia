@@ -16,6 +16,7 @@ const RED := Color("ff6b6b")
 const MUTED := Color("a9b6d6")
 const TEXT := Color("e8eefc")
 const DARK := Color("06101f")
+const TONAL := Color("1d3a66")               # boutons tonals et sélections (refonte Android)
 const HUD := Color(0.051, 0.082, 0.188, 0.8)      # rgba(13,21,48,.8) : pastilles et boutons posés sur le terrain
 
 
@@ -49,22 +50,32 @@ static func button(parent: Node, text: String, size: int, kind: String = "main")
 	var line := ACCENT
 	var fg := DARK
 	match kind:
+		"text":
+			fill = Color(0, 0, 0, 0)
+			line = Color(0, 0, 0, 0)
+			fg = ACCENT
+		"outline":
+			fill = Color(0, 0, 0, 0)
+			line = LINE
+			fg = ACCENT
 		"gold":
 			fill = GOLD
 			line = GOLD
 			fg = Color("1a1004")
 		"ghost":
-			fill = LINE2
-			line = LINE
+			fill = TONAL
+			line = TONAL
 			fg = TEXT
 		"danger":
 			fill = Color("2a1626")
 			line = RED
 			fg = Color("ffb3b3")
-	b.add_theme_stylebox_override("normal", box(fill, line, 24, 14))
-	b.add_theme_stylebox_override("hover", box(fill.lightened(0.1), line, 24, 14))
-	b.add_theme_stylebox_override("pressed", box(fill.darkened(0.15), line, 24, 14))
-	b.add_theme_stylebox_override("disabled", box(fill.darkened(0.45) if kind != "ghost" else Color(0.08, 0.12, 0.24), line.darkened(0.5), 24, 14))
+	# boutons en pilule (rayon = moitié de la hauteur minimale de 96 px)
+	var tr := kind == "text"
+	b.add_theme_stylebox_override("normal", box(fill, line, 48, 14))
+	b.add_theme_stylebox_override("hover", box(fill.lightened(0.1) if not tr else Color(ACCENT, 0.1), line, 48, 14))
+	b.add_theme_stylebox_override("pressed", box(fill.darkened(0.15) if not tr else Color(ACCENT, 0.2), line, 48, 14))
+	b.add_theme_stylebox_override("disabled", box(fill.darkened(0.45) if (kind != "ghost" and not tr and kind != "outline") else Color(0.08, 0.12, 0.24, 0.0 if tr or kind == "outline" else 1.0), line.darkened(0.5), 48, 14))
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, fg)
 	b.add_theme_color_override("font_disabled_color", fg.darkened(0.3) if kind != "ghost" else MUTED.darkened(0.3))
@@ -73,6 +84,16 @@ static func button(parent: Node, text: String, size: int, kind: String = "main")
 	b.pressed.connect(func(): Sfx.play("click", -6.0))
 	parent.add_child(b)
 	return b
+
+
+## Marges de sécurité en px de conception (720 de large) : encoche ou caméra en haut, barre de gestes en bas.
+static func safe_insets(win: Window) -> Vector2:
+	var sa := DisplayServer.get_display_safe_area()
+	var sc := DisplayServer.screen_get_size()
+	if sa.size.x <= 0 or sc.x <= 0:
+		return Vector2.ZERO
+	var k := 720.0 / float(sc.x)
+	return Vector2(maxf(0.0, float(sa.position.y) * k), maxf(0.0, float(sc.y - sa.end.y) * k))
 
 
 ## Nombre avec espace entre les milliers (« 1 240 »).

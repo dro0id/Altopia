@@ -22,11 +22,11 @@ signal equipped
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1152)
+	panel.custom_minimum_size = Vector2(720, 1120)
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(720, 1152)
+	stage.custom_minimum_size = Vector2(720, 1120)
 	box.add_child(stage)
 	var t := UI.label(stage, "Recrutement", 40, Color.WHITE, true)
 	t.position = Vector2(32, 26)
@@ -58,7 +58,7 @@ func _init() -> void:
 	stage.add_child(_last)
 	# boutons d'ouverture
 	_ten = UI.button(stage, "", 32, "main")
-	_ten.position = Vector2(32, 912)
+	_ten.position = Vector2(32, 880)
 	_ten.size = Vector2(656, 112)
 	_ten.custom_minimum_size = Vector2(0, 112)
 	_ten.pressed.connect(_pull.bind(10))
@@ -84,7 +84,7 @@ func _init() -> void:
 	_ten_sub = UI.label(trow, "%d · 1 gratuit" % Data.RECRUIT_COST_10, 24, UI.DARK, true)
 	_ten_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_one = UI.button(stage, "", 28, "ghost")
-	_one.position = Vector2(32, 1040)
+	_one.position = Vector2(32, 1008)
 	_one.size = Vector2(656, 96)
 	var orow := HBoxContainer.new()
 	orow.alignment = BoxContainer.ALIGNMENT_CENTER

@@ -26,6 +26,9 @@ var _equip_row: Control
 var _equip_hero := ""
 var _equip_btn: Button
 var _nav: NavBar
+var _quit: QuitDialog
+var _dy := 0.0
+var _settings_btn: HudButton
 var _tab_modal := false
 var _skill_row: HBoxContainer
 var _syn_label: Label
@@ -137,6 +140,7 @@ func _build_top() -> void:
 	sb.size = Vector2(80, 80)
 	sb.z_index = 3000
 	sb.pressed.connect(_open_settings)
+	_settings_btn = sb
 	add_child(sb)
 	# l'étage en cours ouvre la carte
 	_stage_btn = HudButton.new()
@@ -335,6 +339,30 @@ func _build_tip() -> void:
 	_tip_label.add_theme_constant_override("line_spacing", -7)
 
 
+## Bouton ou geste Retour d'Android : ferme la fenêtre ouverte ; sur le combat, demande avant de quitter.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
+		return
+	if _quit != null and is_instance_valid(_quit):
+		_quit.close()
+		return
+	if _modal != null and is_instance_valid(_modal):
+		var m := _modal
+		if m is ResultScreen or m is BoostScreen or m is DefeatScreen or m is OfflineScreen:
+			return                    # choix obligatoire : le geste Retour ne fait rien
+		(m as Overlay).close()
+		return
+	if get_node_or_null("IntroScreen") != null or not Game.intro_seen:
+		return
+	_quit = QuitDialog.new()
+	_quit.quit_pressed.connect(func():
+		Game.save_game()
+		get_tree().quit())
+	_quit.closed.connect(func(): get_tree().paused = false)
+	add_child(_quit)
+	get_tree().paused = true
+
+
 func _build_nav() -> void:
 	_nav = NavBar.new()
 	_nav.z_index = 4095
@@ -345,8 +373,15 @@ func _build_nav() -> void:
 ## La barre est accrochée au bas de l'écran ; le reste suit la maquette depuis le haut (terrain de 600 px, 660 px contre un boss).
 func _layout() -> void:
 	var h := size.y if size.y > 0.0 else 1280.0
-	_nav.position = Vector2(0, h - NavBar.HEIGHT)
-	_nav.size = Vector2(720, NavBar.HEIGHT)
+	var ins := UI.safe_insets(get_window())
+	_dy = ins.x
+	NavBar.inset_bottom = ins.y
+	_nav.position = Vector2(0, h - NavBar.total())
+	_nav.size = Vector2(720, NavBar.total())
+	_credits_chip.position.y = 20.0 + _dy
+	_shards_chip.position.y = 20.0 + _dy
+	_settings_btn.position.y = 20.0 + _dy
+	_boss_bar.position.y = 116.0 + _dy
 	_boss = Data.boss_type(Game.stage)
 	_fh = 660.0 if _boss != "" else 600.0
 	var k := _fh / 560.0
@@ -451,7 +486,7 @@ func _open_modal(ov: Control, tab: int = -1) -> void:
 	_modal = ov
 	_tab_modal = tab > 0
 	if _tab_modal:
-		(ov as Overlay).reserve_bottom(NavBar.HEIGHT)
+		(ov as Overlay).reserve_bottom(NavBar.total())
 		_nav.active = tab
 	_nav.visible = _tab_modal
 	add_child(ov)
@@ -819,7 +854,7 @@ func _refresh_boss() -> void:
 			_warn.set_texts("⚠ %s dans %d s" % [info.attack, int(ceil(bu.skill_cd))])
 			var ww: float = ThemeDB.fallback_font.get_string_size(_warn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 56.0
 			_warn.size = Vector2(ww, 48)
-			_warn.position = Vector2((720.0 - ww) * 0.5, 236)
+			_warn.position = Vector2((720.0 - ww) * 0.5, 236 + _dy)
 	else:
 		_warn.visible = false
 	_boss_bar.queue_redraw()
@@ -841,7 +876,7 @@ func _refresh() -> void:
 	_stage_btn.set_texts("Étage %d" % Game.stage, sub)
 	var pw: float = maxf(ThemeDB.fallback_font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x, 150.0) + 56.0
 	_stage_btn.size = Vector2(pw, 84.0)
-	_stage_btn.position = Vector2((720.0 - pw) * 0.5, 112.0)
+	_stage_btn.position = Vector2((720.0 - pw) * 0.5, 112.0 + _dy)
 	_credits_chip.set_texts(UI.num(Game.credits))
 	_credits_chip.fit_chip()
 	_shards_chip.set_texts(str(Game.shards))
