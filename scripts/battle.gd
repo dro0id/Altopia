@@ -174,13 +174,15 @@ func _consume() -> void:
 				var f3: Fighter = fighters.get(u)
 				if f3 != null:
 					f3.play_hurt()
-				texts.append({"pos": _center(u) + Vector2(randf_range(-14, 14), -40), "txt": str(int(round(e.amount))), "col": Color(1, 0.95, 0.6) if u.side == 1 else Color(1, 0.5, 0.45), "t": 0.0, "dx": randf_range(-18, 18)})
+				if Game.dmg_numbers:
+					texts.append({"pos": _center(u) + Vector2(randf_range(-14, 14), -40), "txt": str(int(round(e.amount))), "col": Color(1, 0.95, 0.6) if u.side == 1 else Color(1, 0.5, 0.45), "t": 0.0, "dx": randf_range(-18, 18)})
 				_impact(u, e.amount, String(e.get("fx", "")))
 				Sfx.play("hit", -10.0, randf_range(0.85, 1.2))
 			"heal":
 				var u2: BattleSim.Unit = e.unit
 				if e.amount >= 1.0:
-					texts.append({"pos": _center(u2) + Vector2(randf_range(-14, 14), -50), "txt": "+" + str(int(round(e.amount))), "col": Color(0.5, 1, 0.65), "t": 0.0, "dx": 0.0})
+					if Game.dmg_numbers:
+						texts.append({"pos": _center(u2) + Vector2(randf_range(-14, 14), -50), "txt": "+" + str(int(round(e.amount))), "col": Color(0.5, 1, 0.65), "t": 0.0, "dx": 0.0})
 					for i in 3:
 						parts.append({"kind": "cross", "pos": _center(u2) + Vector2(randf_range(-22, 22), randf_range(-10, 20)), "vel": Vector2(0, -40 - randf() * 30), "t": -i * 0.1, "dur": 0.8, "col": Color(0.5, 1.0, 0.7), "size": 7.0, "grav": 0.0})
 			"cast":
@@ -283,7 +285,7 @@ func _process(delta: float) -> void:
 	parts = parts.filter(func(p): return p.t < p.dur)
 	banner_t = maxf(0.0, banner_t - delta)
 	shake = maxf(0.0, shake - delta * 30.0)
-	position = _base + (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake if shake > 0.0 else Vector2.ZERO)
+	position = _base + (Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake if shake > 0.0 and not Game.reduce_shake else Vector2.ZERO)
 	if sim.state != "fighting" and not _done:
 		_result_timer += delta
 		if _result_timer > 1.4:

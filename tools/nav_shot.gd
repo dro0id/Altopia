@@ -18,9 +18,11 @@ func _initialize() -> void:
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await _wait(1.5)
-	for i in [1, 2, 3, 9]:
+	for i in [1, 2, 3, 9, 7]:
 		if i == 9:
 			main._open_map()
+		elif i == 7:
+			main._open_modal(HeroScreen.new("mara"))
 		else:
 			main._on_tab(i)
 		await _wait(0.5)

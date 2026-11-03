@@ -2,7 +2,7 @@ extends RefCounted
 ## Données statiques : héros, ennemis, formules. Aucun état ici (voir game.gd pour la partie en cours).
 
 const ROLE_NAMES := {"tank": "Rempart", "dps": "Dégâts", "healer": "Soutien", "control": "Contrôle"}
-const RARITY_COLORS := {"common": Color("b8c4e0"), "rare": Color("59a6ff"), "epic": Color("c76bff")}
+const RARITY_COLORS := {"common": Color("7dffb0"), "rare": Color("4fa8ff"), "epic": Color("b388ff")}
 const SPECIES_NAMES := {"human": "Humain", "robot": "Robot", "alien": "Extraterrestre"}
 
 ## hp, atk, def au niveau 1 ; interval = secondes entre deux attaques ; look = apparence 2D (voir art.gd).
@@ -103,7 +103,7 @@ const STARTER := ["mara", "kai", "zyra", "t9", "oru"]     # escouade de départ,
 const ALL_HEROES := ["kai", "oru", "dax", "pim", "neelo", "mara", "t9", "vance", "sora", "brix", "lumi", "zyra", "aria", "gorn", "omega"]
 const HERO_ORDER := ALL_HEROES
 const SQUAD_SIZE := 5
-const RARITY_NAMES_HERO := {"common": "Commun", "rare": "Rare", "epic": "Épique"}
+const RARITY_NAMES_HERO := {"common": "Normal", "rare": "Rare", "epic": "Épique"}
 const RARITIES_HERO := ["common", "rare", "epic"]
 
 ## Ennemis : multiplicateurs appliqués aux statistiques de base de l'étage.
@@ -225,12 +225,14 @@ const BIG_BOSS_CRYSTALS := {1: 5, 2: 5, 3: 10}  # cristaux gagnés en battant un
 
 # boutique : prix en cristaux d'Altopia (monnaie premium ; l'achat de cristaux contre argent réel viendra avec la publication)
 const SHOP_ITEMS := [
-	{"id": "token1", "name": "1 jeton de recrutement", "desc": "Un tirage de héros.", "cost": 10, "tokens": 1},
-	{"id": "token10", "name": "10 jetons de recrutement", "desc": "Trois tirages de plus.", "cost": 90, "tokens": 10},
-	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats de verre.", "cost": 40, "chest": "rare"},
-	{"id": "chest_epic", "name": "Coffre épique", "desc": "Beaucoup de crédits et d'éclats.", "cost": 120, "chest": "epique"},
-	{"id": "free_chest", "name": "Coffre gratuit immédiat", "desc": "Supprime l'attente de 4 h.", "cost": 20, "free_chest": true},
+	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats", "cost": 6, "chest": "rare", "tab": "chests"},
+	{"id": "chest_epic", "name": "Coffre épique", "desc": "10 % d'héros en plus", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
+	{"id": "tokens6", "name": "Jetons ×6", "desc": "Deux appels", "cost": 8, "tokens": 6, "tab": "tokens"},
+	{"id": "boost2", "name": "Boost ×2", "desc": "1 h de crédits doublés", "cost": 10, "boost": 1.0, "tab": "boosts"},
 ]
+## Offre du jour (renouvelée chaque jour) : un coffre légendaire et 3 jetons à -30 %.
+const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre légendaire + 3 jetons", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3}
+const BOOST_MULT := 2.0
 
 
 static func star_mult(star_count: int) -> float:
@@ -254,6 +256,12 @@ static func roll_recruit(rng: RandomNumberGenerator, pity: Dictionary) -> String
 	pity["rare"] = 0 if out != "common" else rare_miss + 1
 	pity["epic"] = 0 if out == "epic" else epic_miss + 1
 	return out
+
+
+## Héros en vedette de la bannière : un héros épique, qui change chaque jour (il sort une fois sur deux quand un épique est tiré).
+static func featured_hero(day: int) -> String:
+	var epics := heroes_of_rarity("epic")
+	return epics[day % epics.size()]
 
 
 static func heroes_of_rarity(rarity: String) -> Array:
@@ -300,11 +308,11 @@ static func synergies(ids: Array) -> Dictionary:
 # ---------------------------------------------------------------- branche 1b : renforts, persévérance, paliers, combos
 
 const BOOSTS := {
-	"tir": {"name": "Tir accéléré", "desc": "+20 % de vitesse d'attaque", "color": Color("ffb142")},
-	"bouclier": {"name": "Bouclier de départ", "desc": "Chaque combat commence avec un bouclier de 20 % des PV", "color": Color("4fd8ff")},
-	"pouvoirs": {"name": "Pouvoirs rapides", "desc": "Recharge des pouvoirs réduite de 25 %", "color": Color("b88cff")},
-	"vitalite": {"name": "Vitalité", "desc": "+20 % de PV pour toute l'escouade", "color": Color("7dffb0")},
-	"butin": {"name": "Butin doré", "desc": "+25 % de crédits sur les ennemis vaincus", "color": Color("ffd166")},
+	"tir": {"short": "+20 % de vitesse d'attaque", "name": "Tir accéléré", "desc": "+20 % de vitesse d'attaque", "color": Color("ffb142")},
+	"bouclier": {"short": "Bouclier de 20 % des PV au départ", "name": "Bouclier de départ", "desc": "Chaque combat commence avec un bouclier de 20 % des PV", "color": Color("4fd8ff")},
+	"pouvoirs": {"short": "Recharge des pouvoirs −25 %", "name": "Pouvoirs rapides", "desc": "Recharge des pouvoirs réduite de 25 %", "color": Color("b88cff")},
+	"vitalite": {"short": "+20 % de PV", "name": "Vitalité", "desc": "+20 % de PV pour toute l'escouade", "color": Color("7dffb0")},
+	"butin": {"short": "+25 % de crédits sur les ennemis", "name": "Butin doré", "desc": "+25 % de crédits sur les ennemis vaincus", "color": Color("ffd166")},
 }
 const BOOST_IDS := ["tir", "bouclier", "pouvoirs", "vitalite", "butin"]
 const PERSEVERANCE_STEP := 0.05          # +5 % de statistiques par défaite
@@ -340,8 +348,8 @@ static func combo_loot(n: int) -> float:
 const RARITIES := ["commun", "normal", "rare", "epique", "legendaire", "ultime"]
 const RARITY_NAMES := {"commun": "Commun", "normal": "Normal", "rare": "Rare", "epique": "Épique", "legendaire": "Légendaire", "ultime": "Ultime"}
 const CHEST_COLORS := {
-	"commun": Color("e0a82e"), "normal": Color("5be08a"), "rare": Color("4fa8ff"),
-	"epique": Color("c084ff"), "legendaire": Color("ffa23a"), "ultime": Color("ff3b3b"),
+	"commun": Color("9aa7c7"), "normal": Color("7dffb0"), "rare": Color("4fa8ff"),
+	"epique": Color("b388ff"), "legendaire": Color("ffb142"), "ultime": Color("ff6b6b"),
 }
 const CHEST_CREDITS := {"commun": 1.5, "normal": 3.0, "rare": 7.0, "epique": 16.0, "legendaire": 38.0, "ultime": 100.0}
 const CHEST_SHARDS := {"commun": 2, "normal": 4, "rare": 8, "epique": 18, "legendaire": 40, "ultime": 120}

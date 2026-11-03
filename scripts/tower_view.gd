@@ -1,11 +1,11 @@
 class_name TowerView
 extends Control
-## La montée du Trou de verre : un chemin en zigzag, étage 1 en bas, avec mini-boss et gros boss plus gros. Un appui sélectionne un étage débloqué.
+## La montée du Trou de verre (maquette D) : chemin en pointillés en zigzag, étage 1 en bas ; mini-boss et gros boss plus gros. Un appui sélectionne un étage débloqué.
 
 signal selected(stage: int)
 
 const Data = preload("res://scripts/data.gd")
-const STEP := 118.0
+const XS := [200.0, 130.0, 190.0, 150.0, 215.0, 165.0, 115.0, 170.0]     # abscisses (maquette, en px de 360) qui se répètent
 const MARGIN := 70.0
 
 var top_stage := 3
@@ -13,28 +13,40 @@ var sel := 1
 var t := 0.0
 var _press := Vector2.ZERO
 var _down := false
+var _pos := {}
 
 
 func setup(p_top: int, p_sel: int) -> void:
 	top_stage = p_top
 	sel = p_sel
-	custom_minimum_size = Vector2(0, MARGIN * 2.0 + STEP * (top_stage - 1))
+	# du bas (étage 1) vers le haut : écart = rayons des deux ronds + 40 px
+	var y := 0.0
+	var ys := {}
+	var prev_r := 0.0
+	for n in range(1, top_stage + 1):
+		var r := _radius(n)
+		if n > 1:
+			y += prev_r + r + 40.0
+		ys[n] = y
+		prev_r = r
+	var total: float = y + MARGIN * 2.0
+	for n in range(1, top_stage + 1):
+		_pos[n] = Vector2(XS[(top_stage - n) % XS.size()] * 2.0, MARGIN + (y - float(ys[n])))
+	custom_minimum_size = Vector2(0, total)
 	queue_redraw()
 
 
 func center_of(n: int) -> Vector2:
-	var y := MARGIN + STEP * (top_stage - n)
-	var x := 360.0 + 150.0 * sin(float(n) * 0.95) + 40.0 * sin(float(n) * 2.1)
-	return Vector2(x, y)
+	return _pos.get(n, Vector2(360, 100))
 
 
 func _radius(n: int) -> float:
 	match Data.boss_type(n):
 		"big":
-			return 46.0
+			return 58.0
 		"mini":
-			return 38.0
-	return 30.0 if n != sel else 36.0
+			return 52.0
+	return 48.0 if n == Game.best_stage else 36.0
 
 
 func _process(delta: float) -> void:
@@ -72,14 +84,15 @@ func _gui_input(ev: InputEvent) -> void:
 
 
 func _draw() -> void:
-	# chemin : plein jusqu'à l'étage débloqué, pointillé au-delà
+	# pointillés qui traversent les ronds
 	for n in range(1, top_stage):
 		var a := center_of(n)
 		var b := center_of(n + 1)
-		if n < Game.best_stage:
-			draw_line(a, b, Color(0.3, 0.9, 0.7, 0.55), 6.0, true)
-		else:
-			draw_dashed_line(a, b, Color(0.3, 0.55, 0.7, 0.6), 4.0, 12.0, true)
+		var len := a.distance_to(b)
+		var k := 0.0
+		while k < len:
+			draw_circle(a.lerp(b, k / len), 3.5, Color("2b6a80"))
+			k += 22.0
 	for n in range(1, top_stage + 1):
 		_node(n)
 
@@ -87,55 +100,54 @@ func _draw() -> void:
 func _node(n: int) -> void:
 	var c := center_of(n)
 	var r := _radius(n)
-	var locked := n > Game.best_stage
 	var bt: String = Data.boss_type(n)
-	var done := n < Game.best_stage
-	var col := Color(0.17, 0.23, 0.42)
-	var fg := Color.WHITE
+	var locked := n > Game.best_stage
+	var cur := n == Game.best_stage
+	var col := UI.GREEN
+	var fg := UI.DARK
 	if bt == "mini":
-		col = Color(1.0, 0.69, 0.26)
-		fg = Color(0.1, 0.06, 0.02)
+		col = Color("ffb142")
+		fg = Color("1a1004")
 	elif bt == "big":
-		col = Color(1.0, 0.42, 0.42)
-		fg = Color(0.1, 0.03, 0.03)
-	elif done:
-		col = UI.GREEN
-		fg = Color(0.02, 0.1, 0.06)
-	if n == Game.best_stage and bt == "":
+		col = UI.RED
+		fg = Color("1a0a0a")
+	if cur and bt == "":
 		col = UI.ACCENT
-		fg = Color(0.02, 0.08, 0.12)
+		fg = UI.DARK
 	if locked:
-		col = col.darkened(0.45)
-		fg = Color(0.7, 0.75, 0.85, 0.8)
-	if n == sel:
-		var k := 0.5 + 0.5 * sin(t * 4.0)
-		draw_arc(c, r + 10.0 + 3.0 * k, 0, TAU, 40, Color(0.5, 0.95, 1.0, 0.6 + 0.4 * k), 4.0, true)
+		col = Color(0.169, 0.227, 0.42, 0.55)
+		fg = UI.MUTED
+	if cur:
+		var k := 0.5 + 0.5 * sin(t * 3.9)
+		draw_circle(c, r + 6.0 + 8.0 * k, Color(col.r, col.g, col.b, 0.10 + 0.20 * k))
+	if n == sel and n != Game.best_stage:
+		draw_arc(c, r + 8.0, 0, TAU, 40, Color(0.5, 0.95, 1.0, 0.9), 4.0, true)
 	draw_circle(c, r, col)
-	draw_arc(c, r, 0, TAU, 40, Color(1, 1, 1, 0.25), 2.0, true)
-	var fs := 28 if r > 33.0 else 24
-	draw_string(ThemeDB.fallback_font, c + Vector2(-r, fs * 0.36), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, fs, fg)
-	# étiquette du côté libre
-	var right := c.x < 360.0
-	var lx := c.x + r + 14.0 if right else c.x - r - 14.0
+	var fs := 32 if r > 40.0 else 26
+	var f := ThemeDB.fallback_font
+	draw_string(UI.bold_font(), c + Vector2(-r, fs * 0.36), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, fs, fg)
+	# étiquette du côté libre (à gauche quand le rond est dans la moitié droite)
+	var left := c.x >= 400.0
 	var label := ""
 	var sub := ""
 	if bt != "":
 		label = Data.boss_name(n)
-		sub = "Gros boss" if bt == "big" else "Mini-boss"
-	elif n == Game.best_stage:
-		label = "Étage en cours"
-	if label != "":
-		_text(Vector2(lx, c.y - 4.0), label, 22, Color.WHITE, right)
-		if sub != "":
-			_text(Vector2(lx, c.y + 22.0), sub, 18, UI.MUTED, right)
+		sub = "%s · ◆ %d cristaux" % ["Gros boss", int(Data.BIG_BOSS_CRYSTALS[3])] if bt == "big" else "Mini-boss"
+	elif cur:
+		label = "Étage %d · en cours" % n
+		sub = "Reco %d · toi %d %s" % [int(Data.recommended_power(n)), int(Game.power()), "✓" if Game.power() >= Data.recommended_power(n) else ""]
 	var s := int(Game.stars.get(n, 0))
-	if s > 0:
-		_text(Vector2(lx, c.y + (22.0 if label == "" else 46.0)), "★".repeat(s) + "☆".repeat(3 - s), 20, UI.GOLD, right)
+	var x := c.x - r - 16.0 if left else c.x + r + 16.0
+	if label != "":
+		_text(Vector2(x, c.y - 4.0), label, 24, Color.WHITE, left, true)
+		_text(Vector2(x, c.y + 22.0), sub, 20, UI.MUTED, left, false)
+	elif s > 0 and not locked:
+		_text(Vector2(x, c.y + 8.0), "★".repeat(s) + "☆".repeat(3 - s), 24, UI.TEXT, left, false)
 
 
-func _text(pos: Vector2, txt: String, fs: int, col: Color, left_aligned: bool) -> void:
-	var w := 260.0
-	if left_aligned:
-		draw_string(ThemeDB.fallback_font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, w, fs, col)
-	else:
-		draw_string(ThemeDB.fallback_font, pos - Vector2(w, 0), txt, HORIZONTAL_ALIGNMENT_RIGHT, w, fs, col)
+func _text(pos: Vector2, txt: String, fs: int, col: Color, to_left: bool, bold: bool) -> void:
+	var w := 330.0
+	var f: Font = UI.bold_font() if bold else ThemeDB.fallback_font
+	var p := pos - Vector2(w, 0) if to_left else pos
+	var al := HORIZONTAL_ALIGNMENT_RIGHT if to_left else HORIZONTAL_ALIGNMENT_LEFT
+	draw_string(f, p, txt, al, w, fs, col)

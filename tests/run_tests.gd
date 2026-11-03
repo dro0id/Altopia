@@ -429,10 +429,17 @@ func test_all_heroes_fight() -> void:
 
 func test_shop_and_tokens() -> void:
 	_g.crystals = 5
-	_check(_g.buy("token1") == "" and _g.crystals == 5, "pas d'achat sans assez de cristaux")
+	_check(_g.buy("tokens6") == "" and _g.crystals == 5, "pas d'achat sans assez de cristaux")
 	_g.crystals = 100
 	var t0: int = _g.tokens
-	_check(_g.buy("token1") != "" and _g.tokens == t0 + 1 and _g.crystals == 90, "un jeton coûte 10 cristaux")
+	_check(_g.buy("tokens6") != "" and _g.tokens == t0 + 6 and _g.crystals == 92, "six jetons coûtent 8 cristaux")
+	_check(not _g.boost_active() and _g.buy("boost2") != "" and _g.boost_active() and _g.crystals == 82, "le boost ×2 coûte 10 cristaux et s'active")
+	_g.boost_until = 0
+	_g.daily_day = -1
+	var t1: int = _g.tokens
+	_check(_g.buy("daily") != "" and _g.tokens >= t1 + 3 and _g.crystals == 62 and not _g.daily_available(), "l'offre du jour coûte 20 cristaux et s'achète une fois par jour")
+	_check(_g.buy("daily") == "", "l'offre du jour n'est pas rachetable le même jour")
+	_g.crystals = 100
 	_g.stage = 10
 	_g.best_stage = 10
 	var c: Dictionary = _g.stage_cleared(3)

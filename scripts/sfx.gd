@@ -52,14 +52,18 @@ func play(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	var p := _players[_next]
 	_next = (_next + 1) % _players.size()
 	p.stream = st
-	p.volume_db = volume_db
+	p.volume_db = volume_db + linear_to_db(maxf(0.001, g.sfx_vol if g != null else 1.0))
 	p.pitch_scale = pitch
 	p.play()
+	if g != null and sound in ["chest", "star", "win", "lose"]:
+		g.buzz(35)
 
 
 func refresh_music() -> void:
 	var g := get_node_or_null("/root/Game")
 	var on: bool = g == null or g.music_on
+	if g != null and _music != null:
+		_music.volume_db = linear_to_db(maxf(0.001, g.music_vol)) - 11.0
 	if _music.stream == null:
 		return
 	if on and not _music.playing:

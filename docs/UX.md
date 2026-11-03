@@ -22,9 +22,15 @@ Maquettes : canvas Design, rangée « Propositions UI/UX » (planches A à J). R
 - **Boutique (I)** : onglets, offre du jour, cartes d'offres, cristaux « bientôt ».
 - **Navigation (J)** : barre basse partout sauf plein écran, retour en haut à gauche, actions dans le tiers bas, pastilles de notification, marges de sécurité, contraste ≥ 4,5:1, retour haptique.
 
-## Mise en œuvre (étape 1 : navigation et combat)
-Fait dans le jeu : barre de navigation du bas (Combat, Héros, Recruter, Boutique) avec pastilles ; elle reste visible quand on ouvre Héros, Recruter ou Boutique et permet de passer de l'un à l'autre. HUD allégé sur le terrain (crédits, éclats, réglages, étage cliquable qui ouvre la carte, Auto et vitesse en colonne à droite, combo). Pouvoirs en boutons ronds sous le terrain, sans texte. Escouade en 5 cartes (la pastille verte signale une amélioration possible) et une seule barre d'achat pour le héros choisi, par défaut le meilleur achat. Le bas de l'écran est accroché à la barre du bas, donc il suit les téléphones plus allongés. Bannières de combat (vague, pouvoir) déplacées entre ennemis et alliés.
-Reste à faire : carte en tour, écran de coffre, collection et fiche héros, recrutement, boutique, charte (cadres de rareté, états des boutons).
+## Mise en œuvre
+Tout l'écran du jeu suit maintenant les planches de la maquette (coordonnées de la maquette × 2, palette de la charte B). Écrans faits : combat et combat de boss (C, L), navigation du bas (J), carte en tour (D), coffre de fin d'étage (E), collection et formation (F), fiche héros (G), recrutement (H), boutique (I), renfort (M), palier d'évolution (N), défaite (O), réglages (P), retour hors ligne (Q), états et retours (R : vibration, boutons grisés, notification).
 
-### Étape 2 : carte, coffre, boutique
-Carte en tour (chemin en zigzag, étage 1 en bas, boss plus gros, étages débloqués touchables, coffre gratuit, prochain boss et grand bouton Monter/Farmer). Coffre de fin d'étage à toucher pour l'ouvrir, avec la rareté annoncée, la garantie légendaire sur les gros boss, quatre cases de butin cachées (« ? ») révélées à l'ouverture. Boutique en cartes illustrées (jetons, coffres), coffre gratuit en haut, cristaux « bientôt ». Reste : collection et formation, fiche héros, recrutement, charte (cadres de rareté).
+Mécaniques ajoutées pour que ces écrans soient vrais : offre du jour (pack légendaire à 20 cristaux, une fois par jour), boost ×2 de crédits pendant 1 h, héros en vedette de la bannière (une chance sur deux quand un héros épique est tiré), historique des 5 derniers tirages, jauge de persévérance, éclats gagnés hors ligne, réglages de volume, vibrations, chiffres de dégâts, économie de batterie, réduction des secousses.
+
+Écarts connus avec la planche, par nécessité de gameplay (à valider) :
+- la carte s'ouvre en touchant l'étage (ou la barre du boss) car la planche C n'a pas de bouton Carte ;
+- Auto et vitesse restent affichés pendant les combats de boss ;
+- sur un boss, la barre d'achat reste visible sous le conseil ;
+- les portraits sont ronds sur fond sombre (la planche les montre sur un carré gris, artefact d'export) ;
+- les raretés de héros sont celles du jeu (Normal, Rare, Épique) et non les six couleurs de la collection ;
+- le texte des conseils et des renforts vient des vraies données du jeu.

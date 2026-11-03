@@ -31,11 +31,20 @@ var pulls := 0                 # nombre total de tirages
 var auto_cast := true
 var speed := 1.0
 var sfx_on := true
+var music_vol := 0.7
+var sfx_vol := 1.0
+var haptics := true
+var dmg_numbers := true
+var battery_saver := false
+var reduce_shake := false
 var music_on := true
 var tutorial_done := false
 var intro_seen := false
 var last_seen := 0
 var last_free_chest := 0
+var last_pulls: Array = []       # derniers héros obtenus au recrutement (id, rareté), les plus récents en tête
+var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
+var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -61,6 +70,9 @@ func _notification(what: int) -> void:
 
 
 func reset() -> void:
+	last_pulls = []
+	daily_day = -1
+	boost_until = 0
 	credits = 0.0
 	shards = 0
 	levels = {}
@@ -183,6 +195,8 @@ func recruit(count: int) -> Array:
 		var rarity := Data.roll_recruit(rng, recruit_pity)
 		var pool := Data.heroes_of_rarity(rarity)
 		var id: String = pool[rng.randi() % pool.size()]
+		if rarity == "epic" and rng.randf() < 0.5:
+			id = Data.featured_hero(_today())
 		var is_new := not is_owned(id)
 		var frag := 0
 		if is_new:
@@ -191,6 +205,9 @@ func recruit(count: int) -> Array:
 			frag = int(Data.DUP_FRAGMENTS[rarity])
 			fragments[id] = int(fragments[id]) + frag
 		pulls += 1
+		last_pulls.push_front({"id": id, "rarity": rarity})
+		if last_pulls.size() > 5:
+			last_pulls.pop_back()
 		out.append({"id": id, "rarity": rarity, "new": is_new, "fragments": frag})
 	changed.emit()
 	return out
@@ -198,24 +215,63 @@ func recruit(count: int) -> Array:
 
 ## Achat en boutique avec des cristaux. Renvoie un texte de résultat, vide si l'achat est impossible.
 func buy(item_id: String) -> String:
-	for it in Data.SHOP_ITEMS:
+	var items: Array = Data.SHOP_ITEMS.duplicate()
+	items.append(Data.DAILY_OFFER)
+	for it in items:
 		if it.id != item_id:
 			continue
 		if crystals < int(it.cost):
 			return ""
-		if it.has("free_chest") and free_chest_remaining() <= 0.0:
-			return ""
+		if it.id == "daily":
+			if not daily_available():
+				return ""
+			daily_day = _today()
 		crystals -= int(it.cost)
+		var msg: Array = []
+		if it.has("boost"):
+			boost_until = maxi(boost_until, int(Time.get_unix_time_from_system())) + int(float(it.boost) * 3600.0)
+			msg.append("Boost ×2 actif : %s" % UI.duration(boost_remaining()))
 		if it.has("tokens"):
 			tokens += int(it.tokens)
-			return "+ %d jetons de recrutement" % int(it.tokens)
+			msg.append("+ %d jetons" % int(it.tokens))
 		if it.has("chest"):
 			var c := open_chest(String(it.chest), maxi(1, best_stage - 1))
-			return "Coffre %s : + %s crédits, + %d éclats" % [String(Data.RARITY_NAMES[c.rarity]).to_lower(), Data.fmt(c.credits), int(c.shards)]
-		if it.has("free_chest"):
-			last_free_chest = 0
-			return "Le coffre gratuit est prêt"
+			msg.append("Coffre %s : + %s crédits, + %d éclats" % [String(Data.RARITY_NAMES[c.rarity]).to_lower(), Data.fmt(c.credits), int(c.shards)])
+		changed.emit()
+		return " · ".join(msg)
 	return ""
+
+
+func _today() -> int:
+	return int(Time.get_unix_time_from_system() / 86400.0)
+
+
+func daily_available() -> bool:
+	return daily_day != _today()
+
+
+## Secondes avant le renouvellement de l'offre du jour (minuit UTC).
+func daily_remaining() -> float:
+	return 86400.0 - fmod(Time.get_unix_time_from_system(), 86400.0)
+
+
+func boost_remaining() -> float:
+	return maxf(0.0, float(boost_until) - Time.get_unix_time_from_system())
+
+
+func boost_active() -> bool:
+	return boost_remaining() > 0.0
+
+
+## Applique le réglage d'économie de batterie (30 images par seconde au lieu de 60).
+func apply_performance() -> void:
+	Engine.max_fps = 30 if battery_saver else 60
+
+
+## Petite vibration (si activée) : achat, étoile, coffre.
+func buzz(ms: int = 30) -> void:
+	if haptics:
+		Input.vibrate_handheld(ms)
 
 
 func add_credits(v: float) -> void:
@@ -400,7 +456,9 @@ func offline_rate_per_minute() -> float:
 func compute_offline(away_seconds: float) -> Dictionary:
 	var capped := minf(away_seconds, Data.OFFLINE_CAP_HOURS * 3600.0)
 	var gain := offline_rate_per_minute() * capped / 60.0
-	return {"seconds": capped, "credits": gain}
+	# quelques éclats de verre aussi : environ 1 par heure et par tranche de 8 étages atteints
+	var sh := int(floor(capped / 3600.0 * maxf(0.5, float(best_stage) / 8.0)))
+	return {"seconds": capped, "credits": gain, "shards": sh}
 
 
 func free_chest_remaining() -> float:
@@ -433,11 +491,11 @@ func save_game() -> void:
 		star_save[str(k)] = stars[k]
 	f.store_string(JSON.stringify({
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
-		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on,
+		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls,
+		"recruit_pity": recruit_pity, "pulls": pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -451,6 +509,12 @@ func load_game() -> bool:
 	var ver := int(parsed.get("version", 0))
 	if ver < 1 or ver > SAVE_VERSION:
 		return false
+	daily_day = int(parsed.get("daily_day", -1))
+	last_pulls = []
+	for lp in parsed.get("last_pulls", []):
+		if typeof(lp) == TYPE_DICTIONARY and Data.HEROES.has(String(lp.get("id", ""))):
+			last_pulls.append({"id": String(lp.id), "rarity": String(lp.get("rarity", "common"))})
+	boost_until = int(parsed.get("boost_until", 0))
 	credits = float(parsed.get("credits", 0.0))
 	shards = int(parsed.get("shards", 0))
 	var saved: Dictionary = parsed.get("levels", {})
@@ -468,6 +532,13 @@ func load_game() -> bool:
 	speed = clampf(float(parsed.get("speed", 1.0)), 1.0, 3.0)
 	sfx_on = bool(parsed.get("sfx", true))
 	music_on = bool(parsed.get("music", true))
+	music_vol = clampf(float(parsed.get("music_vol", 0.7)), 0.0, 1.0)
+	sfx_vol = clampf(float(parsed.get("sfx_vol", 1.0)), 0.0, 1.0)
+	haptics = bool(parsed.get("haptics", true))
+	dmg_numbers = bool(parsed.get("dmg_numbers", true))
+	battery_saver = bool(parsed.get("battery_saver", false))
+	reduce_shake = bool(parsed.get("reduce_shake", false))
+	apply_performance()
 	tutorial_done = bool(parsed.get("tutorial", ver == 1))
 	intro_seen = bool(parsed.get("intro", ver == 1))
 	last_seen = int(parsed.get("last_seen", 0))
@@ -524,4 +595,5 @@ func load_game() -> bool:
 	if last_seen > 0 and away > 60:
 		offline_report = compute_offline(float(away))
 		credits += float(offline_report.credits)
+		shards += int(offline_report.shards)
 	return true

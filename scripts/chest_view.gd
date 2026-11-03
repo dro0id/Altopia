@@ -17,6 +17,7 @@ var _parts: Array = []        # étincelles, éclats, flammes : {pos, vel, t, du
 var _rings: Array = []        # ondes de choc : {t, dur, col, r}
 var _flash := 0.0
 var _bolts: Array = []        # éclairs de l'ultime
+var chest_scale := 1.15
 var armed := false             # le coffre reste immobile jusqu'à ce qu'on le touche
 var _t0 := 0.0
 
@@ -112,7 +113,7 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.1, 0.0, 0.0, 0.35 * k))
 	var shake := (2.0 + _tier * 1.6) * k if tt < open_at else 0.0
 	var open := clampf((tt - open_at) / 0.5, 0.0, 1.0)
-	Art.draw_chest(self, Vector2(size.x * 0.5, size.y - 26.0), 1.15, rarity, t, open, shake)
+	Art.draw_chest(self, Vector2(size.x * 0.5, size.y - 26.0), chest_scale, rarity, t, open, shake)
 	var c := Vector2(size.x * 0.5, size.y - 120.0)
 	for r in _rings:
 		if r.t < 0.0:

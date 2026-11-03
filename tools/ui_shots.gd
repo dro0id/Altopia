@@ -37,9 +37,16 @@ func _initialize() -> void:
 		rs.queue_free()
 		await process_frame
 		await process_frame
+	g.perseverance = 3
+	g.levels["zyra"] = 3
+	g.levels["mara"] = 10
+	g.shards = 12
+	g.credits = 5000.0
+	await _shot(out + "/boost.png", main, BoostScreen.new(["tir", "bouclier", "vitalite"], 15), 0.5)
+	await _shot(out + "/evolve.png", main, EvolveScreen.new("mara"), 0.8)
 	await _shot(out + "/settings.png", main, SettingsScreen.new(), 0.5)
 	await _shot(out + "/defeat.png", main, DefeatScreen.new(9), 0.5)
-	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 4860.0}), 0.5)
+	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 12480.0, "shards": 64}), 0.5)
 	g.shards = 12
 	g.credits = 5000.0
 	g.levels["mara"] = 10

@@ -37,38 +37,37 @@ func _gui_input(ev: InputEvent) -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.08, 0.16, 0.98))
-	draw_rect(Rect2(0, 0, size.x, 2), Color(0.3, 0.85, 1.0, 0.35))
-	var w := size.x / 4.0
+	draw_rect(Rect2(Vector2.ZERO, size), UI.BAR)
+	draw_rect(Rect2(0, 0, size.x, 2), UI.LINE2)
+	var w := (size.x - 32.0) / 4.0
+	var f := ThemeDB.fallback_font
 	for i in 4:
 		var on := i == active
 		var col := UI.ACCENT if on else UI.MUTED
-		var c := Vector2(w * (i + 0.5), 46)
-		if on:
-			draw_rect(Rect2(w * i + 24, 0, w - 48, 5), UI.ACCENT)
+		var x0 := 16.0 + w * i
+		var c := Vector2(x0 + w * 0.5, 38)
 		_icon(i, c, col)
-		draw_string(ThemeDB.fallback_font, Vector2(w * i, 96), LABELS[i], HORIZONTAL_ALIGNMENT_CENTER, w, 24, col)
+		var lab: String = LABELS[i]
+		draw_string(UI.bold_font() if on else f, Vector2(x0, 83), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 22, col)
 		var n: int = badges[i]
 		if n > 0:
-			var bc := c + Vector2(28, -22)
-			draw_circle(bc, 15, Color(1.0, 0.42, 0.42))
-			draw_arc(bc, 15, 0, TAU, 24, Color(0.04, 0.08, 0.16), 3.0, true)
-			draw_string(ThemeDB.fallback_font, bc + Vector2(-15, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 30, 22, Color.WHITE)
+			var bc := Vector2(x0 + w - 56.0, 22.0)
+			draw_circle(bc, 20, UI.BG)
+			draw_circle(bc, 16, UI.RED)
+			draw_string(UI.bold_font(), bc + Vector2(-16, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 22, Color.WHITE)
 
 
 func _icon(i: int, c: Vector2, col: Color) -> void:
 	match i:
-		0:    # épées croisées
-			draw_line(c + Vector2(-17, 17), c + Vector2(17, -17), col, 5.0, true)
-			draw_line(c + Vector2(-17, -17), c + Vector2(17, 17), col, 5.0, true)
-			draw_line(c + Vector2(-20, 6), c + Vector2(-6, 20), col, 4.0, true)
-			draw_line(c + Vector2(20, 6), c + Vector2(6, 20), col, 4.0, true)
-		1:    # bouclier
-			var pts := PackedVector2Array([c + Vector2(-18, -18), c + Vector2(18, -18), c + Vector2(18, 2), c + Vector2(0, 22), c + Vector2(-18, 2)])
-			draw_colored_polygon(pts, col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, -10), c + Vector2(9, -10), c + Vector2(9, 0), c + Vector2(0, 11), c + Vector2(-9, 0)]), Color(0.04, 0.08, 0.16))
-		2:    # étoile
-			Art.star(self, c, 22.0, col)
-		3:    # cristal
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -22), c + Vector2(19, 0), c + Vector2(0, 22), c + Vector2(-19, 0)]), col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -22), c + Vector2(19, 0), c + Vector2(0, 0)]), col.lightened(0.35))
+		0:    # ⚔ épées croisées, trait fin
+			draw_line(c + Vector2(-13, 14), c + Vector2(13, -14), col, 3.0, true)
+			draw_line(c + Vector2(-13, -14), c + Vector2(13, 14), col, 3.0, true)
+			draw_line(c + Vector2(-16, 6), c + Vector2(-6, 16), col, 3.0, true)
+			draw_line(c + Vector2(16, 6), c + Vector2(6, 16), col, 3.0, true)
+		1:    # 🛡 bouclier (contour)
+			var pts := PackedVector2Array([c + Vector2(-16, -16), c + Vector2(16, -16), c + Vector2(16, 2), c + Vector2(0, 19), c + Vector2(-16, 2), c + Vector2(-16, -16)])
+			draw_polyline(pts, col, 3.0, true)
+		2:    # ✦ étoile à quatre branches
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -16), c + Vector2(4, -4), c + Vector2(16, 0), c + Vector2(4, 4), c + Vector2(0, 16), c + Vector2(-4, 4), c + Vector2(-16, 0), c + Vector2(-4, -4)]), col)
+		3:    # ◆ losange plein
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -19), c + Vector2(19, 0), c + Vector2(0, 19), c + Vector2(-19, 0)]), col)
