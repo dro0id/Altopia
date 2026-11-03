@@ -14,11 +14,15 @@ func _initialize() -> void:
 		g.levels[id] = 6
 	g.credits = 500.0
 	g.tokens = 7
+	g.crystals = 130
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await _wait(1.5)
-	for i in [1, 2, 3]:
-		main._on_tab(i)
+	for i in [1, 2, 3, 9]:
+		if i == 9:
+			main._open_map()
+		else:
+			main._on_tab(i)
 		await _wait(0.5)
 		print("onglet ", i, " actif=", main._nav.active, " barre visible=", main._nav.visible, " pause=", paused)
 		await RenderingServer.frame_post_draw

@@ -21,11 +21,15 @@ func _initialize() -> void:
 	await _shot(out + "/map.png", main, MapScreen.new(), 0.8)
 	for r in ["commun", "rare", "epique", "legendaire", "ultime"]:
 		var tier: int = Data.RARITIES.find(r)
-		var rs := ResultScreen.new(10, 3, {"rarity": r, "credits": 1200.0, "shards": 8}, "Monter")
+		var rs := ResultScreen.new(10, 3, {"rarity": r, "credits": 1200.0, "shards": 8, "tokens": 2, "crystals": 4}, "Monter")
 		main._open_modal(rs)
 		await process_frame
 		var cv: ChestView = _find_chest(rs)
-		cv.t = cv.open_at - 0.02
+		if r == "legendaire":
+			await RenderingServer.frame_post_draw
+			root.get_viewport().get_texture().get_image().save_png(out + "/closed_legendaire.png")
+		cv.arm()
+		cv.t = cv._t0 + cv.open_at - 0.02
 		for i in 14:
 			await process_frame
 		await RenderingServer.frame_post_draw

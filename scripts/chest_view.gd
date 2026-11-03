@@ -3,6 +3,7 @@ extends Control
 ## Coffre animé : tremble de plus en plus fort (suspense proportionnel à la rareté), puis s'ouvre avec une mise en scène propre à sa rareté.
 
 signal opened
+signal armed_changed
 
 const Data = preload("res://scripts/data.gd")
 const SUSPENSE := [1.0, 1.1, 1.3, 1.6, 2.0, 2.6]
@@ -16,11 +17,14 @@ var _parts: Array = []        # étincelles, éclats, flammes : {pos, vel, t, du
 var _rings: Array = []        # ondes de choc : {t, dur, col, r}
 var _flash := 0.0
 var _bolts: Array = []        # éclairs de l'ultime
+var armed := false             # le coffre reste immobile jusqu'à ce qu'on le touche
+var _t0 := 0.0
 
 
 func _init() -> void:
 	custom_minimum_size = Vector2(520, 300)
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func setup(p_rarity: String) -> void:
@@ -29,9 +33,22 @@ func setup(p_rarity: String) -> void:
 	open_at = SUSPENSE[_tier]
 
 
+func arm() -> void:
+	if not armed:
+		armed = true
+		_t0 = t
+		Sfx.play("click", -4.0)
+		armed_changed.emit()
+
+
+func _gui_input(ev: InputEvent) -> void:
+	if (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
+		arm()
+
+
 func _process(delta: float) -> void:
 	t += delta
-	if t >= open_at and not _fired:
+	if armed and t - _t0 >= open_at and not _fired:
 		_fired = true
 		_burst()
 		opened.emit()
@@ -85,15 +102,16 @@ func _burst() -> void:
 
 func _draw() -> void:
 	var col: Color = Data.CHEST_COLORS[rarity]
-	var k := clampf(t / open_at, 0.0, 1.0)
+	var tt := (t - _t0) if armed else 0.0
+	var k := clampf(tt / open_at, 0.0, 1.0)
 	# avant l'ouverture : l'énergie monte, d'autant plus fort que le coffre est rare
-	if t < open_at and _tier >= 2:
+	if tt < open_at and _tier >= 2:
 		var charge := k * k
 		Art.ellipse(self, Vector2(size.x * 0.5, size.y - 90.0), 90.0 + 90.0 * charge, 50.0 + 40.0 * charge, Color(col.r, col.g, col.b, 0.1 + 0.4 * charge), t * 2.0, 8)
-	if _tier == 5 and t < open_at:
+	if _tier == 5 and tt < open_at:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.1, 0.0, 0.0, 0.35 * k))
-	var shake := (2.0 + _tier * 1.6) * k if t < open_at else 0.0
-	var open := clampf((t - open_at) / 0.5, 0.0, 1.0)
+	var shake := (2.0 + _tier * 1.6) * k if tt < open_at else 0.0
+	var open := clampf((tt - open_at) / 0.5, 0.0, 1.0)
 	Art.draw_chest(self, Vector2(size.x * 0.5, size.y - 26.0), 1.15, rarity, t, open, shake)
 	var c := Vector2(size.x * 0.5, size.y - 120.0)
 	for r in _rings:
