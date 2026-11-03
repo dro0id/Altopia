@@ -21,11 +21,15 @@ func _initialize() -> void:
 	await _shot(out + "/map.png", main, MapScreen.new(), 0.8)
 	for r in ["commun", "rare", "epique", "legendaire", "ultime"]:
 		var tier: int = Data.RARITIES.find(r)
-		var rs := ResultScreen.new(10, 3, {"rarity": r, "credits": 1200.0, "shards": 8}, "Monter")
+		var rs := ResultScreen.new(10, 3, {"rarity": r, "credits": 1200.0, "shards": 8, "tokens": 2, "crystals": 4}, "Monter")
 		main._open_modal(rs)
 		await process_frame
 		var cv: ChestView = _find_chest(rs)
-		cv.t = cv.open_at - 0.02
+		if r == "legendaire":
+			await RenderingServer.frame_post_draw
+			root.get_viewport().get_texture().get_image().save_png(out + "/closed_legendaire.png")
+		cv.arm()
+		cv.t = cv._t0 + cv.open_at - 0.02
 		for i in 14:
 			await process_frame
 		await RenderingServer.frame_post_draw
@@ -33,14 +37,47 @@ func _initialize() -> void:
 		rs.queue_free()
 		await process_frame
 		await process_frame
+	g.perseverance = 3
+	g.levels["zyra"] = 3
+	g.levels["mara"] = 10
+	g.shards = 12
+	g.credits = 5000.0
+	await _shot(out + "/boost.png", main, BoostScreen.new(["tir", "bouclier", "vitalite"], 15), 0.5)
+	await _shot(out + "/evolve.png", main, EvolveScreen.new("mara"), 0.8)
 	await _shot(out + "/settings.png", main, SettingsScreen.new(), 0.5)
 	await _shot(out + "/defeat.png", main, DefeatScreen.new(9), 0.5)
-	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 4860.0}), 0.5)
+	await _shot(out + "/offline.png", main, OfflineScreen.new({"seconds": 18720.0, "credits": 12480.0, "shards": 64}), 0.5)
 	g.shards = 12
 	g.credits = 5000.0
 	g.levels["mara"] = 10
 	g.perseverance = 3
 	g.boosts = ["tir", "vitalite"]
+	for id in ["sora", "dax", "aria", "lumi"]:
+		g.owned[id] = true
+	g.hero_stars["mara"] = 3
+	g.fragments["kai"] = 12
+	g.fragments["oru"] = 4
+	g.tokens = 40
+	g.crystals = 85
+	await _shot(out + "/collection.png", main, CollectionScreen.new(), 0.6)
+	await _shot(out + "/hero_owned.png", main, HeroScreen.new("kai"), 0.5)
+	await _shot(out + "/hero_locked.png", main, HeroScreen.new("omega"), 0.5)
+	var rec := RecruitScreen.new()
+	main._open_modal(rec)
+	await process_frame
+	rec._pull(10)
+	for i in 240:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(out + "/recruit.png")
+	rec.queue_free()
+	await process_frame
+	await process_frame
+	await _shot(out + "/shop.png", main, ShopScreen.new(), 0.5)
+	main._refresh()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(out + "/main2.png")
 	await _shot(out + "/boost.png", main, BoostScreen.new(["tir", "bouclier", "butin"], 10), 0.6)
 	await _shot(out + "/evolve.png", main, EvolveScreen.new("mara"), 0.6)
 	await _shot(out + "/defeat2.png", main, DefeatScreen.new(10), 0.6)

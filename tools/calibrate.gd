@@ -15,7 +15,7 @@ func _initialize() -> void:
 		while lvl < 80 and not _wins(st, lvl):
 			lvl += 1
 		var lv := {}
-		for id in Data.HERO_ORDER:
+		for id in Data.STARTER:
 			lv[id] = lvl
 		var p := Data.team_power(lv)
 		print("%d ; %s ; %d ; %d ; %.2f" % [st, Data.boss_type(st), lvl, p, p / (base * Data.stage_scale(st))])
@@ -23,9 +23,10 @@ func _initialize() -> void:
 
 
 func _wins(st: int, lvl: int) -> bool:
+	var mods: Dictionary = Data.synergies(Data.STARTER).mods
 	var team: Array = []
-	for id in Data.HERO_ORDER:
-		team.append({"id": id, "level": lvl})
+	for id in Data.STARTER:
+		team.append({"id": id, "level": lvl, "mods": mods})
 	for sd in 5:
 		var s := BattleSim.new(team, st, 11 + sd * 7)
 		if s.run(240.0) != "clear" or s.stars < 2:

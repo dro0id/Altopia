@@ -44,10 +44,10 @@ func _initialize() -> void:
 				g.go_to(g.best_stage)
 				main._start_battle()
 		# on évolue dès que possible, puis on dépense les crédits comme un joueur
-		for id in g.levels.keys():
+		for id in g.squad_ids():
 			if g.can_afford_evolve(id):
 				g.evolve(id)
-		for id in g.levels.keys():
+		for id in g.squad_ids():
 			if g.can_level(id):
 				g.level_up(id)
 	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])

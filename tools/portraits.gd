@@ -3,7 +3,7 @@ extends SceneTree
 func _initialize() -> void:
 	var out := OS.get_cmdline_user_args()[0]
 	await process_frame
-	for id in ["mara", "kai", "zyra", "t9", "oru"]:
+	for id in (load("res://scripts/data.gd") as GDScript).ALL_HEROES:
 		var ic := HeroIcon.new()
 		ic.hero = (load("res://scripts/data.gd") as GDScript).HEROES[id]
 		ic.custom_minimum_size = Vector2(160, 160)

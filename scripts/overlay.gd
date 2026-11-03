@@ -8,6 +8,9 @@ signal closed
 
 var panel: PanelContainer
 var box: VBoxContainer
+var center: CenterContainer
+var dim: ColorRect
+var stage: Control
 
 
 func _init(width: float = 640.0) -> void:
@@ -15,11 +18,11 @@ func _init(width: float = 640.0) -> void:
 	z_index = 4090
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var dim := ColorRect.new()
+	dim = ColorRect.new()
 	dim.color = Color(0.0, 0.0, 0.03, 0.78)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
-	var center := CenterContainer.new()
+	center = CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	panel = PanelContainer.new()
@@ -29,6 +32,22 @@ func _init(width: float = 640.0) -> void:
 	box = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	panel.add_child(box)
+
+
+## Laisse libre le bas de l'écran (barre de navigation visible sous la fenêtre).
+func reserve_bottom(px: float) -> void:
+	center.offset_bottom = -px
+
+
+## Écran dessiné librement en 720 × 1280 (feuille du bas ou plein écran) : la fenêtre centrée est cachée.
+func use_stage(dim_alpha: float = 1.0) -> Control:
+	panel.visible = false
+	center.visible = false
+	dim.color = Color(UI.BG, dim_alpha)
+	stage = Control.new()
+	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(stage)
+	return stage
 
 
 func close() -> void:

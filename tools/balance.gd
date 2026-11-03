@@ -11,7 +11,7 @@ func _initialize() -> void:
 	var seed_v := int(a[1]) if a.size() > 1 else 1
 	var levels := {}
 	var evo := {}
-	for id in Data.HERO_ORDER:
+	for id in Data.STARTER:
 		levels[id] = 1
 		evo[id] = 0
 	var shards := 0
@@ -34,8 +34,8 @@ func _initialize() -> void:
 		credits = _spent.credits
 		shards = _spent.shards
 		var team: Array = []
-		for id in Data.HERO_ORDER:
-			team.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance})
+		for id in Data.STARTER:
+			team.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "mods": Data.synergies(Data.STARTER).mods})
 		var sim := BattleSim.new(team, stage, seed_v + attempts, boosts)
 		var res := sim.run(240.0)
 		attempts += 1
@@ -66,8 +66,8 @@ func _initialize() -> void:
 			var farmed := 0
 			while farmed < 12:
 				var t2: Array = []
-				for id in Data.HERO_ORDER:
-					t2.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance})
+				for id in Data.STARTER:
+					t2.append({"id": id, "level": int(levels[id]), "evo": int(evo[id]), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "mods": Data.synergies(Data.STARTER).mods})
 				var s2 := BattleSim.new(t2, stage, seed_v + attempts, boosts)
 				s2.run(240.0)
 				attempts += 1
@@ -98,7 +98,7 @@ var _spent := {}
 func _spend(levels: Dictionary, evo: Dictionary, credits: float, shards: int) -> void:
 	while true:
 		var did := false
-		for id in Data.HERO_ORDER:
+		for id in Data.STARTER:
 			if int(levels[id]) >= Data.level_cap(int(evo[id])) and int(evo[id]) < 2:
 				var c: Dictionary = Data.evolve_cost(int(levels[id]), int(evo[id]))
 				if credits >= c.credits and shards >= c.shards:
@@ -119,7 +119,7 @@ func _spend(levels: Dictionary, evo: Dictionary, credits: float, shards: int) ->
 func _best_buy(levels: Dictionary, evo: Dictionary = {}) -> String:
 	var best := ""
 	var best_ratio := -1.0
-	for id in Data.HERO_ORDER:
+	for id in Data.STARTER:
 		if not evo.is_empty() and int(levels[id]) >= Data.level_cap(int(evo[id])):
 			continue
 		var h: Dictionary = Data.HEROES[id]
