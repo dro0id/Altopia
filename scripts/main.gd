@@ -604,7 +604,7 @@ func _show_item_toast(drop: Dictionary) -> void:
 func _start_battle() -> void:
 	_layout()
 	battle.speed = Game.speed
-	battle.start(Game.team(), Game.stage, Game.auto_cast)
+	battle.start(Game.team(), Game.stage, Game.auto_cast, Game.boosts)
 	_claimed = 0.0
 	_tuto_t = 0.0
 	for i in skill_buttons.size():

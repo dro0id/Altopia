@@ -471,6 +471,23 @@ func test_item_packs() -> void:
 	g2.free()
 
 
+func test_boosts_reach_battle() -> void:
+	_g.reset()
+	var bv: Node2D = load("res://scripts/battle.gd").new()
+	bv.start(_g.team(), 3, true, ["vitalite", "tir"])
+	var base := BattleSim.new(_g.team(), 3, 1)
+	var hp_with := 0.0
+	var hp_without := 0.0
+	for u in bv.sim.units:
+		if u.side == 0:
+			hp_with += u.max_hp
+	for u in base.units:
+		if u.side == 0:
+			hp_without += u.max_hp
+	_check(is_equal_approx(hp_with, hp_without * 1.2), "les renforts choisis s'appliquent au combat affiché")
+	bv.free()
+
+
 func test_safe_save() -> void:
 	_g.reset()
 	_g.credits = 111.0
