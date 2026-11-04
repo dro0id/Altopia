@@ -46,12 +46,23 @@ func _initialize() -> void:
 		"boutique": func(): main._open_shop(),
 		"carte": func(): main._open_map(),
 		"reglages": func(): main._open_settings(),
+		"coffre": func():
+			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
+			g.pending_chest = ch
+			main._open_modal(ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)),
+		"victoire": func():
+			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
+			g.pending_chest = ch
+			var rs := ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)
+			main._open_modal(rs)
+			rs._cv.arm()
+			rs._cv.t = rs._cv._t0 + rs._cv.open_at - 0.02,
 	}
 	for k in shots:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(0.6)
+		await _wait(2.6 if k == "victoire" else 0.6)
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()
