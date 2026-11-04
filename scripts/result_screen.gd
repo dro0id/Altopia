@@ -1,173 +1,81 @@
 class_name ResultScreen
 extends Overlay
-
-## Étage vaincu (maquette E) : étoiles, coffre à toucher, rareté annoncée, garantie, butin caché puis révélé, bouton pour continuer.
+## Étage vaincu (maquettes BW puis BH) : on touche le coffre pour l'ouvrir, puis l'écran de victoire montre étoiles, objet et butin.
 
 signal next_pressed
 signal replay_pressed
 signal map_pressed
-
-const FOOT := "Le butin se révèle à l'ouverture, puis « %s »."
+signal who_requested(item_id: int)
 
 var _t := 0.0
 var _star_count := 3
 var _stars_shown := 0
-var _stage_ctrl: Control
+var _st: Control
 var _cv: ChestView
-var _hint: Label
-var _tiles: Array = []
-var _main_btn: Button
-var _foot: Label
-var _after: HBoxContainer
-var _opened := false
-var _next_label := ""
+var _open_btn: Button
 var _rays: Control
 var _rcol := Color("ffb142")
+var _chest: Dictionary = {}
+var _rarity := "commun"
+var _bt := ""
+var _stage := 1
+var _next_label := ""
+var _combo := 0
+var _opened := false
+var _phase1: Array = []
+var _victory: Control
+var _drop: Dictionary = {}
+var _best := {}
 
 
 func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, combo := 0) -> void:
 	super._init(720.0)
+	_st = use_stage(1.0)
+	_stage = stage
 	_star_count = star_count
 	_next_label = next_label
-	panel.custom_minimum_size = Vector2(720, 1280)
-	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
-	box.add_theme_constant_override("separation", 0)
-	_stage_ctrl = Control.new()
-	_stage_ctrl.custom_minimum_size = Vector2(720, 1280)
-	box.add_child(_stage_ctrl)
-	var bt: String = Data.boss_type(stage)
-	var rarity: String = chest.rarity
-	_rcol = Data.CHEST_COLORS[rarity]
-	# titre, étoiles, légende
-	var title := "ÉTAGE %d · %s" % [stage, "GROS BOSS VAINCU" if bt == "big" else ("MINI-BOSS VAINCU" if bt == "mini" else "ÉTAGE VAINCU")]
-	var eb := Control.new()
-	eb.position = Vector2(0, 38)
-	eb.size = Vector2(720, 40)
-	eb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	eb.draw.connect(func():
-		var fb := UI.bold_font()
-		var tw := 0.0
-		for ch in title:
-			tw += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0
-		var x := (720.0 - tw) * 0.5
-		for ch in title:
-			eb.draw_string(fb, Vector2(x, 28), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color("ffb142"))
-			x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0)
-	_stage_ctrl.add_child(eb)
-	var note := "Aucun héros tombé" if star_count == 3 else ("Un héros est tombé" if star_count == 2 else "Plusieurs héros sont tombés")
-	if combo > 1:
-		note += " · combo max ×%d" % combo
-	_lab(note, 22, UI.MUTED, Vector2(0, 148), 720.0)
-	# rayons qui tournent derrière le coffre
+	_combo = combo
+	_chest = chest
+	_rarity = chest.rarity
+	_bt = Data.boss_type(stage)
+	_rcol = Data.CHEST_COLORS[_rarity]
 	_rays = Control.new()
-	_rays.position = Vector2(0, 0)
 	_rays.size = Vector2(720, 1280)
 	_rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rays.draw.connect(_draw_rays)
-	_stage_ctrl.add_child(_rays)
+	_st.add_child(_rays)
+	# phase 1 : le coffre (BW)
 	_cv = ChestView.new()
-	_cv.setup(rarity)
+	_cv.setup(_rarity)
 	_cv.chest_scale = 1.55
-	_cv.position = Vector2(100, 306)
+	_cv.position = Vector2(100, 410)
 	_cv.size = Vector2(520, 300)
-	_stage_ctrl.add_child(_cv)
-	_cv.armed_changed.connect(func(): _hint.visible = false)
-	# doigt
-	var fin := Control.new()
-	fin.position = Vector2(316, 590)
-	fin.size = Vector2(88, 88)
-	fin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fin.draw.connect(func():
-		if _cv.armed:
-			return
-		var k := 1.0 + 0.05 * sin(_t * 5.2)
-		fin.draw_arc(Vector2(44, 44), 42.0 * k, 0, TAU, 40, Color(1, 1, 1, 0.55), 4.0, true)
-		var hc := Color("ffd166")
-		fin.draw_style_box(UI.box(hc, Color("a07a1e"), 7, 0), Rect2(38, 20, 13, 30))   # index
-		fin.draw_style_box(UI.box(hc, Color("a07a1e"), 10, 0), Rect2(28, 42, 34, 26))   # paume
-		fin.draw_style_box(UI.box(hc, Color("a07a1e"), 6, 0), Rect2(22, 46, 12, 16)))   # pouce
-	_stage_ctrl.add_child(fin)
-	_hint = _lab("Touche le coffre pour l'ouvrir", 22, UI.MUTED, Vector2(0, 806), 720.0)
-	# pastille de rareté
-	var pill := Label.new()
-	pill.text = "COFFRE %s" % String(Data.RARITY_NAMES[rarity]).to_upper()
-	pill.add_theme_font_override("font", UI.bold_font())
-	pill.add_theme_font_size_override("font_size", 26)
-	pill.add_theme_color_override("font_color", _rcol)
-	pill.add_theme_stylebox_override("normal", UI.box(Color("0d1530"), _rcol, 40, 0))
-	pill.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pill.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var pw := UI.bold_font().get_string_size(pill.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 64.0
-	pill.size = Vector2(pw, 60)
-	pill.position = Vector2((720.0 - pw) * 0.5, 738)
-	_stage_ctrl.add_child(pill)
-	# garantie légendaire (gros boss)
-	if bt == "big":
-		var gc := Control.new()
-		gc.position = Vector2(32, 862)
-		gc.size = Vector2(656, 88)
-		gc.draw.connect(func():
-			gc.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 24, 0), Rect2(Vector2.ZERO, gc.size))
-			var fb := UI.bold_font()
-			gc.draw_string(fb, Vector2(24, 40), "Garantie légendaire", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
-			var v := mini(int(Game.pity.get("leg", 0)), Data.LEGENDARY_PITY)
-			gc.draw_string(ThemeDB.fallback_font, Vector2(0, 38), "%d / %d gros boss" % [v, Data.LEGENDARY_PITY], HORIZONTAL_ALIGNMENT_RIGHT, gc.size.x - 24.0, 22, UI.MUTED)
-			var sw := (gc.size.x - 48.0 - 8.0 * (Data.LEGENDARY_PITY - 1)) / float(Data.LEGENDARY_PITY)
-			for i in Data.LEGENDARY_PITY:
-				var col: Color = Color("ffb142") if i < v else UI.LINE2
-				gc.draw_style_box(UI.box(col, Color(0, 0, 0, 0), 8, 0), Rect2(24.0 + i * (sw + 8.0), 58, sw, 16)))
-		_stage_ctrl.add_child(gc)
-	# butin caché
-	var vals := [["Crédits", "+%s" % UI.num(chest.credits), UI.GOLD], ["Éclats", "+%d" % int(chest.shards), Color("7fdcff")], ["Jetons", "+%d" % int(chest.get("tokens", 0)), Color("b388ff")], ["Cristaux", "+%d" % int(chest.get("crystals", 0)), Color("ff7ad9")]]
-	for i in 4:
-		var tl := LootTile.new()
-		tl.title = vals[i][0]
-		tl.value = vals[i][1]
-		tl.col = vals[i][2]
-		tl.position = Vector2(32.0 + i * (156.0 + 16.0), 972)
-		tl.size = Vector2(156, 108)
-		tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_stage_ctrl.add_child(tl)
-		_tiles.append(tl)
-	if chest.get("combo_bonus", 0.0) > 0.0:
-		_lab("Bonus de combo : + %d %% de crédits" % int(round(chest.combo_bonus * 100.0)), 20, UI.GREEN, Vector2(0, 1086), 720.0)
-	# bouton principal
-	_main_btn = UI.button(_stage_ctrl, "Ouvrir le coffre", 32, "gold")
-	_main_btn.position = Vector2(32, 1100)
-	_main_btn.size = Vector2(656, 104)
-	_main_btn.pressed.connect(func():
-		if not _opened:
-			_cv.arm()
-		else:
-			next_pressed.emit()
-			close())
-	_foot = _lab(FOOT % ("Étage suivant" if next_label.begins_with("Monter") else next_label), 22, UI.MUTED, Vector2(0, 1216), 720.0)
-	_after = HBoxContainer.new()
-	_after.position = Vector2(32, 1214)
-	_after.size = Vector2(656, 56)
-	_after.add_theme_constant_override("separation", 16)
-	_after.visible = false
-	_stage_ctrl.add_child(_after)
-	var rb := UI.button(_after, "Rejouer cet étage", 22, "ghost")
-	rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rb.custom_minimum_size = Vector2(0, 56)
-	rb.pressed.connect(func():
-		replay_pressed.emit()
-		close())
-	var mb := UI.button(_after, "Carte des étages", 22, "ghost")
-	mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mb.custom_minimum_size = Vector2(0, 56)
-	mb.pressed.connect(func():
-		map_pressed.emit()
-		close())
+	_st.add_child(_cv)
+	var lab := Control.new()
+	lab.size = Vector2(720, 140)
+	lab.position = Vector2(0, 760)
+	lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab.draw.connect(func():
+		_spaced(lab, 48, "COFFRE %s" % String(Data.RARITY_NAMES[_rarity]).to_upper(), 24, _rcol)
+		if not _cv.armed:
+			M3.text(lab, Vector2(0, 100), "Touche pour ouvrir", 28, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER))
+	_st.add_child(lab)
+	_open_btn = M3.button(_st, "Ouvrir", Rect2(32, 1280 - 32 - 112, 656, 112), "main", 32)
+	_open_btn.pressed.connect(func(): _cv.arm())
+	_cv.armed_changed.connect(func(): _open_btn.disabled = true)
+	_phase1 = [_cv, lab, _open_btn]
 	_cv.opened.connect(func():
 		Game.claim_pending()
 		_opened = true
-		_main_btn.text = "Étage suivant" if next_label.begins_with("Monter") else next_label
-		_foot.visible = false
-		_after.visible = true
-		_reveal())
+		_drop = Game.last_drop
+		get_tree().create_timer(0.9).timeout.connect(_show_victory))
+	_st.resized.connect(_layout)
 	Sfx.play("win")
+
+
+func _layout() -> void:
+	var h := _st.size.y if _st.size.y > 0.0 else 1280.0
+	_open_btn.position.y = h - 32.0 - 112.0
 
 
 func close() -> void:
@@ -175,70 +83,140 @@ func close() -> void:
 	super.close()
 
 
-func _lab(text: String, size: int, col: Color, pos: Vector2, width: float, bold := false) -> Label:
-	var l := UI.label(_stage_ctrl, text, size, col, bold)
-	l.position = pos
-	l.size = Vector2(width, size + 12)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return l
+func _spaced(ci: CanvasItem, y: float, txt: String, size: int, col: Color) -> void:
+	var fb := UI.bold_font()
+	var fs := M3.fs(size)
+	var tw := 0.0
+	for ch in txt:
+		tw += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 3.0
+	var x := (720.0 - tw) * 0.5
+	for ch in txt:
+		ci.draw_string(fb, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 3.0
 
 
-func _reveal() -> void:
-	var i := 0
-	for tl in _tiles:
-		var d: float = 0.12 * i
-		i += 1
-		var tw := create_tween()
-		tw.tween_interval(d)
-		tw.tween_callback(func():
-			tl.revealed = true
-			tl.pop = 1.0
-			Sfx.play("coin", -8.0, 1.0 + 0.1 * i))
-		tw.tween_property(tl, "pop", 0.0, 0.25)
+## Phase 2 : victoire (BH).
+func _show_victory() -> void:
+	if _victory != null:
+		return
+	for n in _phase1:
+		n.visible = false
+	var it: Dictionary = _drop.get("item", {})
+	if not it.is_empty():
+		_rcol = ItemUI.color(it.rarity)
+	_best = Game.best_hero_for(it) if (not it.is_empty() and _drop.status == "added") else {"hero": "", "gain": 0.0}
+	_victory = Control.new()
+	_victory.size = Vector2(720, 900)
+	_victory.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_victory.draw.connect(_draw_victory)
+	_st.add_child(_victory)
+	_t = 0.0
+	_stars_shown = 0
+	var h := _st.size.y if _st.size.y > 0.0 else 1280.0
+	var nxt_txt := "Monter à l'étage %d" % (_stage + 1) if _next_label.begins_with("Monter") else _next_label
+	var can: bool = _best.get("hero", "") != "" and float(_best.get("gain", 0.0)) > 0.0
+	var main_txt := ("Équiper sur %s" % String(Data.HEROES[_best.hero].name).split(" ")[0]) if can else nxt_txt
+	var b1 := M3.button(_st, main_txt, Rect2(32, h - 32 - 96 - 16 - 104, 656, 104), "main", 32)
+	b1.pressed.connect(func():
+		if can:
+			Game.equip(int(it.id), _best.hero)
+			Game.save_game()
+			Sfx.play("chest", -4.0)
+		next_pressed.emit()
+		close())
+	var second := nxt_txt if can else ("À qui l'équiper ?" if (not it.is_empty() and _drop.status == "added") else "Rejouer l'étage %d" % _stage)
+	var b2 := M3.button(_st, second, Rect2(32, h - 32 - 96, 656, 96), "ghost", 30)
+	b2.pressed.connect(func():
+		if can:
+			next_pressed.emit()
+		elif not it.is_empty() and _drop.status == "added":
+			who_requested.emit(int(it.id))
+		else:
+			replay_pressed.emit()
+		close())
+
+
+func _draw_victory() -> void:
+	var c := _victory
+	var title := "ÉTAGE %d · %s" % [_stage, "GROS BOSS VAINCU" if _bt == "big" else ("MINI-BOSS VAINCU" if _bt == "mini" else "ÉTAGE VAINCU")]
+	_spaced(c, 88, title, 24, Color("ffb142"))
+	M3.text(c, Vector2(0, 160), "Victoire", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	for i in 3:
+		var appear := clampf((_t - 0.1 - i * 0.3) / 0.3, 0.0, 1.0)
+		if appear <= 0.0:
+			continue
+		var pop := 1.0 + 0.35 * sin(appear * PI)
+		Art.star(c, Vector2(360.0 + (i - 1) * 76.0, 214.0), 28.0 * pop * appear, UI.GOLD if i < _star_count else M3.OUT, 0.0)
+	# carte du coffre
+	var r := Rect2(32, 272, 656, 404)
+	c.draw_style_box(UI.box(Color(_rcol, 0.0), Color(_rcol, 0.25), 56, 0), r.grow(10))
+	M3.card(c, r, M3.S2, 48, _rcol, 4)
+	_spaced(c, r.position.y + 56, "COFFRE %s" % String(Data.RARITY_NAMES[_rarity]).to_upper(), 24, Data.CHEST_COLORS[_rarity])
+	var it: Dictionary = _drop.get("item", {})
+	if not it.is_empty():
+		ItemUI.tile(c, Rect2(272, r.position.y + 84, 176, 176), it, false)
+		M3.text(c, Vector2(32, r.position.y + 310), String(it.name), 32, _rcol, true, 656, HORIZONTAL_ALIGNMENT_CENTER)
+		var sub := Items.summary_short(it, 3)
+		if _drop.status == "recycled":
+			sub = "Recyclé : +%d éclat" % int(Items.RECYCLE_SHARDS[it.rarity])
+		elif _drop.status == "stash":
+			sub = "Inventaire plein : l'objet attend en réserve"
+		M3.text(c, Vector2(56, r.position.y + 352), sub, 24, UI.MUTED, false, 608, HORIZONTAL_ALIGNMENT_CENTER)
+		if _best.get("hero", "") != "" and float(_best.gain) > 0.0:
+			M3.text(c, Vector2(56, r.position.y + 386), "▲ +%s de puissance sur %s" % [UI.num(_best.gain), String(Data.HEROES[_best.hero].name).split(" ")[0]], 24, UI.GREEN, true, 608, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		M3.text(c, Vector2(32, r.position.y + 200), "+ %s crédits" % UI.num(_chest.credits), 40, UI.GOLD, true, 656, HORIZONTAL_ALIGNMENT_CENTER)
+	# butin
+	var chips := [["coin", "+" + UI.short(_chest.credits)], ["shard", "+%d" % int(_chest.shards)], ["token", "+%d" % int(_chest.get("tokens", 0))]]
+	if int(_chest.get("item_tokens", 0)) > 0:
+		chips.append(["itoken", "+%d" % int(_chest.item_tokens)])
+	if int(_chest.get("crystals", 0)) > 0:
+		chips.append(["crystal", "+%d" % int(_chest.crystals)])
+	var x := 32.0
+	for ch in chips:
+		var w := M3.text_w(ch[1], 26, true) + 40.0 + 34.0
+		c.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 32, 0), Rect2(x, 704, w, 64))
+		_icon(c, ch[0], Vector2(x + 32, 736))
+		M3.text(c, Vector2(x + 54, 736 + M3.fs(26) * 0.36), ch[1], 26, UI.TEXT, true)
+		x += w + 12.0
+
+
+func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:
+	match kind:
+		"coin":
+			ci.draw_circle(c, 12, UI.GOLD)
+			ci.draw_string(UI.bold_font(), c + Vector2(-12, 8), "¢", HORIZONTAL_ALIGNMENT_CENTER, 24, 20, Color("6b4a00"))
+		"shard":
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -13), c + Vector2(13, -2), c + Vector2(8, 13), c + Vector2(-8, 13), c + Vector2(-13, -2)]), Color("7fdcff"))
+		"token":
+			ci.draw_style_box(UI.box(Color("b388ff"), Color(0, 0, 0, 0), 5, 0), Rect2(c + Vector2(-14, -10), Vector2(28, 20)))
+			ci.draw_circle(c, 4.5, Color("2a1450"))
+		"itoken":
+			ci.draw_style_box(UI.box(Color("ffb142"), Color(0, 0, 0, 0), 7, 0), Rect2(c + Vector2(-14, -12), Vector2(28, 24)))
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -7), c + Vector2(6, 0), c + Vector2(0, 7), c + Vector2(-6, 0)]), Color("3a2000"))
+		_:
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -14), c + Vector2(12, 0), c + Vector2(0, 14), c + Vector2(-12, 0)]), Color("ff7ad9"))
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	var shown := int(floor((_t - 0.3) / 0.35)) + 1
-	while _stars_shown < mini(shown, 3):
-		_stars_shown += 1
-		if _stars_shown <= _star_count:
-			Sfx.play("star", -4.0, 1.0 + 0.15 * _stars_shown)
+	if _victory != null:
+		var shown := int(floor((_t - 0.1) / 0.3)) + 1
+		while _stars_shown < mini(shown, 3):
+			_stars_shown += 1
+			if _stars_shown <= _star_count:
+				Sfx.play("star", -4.0, 1.0 + 0.15 * _stars_shown)
+		_victory.queue_redraw()
 	_rays.queue_redraw()
-	_stage_ctrl.queue_redraw()
-	for tl in _tiles:
-		tl.queue_redraw()
-	queue_redraw()
-
-
-func _draw() -> void:
-	pass
-
-
-## Trois grandes étoiles dorées sous le titre (celles non gagnées restent éteintes).
-func _draw_stars_on(ci: CanvasItem) -> void:
-	for i in 3:
-		var appear := clampf((_t - 0.3 - i * 0.35) / 0.3, 0.0, 1.0)
-		if appear <= 0.0:
-			continue
-		var pop := 1.0 + 0.4 * sin(appear * PI)
-		var pulse := 1.0 + 0.04 * sin(_t * 3.9 + i * 0.5)
-		var col := UI.GOLD if i < _star_count else UI.LINE
-		var c := Vector2(360.0 + (i - 1) * 100.0, 98.0)
-		if i < _star_count:
-			ci.draw_circle(c, 40.0 * appear, Color(1.0, 0.69, 0.26, 0.12))
-		Art.star(ci, c, 34.0 * pop * appear * pulse, col, 0.0)
 
 
 func _draw_rays() -> void:
-	_draw_stars_on(_rays)
-	var c := Vector2(360, 470)
+	var c := Vector2(360, 470 if _victory != null else 560)
 	var rot := _t * 0.26
 	for i in 12:
 		var a0 := rot + TAU * i / 12.0
 		var a1 := a0 + deg_to_rad(11.0)
 		var pts := PackedVector2Array([c, c + Vector2.from_angle(a0) * 340.0, c + Vector2.from_angle(a1) * 340.0])
-		var cols := PackedColorArray([Color(_rcol.r, _rcol.g, _rcol.b, 0.28), Color(_rcol.r, _rcol.g, _rcol.b, 0.0), Color(_rcol.r, _rcol.g, _rcol.b, 0.0)])
+		var cols := PackedColorArray([Color(_rcol, 0.24), Color(_rcol, 0.0), Color(_rcol, 0.0)])
 		_rays.draw_polygon(pts, cols)
-	_rays.draw_circle(c, 150.0, Color(_rcol.r, _rcol.g, _rcol.b, 0.07))
+	_rays.draw_circle(c, 170.0, Color(_rcol, 0.08))

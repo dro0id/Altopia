@@ -213,6 +213,11 @@ static func stars_for(fallen: int) -> int:
 
 const RECRUIT_COST := 3                       # jetons de recrutement pour un tirage
 const RECRUIT_COST_10 := 27                   # dix tirages (un tirage offert)
+const ITEM_PACK_COST := 2                      # jetons d'objet pour une ouverture
+const ITEM_PACK_COST_10 := 18                  # dix ouvertures (une offerte)
+const ITEM_PACK_RATES := [["normal", 50], ["rare", 32], ["epique", 15], ["legendaire", 3]]
+const ITEM_PITY_EPIC := 10                     # un objet épique ou mieux au plus tard à la 10e ouverture
+const ITEM_PITY_LEG := 40                      # un objet légendaire au plus tard à la 40e ouverture
 const RECRUIT_RATES := {"common": 0.70, "rare": 0.25, "epic": 0.05}
 const PITY_RARE := 10                          # un héros rare ou mieux garanti au plus tard au 10e tirage
 const PITY_EPIC := 30                          # un héros épique garanti au plus tard au 30e tirage
@@ -229,9 +234,10 @@ const SHOP_ITEMS := [
 	{"id": "chest_epic", "name": "Coffre épique", "desc": "10 % d'héros en plus", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
 	{"id": "tokens6", "name": "Jetons ×6", "desc": "Deux appels", "cost": 8, "tokens": 6, "tab": "tokens"},
 	{"id": "boost2", "name": "Boost ×2", "desc": "1 h de crédits doublés", "cost": 10, "boost": 1.0, "tab": "boosts"},
+	{"id": "itokens6", "name": "Jetons d'objet ×6", "desc": "Trois caisses", "cost": 8, "item_tokens": 6, "tab": "tokens"},
 ]
 ## Offre du jour (renouvelée chaque jour) : un coffre légendaire et 3 jetons à -30 %.
-const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre légendaire + 3 jetons", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3}
+const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre + 3 jetons + 2 d'objet", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3, "item_tokens": 2}
 const BOOST_MULT := 2.0
 
 

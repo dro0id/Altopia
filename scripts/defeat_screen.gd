@@ -1,142 +1,88 @@
 class_name DefeatScreen
 extends Overlay
-
-## Escouade tombée (maquette O) : persévérance, conseils concrets et choix. Jamais de blocage : on peut toujours farmer l'étage d'avant.
+## Équipe à terre (maquette BL) : persévérance, portraits, un conseil concret et trois choix. Jamais de blocage.
 
 signal retry_pressed
 signal farm_pressed
 signal upgrade_pressed
 signal recruit_pressed
 
+var _st: Control
+var _stage := 1
+var _t := 0.0
+var _body: Control
+
 
 func _init(stage_n: int) -> void:
 	super._init(720.0)
-	var st := use_stage(1.0)
-	var eb := Control.new()
-	eb.position = Vector2(0, 56)
-	eb.size = Vector2(720, 40)
-	eb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	eb.draw.connect(func():
-		var fb := UI.bold_font()
-		var txt := "ÉTAGE %d" % stage_n
-		var tw := 0.0
-		for ch in txt:
-			tw += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0
-		var x := (720.0 - tw) * 0.5
-		for ch in txt:
-			eb.draw_string(fb, Vector2(x, 30), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.RED)
-			x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0)
-	st.add_child(eb)
-	var t := UI.label(st, "L'escouade est tombée", 48, Color.WHITE, true)
-	t.position = Vector2(0, 98)
-	t.size = Vector2(720, 60)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var sub := UI.label(st, "Rien n'est perdu : tu reviens plus fort.", 22, UI.MUTED)
-	sub.position = Vector2(0, 158)
-	sub.size = Vector2(720, 30)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# persévérance
-	var pc := Control.new()
-	pc.position = Vector2(32, 224)
-	pc.size = Vector2(656, 153)
-	pc.draw.connect(func():
-		pc.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 28, 0), Rect2(Vector2.ZERO, pc.size))
-		pc.draw_string(UI.bold_font(), Vector2(24, 48), "Persévérance", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color.WHITE)
-		pc.draw_string(UI.bold_font(), Vector2(0, 48), "+%d %% PV / ATQ" % Game.perseverance_pct(), HORIZONTAL_ALIGNMENT_RIGHT, 632.0, 24, UI.GREEN)
-		var n: int = Data.PERSEVERANCE_MAX
-		var sw := (608.0 - 8.0 * (n - 1)) / float(n)
-		for i in n:
-			var col := UI.GREEN if i < Game.perseverance else UI.LINE2
-			pc.draw_style_box(UI.box(col, Color(0, 0, 0, 0), 10, 0), Rect2(24.0 + i * (sw + 8.0), 70, sw, 20))
-		pc.draw_string(ThemeDB.fallback_font, Vector2(24, 126), "%d défaite%s sur %d · bonus conservé jusqu'à la victoire" % [Game.perseverance, "s" if Game.perseverance > 1 else "", n], HORIZONTAL_ALIGNMENT_LEFT, 610.0, 22, UI.MUTED))
-	st.add_child(pc)
-	# conseils
-	var tips: Array = _tips(stage_n)
-	var cc := Control.new()
-	cc.position = Vector2(32, 400)
-	cc.size = Vector2(656, 72.0 + 78.0 * tips.size())
-	cc.draw.connect(func():
-		cc.draw_style_box(UI.box(UI.PANEL2, Color(0.31, 0.85, 1.0, 0.33), 28, 0), Rect2(Vector2.ZERO, cc.size))
-		cc.draw_string(UI.bold_font(), Vector2(24, 50), "Conseils", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE))
-	st.add_child(cc)
-	for i in tips.size():
-		var tp: Dictionary = tips[i]
-		var y := 72.0 + 78.0 * i
-		var ic := Control.new()
-		ic.position = Vector2(24, y + 14)
-		ic.size = Vector2(44, 44)
-		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var kind: String = tp.icon
-		ic.draw.connect(func():
-			if kind == "shield":
-				ic.draw_polyline(PackedVector2Array([Vector2(6, 6), Vector2(38, 6), Vector2(38, 24), Vector2(22, 40), Vector2(6, 24), Vector2(6, 6)]), UI.TEXT, 3.0, true)
-			else:
-				ic.draw_colored_polygon(PackedVector2Array([Vector2(22, 4), Vector2(27, 17), Vector2(40, 22), Vector2(27, 27), Vector2(22, 40), Vector2(17, 27), Vector2(4, 22), Vector2(17, 17)]), UI.TEXT))
-		cc.add_child(ic)
-		var tl := UI.label(cc, tp.text, 26, Color.WHITE)
-		tl.position = Vector2(84, y + 10)
-		tl.size = Vector2(450, 60)
-		tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		tl.add_theme_constant_override("line_spacing", -6)
-		if tp.has("action"):
-			var col: Color = UI.GREEN if tp.action == "upgrade" else Color("b388ff")
-			var b := Button.new()
-			b.position = Vector2(548, y + 8)
-			b.size = Vector2(88, 56)
-			b.text = "▲" if tp.action == "upgrade" else "▶"
-			b.add_theme_font_size_override("font_size", 26)
-			for sn in ["normal", "hover", "pressed"]:
-				b.add_theme_stylebox_override(sn, UI.box(Color(col.r, col.g, col.b, 0.1), Color(col.r, col.g, col.b, 0.55), 28, 0))
-			for k in ["font_color", "font_hover_color", "font_pressed_color"]:
-				b.add_theme_color_override(k, col)
-			var act: String = tp.action
-			b.pressed.connect(func():
-				if act == "upgrade":
-					upgrade_pressed.emit()
-				else:
-					recruit_pressed.emit()
-				close())
-			cc.add_child(b)
-	# boutons
-	var up := UI.button(st, "Améliorer mes héros", 32, "main")
-	up.position = Vector2(32, 1032)
-	up.size = Vector2(656, 104)
-	up.custom_minimum_size = Vector2(0, 104)
-	up.pressed.connect(func():
-		upgrade_pressed.emit()
-		close())
-	var rb := UI.button(st, "Réessayer", 28, "ghost")
-	rb.position = Vector2(32, 1152)
-	rb.size = Vector2(320, 96)
-	rb.pressed.connect(func():
+	_st = use_stage(1.0)
+	_stage = stage_n
+	_body = Control.new()
+	_body.size = Vector2(720, 800)
+	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_body.draw.connect(_draw_body)
+	_st.add_child(_body)
+	var h := 1280.0
+	var b1 := M3.button(_st, "Réessayer l'étage %d" % stage_n, Rect2(32, h - 32 - 96 - 16 - 96 - 16 - 104, 656, 104), "main", 32)
+	b1.pressed.connect(func():
 		retry_pressed.emit()
 		close())
-	if stage_n > 1:
-		var fb := UI.button(st, "Farmer l'étage %d" % (stage_n - 1), 28, "ghost")
-		fb.position = Vector2(368, 1152)
-		fb.size = Vector2(320, 96)
-		fb.pressed.connect(func():
-			farm_pressed.emit()
-			close())
-	else:
-		rb.size = Vector2(656, 96)
-	Sfx.play("lose")
+	var b2 := M3.button(_st, "Farmer l'étage %d" % maxi(1, stage_n - 1), Rect2(32, h - 32 - 96 - 16 - 96, 656, 96), "ghost", 30)
+	b2.disabled = stage_n <= 1
+	b2.pressed.connect(func():
+		farm_pressed.emit()
+		close())
+	var b3 := M3.button(_st, "Améliorer l'équipe", Rect2(32, h - 32 - 96, 656, 96), "outline", 30)
+	b3.pressed.connect(func():
+		upgrade_pressed.emit()
+		close())
+	Sfx.play("lose", -4.0)
 
 
-## Conseils concrets : le héros le plus en retard sur le niveau conseillé, un appel de recrutement possible.
-func _tips(stage_n: int) -> Array:
-	var out: Array = []
-	var need: int = Data.recommended_level(stage_n)
-	var low := ""
-	for id in Game.squad_ids():
-		if low == "" or int(Game.levels[id]) < int(Game.levels[low]):
-			low = id
-	if low != "":
-		var gap: int = need - int(Game.levels[low])
-		if gap >= 1:
-			out.append({"icon": "shield", "text": "%s est %d niveau%s sous la reco" % [String(Data.HEROES[low].name).split(" ")[0], gap, "x" if gap > 1 else ""], "action": "upgrade"})
+func _process(delta: float) -> void:
+	_t += delta
+	_body.queue_redraw()
+
+
+## Conseil concret : le meilleur achat de niveau, sinon un héros à faire évoluer, sinon recruter.
+func _advice() -> String:
+	var id := Game.best_buy()
+	if id != "":
+		var lv: int = int(Game.levels[id])
+		var gain := int(round((Data.hero_mult(lv + 1) / Data.hero_mult(lv) - 1.0) * 100.0))
+		return "%s peut passer au niveau %d : +%d %% de puissance pour %s ¢." % [String(Data.HEROES[id].name).split(" ")[0], lv + 1, gain, UI.num(Game.level_cost(id))]
+	for hid in Game.squad_ids():
+		if Game.can_evolve(hid):
+			return "%s doit évoluer pour continuer à monter de niveau." % String(Data.HEROES[hid].name).split(" ")[0]
 	if Game.tokens >= Data.RECRUIT_COST:
-		out.append({"icon": "star", "text": "%d jetons : un appel pour un nouveau héros" % Game.tokens, "action": "recruit"})
-	if out.is_empty():
-		out.append({"icon": "shield", "text": "Tu es au bon niveau : retente en lançant les pouvoirs au bon moment."})
-	return out
+		return "Tu as %d jetons : recrute un nouveau héros." % Game.tokens
+	return "Farme l'étage précédent pour gagner des crédits."
+
+
+func _draw_body() -> void:
+	var c := _body
+	for i in 10:
+		c.draw_circle(Vector2(360, 160), 320.0 - i * 28.0, Color(1.0, 0.42, 0.42, 0.012))
+	var fb := UI.bold_font()
+	var txt := "ÉTAGE %d" % _stage
+	var tw := 0.0
+	for ch in txt:
+		tw += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24)).x + 3.0
+	var x := (720.0 - tw) * 0.5
+	for ch in txt:
+		c.draw_string(fb, Vector2(x, 104), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24), UI.RED)
+		x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24)).x + 3.0
+	M3.text(c, Vector2(0, 168), "Équipe à terre", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(c, Vector2(32, 222), "Ta persévérance monte : +%d %% de puissance" % Game.perseverance_pct(), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(c, Vector2(32, 260), "au prochain essai (max +%d %%)." % int(round(Data.PERSEVERANCE_STEP * Data.PERSEVERANCE_MAX * 100.0)), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+	var ids := Game.squad_ids()
+	var x0 := 360.0 - (ids.size() * 92.0 + (ids.size() - 1) * 20.0) * 0.5
+	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for i in ids.size():
+		var cc := Vector2(x0 + 46.0 + i * 112.0, 346)
+		M3.avatar(c, Data.HEROES[ids[i]], cc, 46.0, UI.RED, _t)
+		c.draw_circle(cc, 44.0, Color(0.04, 0.06, 0.12, 0.45))
+	var r := Rect2(32, 432, 656, 168)
+	M3.card(c, r)
+	M3.text(c, r.position + Vector2(32, 52), "CONSEIL", 24, UI.GREEN, true)
+	M3.para(c, r.position + Vector2(32, 96), _advice(), 28, UI.TEXT, 592)

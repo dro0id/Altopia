@@ -150,6 +150,7 @@ func test_chests() -> void:
 	_check(Data.roll_chest(10, 3, rng, pt2) == "ultime" and pt2.ult == 0, "ultime garanti au 10e gros boss en 3 étoiles")
 	var r3 := Data.chest_rewards(10, "legendaire")
 	_check(r3.credits > Data.chest_rewards(10, "commun").credits and r3.shards == 40, "plus rare, plus généreux")
+	_g.auto_recycle = false
 	_g.credits = 0.0
 	_g.stage = 1
 	var chest: Dictionary = _g.stage_cleared(3)
@@ -427,6 +428,104 @@ func test_all_heroes_fight() -> void:
 		_check(s.state == "clear" or s.state == "defeat", "%s combat jusqu'au bout" % id)
 
 
+func test_item_packs() -> void:
+	_g.reset()
+	_g.best_stage = 15
+	_g.item_tokens = 1
+	_check(_g.open_item_packs(1).is_empty() and _g.item_tokens == 1, "pas de caisse sans assez de jetons d'objet")
+	_g.item_tokens = 40
+	var one: Array = _g.open_item_packs(1)
+	_check(one.size() == 1 and _g.item_tokens == 38 and _g.item_pulls.size() == 1, "une caisse coûte 2 jetons d'objet")
+	var ten: Array = _g.open_item_packs(10)
+	var has_rare := false
+	for r in ten:
+		if Items.rarity_index(r.item.rarity) >= 2:
+			has_rare = true
+	_check(ten.size() == 10 and _g.item_tokens == 20 and has_rare, "dix caisses coûtent 18 jetons et donnent un objet rare ou mieux")
+	_check(_g.item_pulls.size() == 6, "les six derniers objets sont gardés")
+	# garanties : épique au plus tard à la 10e, légendaire à la 40e
+	var pity := {"epic": 0, "leg": 0}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var since_epic := 0
+	var since_leg := 0
+	var worst_epic := 0
+	var worst_leg := 0
+	for i in 4000:
+		var r := Items.roll_pack_rarity(rng, pity)
+		since_epic = 0 if Items.rarity_index(r) >= 3 else since_epic + 1
+		since_leg = 0 if Items.rarity_index(r) >= 4 else since_leg + 1
+		worst_epic = maxi(worst_epic, since_epic)
+		worst_leg = maxi(worst_leg, since_leg)
+	_check(worst_epic <= 9 and worst_leg <= 39, "garanties épique 10 et légendaire 40")
+	_g.crystals = 100
+	var it0: int = _g.item_tokens
+	_check(_g.buy("itokens6") != "" and _g.item_tokens == it0 + 6 and _g.crystals == 92, "six jetons d'objet coûtent 8 cristaux")
+	var ch: Dictionary = _g.open_chest("rare", 5, 0.0, false, true)
+	_check(int(ch.item_tokens) == 1 and _g.item_tokens == it0 + 7, "un gros boss donne un jeton d'objet")
+	_g.save_game()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	g2.load_game()
+	_check(g2.item_tokens == _g.item_tokens and g2.item_pulls.size() == _g.item_pulls.size(), "jetons d'objet et derniers objets sauvegardés")
+	g2.free()
+
+
+func test_boosts_reach_battle() -> void:
+	_g.reset()
+	var bv: Node2D = load("res://scripts/battle.gd").new()
+	bv.start(_g.team(), 3, true, ["vitalite", "tir"])
+	var base := BattleSim.new(_g.team(), 3, 1)
+	var hp_with := 0.0
+	var hp_without := 0.0
+	for u in bv.sim.units:
+		if u.side == 0:
+			hp_with += u.max_hp
+	for u in base.units:
+		if u.side == 0:
+			hp_without += u.max_hp
+	_check(is_equal_approx(hp_with, hp_without * 1.2), "les renforts choisis s'appliquent au combat affiché")
+	bv.free()
+
+
+func test_safe_save() -> void:
+	_g.reset()
+	_g.credits = 111.0
+	_g.save_game()
+	_g.credits = 222.0
+	_g.save_game()
+	# sauvegarde principale tronquée (coupure pendant une écriture) : on retrouve la précédente
+	var f := FileAccess.open(_g.save_path, FileAccess.WRITE)
+	f.store_string("{\"version\": 5, \"cred")
+	f.close()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	_check(g2.load_game() and is_equal_approx(g2.credits, 111.0), "sauvegarde tronquée : la copie de secours est rechargée")
+	g2.free()
+	_check(not FileAccess.file_exists(_g.save_path + ".tmp"), "pas de fichier temporaire laissé après une sauvegarde réussie")
+	_g.save_game()
+	var g3: Node = load("res://scripts/game.gd").new()
+	g3.save_path = _g.save_path
+	_check(g3.load_game() and is_equal_approx(g3.credits, 222.0), "la sauvegarde suivante répare le fichier principal")
+	g3.free()
+
+
+func test_settings_display_and_battery() -> void:
+	_g.reset()
+	var lv: int = _g.battery_level()
+	_check(lv == -1 or (lv >= 0 and lv <= 100), "niveau de batterie lisible ou -1")
+	_g.text_size = 2
+	_g.battery_saver = true
+	_g.apply_performance()
+	_check(is_equal_approx(UI.text_scale, 1.2) and Engine.max_fps == 30, "texte très grand et économie de batterie appliqués")
+	_g.text_size = 0
+	_g.battery_saver = false
+	_g.battery_auto = false
+	_g.apply_performance()
+	_check(is_equal_approx(UI.text_scale, 1.0) and Engine.max_fps == 60, "retour aux réglages normaux")
+	_g.battery_auto = true
+
+
 func test_shop_and_tokens() -> void:
 	_g.crystals = 5
 	_check(_g.buy("tokens6") == "" and _g.crystals == 5, "pas d'achat sans assez de cristaux")
@@ -470,3 +569,94 @@ func test_save_v4_and_migration() -> void:
 	_g.reset()
 	_check(_g.load_game() and _g.owned.size() == 5 and _g.squad == Data.STARTER and _g.tokens == 6 and _g.levels["mara"] == 4, "migration d'une sauvegarde v3")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))
+
+
+func _item(slot: String, rarity: String, stage: int = 10) -> Dictionary:
+	var r := RandomNumberGenerator.new()
+	r.seed = 7
+	return Items.roll(r, rarity, stage, slot)
+
+
+func test_items_roll_and_power() -> void:
+	var counts := {"commun": 0, "normal": 1, "rare": 2, "epique": 3, "legendaire": 3, "ultime": 3}
+	for r in counts:
+		var it := _item("arme", r)
+		_check(it.subs.size() == counts[r], "%s : %d bonus secondaires" % [r, counts[r]])
+		_check((it.set != "") == (Items.rarity_index(r) >= 2), "%s : ensemble à partir de rare" % r)
+	_check(Items.power(_item("arme", "legendaire")) > Items.power(_item("arme", "epique")) and Items.power(_item("arme", "epique")) > Items.power(_item("arme", "commun")), "la puissance monte avec la rareté")
+	var weak := _item("arme", "rare")
+	var strong: Dictionary = weak.duplicate(true)
+	strong.level = 8
+	_check(Items.power(strong) > Items.power(weak), "la puissance monte avec le niveau")
+	var drops := {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for i in 2000:
+		var r := Items.roll_rarity("epique", rng)
+		drops[r] = int(drops.get(r, 0)) + 1
+	_check(not drops.has("commun") and not drops.has("ultime") and drops.get("rare", 0) > drops.get("legendaire", 0), "un coffre épique ne donne ni commun ni ultime")
+
+
+func test_items_equip_and_binding() -> void:
+	_g.credits = 5000.0
+	var a: Dictionary = _g.receive_item(_item("arme", "epique")).item
+	var b: Dictionary = _g.receive_item(_item("arme", "rare")).item
+	_g.levels["mara"] = 20
+	_check(_g.equip(int(a.id), "mara") == "" and _g.slot_item("mara", "arme").id == a.id, "équiper une arme")
+	_check(_g.equip(int(b.id), "mara") == "" and a.on == "" and b.on == "mara", "équiper une seconde arme renvoie la première dans l'inventaire")
+	_check(_g.slot_unlocked("mara", "relique") and not _g.slot_unlocked("kai", "relique"), "la relique se débloque au niveau 15")
+	var c0: float = _g.credits
+	_check(_g.equip(int(a.id), "kai") == "" and _g.credits == c0, "premier changement de héros gratuit")
+	var before: float = _g.credits
+	_check(_g.equip(int(a.id), "mara") == "" and before - _g.credits == Items.REBIND_COST, "les changements suivants coûtent 400 crédits")
+	_g.credits = 0.0
+	_check(_g.equip(int(a.id), "kai") != "", "pas assez de crédits pour délier")
+	_g.levels["kai"] = 3
+	var rel: Dictionary = _g.receive_item(_item("relique", "rare")).item
+	_check(_g.equip(int(rel.id), "kai") != "", "emplacement verrouillé : relique au niveau 15")
+
+
+func test_items_inventory_forge() -> void:
+	_g.auto_recycle = false
+	_g.credits = 10000.0
+	var ids: Array = []
+	for i in 3:
+		ids.append(int(_g.receive_item(_item("armure", "rare")).item.id))
+	var fused: Dictionary = _g.fuse_items(ids)
+	_check(not fused.is_empty() and fused.rarity == "epique" and fused.slot == "armure" and _g.item_by_id(ids[0]).is_empty(), "trois armures rares donnent une armure épique")
+	var mix: Array = [int(_g.receive_item(_item("arme", "rare")).item.id), int(_g.receive_item(_item("armure", "rare")).item.id), int(_g.receive_item(_item("arme", "rare")).item.id)]
+	_check(_g.fuse_items(mix).is_empty(), "la fusion refuse des emplacements différents")
+	var sh: int = _g.shards
+	var res: Dictionary = _g.recycle_items([mix[0], mix[1]])
+	_check(res.count == 2 and _g.shards == sh + 8, "recyclage : 4 éclats par objet rare")
+	_g.auto_recycle = true
+	var n: int = _g.items.size()
+	_check(_g.receive_item(_item("arme", "commun")).status == "recycled" and _g.items.size() == n, "un objet commun est recyclé tout seul")
+	_g.auto_recycle = false
+	for i in Items.INVENTORY_MAX:
+		_g.receive_item(_item("arme", "normal"))
+	_check(_g.receive_item(_item("arme", "normal")).status == "stash" and _g.stash.size() >= 1, "inventaire plein : l'objet reste de côté")
+
+
+func test_items_combat_and_save() -> void:
+	_g.auto_recycle = false
+	var w: Dictionary = _g.receive_item(_item("arme", "legendaire", 10)).item
+	_g.levels["mara"] = 10
+	var plain := BattleSim.new(_g.team(), 6, 1)
+	var atk0: float = plain.allies()[0].atk
+	_g.equip(int(w.id), "mara")
+	var armed := BattleSim.new(_g.team(), 6, 1)
+	_check(armed.allies()[0].atk > atk0, "l'arme augmente l'attaque en combat")
+	_check(_g.power() > Data.team_power(_g.levels, _g.squad_ids()), "l'équipement compte dans la puissance de l'escouade")
+	_g.save_game()
+	var before: int = _g.items.size()
+	_g.items = []
+	_g.load_game()
+	_check(_g.items.size() == before and _g.slot_item("mara", "arme").name == w.name, "l'équipement survit à la sauvegarde")
+	_g.item_pity = 0
+	var rarities: Array = []
+	for i in 3:
+		_g.stage = 10
+		var c: Dictionary = _g.open_chest("commun", 10, 0.0, false, true)
+		rarities.append(c.item.rarity)
+	_check(Items.rarity_index(rarities[2]) >= 4 or Items.rarity_index(rarities[0]) >= 4 or Items.rarity_index(rarities[1]) >= 4, "un objet légendaire est garanti au 3e gros boss")

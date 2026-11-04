@@ -44,7 +44,7 @@ func _ready() -> void:
 		stars.append(Vector2(rng.randf(), rng.randf()))
 
 
-func start(team: Array, stage: int, auto_cast: bool) -> void:
+func start(team: Array, stage: int, auto_cast: bool, boosts: Array = []) -> void:
 	for f in fighters.values():
 		f.queue_free()
 	fighters.clear()
@@ -54,7 +54,7 @@ func start(team: Array, stage: int, auto_cast: bool) -> void:
 	parts.clear()
 	_done = false
 	_result_timer = 0.0
-	sim = BattleSim.new(team, stage, int(Time.get_ticks_msec()))
+	sim = BattleSim.new(team, stage, int(Time.get_ticks_msec()), boosts)
 	sim.auto_cast = auto_cast
 	for u in sim.units:
 		if u.side == 0:

@@ -13,50 +13,47 @@ func _init(p_offer: Array, next_boss: int) -> void:
 	super._init(720.0)
 	offer = p_offer
 	var st := use_stage(0.62)
+	var h := 1280.0
+	var sh := 152.0 + offer.size() * 144.0 + 104.0 + 48.0
+	var y0 := h - sh
 	var sheet := Control.new()
-	sheet.position = Vector2(0, 543)
-	sheet.size = Vector2(720, 737)
+	sheet.position = Vector2(0, y0)
+	sheet.size = Vector2(720, sh)
 	sheet.draw.connect(func():
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = UI.PANEL2
-		sb.set_corner_radius_all(0)
-		sb.corner_radius_top_left = 44
-		sb.corner_radius_top_right = 44
-		sb.border_width_top = 2
-		sb.border_color = UI.ACCENT
+		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
+		sb.corner_radius_bottom_left = 0
+		sb.corner_radius_bottom_right = 0
 		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
-		sheet.draw_style_box(UI.box(UI.LINE, Color(0, 0, 0, 0), 4, 0), Rect2(320, 28, 80, 8)))
+		sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
+		M3.text(sheet, Vector2(32, 88), "Choisis un renfort", 40, UI.TEXT, true)
+		M3.text(sheet, Vector2(32, 128), "Actif jusqu'au prochain boss", 26, UI.MUTED))
 	st.add_child(sheet)
-	var t := UI.label(st, "Choisis un renfort", 36, Color.WHITE, true)
-	t.position = Vector2(32, 592)
-	var s := UI.label(st, "Actif jusqu'au prochain boss", 22, UI.MUTED)
-	s.position = Vector2(32, 644)
 	for i in offer.size():
 		var id: String = offer[i]
 		var b: Dictionary = Data.BOOSTS[id]
 		var c := Control.new()
-		c.position = Vector2(32, 693 + i * 144)
-		c.size = Vector2(656, 126)
+		c.position = Vector2(32, y0 + 152 + i * 144)
+		c.size = Vector2(656, 128)
 		var idx := i
 		c.draw.connect(func():
 			var on := idx == _sel
-			c.draw_style_box(UI.box(Color("1a2a55") if on else UI.PANEL, UI.ACCENT if on else UI.LINE2, 24, 0), Rect2(Vector2.ZERO, c.size))
-			c.draw_style_box(UI.box(UI.LINE2, Color(0, 0, 0, 0), 20, 0), Rect2(20, 21, 84, 84))
-			_glyph(c, id, Vector2(62, 63), Color.WHITE)
-			c.draw_string(UI.bold_font(), Vector2(128, 58), b.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE)
-			c.draw_string(ThemeDB.fallback_font, Vector2(128, 92), String(b.short), HORIZONTAL_ALIGNMENT_LEFT, 500, 22, UI.MUTED))
+			M3.row(c, Rect2(Vector2.ZERO, c.size), on)
+			c.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 28, 0), Rect2(16, 16, 96, 96))
+			_glyph(c, id, Vector2(64, 64), Color.WHITE)
+			M3.text(c, Vector2(136, 56), String(b.name), 30, UI.TEXT, true)
+			M3.text(c, Vector2(136, 92), String(b.short), 24, UI.MUTED, false, 420)
+			c.draw_arc(Vector2(608, 64), 16, 0, TAU, 32, UI.ACCENT, 3.0, true)
+			if on:
+				c.draw_circle(Vector2(608, 64), 9, UI.ACCENT))
 		c.gui_input.connect(func(ev: InputEvent):
-			if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			if M3.is_tap(ev):
 				_sel = idx
 				Sfx.play("click", -8.0)
 				for k in _cards:
 					k.queue_redraw())
 		st.add_child(c)
 		_cards.append(c)
-	var go := UI.button(st, "Prendre ce renfort", 32, "main")
-	go.position = Vector2(32, 1132)
-	go.size = Vector2(656, 104)
-	go.custom_minimum_size = Vector2(0, 104)
+	var go := M3.button(st, "Choisir ce renfort", Rect2(32, h - 32 - 104, 656, 104), "main", 32)
 	go.pressed.connect(func():
 		picked.emit(offer[_sel])
 		close())

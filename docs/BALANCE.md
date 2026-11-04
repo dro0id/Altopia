@@ -43,6 +43,9 @@ Le niveau conseillé tient compte des renforts et des paliers d'évolution, que 
 ## Gros boss différents
 Les étages 10, 20, 30, 40… présentent à tour de rôle le Gardien de verre (étage 10, 40), la Sentinelle prismatique (20) et la Reine des mites (30). Niveau minimal mesuré sans renfort ni évolution : 11, 17, 26, 39. Le niveau conseillé affiché reste une moyenne de ces murs.
 
+## Correctif (refonte Android)
+Les renforts choisis entre les étages n'étaient pas transmis au combat affiché (seule la simulation les appliquait). Corrigé : la partie de contrôle passe de nouveau l'étage 10 et atteint l'étage 20 en 240 s, sans défaite.
+
 ## Limites
 - Joueur simulé : il joue en automatique, sans lancer les pouvoirs à la main, donc sans combos. Un vrai joueur ira un peu plus vite. Il choisit les renforts dans un ordre fixe, ce qui n'est pas optimal.
 - Les chiffres de coffre et d'économie sont à régler au test sur téléphone.

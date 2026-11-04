@@ -1,0 +1,110 @@
+extends SceneTree
+## Captures de la refonte Android (xvfb-run -a godot --path . --resolution 720x1280 -s tools/refonte_shots.gd -- <dossier> [écran…])
+var g
+var main: Control
+var out := ""
+
+
+func _initialize() -> void:
+	var args := OS.get_cmdline_user_args()
+	out = args[0]
+	var only: Array = args.slice(1)
+	await process_frame
+	g = root.get_node("Game")
+	var big := only.has("grand")
+	only.erase("grand")
+	g.save_path = "user://shot.json"
+	g.reset()
+	g.stage = 12
+	g.best_stage = 19
+	g.tutorial_done = true
+	g.intro_seen = true
+	for id in g.levels.keys():
+		g.levels[id] = 14
+	g.levels["mara"] = 10
+	g.credits = 4200.0
+	g.shards = 53
+	g.tokens = 6
+	g.item_tokens = 8
+	g.crystals = 87
+	for id in ["aria", "brix"]:
+		g.owned[id] = true
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for r in ["epique", "rare", "epique", "legendaire", "rare", "normal", "epique", "rare", "normal", "rare", "legendaire", "normal"]:
+		g.receive_item(Items.roll(rng, r, 12, Items.SLOTS[rng.randi() % 4]))
+	g.equip_best("mara")
+	if big:
+		g.text_size = 2
+		g.apply_performance()
+	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	root.add_child(main)
+	await _wait(1.0)
+	var shots := {
+		"combat": func(): pass,
+		"heros": func(): main._open_collection(0),
+		"objets": func(): main._open_collection(1),
+		"ensembles": func(): main._open_collection(2),
+		"fiche": func(): main._open_modal(HeroScreen.new("mara", 1)),
+		"fiche_stats": func(): main._open_modal(HeroScreen.new("mara", 0)),
+		"recrutement": func(): main._open_recruit(),
+		"boutique": func(): main._open_shop(),
+		"carte": func(): main._open_map(),
+		"reglages": func(): main._open_settings(),
+		"defaite": func(): main._open_modal(DefeatScreen.new(12)),
+		"renfort": func(): main._open_modal(BoostScreen.new(g.offer_boosts(), 15)),
+		"palier": func(): main._open_modal(EvolveScreen.new("mara")),
+		"horsligne": func(): main._open_modal(OfflineScreen.new({"seconds": 18720, "credits": 9400.0, "shards": 27})),
+		"intro": func():
+			var it := IntroScreen.new()
+			main.add_child(it)
+			main._modal = it,
+		"detail": func(): main._open_item(int(g.inventory_items()[0].id)),
+		"choix": func(): main._open_pick("mara", "arme"),
+		"pourqui": func(): main._open_who(int(g.inventory_items()[1].id), "Nouvel objet"),
+		"forge": func():
+			var f := ForgeScreen.new()
+			main._open_modal(f)
+			f._auto_pick(),
+		"boss": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle(),
+		"tuto": func():
+			g.go_to(12)
+			main._tuto = 1
+			main._start_battle(),
+		"coffre": func():
+			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
+			g.pending_chest = ch
+			main._open_modal(ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)),
+		"victoire": func():
+			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
+			g.pending_chest = ch
+			var rs := ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)
+			main._open_modal(rs)
+			rs._cv.arm()
+			rs._cv.t = rs._cv._t0 + rs._cv.open_at - 0.02,
+	}
+	for k in shots:
+		if not only.is_empty() and not only.has(k):
+			continue
+		(shots[k] as Callable).call()
+		await _wait(2.6 if k == "victoire" else (3.5 if k == "intro" or k == "boss" else 0.6))
+		await _snap(out + "/" + k + ".png")
+		if main._modal != null and is_instance_valid(main._modal):
+			main._modal.queue_free()
+		await _wait(0.3)
+	quit()
+
+
+func _snap(path: String) -> void:
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(path)
+
+
+func _wait(s: float) -> void:
+	var t := 0.0
+	while t < s:
+		await process_frame
+		t += 1.0 / 60.0

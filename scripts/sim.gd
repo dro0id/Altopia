@@ -33,6 +33,9 @@ class Unit:
 	var phase2 := false          # le gros boss passe en phase 2 sous 50 % de PV
 	var warned := false          # avertissement du coup puissant déjà émis
 	var gold := 0.0
+	var crit := 0.0              # équipement : chance de coup critique
+	var boss_dmg := 0.0          # équipement : dégâts supplémentaires aux boss
+	var heal_mult := 1.0         # équipement : soins
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -65,7 +68,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	rng.seed = p_seed + p_stage * 1009
 	var slot := 0
 	for e in team:
-		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}))
+		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)
@@ -119,7 +122,7 @@ func _alive(side: int) -> Array[Unit]:
 	return out
 
 
-func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int = 0, star_count: int = 1, mods: Dictionary = {}) -> Unit:
+func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int = 0, star_count: int = 1, mods: Dictionary = {}, eq: Dictionary = {}) -> Unit:
 	var h: Dictionary = Data.HEROES[id]
 	var m: float = Data.hero_mult(level) * bonus * Data.EVO_STAT_MULT[evo] * Data.star_mult(star_count)
 	var u := Unit.new()
@@ -141,6 +144,22 @@ func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int 
 	u.skill_max = h.skill.cd
 	u.skill_cd = h.skill.cd * 0.5
 	u.cd = 0.4 + 0.15 * slot
+	# équipement : valeurs fixes en plus, pourcentages d'ensemble, critique, vitesse, soins, recharge
+	if not eq.is_empty():
+		u.max_hp = (u.max_hp + float(eq.hp)) * (1.0 + float(eq.hp_pct))
+		u.hp = u.max_hp
+		u.atk = (u.atk + float(eq.atk)) * (1.0 + float(eq.atk_pct))
+		u.def = (u.def + float(eq.def)) * (1.0 + float(eq.def_pct))
+		u.skill_mod += float(eq.skill)
+		u.crit = float(eq.crit)
+		u.boss_dmg = float(eq.boss)
+		u.heal_mult = 1.0 + float(eq.heal)
+		u.interval = h.interval / (1.0 + float(eq.speed))
+		u.skill_max = h.skill.cd * (1.0 - minf(0.5, float(eq.cdr)))
+		u.skill_cd = u.skill_max * 0.5
+		if float(eq.shield0) > 0.0:
+			u.shield = u.max_hp * float(eq.shield0)
+			u.shield_t = 6.0
 	u.data = h
 	return u
 
@@ -255,7 +274,7 @@ func _cast(u: Unit) -> bool:
 				events.append({"type": "cast", "unit": u, "kind": "pierce", "target": best})
 		"repair":
 			for a in _alive(0):
-				_heal(a, u.atk * 2.4 * k)
+				_heal(a, u.atk * 2.4 * k * u.heal_mult)
 			events.append({"type": "cast", "unit": u, "kind": "repair"})
 		"gravity":
 			for e in _alive(1):
@@ -357,7 +376,7 @@ func _act(u: Unit) -> void:
 			if a.hp_frac() < 0.75 and (low == null or a.hp_frac() < low.hp_frac()):
 				low = a
 		if low != null:
-			_heal(low, u.atk * 2.0)
+			_heal(low, u.atk * 2.0 * u.heal_mult)
 			events.append({"type": "attack", "src": u, "dst": low, "ranged": true, "delay": 0.2, "heal": true})
 			return
 	var t := _pick_target(u)
@@ -365,6 +384,10 @@ func _act(u: Unit) -> void:
 		return
 	var delay := 0.35 if u.ranged else 0.14
 	var dmg := u.atk * rng.randf_range(0.92, 1.08)
+	if u.crit > 0.0 and rng.randf() < u.crit:
+		dmg *= 1.5
+	if u.boss_dmg > 0.0 and t.boss:
+		dmg *= 1.0 + u.boss_dmg
 	pending.append({"t": delay, "kind": "hit", "src": u, "dst": t, "dmg": dmg, "fx": ""})
 	events.append({"type": "attack", "src": u, "dst": t, "ranged": u.ranged, "delay": delay})
 

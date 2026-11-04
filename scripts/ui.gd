@@ -16,6 +16,7 @@ const RED := Color("ff6b6b")
 const MUTED := Color("a9b6d6")
 const TEXT := Color("e8eefc")
 const DARK := Color("06101f")
+const TONAL := Color("1d3a66")               # boutons tonals et sélections (refonte Android)
 const HUD := Color(0.051, 0.082, 0.188, 0.8)      # rgba(13,21,48,.8) : pastilles et boutons posés sur le terrain
 
 
@@ -49,22 +50,32 @@ static func button(parent: Node, text: String, size: int, kind: String = "main")
 	var line := ACCENT
 	var fg := DARK
 	match kind:
+		"text":
+			fill = Color(0, 0, 0, 0)
+			line = Color(0, 0, 0, 0)
+			fg = ACCENT
+		"outline":
+			fill = Color(0, 0, 0, 0)
+			line = LINE
+			fg = ACCENT
 		"gold":
 			fill = GOLD
 			line = GOLD
 			fg = Color("1a1004")
 		"ghost":
-			fill = LINE2
-			line = LINE
+			fill = TONAL
+			line = TONAL
 			fg = TEXT
 		"danger":
 			fill = Color("2a1626")
 			line = RED
 			fg = Color("ffb3b3")
-	b.add_theme_stylebox_override("normal", box(fill, line, 24, 14))
-	b.add_theme_stylebox_override("hover", box(fill.lightened(0.1), line, 24, 14))
-	b.add_theme_stylebox_override("pressed", box(fill.darkened(0.15), line, 24, 14))
-	b.add_theme_stylebox_override("disabled", box(fill.darkened(0.45) if kind != "ghost" else Color(0.08, 0.12, 0.24), line.darkened(0.5), 24, 14))
+	# boutons en pilule (rayon = moitié de la hauteur minimale de 96 px)
+	var tr := kind == "text"
+	b.add_theme_stylebox_override("normal", box(fill, line, 48, 14))
+	b.add_theme_stylebox_override("hover", box(fill.lightened(0.1) if not tr else Color(ACCENT, 0.1), line, 48, 14))
+	b.add_theme_stylebox_override("pressed", box(fill.darkened(0.15) if not tr else Color(ACCENT, 0.2), line, 48, 14))
+	b.add_theme_stylebox_override("disabled", box(fill.darkened(0.45) if (kind != "ghost" and not tr and kind != "outline") else Color(0.08, 0.12, 0.24, 0.0 if tr or kind == "outline" else 1.0), line.darkened(0.5), 48, 14))
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, fg)
 	b.add_theme_color_override("font_disabled_color", fg.darkened(0.3) if kind != "ghost" else MUTED.darkened(0.3))
@@ -73,6 +84,16 @@ static func button(parent: Node, text: String, size: int, kind: String = "main")
 	b.pressed.connect(func(): Sfx.play("click", -6.0))
 	parent.add_child(b)
 	return b
+
+
+## Marges de sécurité en px de conception (720 de large) : encoche ou caméra en haut, barre de gestes en bas.
+static func safe_insets(win: Window) -> Vector2:
+	var sa := DisplayServer.get_display_safe_area()
+	var sc := DisplayServer.screen_get_size()
+	if sa.size.x <= 0 or sc.x <= 0:
+		return Vector2.ZERO
+	var k := 720.0 / float(sc.x)
+	return Vector2(maxf(0.0, float(sa.position.y) * k), maxf(0.0, float(sc.y - sa.end.y) * k))
 
 
 ## Nombre avec espace entre les milliers (« 1 240 »).
@@ -124,6 +145,7 @@ static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: 
 
 
 static var _icons := {}
+static var text_scale := 1.0     # réglage « Taille du texte » : 1, 1,1 ou 1,2
 static var _bold: FontVariation
 
 
@@ -166,6 +188,8 @@ static func icon(kind: String, px: int = 28) -> Texture2D:
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><path d="M7 1l5 4-2 8H4L2 5z" fill="#7fdcff"/></svg>'
 		"token":
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><rect x="1" y="3" width="12" height="8" rx="2" fill="#b388ff"/><circle cx="7" cy="7" r="2" fill="#2a1450"/></svg>'
+		"itoken":
+			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><rect x="1" y="2" width="12" height="10" rx="3" fill="#ffb142"/><path d="M7 4l1.2 2.4 2.6.4-1.9 1.8.5 2.6L7 10l-2.4 1.2.5-2.6L3.2 6.8l2.6-.4z" fill="#3a2000"/></svg>'
 		_:
 			svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 14 14"><path d="M7 0l6 7-6 7-6-7z" fill="#ff7ad9"/></svg>'
 	var img := Image.new()
@@ -173,6 +197,37 @@ static func icon(kind: String, px: int = 28) -> Texture2D:
 	var tex := ImageTexture.create_from_image(img)
 	_icons[key] = tex
 	return tex
+
+
+## Contenu d'un bouton fait de textes et d'icônes alignés au centre : parts = ["Texte", Texture2D, "12", ...].
+static func set_button_parts(b: Button, parts: Array, fs: int, col: Color) -> void:
+	b.text = ""
+	b.icon = null
+	var old := b.get_node_or_null("Parts")
+	if old != null:
+		old.free()
+	var hb := HBoxContainer.new()
+	hb.name = "Parts"
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_theme_constant_override("separation", 10)
+	hb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(hb)
+	for p in parts:
+		if p is Texture2D:
+			var tr := TextureRect.new()
+			tr.texture = p
+			tr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(tr)
+		else:
+			var l := Label.new()
+			l.text = str(p)
+			l.add_theme_font_override("font", bold_font())
+			l.add_theme_font_size_override("font_size", fs)
+			l.add_theme_color_override("font_color", col)
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(l)
 
 
 static func duration(seconds: float) -> String:

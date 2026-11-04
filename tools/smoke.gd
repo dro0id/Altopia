@@ -50,6 +50,10 @@ func _initialize() -> void:
 		for id in g.squad_ids():
 			if g.can_level(id):
 				g.level_up(id)
+		if int(t) % 7 == 0:
+			g.equip_best_all()
+			g.recycle_items(g.inventory_items().filter(func(it): return Items.rarity_index(it.rarity) < 2).map(func(it): return int(it.id)))
+	print("SMOKE objets : %d, équipés : %d, éclats : %d" % [g.items.size(), g.items.filter(func(it): return it.on != "").size(), g.shards])
 	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0
 	quit()

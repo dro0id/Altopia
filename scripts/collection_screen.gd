@@ -1,226 +1,287 @@
 class_name CollectionScreen
 extends Overlay
-## Collection (maquette F) : formation en 3 + 2 emplacements (glisser pour échanger), synergies, filtres et grille des héros.
+## Héros (maquette BC) : barre du haut (recherche, menu), segments Héros / Objets / Ensembles, puces de rôle, grille de cartes.
+## La formation (glisser pour échanger) s'ouvre depuis le menu ⋮, dans une feuille du bas.
 
 signal squad_changed
 signal hero_requested(id: String)
+signal item_requested(id: int)
+signal forge_requested
 
-const FILTERS := ["Tous", "Rareté", "Rôle", "Espèce"]
-const PREVIEW := 7                  # nombre de cartes montrées avant la case « + N »
+const ROLE_CHIPS := [["Tous", ""], ["Tireurs", "dps"], ["Tanks", "tank"], ["Soigneurs", "healer"], ["Contrôle", "control"]]
+const TAB_NAMES := ["Héros", "Objets", "Ensembles"]
 
-var _form: Control
-var _grid: Control
+var _stage: Control
+var _bar: Control
+var _seg: M3Seg
+var _chips: M3Chips
 var _scroll: ScrollContainer
-var _chip_btns: Array = []
-var _tokens_chip: HudButton
-var _title_sub: Label
-var _fkind := 0                     # 0 tous, 1 rareté, 2 rôle, 3 espèce
-var _fval := 0
-var _expanded := false
-var _cells: Array = []              # ids affichés dans la grille
+var _grid: Control
+var _info: Control
+var _search: LineEdit
+var _query := ""
+var _role := ""
+var _cells: Array = []
+var _t := 0.0
+var _tab := 0
+var _hero_nodes: Array = []
+var _items_view: ItemsView
+var _sets_view: SetsView
+var _sheet: Control
+var _form: Control
 var _drag_slot := -1
 var _drag_pos := Vector2.ZERO
 var _press := Vector2.ZERO
-var _t := 0.0
+var _gpress := Vector2.ZERO
+var _gdown := false
 
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1152)
+	panel.custom_minimum_size = Vector2(720, 1120)
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
-	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(720, 1152)
-	box.add_child(stage)
-	var t := UI.label(stage, "Héros", 36, Color.WHITE, true)
-	t.position = Vector2(32, 18)
-	_title_sub = UI.label(stage, "", 24, UI.MUTED, true)
-	_title_sub.position = Vector2(32.0 + UI.bold_font().get_string_size("Héros", HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x + 12.0, 28)
-	_tokens_chip = HudButton.new()
-	_tokens_chip.icon = "token"
-	_tokens_chip.font_size = 26
-	_tokens_chip.tappable = false
-	stage.add_child(_tokens_chip)
-	# formation
-	_form = Control.new()
-	_form.position = Vector2(24, 82)
-	_form.size = Vector2(672, 394)
-	_form.draw.connect(_draw_form)
-	_form.gui_input.connect(_form_input)
-	stage.add_child(_form)
-	# filtres
-	var x := 24.0
-	for i in FILTERS.size():
-		var b := HudButton.new()
-		b.font_size = 26
-		b.radius = 25.0
-		b.size = Vector2(UI.bold_font().get_string_size(FILTERS[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x + 56.0 + (20.0 if i == 0 else 0.0), 50)
-		b.position = Vector2(x, 492)
-		x += b.size.x + 12.0
-		var idx := i
-		b.pressed.connect(func(): _on_filter(idx))
-		stage.add_child(b)
-		_chip_btns.append(b)
-	# grille
+	_stage = Control.new()
+	_stage.custom_minimum_size = Vector2(720, 1120)
+	box.add_child(_stage)
+	_bar = M3.top_bar(_stage, "Héros", Callable(), [["⌕", _toggle_search], ["⋮", _open_menu]])
+	_search = LineEdit.new()
+	_search.placeholder_text = "Rechercher"
+	_search.position = Vector2(24, 16)
+	_search.size = Vector2(480, 80)
+	_search.add_theme_font_size_override("font_size", M3.fs(30))
+	_search.add_theme_stylebox_override("normal", UI.box(M3.S3, Color(0, 0, 0, 0), 40, 24))
+	_search.add_theme_stylebox_override("focus", UI.box(M3.S3, UI.ACCENT, 40, 24))
+	_search.visible = false
+	_search.text_changed.connect(func(s: String):
+		_query = s.strip_edges().to_lower()
+		_rebuild()
+		if _items_view.visible:
+			_items_view.query = _query
+			_items_view.refresh())
+	_bar.add_child(_search)
+	_seg = M3Seg.new(TAB_NAMES, 0)
+	_seg.position = Vector2(32, 112)
+	_seg.changed.connect(_show_tab)
+	_stage.add_child(_seg)
+	# onglet Héros
+	var labels: Array = []
+	for c in ROLE_CHIPS:
+		labels.append(c[0])
+	_chips = M3Chips.new(labels, 0)
+	_chips.position = Vector2(32, 200)
+	_chips.changed.connect(func(i: int):
+		_role = ROLE_CHIPS[i][1]
+		_rebuild())
+	_stage.add_child(_chips)
+	_info = Control.new()
+	_info.position = Vector2(32, 296)
+	_info.size = Vector2(656, 40)
+	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info.draw.connect(func():
+		M3.text(_info, Vector2(0, 28), "Escouade · %d / %d · Puissance %s" % [Game.squad_ids().size(), Data.SQUAD_SIZE, UI.num(Game.power())], 24, UI.MUTED))
+	_stage.add_child(_info)
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(0, 550)
-	_scroll.size = Vector2(720, 602)
+	_scroll.position = Vector2(0, 344)
+	_scroll.size = Vector2(720, 776)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	stage.add_child(_scroll)
+	_stage.add_child(_scroll)
 	DragScroll.attach(_scroll)
 	_grid = Control.new()
 	_grid.draw.connect(_draw_grid)
 	_grid.gui_input.connect(_grid_input)
 	_scroll.add_child(_grid)
+	_hero_nodes = [_chips, _info, _scroll]
+	_items_view = ItemsView.new()
+	_items_view.item_requested.connect(func(id: int): item_requested.emit(id))
+	_items_view.changed.connect(func(): squad_changed.emit())
+	_stage.add_child(_items_view)
+	_sets_view = SetsView.new()
+	_stage.add_child(_sets_view)
+	_stage.move_child(_bar, _stage.get_child_count() - 1)
 	_rebuild()
+	_show_tab(0)
 
 
-# ---------------------------------------------------------------- données
+func show_tab(i: int) -> void:
+	_seg.sel = i
+	_seg.queue_redraw()
+	_show_tab(i)
 
-func _on_filter(i: int) -> void:
-	if i == 0:
-		_fkind = 0
-		_fval = 0
-	elif _fkind == i:
-		_fval += 1
-		if _fval >= _values(i).size():
-			_fkind = 0
-			_fval = 0
+
+func _show_tab(i: int) -> void:
+	_tab = i
+	for n in _hero_nodes:
+		n.visible = i == 0
+	_items_view.visible = i == 1
+	_sets_view.visible = i == 2
+	if i == 1:
+		_items_view.query = _query
+		_items_view.refresh()
+
+
+func _toggle_search() -> void:
+	_search.visible = not _search.visible
+	(_bar.get_node("Title") as Label).visible = not _search.visible
+	if _search.visible:
+		_search.grab_focus()
 	else:
-		_fkind = i
-		_fval = 0
-	_rebuild()
+		_search.text = ""
+		_query = ""
+		_items_view.query = ""
+		_rebuild()
+		_items_view.refresh()
 
 
-func _values(kind: int) -> Array:
-	match kind:
-		1:
-			return Data.RARITIES_HERO
-		2:
-			return Data.ROLE_NAMES.keys()
-		3:
-			return Data.SPECIES_NAMES.keys()
-	return []
+func _open_menu() -> void:
+	M3.menu(_stage, Vector2(704, 96), [["Formation de l'escouade", _open_sheet], ["Forge", func(): forge_requested.emit()]])
 
 
-func _value_name(kind: int, v) -> String:
-	match kind:
-		1:
-			return Data.RARITY_NAMES_HERO[v]
-		2:
-			return Data.ROLE_NAMES[v]
-		3:
-			return Data.SPECIES_NAMES[v]
-	return ""
-
+# ---------------------------------------------------------------- grille
 
 func _rebuild() -> void:
-	_title_sub.text = "%d / %d" % [Game.owned.size(), Data.ALL_HEROES.size()]
-	_tokens_chip.set_texts(str(Game.tokens))
-	_tokens_chip.fit_chip()
-	_tokens_chip.position = Vector2(688.0 - _tokens_chip.size.x, 24)
 	var ids: Array = []
 	for id in Data.ALL_HEROES:
 		var h: Dictionary = Data.HEROES[id]
-		if _fkind == 1 and h.rarity != _values(1)[_fval]:
+		if _role != "" and h.role != _role:
 			continue
-		if _fkind == 2 and h.role != _values(2)[_fval]:
-			continue
-		if _fkind == 3 and h.species != _values(3)[_fval]:
+		if _query != "" and String(h.name).to_lower().find(_query) < 0:
 			continue
 		ids.append(id)
+	var squad := Game.squad_ids()
 	ids.sort_custom(func(a, b):
+		var sa := squad.has(a)
+		var sb := squad.has(b)
+		if sa != sb:
+			return sa
 		var oa := Game.is_owned(a)
 		var ob := Game.is_owned(b)
 		if oa != ob:
 			return oa
-		if oa:
-			if int(Game.hero_stars[a]) != int(Game.hero_stars[b]):
-				return int(Game.hero_stars[a]) > int(Game.hero_stars[b])
+		if oa and int(Game.levels[a]) != int(Game.levels[b]):
 			return int(Game.levels[a]) > int(Game.levels[b])
 		return Data.RARITIES_HERO.find(Data.HEROES[a].rarity) > Data.RARITIES_HERO.find(Data.HEROES[b].rarity))
 	_cells = ids
-	var rows := ceili(float(_shown_count() + (1 if _has_more() else 0)) / 4.0)
-	_grid.custom_minimum_size = Vector2(720, 12.0 + rows * 196.0 + 20.0)
-	for i in FILTERS.size():
-		var b: HudButton = _chip_btns[i]
-		var on := (i == 0 and _fkind == 0) or (i > 0 and _fkind == i)
-		var label: String = FILTERS[i]
-		if i > 0 and _fkind == i:
-			label = _value_name(i, _values(i)[_fval])
-		b.set_texts(label)
-		b.fill = UI.ACCENT if on else UI.HUD
-		b.border = UI.ACCENT if on else UI.LINE
-		b.text_color = UI.DARK if on else UI.TEXT
-		b.bold = true
-		b.queue_redraw()
-	_form.queue_redraw()
+	var rows := ceili(float(_cells.size()) / 3.0)
+	_grid.custom_minimum_size = Vector2(720, rows * 264.0 + 24.0)
 	_grid.queue_redraw()
-
-
-func _has_more() -> bool:
-	return not _expanded and _cells.size() > PREVIEW
-
-
-func _shown_count() -> int:
-	return _cells.size() if _expanded else mini(_cells.size(), PREVIEW)
+	_info.queue_redraw()
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	_form.queue_redraw()
 	_grid.queue_redraw()
-	_tokens_chip.set_texts(str(Game.tokens))
+	if _form != null:
+		_form.queue_redraw()
 
 
-# ---------------------------------------------------------------- formation
+func _cell_rect(i: int) -> Rect2:
+	return Rect2(32.0 + (i % 3) * 224.0, (i / 3) * 264.0, 208, 248)
+
+
+func _draw_grid() -> void:
+	var squad := Game.squad_ids()
+	for i in _cells.size():
+		var id: String = _cells[i]
+		var h: Dictionary = Data.HEROES[id]
+		var have := Game.is_owned(id)
+		var r := _cell_rect(i)
+		var rc: Color = Data.RARITY_COLORS[h.rarity]
+		M3.card(_grid, r, M3.S2, 32, Color(rc, 0.33) if have else M3.OUT, 2)
+		var c := r.position + Vector2(104, 84)
+		M3.avatar(_grid, h, c, 64.0, rc if have else M3.OUT, _t)
+		if not have:
+			_grid.draw_circle(c, 62.0, Color(0.04, 0.06, 0.12, 0.7))
+		M3.text(_grid, r.position + Vector2(0, 190), String(h.name).split(" ")[0], 28, UI.TEXT if have else UI.MUTED, true, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		var sub := "À recruter"
+		if have:
+			sub = "Niv. %d" % int(Game.levels[id])
+			if Game.can_evolve(id):
+				sub += " · ▲ palier"
+		M3.text(_grid, r.position + Vector2(8, 224), sub, 24, UI.MUTED, false, r.size.x - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+func _grid_input(ev: InputEvent) -> void:
+	if M3.is_tap(ev):
+		_gpress = ev.position
+		_gdown = true
+	elif M3.is_release(ev) and _gdown:
+		_gdown = false
+		if ev.position.distance_to(_gpress) > 14.0:
+			return
+		for i in _cells.size():
+			if _cell_rect(i).has_point(ev.position):
+				hero_requested.emit(_cells[i])
+				return
+
+
+# ---------------------------------------------------------------- formation (feuille du bas)
+
+func _open_sheet() -> void:
+	if _sheet != null:
+		return
+	_sheet = Control.new()
+	_sheet.size = Vector2(720, 1120)
+	_sheet.z_index = 40
+	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	_stage.add_child(_sheet)
+	var y0 := 1120.0 - 640.0
+	_sheet.draw.connect(func():
+		_sheet.draw_rect(Rect2(0, 0, 720, 1120), Color(0, 0, 0, 0.6))
+		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
+		sb.corner_radius_bottom_left = 0
+		sb.corner_radius_bottom_right = 0
+		_sheet.draw_style_box(sb, Rect2(0, y0, 720, 640))
+		_sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
+		M3.text(_sheet, Vector2(32, y0 + 88), "Formation de l'escouade", 40, UI.TEXT, true)
+		M3.text(_sheet, Vector2(32, y0 + 128), "Glisse un héros pour échanger les places", 26, UI.MUTED))
+	_sheet.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev) and ev.position.y < y0:
+			_close_sheet())
+	_form = Control.new()
+	_form.position = Vector2(24, y0 + 152)
+	_form.size = Vector2(672, 330)
+	_form.draw.connect(_draw_form)
+	_form.gui_input.connect(_form_input)
+	_sheet.add_child(_form)
+	var ok := M3.button(_sheet, "Terminé", Rect2(32, y0 + 504, 656, 104), "main")
+	ok.pressed.connect(_close_sheet)
+
+
+func _close_sheet() -> void:
+	if _sheet != null:
+		_sheet.queue_free()
+		_sheet = null
+		_form = null
+
 
 func _slot_rect(i: int) -> Rect2:
-	# trois emplacements devant, deux derrière ; 108 × 124, écart 20 px
 	if i < 3:
-		return Rect2(336.0 - 162.0 + i * 128.0 - 24.0, 54, 108, 124)
-	return Rect2(336.0 - 64.0 + (i - 3) * 128.0 - 24.0, 190, 108, 124)
+		return Rect2(336.0 - 186.0 + i * 128.0, 0, 108, 124)
+	return Rect2(336.0 - 122.0 + (i - 3) * 128.0, 140, 108, 124)
 
 
 func _draw_form() -> void:
-	_form.draw_style_box(UI.box(UI.PANEL2, UI.LINE, 28, 0), Rect2(Vector2.ZERO, _form.size))
-	var f := ThemeDB.fallback_font
-	_form.draw_string(f, Vector2(22, 44), "ESCOUADE · glisse pour échanger", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
 	for i in Data.SQUAD_SIZE:
 		var r := _slot_rect(i)
 		var id: String = Game.squad[i]
 		var hot := _drag_slot >= 0 and r.has_point(_drag_pos) and i != _drag_slot
-		_form.draw_style_box(UI.box(Color("0d1530"), Color(0.31, 0.85, 1.0, 0.9 if hot else 0.53), 20, 0), r)
-		_dashed_box(_form, r)
-		if id != "" and not (_drag_slot == i):
-			UI.portrait(_form, Data.HEROES[id], r.position + Vector2(54, 54), 46.0, _t)
-		_form.draw_string(f, Vector2(r.position.x, r.end.y - 8), "Avant" if i < 3 else "Arrière", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 18, UI.MUTED)
-	# synergies
-	var x := 22.0
+		M3.card(_form, r, M3.S2, 24, UI.ACCENT if hot else M3.OUT, 2)
+		if id != "" and _drag_slot != i:
+			M3.avatar(_form, Data.HEROES[id], r.position + Vector2(54, 54), 44.0, Data.RARITY_COLORS[Data.HEROES[id].rarity], _t)
+		M3.text(_form, Vector2(r.position.x, r.end.y - 8), "Avant" if i < 3 else "Arrière", 20, UI.MUTED, false, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+	var x := 0.0
 	for s in Game.synergy().list:
-		var txt := "%s %s" % [s.name, String(s.desc).replace(" ATQ", "").replace(" PV", "").replace(" DÉF", "")]
-		var col: Color = UI.GREEN if String(s.name).find("×") >= 0 and not String(s.name).begins_with("Rempart") else Color("b388ff")
-		var w := UI.bold_font().get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 44.0
-		if x + w > _form.size.x - 20.0:
+		var txt := "%s %s" % [s.name, s.desc]
+		var w := M3.text_w(txt, 22, true) + 40.0
+		if x + w > _form.size.x:
 			break
-		_form.draw_style_box(UI.box(Color(col.r, col.g, col.b, 0.08), Color(col.r, col.g, col.b, 0.4), 25, 0), Rect2(x, 328, w, 50))
-		_form.draw_string(UI.bold_font(), Vector2(x + 22, 361), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, col)
+		_form.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 16, 0), Rect2(x, 280, w, 48))
+		M3.text(_form, Vector2(x + 20, 312), txt, 22, UI.GREEN, true)
 		x += w + 12.0
-	# héros tenu au doigt
 	if _drag_slot >= 0 and Game.squad[_drag_slot] != "":
-		UI.portrait(_form, Data.HEROES[Game.squad[_drag_slot]], _drag_pos, 52.0, _t)
-
-
-func _dashed_box(ci: Control, r: Rect2) -> void:
-	var col := Color(0.31, 0.85, 1.0, 0.53)
-	var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), r.position]
-	for i in 4:
-		var a: Vector2 = pts[i]
-		var b: Vector2 = pts[i + 1]
-		var n := int(a.distance_to(b) / 12.0)
-		for k in range(0, n, 2):
-			ci.draw_line(a.lerp(b, float(k) / n), a.lerp(b, float(k + 1) / n), col, 2.0)
+		M3.avatar(_form, Data.HEROES[Game.squad[_drag_slot]], _drag_pos, 52.0, UI.ACCENT, _t)
 
 
 func _slot_at(p: Vector2) -> int:
@@ -263,91 +324,11 @@ func _form_input(ev: InputEvent) -> void:
 		var target := _slot_at(pos)
 		var from := _drag_slot
 		_drag_slot = -1
-		if pos.distance_to(_press) < 16.0:
-			hero_requested.emit(Game.squad[from])
-		elif target >= 0 and target != from:
+		if target >= 0 and target != from:
 			var a: String = Game.squad[from]
-			var b: String = Game.squad[target]
-			Game.squad[from] = b
+			Game.squad[from] = Game.squad[target]
 			Game.squad[target] = a
 			Game.save_game()
 			Sfx.play("click", -4.0)
 			squad_changed.emit()
 		_rebuild()
-
-
-# ---------------------------------------------------------------- grille
-
-func _cell_rect(i: int) -> Rect2:
-	return Rect2(24.0 + (i % 4) * 172.0, 12.0 + (i / 4) * 196.0, 160, 184)
-
-
-func _draw_grid() -> void:
-	var f := ThemeDB.fallback_font
-	for i in _shown_count():
-		var id: String = _cells[i]
-		var h: Dictionary = Data.HEROES[id]
-		var have := Game.is_owned(id)
-		var r := _cell_rect(i)
-		var rc: Color = Data.RARITY_COLORS[h.rarity]
-		var sb := UI.box(UI.PANEL, rc if have else Color("2b3a6b"), 20, 0)
-		sb.set_border_width_all(3 if have else 2)
-		_grid.draw_style_box(sb, r)
-		var c := r.position + Vector2(80, 62)
-		UI.portrait(_grid, h, c, 48.0, _t)
-		if not have:
-			_grid.draw_circle(c, 50.0, Color(0.04, 0.06, 0.12, 0.72))
-		var nm: String = String(h.name).split(" ")[0]
-		_grid.draw_string(UI.bold_font(), r.position + Vector2(0, 140), nm, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 24, Color.WHITE if have else UI.MUTED)
-		var st: int = int(Game.hero_stars[id]) if have else 0
-		_grid.draw_string(f, r.position + Vector2(0, 168), "★".repeat(st) + "☆".repeat(Data.MAX_STARS - st), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 22, UI.GOLD if have else Color(UI.GOLD, 0.35))
-	if _has_more():
-		var r := _cell_rect(PREVIEW)
-		_grid.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 20, 0), r)
-		_dashed_box_grid(r)
-		_grid.draw_string(f, r.position + Vector2(0, 100), "+ %d" % (_cells.size() - PREVIEW), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 30, UI.MUTED)
-
-
-func _dashed_box_grid(r: Rect2) -> void:
-	var col := Color("2b3a6b")
-	var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), r.position]
-	for i in 4:
-		var a: Vector2 = pts[i]
-		var b: Vector2 = pts[i + 1]
-		var n := int(a.distance_to(b) / 12.0)
-		for k in range(0, n, 2):
-			_grid.draw_line(a.lerp(b, float(k) / n), a.lerp(b, float(k + 1) / n), col, 3.0)
-
-
-var _gpress := Vector2.ZERO
-var _gdown := false
-
-
-func _grid_input(ev: InputEvent) -> void:
-	var pos := Vector2.ZERO
-	var pressed := false
-	var released := false
-	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
-		pos = ev.position
-		pressed = ev.pressed
-		released = not ev.pressed
-	elif ev is InputEventScreenTouch:
-		pos = ev.position
-		pressed = ev.pressed
-		released = not ev.pressed
-	else:
-		return
-	if pressed:
-		_gpress = pos
-		_gdown = true
-	elif released and _gdown:
-		_gdown = false
-		if pos.distance_to(_gpress) > 14.0:
-			return
-		for i in _shown_count():
-			if _cell_rect(i).has_point(pos):
-				hero_requested.emit(_cells[i])
-				return
-		if _has_more() and _cell_rect(PREVIEW).has_point(pos):
-			_expanded = true
-			_rebuild()

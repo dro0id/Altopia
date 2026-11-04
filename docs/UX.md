@@ -34,3 +34,23 @@ Mécaniques ajoutées pour que ces écrans soient vrais : offre du jour (pack l�
 - les portraits sont ronds sur fond sombre (la planche les montre sur un carré gris, artefact d'export) ;
 - les raretés de héros sont celles du jeu (Normal, Rare, Épique) et non les six couleurs de la collection ;
 - le texte des conseils et des renforts vient des vraies données du jeu.
+
+### Branche 4 : équipement (planches S à AC)
+Quatre emplacements par héros (arme, armure, module, relique), débloqués aux niveaux 1, 5, 10 et 15 du héros. Les objets ont six raretés, de 0 à 3 bonus secondaires, un niveau (plafonné par celui de son héros) et, à partir de rare, un ensemble (Prisme, Bastion, Sillage) avec des bonus à 2 et 4 pièces. Un objet équipé est lié au héros : le premier changement est gratuit, les suivants coûtent 400 crédits. Chaque coffre donne un objet (chances selon la rareté du coffre, un légendaire garanti au plus tard au 3e gros boss). La puissance d'un objet est un seul chiffre ; l'écran « À qui l'équiper ? » classe les héros par gain. L'inventaire contient 60 objets (les communs peuvent être recyclés automatiquement) ; la forge fusionne trois objets en un de rareté supérieure ou les recycle. L'équipement compte dans la puissance de l'escouade et dans le combat (attaque, PV, défense, critique, vitesse, soins, recharge, dégâts aux boss).
+
+## Boosters d'objets (branche 4, ajout)
+
+- Recrutement : onglet **Objets** (maquettes AD, AE, AF). Monnaie : jetons d'objet (4 offerts au départ).
+- Coût : 2 jetons l'ouverture, 18 pour ×10 (une offerte). Sources : 1 jeton par gros boss, offre du jour (+2), boutique (×6 pour 8 ◆).
+- Taux : normal 50 %, rare 32 %, épique 15 %, légendaire 3 %. ×10 : au moins un objet rare. Garanties : épique à la 10e, légendaire à la 40e ouverture.
+- Le niveau de puissance suit le meilleur étage ; si l'inventaire est plein, le surplus part en réserve.
+- Écart assumé avec la maquette AE : les tuiles n'affichent pas « Nv 12 » (les objets neufs sont de niveau 1, la puissance vient de l'étage).
+
+## Refonte Android
+
+Maquettes BA à BZ (canvas, rangées « Refonte Android »), toutes codées :
+- Socle : bouton Retour (fermer la fenêtre, « Quitter Altopia ? » sur le combat), zones sûres, barre du bas 80 dp à pastille, boutons pilule, zones d'appui de 48 dp, kit `M3` (barre du haut, segments, puces, cartes, lignes, menu ⋮, feuilles du bas).
+- Écrans : combat (portraits = pouvoirs, Auto, pouvoirs prêts, vitesse), Héros / Objets / Ensembles (formation dans le menu ⋮), fiche héros (Stats / Équipement / Pouvoirs), recrutement héros et objets, résultat d'ouverture, boutique, carte des étages, réglages, coffre et victoire, défaite, renfort, évolution, hors ligne, intro, tutoriel, détail d'objet, choix d'objet, « À qui l'équiper ? », forge.
+- Taille du texte (Normal, Grand, Très grand) dans Réglages ; les textes trop longs se réduisent au lieu d'être coupés.
+- Non fait : économie de batterie automatique sous 20 % (Godot 4.3 ne donne pas le niveau de batterie sans module Android).
+- Écarts assumés : l'amélioration rapide d'un héros n'est plus sur l'écran de combat (elle se fait dans Héros, la pastille du bas l'indique) ; la forge et la formation passent par le menu ⋮ ; le coffre gratuit est dans la Boutique.
