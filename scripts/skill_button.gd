@@ -21,7 +21,8 @@ var flash := 0.0
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(92, 92)
+	custom_minimum_size = Vector2(112, 136)
+	size = Vector2(112, 136)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
@@ -37,30 +38,38 @@ func _gui_input(ev: InputEvent) -> void:
 		pressed.emit(slot)
 
 
+## Portrait de 48 dp (maquette BB) : anneau de pouvoir (recharge), barre de vie dessous ; un appui lance le pouvoir.
 func _draw() -> void:
 	if hero.is_empty():
 		return
 	var look: Dictionary = LOOK.get(hero.skill.kind, LOOK.shield)
 	var col: Color = look.col
-	var c := Vector2(46, 46)
-	var ready := unit != null and unit.alive and unit.skill_cd <= 0.0 and unit.stun_t <= 0.0
-	draw_circle(c, 46, Color("0d1530"))
-	draw_arc(c, 44, 0, TAU, 48, col if ready else Color(col.r, col.g, col.b, 0.45), 4.0, true)
+	var c := Vector2(56, 52)
+	var alive := unit != null and unit.alive
+	var ready := alive and unit.skill_cd <= 0.0 and unit.stun_t <= 0.0
+	draw_circle(c, 48, Color("0a1424"))
+	Art.draw_portrait(self, hero, c, 42.0, t)
 	var frac := 1.0
-	if unit != null and unit.alive:
+	if alive:
 		frac = 1.0 - clampf(unit.skill_cd / unit.skill_max, 0.0, 1.0)
-	if frac < 1.0:
-		draw_arc(c, 51, -PI * 0.5, -PI * 0.5 + TAU * frac, 40, col, 6.0, true)
-	var gcol := col if ready else Color(col.r, col.g, col.b, 0.35)
-	_glyph(int(look.glyph), c, gcol)
-	if unit != null and unit.alive and not ready:
-		draw_string(ThemeDB.fallback_font, c + Vector2(-30, 12), "%.0f" % ceil(unit.skill_cd), HORIZONTAL_ALIGNMENT_CENTER, 60, 34, Color(1, 1, 1, 0.95))
-	elif ready:
-		draw_arc(c, 49 + sin(t * 6.0) * 1.5, 0, TAU, 40, Color(col.r, col.g, col.b, 0.35), 3.0, true)
-	if unit == null or not unit.alive:
-		draw_circle(c, 44, Color(0, 0, 0, 0.55))
+	draw_arc(c, 46, 0, TAU, 56, Color(col, 0.3), 5.0, true)
+	draw_arc(c, 46, -PI * 0.5, -PI * 0.5 + TAU * frac, 56, col, 5.0, true)
+	if ready:
+		draw_arc(c, 52 + sin(t * 6.0) * 1.5, 0, TAU, 56, Color(col, 0.45), 3.0, true)
+		draw_circle(c + Vector2(34, -34), 15, col)
+		draw_glyph(self, int(look.glyph), c + Vector2(34, -34), Color("06101f"), 0.32)
+	elif alive:
+		draw_circle(c, 42, Color(0, 0, 0, 0.45))
+		draw_string(UI.bold_font(), c + Vector2(-40, 12), "%.0f" % ceil(unit.skill_cd), HORIZONTAL_ALIGNMENT_CENTER, 80, 34, Color.WHITE)
+	if not alive:
+		draw_circle(c, 46, Color(0, 0, 0, 0.6))
 	if flash > 0.0:
 		draw_circle(c, 46, Color(1, 1, 1, flash * 0.5))
+	# barre de vie
+	var hp := unit.hp_frac() if alive else 0.0
+	draw_style_box(UI.box(Color("1d2a52"), Color(0, 0, 0, 0), 6, 0), Rect2(8, 112, 96, 12))
+	if hp > 0.0:
+		draw_style_box(UI.box(UI.GREEN if hp > 0.35 else UI.RED, Color(0, 0, 0, 0), 6, 0), Rect2(8, 112, maxf(12.0, 96.0 * hp), 12))
 
 
 func _glyph(g: int, c: Vector2, col: Color) -> void:
