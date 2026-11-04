@@ -74,6 +74,23 @@ func _initialize() -> void:
 			g.go_to(12)
 			main._tuto = 1
 			main._start_battle(),
+		"prologue1": func(): main._open_modal(PrologueScreen.new(true)),
+		"prologue2": func():
+			var p := PrologueScreen.new(true)
+			main._open_modal(p)
+			p._next(),
+		"prologue3": func():
+			var p := PrologueScreen.new(true)
+			main._open_modal(p)
+			p._next()
+			p._next(),
+		"dialogue": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_soleil"), true)),
+		"choixcap": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_haut"), true)),
+		"gardien": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_gardien"), true)),
+		"finchap": func(): main._open_modal(ChapterEndScreen.new(1, Story.chapter(1).reward)),
+		"journal": func():
+			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"]
+			main._open_journal(),
 		"coffre": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch

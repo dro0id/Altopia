@@ -488,6 +488,31 @@ func test_boosts_reach_battle() -> void:
 	bv.free()
 
 
+func test_story() -> void:
+	_g.reset()
+	var seen: Array = []
+	_check(Story.pending(seen, 1, 1).get("id", "") == "c1_entree", "scène d'entrée avant l'étage 1")
+	seen.append("c1_entree")
+	_check(Story.pending(seen, 4, 4).is_empty(), "pas de scène avant d'avoir vaincu l'étage 4")
+	_check(Story.pending(seen, 5, 5).get("id", "") == "c1_soleil", "scène après l'étage 4")
+	seen.append("c1_soleil")
+	_check(Story.pending(seen, 3, 5).is_empty(), "pas de scène « avant » en farmant un étage déjà passé")
+	for sc in Story.SCENES:
+		for l in sc.lines:
+			_check(Story.SPEAKERS.has(String(l.who)) or Data.HEROES.has(String(l.who)), "personnage connu : %s" % l.who)
+			if l.has("choice"):
+				_check(l.choice.size() == 2 and l.replies.size() == 2, "deux réponses et deux répliques : %s" % sc.id)
+	_g.see_scene("c1_haut", 1)
+	var r1: Dictionary = _g.complete_chapter(1)
+	_check(int(r1.get("credits", 0)) == 2000 and _g.complete_chapter(1).is_empty(), "récompense de fin de chapitre versée une seule fois")
+	_g.save_game()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	g2.load_game()
+	_check(g2.seen_scenes.has("c1_haut") and int(g2.story_choices.get("c1_haut", -1)) == 1 and g2.chapters_done.has(1), "scènes, choix et chapitres sauvegardés")
+	g2.free()
+
+
 func test_safe_save() -> void:
 	_g.reset()
 	_g.credits = 111.0

@@ -25,11 +25,11 @@ Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : ti
 - **Maquette** : 14 écrans (voir le canvas).
 - **À valider** : ton du texte d'entrée, noms des boss, chiffres d'économie après test sur téléphone.
 
-## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine
+## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine (FAIT dans le code, à tester sur téléphone)
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
 - **Contenu** : introduction courte (Terre, signal, décollage), dialogues entre combats (Capitaine, Vance, héros), un héros ou un ennemi marquant par chapitre, fin du chapitre 1 qui ouvre le suivant.
 - **Livrable** : le chapitre 1 se joue avec son histoire de bout en bout.
-- **À valider** : ton (sérieux ou léger), longueur des dialogues, voix du Capitaine (silencieux ou personnage).
+- **Décidé** : ton sérieux avec touches d'humour, 2 à 4 répliques par scène, Capitaine silencieux avec choix de réponse (sans conséquence sur la suite). Chapitre 1 « Le signal » = étages 1 à 20 : prologue en 3 écrans, 7 scènes, Gardien de verre qui parle, fin de chapitre (2 000 crédits, 20 éclats, 6 jetons) qui ouvre le chapitre 2 « Les Échos », journal de bord (menu ⋮ de la carte). Script dans `scripts/story.gd`, maquettes CA à CI.
 
 ## Branche 3 · `feat/heros-collection` (L) : recruter et faire évoluer (FAIT dans le code, à tester sur téléphone)
 - **Objectif** : la collection est le moteur de rétention, comme dans Top Heroes.

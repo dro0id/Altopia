@@ -100,7 +100,8 @@ func _ready() -> void:
 		intro.finished.connect(func():
 			Game.intro_seen = true
 			_nav.visible = true
-			get_tree().paused = false)
+			get_tree().paused = false
+			_open_prologue.call_deferred())
 	elif not Game.offline_report.is_empty():
 		_open_offline()
 
@@ -444,6 +445,7 @@ func _open_map() -> void:
 		Game.go_to(n)
 		_start_battle())
 	m.chest_claimed.connect(_show_chest_toast)
+	m.journal_requested.connect(func(): _open_journal.call_deferred())
 	_open_modal(m)
 
 
@@ -618,6 +620,49 @@ func _start_battle() -> void:
 	_refresh()
 
 
+## Histoire (branche 2) : prologue, puis scènes avant ou après les étages ; la scène de fin de chapitre ouvre l'écran de fin.
+func _open_prologue() -> void:
+	if Game.seen_scenes.has("prologue"):
+		return
+	var p := PrologueScreen.new()
+	_open_modal(p)
+
+
+## Ouvre la scène en attente s'il y en a une (et rien d'autre à l'écran) ; renvoie vrai si le combat doit attendre.
+func _story_check() -> bool:
+	if not Game.intro_seen or (_modal != null and is_instance_valid(_modal)):
+		return false
+	if not Game.seen_scenes.has("prologue"):
+		return false
+	var sc: Dictionary = Story.pending(Game.seen_scenes, Game.stage, Game.best_stage)
+	if sc.is_empty():
+		return false
+	var d := DialogueScreen.new(sc)
+	d.finished.connect(func(_id: String):
+		if sc.has("end"):
+			_open_chapter_end.call_deferred(int(sc.end)))
+	_open_modal(d)
+	return true
+
+
+func _open_chapter_end(n: int) -> void:
+	var reward: Dictionary = Game.complete_chapter(n)
+	Game.save_game()
+	var e := ChapterEndScreen.new(n, reward if not reward.is_empty() else Story.chapter(n).reward)
+	e.journal_requested.connect(func(): _open_journal.call_deferred())
+	_open_modal(e)
+
+
+func _open_journal() -> void:
+	var j := JournalScreen.new()
+	_open_modal(j)
+	# le journal garde la barre du bas, onglet Combat (maquette CI)
+	_tab_modal = true
+	_nav.active = 0
+	_nav.visible = true
+	move_child(_nav, get_child_count() - 1)
+
+
 func _on_cleared(_credits: float) -> void:
 	var stage := Game.stage
 	var stars: int = battle.sim.stars
@@ -716,6 +761,7 @@ func _process(delta: float) -> void:
 	_refresh_t += delta
 	if _refresh_t > 0.15:
 		_refresh_t = 0.0
+		_story_check()
 		_refresh()
 
 

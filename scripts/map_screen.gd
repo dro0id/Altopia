@@ -4,6 +4,7 @@ extends Overlay
 
 signal stage_chosen(stage: int)
 signal chest_claimed(chest: Dictionary)
+signal journal_requested
 
 const PER_SECTOR := 10
 
@@ -23,7 +24,9 @@ func _init() -> void:
 	_st = use_stage(1.0)
 	_sel = Game.stage
 	_sector = (_sel - 1) / PER_SECTOR
-	M3.top_bar(_st, "Étages", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Aller à mon record (étage %d)" % Game.best_stage, func():
+	M3.top_bar(_st, "Étages", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Journal de bord", func():
+		journal_requested.emit()
+		close()], ["Aller à mon record (étage %d)" % Game.best_stage, func():
 		_sel = Game.best_stage
 		_sector = (_sel - 1) / PER_SECTOR
 		_chips.sel = _sector
