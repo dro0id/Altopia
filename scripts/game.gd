@@ -40,6 +40,7 @@ var haptics := true
 var dmg_numbers := true
 var battery_saver := false
 var reduce_shake := false
+var text_size := 0                # 0 normal, 1 grand, 2 très grand (réglage de lisibilité)
 var music_on := true
 var tutorial_done := false
 var intro_seen := false
@@ -568,6 +569,7 @@ func _load_items(raw: Array) -> Array:
 ## Applique le réglage d'économie de batterie (30 images par seconde au lieu de 60).
 func apply_performance() -> void:
 	Engine.max_fps = 30 if battery_saver else 60
+	UI.text_scale = [1.0, 1.1, 1.2][clampi(text_size, 0, 2)]
 
 
 ## Petite vibration (si activée) : achat, étoile, coffre.
@@ -811,7 +813,7 @@ func save_game() -> void:
 		star_save[str(k)] = stars[k]
 	f.store_string(JSON.stringify({
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
-		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake,
+		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake, "text_size": text_size,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
@@ -872,6 +874,7 @@ func load_game() -> bool:
 	dmg_numbers = bool(parsed.get("dmg_numbers", true))
 	battery_saver = bool(parsed.get("battery_saver", false))
 	reduce_shake = bool(parsed.get("reduce_shake", false))
+	text_size = clampi(int(parsed.get("text_size", 0)), 0, 2)
 	apply_performance()
 	tutorial_done = bool(parsed.get("tutorial", ver == 1))
 	intro_seen = bool(parsed.get("intro", ver == 1))

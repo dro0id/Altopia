@@ -145,6 +145,7 @@ static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: 
 
 
 static var _icons := {}
+static var text_scale := 1.0     # réglage « Taille du texte » : 1, 1,1 ou 1,2
 static var _bold: FontVariation
 
 

@@ -1,18 +1,22 @@
 class_name HeroScreen
 extends Overlay
-## Fiche héros (maquette G), plein écran : portrait, statistiques, compétence, étoiles par fragments, placement en escouade et niveau.
+## Fiche héros (maquette BD), plein écran : barre du haut, en-tête (portrait, niveau, palier), segments Stats / Équipement / Pouvoirs.
 
 signal changed
 signal evolve_requested(id: String)
 signal item_slot_requested(slot: String)
+
+const PAGES := ["Stats", "Équipement", "Pouvoirs"]
 
 var _id := ""
 var _stage: Control
 var _t := 0.0
 var _picker: Control
 var _page := 0
+var _head: Control
 
 
+## `page` : 0 statistiques, 1 équipement, 2 pouvoirs.
 func _init(id: String, page: int = 0) -> void:
 	super._init(720.0)
 	_id = id
@@ -31,172 +35,105 @@ func _rebuild() -> void:
 	box.add_child(_stage)
 	var h: Dictionary = Data.HEROES[_id]
 	var have := Game.is_owned(_id)
+	var acts: Array = []
+	if have:
+		acts.append(["⋮", func(): M3.menu(_stage, Vector2(704, 96), [["Placer en escouade", _open_picker], ["Tout retirer", func():
+			Game.unequip_all(_id)
+			Game.save_game()
+			changed.emit()
+			_rebuild()]])])
+	M3.top_bar(_stage, String(h.name).split(" ")[0], close, acts)
+	# en-tête
+	_head = Control.new()
+	_head.position = Vector2(0, 112)
+	_head.size = Vector2(720, 160)
+	_head.draw.connect(_draw_head)
+	_stage.add_child(_head)
+	var seg := M3Seg.new(PAGES, _page)
+	seg.position = Vector2(32, 280)
+	seg.changed.connect(func(i: int):
+		_page = i
+		_rebuild())
+	_stage.add_child(seg)
+	match _page:
+		0:
+			_build_stats(h, have)
+		1:
+			_build_equipment(h, have)
+		_:
+			_build_powers(h)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	if _head != null:
+		_head.queue_redraw()
+
+
+func _draw_head() -> void:
+	var h: Dictionary = Data.HEROES[_id]
+	var have := Game.is_owned(_id)
 	var rc: Color = Data.RARITY_COLORS[h.rarity]
-	# retour et titre (la page Équipement a le bandeau des écrans d'équipement)
-	if _page == 1:
-		var band := ColorRect.new()
-		band.color = UI.BG
-		band.size = Vector2(720, 128)
-		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_stage.add_child(band)
-	var back := Button.new()
-	back.text = "←"
-	back.position = Vector2(32, 20) if _page == 0 else Vector2(32, 24)
-	back.size = Vector2(96, 96) if _page == 0 else Vector2(80, 80)
-	back.add_theme_font_size_override("font_size", 40)
-	for st in ["normal", "hover", "pressed"]:
-		back.add_theme_stylebox_override(st, UI.box(Color(0, 0, 0, 0) if st == "normal" else Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 48, 0))
-	back.pressed.connect(close)
-	_stage.add_child(back)
-	var title := UI.label(_stage, "Fiche héros", 36 if _page == 0 else 32, Color.WHITE, true)
-	title.position = Vector2(152, 38) if _page == 0 else Vector2(132, 40)
-	var tx := 400.0 if _page == 0 else 380.0
-	for pg in 2:
-		var tb := HudButton.new()
-		tb.font_size = 22
-		tb.bold = true
-		tb.radius = 22.0
-		var nm: String = ["Fiche", "Équipement"][pg]
-		tb.set_texts(nm)
-		tb.size = Vector2(UI.bold_font().get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x + 40.0, 48)
-		tb.position = Vector2(tx, 36 if _page == 0 else 40)
-		tx += tb.size.x + 10.0
-		var on: bool = pg == _page
-		tb.fill = UI.ACCENT if on else UI.HUD
-		tb.border = UI.ACCENT if on else UI.LINE
-		tb.text_color = UI.DARK if on else UI.TEXT
-		var target := pg
-		tb.pressed.connect(func():
-			if target != _page:
-				_page = target
-				_rebuild())
-		_stage.add_child(tb)
-	if _page == 1:
-		_build_equipment(h, rc, have)
+	M3.avatar(_head, h, Vector2(104, 80), 72.0, rc, _t)
+	var stars: int = int(Game.hero_stars[_id]) if have else 0
+	M3.text(_head, Vector2(208, 44), "%s · %s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role], "★".repeat(maxi(stars, 0))], 24, UI.MUTED)
+	if not have:
+		M3.text(_head, Vector2(208, 92), "Non recruté", 30, UI.RED, true)
 		return
-	# carte du héros
+	var lv: int = int(Game.levels[_id])
+	M3.text(_head, Vector2(208, 92), "Niveau %d · Palier %d" % [lv, Game.tier(_id) + 1], 30, UI.TEXT, true)
+	var cap: int = Data.level_cap(Game.tier(_id))
+	var lo: int = 1 if Game.tier(_id) == 0 else int(Data.EVO_LEVELS[Game.tier(_id) - 1])
+	var ratio := 1.0 if cap >= 999 else float(lv - lo) / float(maxi(1, cap - lo))
+	M3.bar(_head, Rect2(208, 112, 480, 12), ratio)
+
+
+# ---------------------------------------------------------------- Stats
+
+func _build_stats(h: Dictionary, have: bool) -> void:
 	var lv: int = int(Game.levels[_id])
 	var stars: int = int(Game.hero_stars[_id]) if have else 0
 	var m: float = Data.hero_mult(lv) * Data.star_mult(maxi(1, stars)) * Data.EVO_STAT_MULT[Game.tier(_id)]
-	var card := Control.new()
-	card.position = Vector2(32, 136)
-	card.size = Vector2(656, 416)
-	card.draw.connect(func():
-		UI.draw_gradient_box(card, Rect2(Vector2.ZERO, card.size), 28.0, Color("1a2142"), Color("141d3a"), rc, 3.0)
-		card.draw_style_box(UI.box(Color("0d1530"), Color(rc.r, rc.g, rc.b, 0.45), 24, 0), Rect2(28, 28, 300, 358))
-		var c := Vector2(178, 178)
-		UI.portrait(card, h, c, 128.0, _t)
-		if not have:
-			card.draw_circle(c, 132.0, Color(0.04, 0.06, 0.12, 0.72))
-		var lab := String(Data.RARITY_NAMES_HERO[h.rarity]).to_upper() if have else "NON RECRUTÉ"
-		var col: Color = rc if have else UI.RED
-		var tw := 0.0
-		for ch in lab:
-			tw += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0
-		var x := 178.0 - tw * 0.5
-		for ch in lab:
-			card.draw_string(UI.bold_font(), Vector2(x, 360), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, col)
-			x += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0
-		var f := ThemeDB.fallback_font
-		card.draw_string(UI.bold_font(), Vector2(356, 60), String(h.name).split(" ")[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color("e8eefc"))
-		card.draw_string(f, Vector2(356, 96), "%s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]], HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.MUTED)
-		card.draw_string(f, Vector2(356, 142), "★".repeat(stars) + "☆".repeat(Data.MAX_STARS - stars), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, UI.GOLD)
-		var caps := {"hp": 0.0, "atk": 0.0, "def": 0.0}
-		for hid in Data.ALL_HEROES:
-			for k in caps:
-				caps[k] = maxf(caps[k], float(Data.HEROES[hid][k]))
-		var rows := [["PV", h.hp * m, UI.GREEN, "hp"], ["ATQ", h.atk * m, UI.RED, "atk"], ["DÉF", h.def * m, UI.ACCENT, "def"]]
-		for i in 3:
-			var y := 214.0 + i * 78.0
-			var v: float = rows[i][1]
-			var cc: Color = rows[i][2]
-			card.draw_string(f, Vector2(356, y), rows[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.MUTED)
-			card.draw_string(UI.bold_font(), Vector2(0, y + 4), str(int(v)), HORIZONTAL_ALIGNMENT_RIGHT, 628.0, 40, cc)
-			card.draw_style_box(UI.box(UI.LINE2, Color(0, 0, 0, 0), 6, 0), Rect2(356, y + 16, 272, 12))
-			card.draw_style_box(UI.box(cc, Color(0, 0, 0, 0), 6, 0), Rect2(356, y + 16, maxf(12.0, 272.0 * clampf(v / (float(caps[rows[i][3]]) * m * 1.25), 0.0, 1.0)), 12)))
-	_stage.add_child(card)
-	# compétence
-	var sk := Control.new()
-	sk.position = Vector2(32, 576)
-	sk.size = Vector2(656, 205)
-	sk.draw.connect(func():
-		sk.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 28, 0), Rect2(Vector2.ZERO, sk.size))
-		sk.draw_style_box(UI.box(Color("2a2010"), UI.GOLD, 20, 0), Rect2(24, 54, 96, 96))
-		SkillButton.draw_glyph(sk, int(SkillButton.LOOK.get(h.skill.kind, SkillButton.LOOK.shield).glyph), Vector2(72, 102), UI.GOLD, 0.85)
-		var tw := 0.0
-		for ch in "COMPÉTENCE":
-			tw += 0.0
-		var x := 144.0
-		for ch in "COMPÉTENCE":
-			sk.draw_string(UI.bold_font(), Vector2(x, 62), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.GOLD)
-			x += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x + 3.0
-		sk.draw_string(UI.bold_font(), Vector2(144, 104), h.skill.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color.WHITE))
-	_stage.add_child(sk)
-	var dsc := UI.label(sk, "%s Recharge %d s." % [h.skill.desc, int(h.skill.cd)], 26, UI.MUTED)
-	dsc.position = Vector2(144, 118)
-	dsc.size = Vector2(490, 70)
-	dsc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	dsc.add_theme_constant_override("line_spacing", -4)
-	# prochaine étoile
-	var sc := Control.new()
-	sc.position = Vector2(32, 806)
-	sc.size = Vector2(656, 164)
+	var eq: Dictionary = Items.totals(Game.hero_items(_id))
+	var vals := [
+		["PV", (h.hp * m + float(eq.hp)) * (1.0 + float(eq.hp_pct)), UI.GREEN],
+		["ATQ", (h.atk * m + float(eq.atk)) * (1.0 + float(eq.atk_pct)), UI.RED],
+		["DÉF", (h.def * m + float(eq.def)) * (1.0 + float(eq.def_pct)), UI.ACCENT]]
 	var cost := Game.star_cost(_id) if have and stars < Data.MAX_STARS else 0
 	var fr := int(Game.fragments[_id]) if have else 0
-	sc.draw.connect(func():
-		sc.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 28, 0), Rect2(Vector2.ZERO, sc.size))
-		var f := ThemeDB.fallback_font
-		sc.draw_string(UI.bold_font(), Vector2(24, 50), "Prochaine étoile" if cost > 0 else "Étoiles", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color.WHITE)
+	var body := Control.new()
+	body.position = Vector2(0, 384)
+	body.size = Vector2(720, 600)
+	body.draw.connect(func():
+		for i in 3:
+			var r := Rect2(32, i * 144.0, 656, 128)
+			M3.row(body, r)
+			M3.text(body, r.position + Vector2(32, 76), vals[i][0], 30, UI.TEXT, true)
+			M3.text(body, r.position + Vector2(0, 78), UI.num(float(vals[i][1])), 36, vals[i][2], true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
+		var r2 := Rect2(32, 432, 656, 152)
+		M3.card(body, r2)
+		M3.text(body, r2.position + Vector2(32, 52), "Prochaine étoile" if cost > 0 else "Étoiles", 28, UI.TEXT, true)
 		if cost > 0:
-			sc.draw_string(UI.bold_font(), Vector2(0, 50), "%d / %d" % [fr, cost], HORIZONTAL_ALIGNMENT_RIGHT, 632.0, 28, UI.GOLD)
-			sc.draw_style_box(UI.box(UI.LINE2, Color(0, 0, 0, 0), 10, 0), Rect2(24, 78, 608, 20))
-			var w := maxf(20.0, 608.0 * clampf(float(fr) / float(cost), 0.0, 1.0))
-			UI.draw_gradient_box(sc, Rect2(24, 78, w, 20), 10.0, Color("ffb142"), Color("ffd166"), Color(0, 0, 0, 0), 0.0)
-			var msg := "%d fragments avant la %dᵉ étoile" % [maxi(0, cost - fr), stars + 1]
-			if fr >= cost:
-				msg = "Touche ici pour monter d'une étoile"
-			sc.draw_string(f, Vector2(24, 142), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.GOLD if fr >= cost else UI.MUTED)
+			M3.text(body, r2.position + Vector2(0, 52), "%d / %d" % [fr, cost], 28, UI.GOLD, true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
+			M3.bar(body, Rect2(r2.position + Vector2(32, 76), Vector2(592, 12)), float(fr) / float(cost), UI.GOLD)
+			M3.text(body, r2.position + Vector2(32, 128), "Touche pour monter d'une étoile" if fr >= cost else "%d fragments avant la %dᵉ étoile" % [maxi(0, cost - fr), stars + 1], 24, UI.GOLD if fr >= cost else UI.MUTED)
 		elif have:
-			sc.draw_string(f, Vector2(24, 100), "Étoiles au maximum", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UI.GOLD)
+			M3.text(body, r2.position + Vector2(32, 104), "Étoiles au maximum", 26, UI.GOLD)
 		else:
-			sc.draw_string(f, Vector2(24, 100), "Obtiens ce héros au recrutement.", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UI.MUTED))
-	sc.gui_input.connect(func(ev: InputEvent):
-		if ((ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed)) and Game.can_star_up(_id):
-			if Game.star_up(_id):
-				Sfx.play("chest")
-				Game.save_game()
-				changed.emit()
-				_rebuild())
-	_stage.add_child(sc)
+			M3.text(body, r2.position + Vector2(32, 104), "Obtiens ce héros au recrutement.", 26, UI.MUTED))
+	body.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev) and ev.position.y > 432 and Game.can_star_up(_id) and Game.star_up(_id):
+			Sfx.play("chest")
+			Game.save_game()
+			changed.emit()
+			_rebuild())
+	_stage.add_child(body)
 	if not have:
 		return
-	# actions
-	var place := UI.button(_stage, "Placer en escouade", 32, "main")
-	place.position = Vector2(32, 1032)
-	place.size = Vector2(656, 104)
-	place.custom_minimum_size = Vector2(0, 104)
-	place.pressed.connect(_open_picker)
-	var up := UI.button(_stage, "", 28, "ghost")
-	up.position = Vector2(32, 1152)
-	up.size = Vector2(656, 96)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 10)
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	up.add_child(row)
-	var l1 := UI.label(row, "Monter le niveau ·" if not Game.can_evolve(_id) else "Évoluer ·", 28, Color("e8eefc"), true)
-	l1.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ic := TextureRect.new()
-	ic.texture = UI.icon("coin")
-	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ic.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(ic)
-	var cost_v: int = Game.level_cost(_id) if not Game.can_evolve(_id) else int(Game.evolve_cost(_id).credits)
-	var l2 := UI.label(row, UI.num(cost_v), 28, Color("e8eefc"), true)
-	l2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	up.disabled = Game.credits < cost_v and not Game.can_evolve(_id)
+	var evo := Game.can_evolve(_id)
+	var cost_v: int = int(Game.evolve_cost(_id).credits) if evo else Game.level_cost(_id)
+	var up := M3.button(_stage, ("Évoluer · %s ¢" if evo else "Monter le niveau · %s ¢") % UI.num(cost_v), Rect2(32, 1144, 656, 104), "main")
+	up.disabled = Game.credits < cost_v and not evo
 	up.pressed.connect(func():
 		if Game.can_evolve(_id):
 			evolve_requested.emit(_id)
@@ -207,39 +144,48 @@ func _rebuild() -> void:
 			_rebuild())
 
 
-func _process(delta: float) -> void:
-	_t += delta
-	if _stage != null and _page == 0:
-		for ch in _stage.get_children():
-			if ch is Control and ch.size.y == 416.0:
-				ch.queue_redraw()
+# ---------------------------------------------------------------- Pouvoirs
+
+func _build_powers(h: Dictionary) -> void:
+	var body := Control.new()
+	body.position = Vector2(0, 384)
+	body.size = Vector2(720, 400)
+	body.draw.connect(func():
+		var r := Rect2(32, 0, 656, 320)
+		M3.card(body, r)
+		body.draw_style_box(UI.box(Color("2a2010"), UI.GOLD, 24, 0), Rect2(64, 32, 112, 112))
+		SkillButton.draw_glyph(body, int(SkillButton.LOOK.get(h.skill.kind, SkillButton.LOOK.shield).glyph), Vector2(120, 88), UI.GOLD, 0.95)
+		M3.section(body, Vector2(208, 64), "COMPÉTENCE")
+		M3.text(body, Vector2(208, 112), String(h.skill.name), 34, UI.TEXT, true)
+		M3.para(body, Vector2(64, 196), String(h.skill.desc), 26, UI.MUTED, 592)
+		M3.text(body, Vector2(64, 292), "Recharge %d s · combo si deux pouvoirs à moins de 3 s" % int(h.skill.cd), 24, UI.ACCENT))
+	_stage.add_child(body)
 
 
-## Choix de l'emplacement dans l'escouade (3 devant, 2 derrière).
+## Choix de l'emplacement dans l'escouade (feuille du bas).
 func _open_picker() -> void:
 	if _picker != null:
 		_picker.queue_free()
 	_picker = Control.new()
-	_picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picker.size = Vector2(720, 1280)
+	_picker.mouse_filter = Control.MOUSE_FILTER_STOP
 	_stage.add_child(_picker)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0.03, 0.8)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_picker.add_child(dim)
-	var p := PanelContainer.new()
-	p.position = Vector2(32, 330)
-	p.size = Vector2(656, 560)
-	p.add_theme_stylebox_override("panel", UI.box(UI.PANEL, UI.LINE, 28, 24))
-	_picker.add_child(p)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	p.add_child(v)
-	UI.label(v, "Choisir l'emplacement", 30, Color.WHITE, true)
+	var y0 := 1280.0 - 800.0
+	_picker.draw.connect(func():
+		_picker.draw_rect(Rect2(0, 0, 720, 1280), Color(0, 0, 0, 0.6))
+		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
+		sb.corner_radius_bottom_left = 0
+		sb.corner_radius_bottom_right = 0
+		_picker.draw_style_box(sb, Rect2(0, y0, 720, 800))
+		_picker.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
+		M3.text(_picker, Vector2(32, y0 + 88), "Choisir l'emplacement", 40, UI.TEXT, true))
+	_picker.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev) and ev.position.y < y0:
+			_picker.queue_free())
 	for i in Data.SQUAD_SIZE:
 		var cur: String = Game.squad[i]
 		var who := String(Data.HEROES[cur].name).split(" ")[0] if cur != "" else "vide"
-		var b := UI.button(v, "%s %d · %s" % ["Avant" if i < 3 else "Arrière", i + 1 if i < 3 else i - 2, who], 26, "main" if Game.squad[i] == _id else "ghost")
-		b.custom_minimum_size = Vector2(0, 72)
+		var b := M3.button(_picker, "%s %d · %s" % ["Avant" if i < 3 else "Arrière", i + 1 if i < 3 else i - 2, who], Rect2(32, y0 + 128 + i * 112.0, 656, 96), "main" if cur == _id else "ghost", 28)
 		var slot := i
 		b.pressed.connect(func():
 			if Game.set_slot(slot, _id):
@@ -247,164 +193,85 @@ func _open_picker() -> void:
 				changed.emit()
 			_picker.queue_free()
 			_rebuild())
-	var cancel := UI.button(v, "Annuler", 24, "ghost")
-	cancel.custom_minimum_size = Vector2(0, 64)
-	cancel.pressed.connect(func(): _picker.queue_free())
 
 
-## Page Équipement (maquette S) : carte du héros avec ses statistiques équipées, quatre emplacements, ensemble, conseil et boutons.
-func _build_equipment(h: Dictionary, rc: Color, have: bool) -> void:
-	var lv: int = int(Game.levels[_id])
-	var stars: int = int(Game.hero_stars[_id]) if have else 1
-	var m: float = Data.hero_mult(lv) * Data.star_mult(stars) * Data.EVO_STAT_MULT[Game.tier(_id)]
-	var eq: Dictionary = Items.totals(Game.hero_items(_id))
-	var hp0: float = h.hp * m
-	var atk0: float = h.atk * m
-	var def0: float = h.def * m
-	var hp1: float = (hp0 + float(eq.hp)) * (1.0 + float(eq.hp_pct))
-	var atk1: float = (atk0 + float(eq.atk)) * (1.0 + float(eq.atk_pct))
-	var def1: float = (def0 + float(eq.def)) * (1.0 + float(eq.def_pct))
-	var card := Control.new()
-	card.position = Vector2(32, 148)
-	card.size = Vector2(656, 262)
-	card.draw.connect(func():
-		var sb := UI.box(UI.PANEL, rc, 28, 0)
-		sb.set_border_width_all(3)
-		card.draw_style_box(sb, Rect2(Vector2.ZERO, card.size))
-		UI.portrait(card, h, Vector2(80, 78), 56.0, _t)
-		card.draw_string(UI.bold_font(), Vector2(156, 70), String(h.name).split(" ")[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color.WHITE)
-		card.draw_string(ThemeDB.fallback_font, Vector2(156, 102), "%s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role]], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
-		var rows := [["PV", hp1, hp1 - hp0, UI.GREEN, 24.0, 172.0], ["ATQ", atk1, atk1 - atk0, UI.RED, 24.0, 214.0], ["DÉF", def1, def1 - def0, UI.ACCENT, 336.0, 172.0]]
-		for r in rows:
-			var x: float = r[4]
-			var y: float = r[5]
-			card.draw_string(ThemeDB.fallback_font, Vector2(x, y), r[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
-			card.draw_string(UI.bold_font(), Vector2(x + 72.0, y + 2.0), str(int(r[1])), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, r[3])
-			if float(r[2]) >= 1.0:
-				var vw := UI.bold_font().get_string_size(str(int(r[1])), HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-				card.draw_string(UI.bold_font(), Vector2(x + 82.0 + vw, y), "+%d" % int(r[2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.GREEN))
-	_stage.add_child(card)
-	# équipement
-	var tl := UI.label(_stage, "Équipement", 32, Color.WHITE, true)
-	tl.position = Vector2(32, 438)
-	var base_p: float = Data.team_power({_id: lv}, [_id])
-	var item_p: float = Game.hero_item_power(_id)
-	var chip := HudButton.new()
-	chip.font_size = 20
-	chip.bold = true
-	chip.radius = 22.0
-	chip.tappable = false
-	chip.text_color = UI.GREEN
-	chip.border = Color(UI.GREEN, 0.4)
-	chip.set_texts("Puissance +%s · +%d %%" % [UI.num(item_p), int(round(item_p / maxf(1.0, base_p) * 100.0))])
-	chip.size = Vector2(UI.bold_font().get_string_size(chip.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 40.0, 44)
-	chip.position = Vector2(688.0 - chip.size.x, 436)
-	_stage.add_child(chip)
-	var slots := Control.new()
-	slots.position = Vector2(32, 492)
-	slots.size = Vector2(656, 190)
+# ---------------------------------------------------------------- Équipement
+
+func _build_equipment(_h: Dictionary, have: bool) -> void:
 	var better := {}
 	for it in Game.inventory_items():
 		if Game.slot_unlocked(_id, it.slot) and (it.bound == "" or it.bound == _id) and Game.power_gain(it, _id) > 0.0:
-			better[it.slot] = true
-	slots.draw.connect(func():
+			better[it.slot] = maxf(float(better.get(it.slot, 0.0)), Game.power_gain(it, _id))
+	var gain := 0.0
+	for s in better:
+		gain += float(better[s])
+	var grid := Control.new()
+	grid.position = Vector2(0, 384)
+	grid.size = Vector2(720, 420)
+	grid.draw.connect(func():
 		for i in 4:
 			var slot: String = Items.SLOTS[i]
-			var r := Rect2(i * 164.0 + 18.0, 0, 128, 128)
+			var r := Rect2(32.0 + (i % 2) * 336.0, (i / 2) * 168.0, 320, 152)
+			M3.card(grid, r)
+			var tr := Rect2(r.position + Vector2(20, 20), Vector2(112, 112))
+			var nm := "Vide"
 			if not Game.slot_unlocked(_id, slot):
-				ItemUI.locked(slots, r)
-				slots.draw_string(ThemeDB.fallback_font, Vector2(i * 164.0, 160), "Niveau %d" % int(Items.SLOT_UNLOCK[slot]), HORIZONTAL_ALIGNMENT_CENTER, 164.0, 20, UI.MUTED)
-				continue
-			var it: Dictionary = Game.slot_item(_id, slot)
-			if it.is_empty():
-				ItemUI.empty(slots, r)
+				ItemUI.locked(grid, tr)
+				nm = "Niveau %d" % int(Items.SLOT_UNLOCK[slot])
 			else:
-				ItemUI.tile(slots, r, it, true)
-			if better.has(slot):
-				ItemUI.dot(slots, r.position + Vector2(r.size.x - 4.0, 4.0), "▲")
-			slots.draw_string(ThemeDB.fallback_font, Vector2(i * 164.0, 160), Items.SLOT_NAMES[slot], HORIZONTAL_ALIGNMENT_CENTER, 164.0, 20, UI.MUTED))
-	slots.gui_input.connect(func(ev: InputEvent):
-		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
-			var i := clampi(int(ev.position.x / 164.0), 0, 3)
+				var it: Dictionary = Game.slot_item(_id, slot)
+				if it.is_empty():
+					ItemUI.empty(grid, tr)
+				else:
+					ItemUI.tile(grid, tr, it, true)
+					nm = String(it.name)
+				if better.has(slot):
+					ItemUI.dot(grid, tr.position + Vector2(tr.size.x - 4.0, 4.0), "▲")
+			M3.text(grid, r.position + Vector2(152, 66), String(Items.SLOT_NAMES[slot]), 24, UI.MUTED)
+			var lines := _wrap2(nm, 26, 152.0)
+			M3.text(grid, r.position + Vector2(152, 100), lines[0], 26, UI.TEXT, true)
+			if lines[1] != "":
+				M3.text(grid, r.position + Vector2(152, 132), lines[1], 26, UI.TEXT, true)
+		if gain > 0.0:
+			grid.draw_style_box(UI.box(Color("10331f"), Color(0, 0, 0, 0), 24, 0), Rect2(32, 344, 656, 72))
+			M3.text(grid, Vector2(64, 390), "▲ Gain possible : +%s de puissance" % UI.num(gain), 26, UI.GREEN))
+	grid.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev) and ev.position.y < 320:
+			var i := clampi(int((ev.position.x - 32.0) / 336.0), 0, 1) + (2 if ev.position.y > 160 else 0)
 			var slot: String = Items.SLOTS[i]
 			if not Game.slot_unlocked(_id, slot):
 				Sfx.play("click", -10.0)
 				return
 			item_slot_requested.emit(slot)
 			close())
-	_stage.add_child(slots)
-	# ensemble en cours
-	var counts := Items.set_counts(Game.hero_items(_id))
-	var best_set := ""
-	for sid in counts:
-		if best_set == "" or counts[sid] > counts[best_set]:
-			best_set = sid
-	var sc := Control.new()
-	sc.position = Vector2(32, 700)
-	sc.size = Vector2(656, 96)
-	sc.draw.connect(func():
-		if best_set == "":
-			sc.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 24, 0), Rect2(Vector2.ZERO, sc.size))
-			sc.draw_string(ThemeDB.fallback_font, Vector2(24, 58), "Aucun ensemble : les objets rares et mieux en ont un.", HORIZONTAL_ALIGNMENT_LEFT, 610.0, 22, UI.MUTED)
-			return
-		var info: Dictionary = Items.SETS[best_set]
-		var col: Color = info.color
-		sc.draw_style_box(UI.box(UI.PANEL, Color(col.r, col.g, col.b, 0.33), 24, 0), Rect2(Vector2.ZERO, sc.size))
-		sc.draw_string(ThemeDB.fallback_font, Vector2(24, 62), "◈", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, col)
-		var n: int = counts[best_set]
-		sc.draw_string(UI.bold_font(), Vector2(76, 42), "Ensemble %s" % info.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, col)
-		var w := UI.bold_font().get_string_size("Ensemble %s" % info.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
-		sc.draw_string(ThemeDB.fallback_font, Vector2(88 + w, 42), "%d/4" % n, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, UI.MUTED)
-		sc.draw_string(ThemeDB.fallback_font, Vector2(76, 74), "(2) %s · (4) %s" % [info.b2, info.b4], HORIZONTAL_ALIGNMENT_LEFT, 560.0, 20, UI.MUTED))
-	_stage.add_child(sc)
-	# conseil : de meilleurs objets dans l'inventaire
-	var gain := 0.0
-	var n_better := 0
-	for slot in better:
-		n_better += 1
-	for slot in Items.SLOTS:
-		if not better.has(slot):
-			continue
-		var bg := 0.0
-		for it in Game.inventory_items():
-			if it.slot == slot and (it.bound == "" or it.bound == _id):
-				bg = maxf(bg, Game.power_gain(it, _id))
-		gain += bg
-	if n_better > 0:
-		var tip := Control.new()
-		tip.position = Vector2(32, 816)
-		tip.size = Vector2(656, 88)
-		tip.draw.connect(func():
-			tip.draw_style_box(UI.box(Color("10331f"), Color(UI.GREEN, 0.4), 24, 0), Rect2(Vector2.ZERO, tip.size))
-			tip.draw_colored_polygon(PackedVector2Array([Vector2(26, 52), Vector2(40, 52), Vector2(33, 36)]), UI.GREEN)
-			tip.draw_string(ThemeDB.fallback_font, Vector2(56, 40), "Ton inventaire a de meilleurs objets pour %d emplacement%s." % [n_better, "s" if n_better > 1 else ""], HORIZONTAL_ALIGNMENT_LEFT, 590.0, 22, UI.GREEN)
-			tip.draw_string(ThemeDB.fallback_font, Vector2(56, 70), "Gain possible : +%s de puissance." % UI.num(gain), HORIZONTAL_ALIGNMENT_LEFT, 590.0, 22, UI.GREEN))
-		_stage.add_child(tip)
-	# boutons
-	var best := UI.button(_stage, "Équiper au mieux", 32, "main")
-	best.position = Vector2(32, 1036)
-	best.size = Vector2(656, 104)
-	best.custom_minimum_size = Vector2(0, 104)
-	best.pressed.connect(func():
-		var cnt: int = Game.equip_best(_id)
-		Game.save_game()
-		Sfx.play("chest" if cnt > 0 else "click", -4.0)
-		changed.emit()
-		_rebuild())
-	var hand := UI.button(_stage, "Choisir à la main", 26, "ghost")
-	hand.position = Vector2(32, 1156)
-	hand.size = Vector2(320, 96)
+	_stage.add_child(grid)
+	if not have:
+		return
+	var hand := M3.button(_stage, "Choisir", Rect2(32, 1144, 248, 104), "ghost")
 	hand.pressed.connect(func():
 		for slot in Items.SLOTS:
 			if Game.slot_unlocked(_id, slot):
 				item_slot_requested.emit(slot)
 				close()
 				return)
-	var clear := UI.button(_stage, "Tout retirer", 26, "ghost")
-	clear.position = Vector2(368, 1156)
-	clear.size = Vector2(320, 96)
-	clear.pressed.connect(func():
-		Game.unequip_all(_id)
+	var best := M3.button(_stage, "Équiper au mieux", Rect2(296, 1144, 392, 104), "main")
+	best.pressed.connect(func():
+		var cnt: int = Game.equip_best(_id)
 		Game.save_game()
+		Sfx.play("chest" if cnt > 0 else "click", -4.0)
 		changed.emit()
 		_rebuild())
+
+
+## Coupe un nom en deux lignes au plus (la seconde finit par « … » si elle déborde).
+static func _wrap2(s: String, size: int, w: float) -> Array:
+	var l1 := ""
+	var l2 := ""
+	for word in s.split(" "):
+		if l2 == "" and M3.text_w((l1 + " " + word).strip_edges(), size, true) <= w:
+			l1 = (l1 + " " + word).strip_edges()
+		else:
+			l2 = (l2 + " " + word).strip_edges()
+	while l2 != "" and M3.text_w(l2, size, true) > w:
+		l2 = l2.substr(0, l2.length() - 2).strip_edges() + "…"
+	return [l1, l2]

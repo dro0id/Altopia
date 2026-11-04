@@ -596,6 +596,7 @@ func _open_recruit() -> void:
 	var rs := RecruitScreen.new()
 	rs.inventory_requested.connect(func(): _open_collection.call_deferred(1))
 	rs.equipped.connect(_start_battle)
+	rs.fullscreen.connect(func(on: bool): _nav.visible = not on)
 	_open_modal(rs, 2)
 
 

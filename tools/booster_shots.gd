@@ -25,7 +25,7 @@ func _initialize() -> void:
 	g.item_pulls = [{"slot": "arme", "rarity": "rare"}, {"slot": "module", "rarity": "normal"}, {"slot": "relique", "rarity": "epique"}]
 	await _wait(0.4)
 	await _snap(out + "/rec_objets.png")
-	rs._view._pull(10)
+	rs._pull(10)
 	await _wait(2.5)
 	await _snap(out + "/rec_res10.png")
 	quit()
