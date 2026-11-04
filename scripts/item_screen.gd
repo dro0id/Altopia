@@ -1,31 +1,15 @@
 class_name ItemScreen
 extends Overlay
-## Base des écrans d'équipement plein écran : bandeau avec retour et titre, puis placement libre en 720 × 1280.
+## Base des écrans d'équipement plein écran : barre du haut de la refonte (retour, titre, actions), puis placement libre en 720 × 1280.
 
 var st: Control
 var _t := 0.0
 
 
-func _init(title: String) -> void:
+func _init(title: String, actions: Array = []) -> void:
 	super._init(720.0)
 	st = use_stage(1.0)
-	var band := ColorRect.new()
-	band.color = UI.BG
-	band.size = Vector2(720, 128)
-	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	st.add_child(band)
-	var back := Button.new()
-	back.text = "←"
-	back.position = Vector2(16, 16)
-	back.size = Vector2(96, 96)
-	back.add_theme_font_size_override("font_size", 36)
-	for sn in ["normal", "hover", "pressed"]:
-		back.add_theme_stylebox_override(sn, UI.box(Color(0, 0, 0, 0) if sn == "normal" else Color(1, 1, 1, 0.12), Color(0, 0, 0, 0), 48, 0))
-	back.pressed.connect(close)
-	st.add_child(back)
-	var tl := UI.label(st, title, 32, Color.WHITE, true)
-	tl.position = Vector2(132, 40)
-	tl.name = "Title"
+	M3.top_bar(st, title, close, actions)
 
 
 func _process(delta: float) -> void:
@@ -33,7 +17,7 @@ func _process(delta: float) -> void:
 
 
 func set_title(txt: String) -> void:
-	(st.get_node("Title") as Label).text = txt
+	(st.get_node("TopBar/Title") as Label).text = txt
 
 
 ## Étiquette posée à une position absolue.
@@ -59,11 +43,7 @@ func canvas(pos: Vector2, sz: Vector2, drawer: Callable) -> Control:
 
 
 func button(text: String, kind: String, pos: Vector2, sz: Vector2, fs := 28) -> Button:
-	var b := UI.button(st, text, fs, kind)
-	b.position = pos
-	b.size = sz
-	b.custom_minimum_size = Vector2(0, sz.y)
-	return b
+	return M3.button(st, text, Rect2(pos, sz), kind, fs)
 
 
 func tap(ev: InputEvent) -> bool:

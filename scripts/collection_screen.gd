@@ -199,7 +199,7 @@ func _draw_grid() -> void:
 			sub = "Niv. %d" % int(Game.levels[id])
 			if Game.can_evolve(id):
 				sub += " · ▲ palier"
-		M3.text(_grid, r.position + Vector2(0, 224), sub, 24, UI.MUTED, false, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(_grid, r.position + Vector2(8, 224), sub, 24, UI.MUTED, false, r.size.x - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
 		if squad.has(id):
 			_grid.draw_circle(r.position + Vector2(r.size.x - 28.0, 28.0), 10.0, UI.ACCENT)
 

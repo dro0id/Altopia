@@ -117,8 +117,15 @@ static func avatar(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, ring:
 	ci.draw_arc(c, r - 2.0, 0, TAU, 56, ring, 4.0, true)
 
 
+## Texte dessiné ; avec une largeur donnée, la taille diminue (jusqu'à 70 %) plutôt que de couper le texte.
 static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, col: Color = UI.TEXT, bold := false, width := -1.0, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
-	ci.draw_string(UI.bold_font() if bold else ThemeDB.fallback_font, pos, s, align, width, fs(size), col)
+	var f: Font = UI.bold_font() if bold else ThemeDB.fallback_font
+	var n := fs(size)
+	if width > 0.0:
+		var lo := int(n * 0.7)
+		while n > lo and f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, n).x > width:
+			n -= 1
+	ci.draw_string(f, pos, s, align, width, n, col)
 
 
 static func text_w(s: String, size: int, bold := false) -> float:

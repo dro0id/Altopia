@@ -33,7 +33,7 @@ func _draw() -> void:
 		if i > 0:
 			draw_line(Vector2(i * w, 0), Vector2(i * w, size.y), M3.OUT, 2.0)
 		var txt: String = ("✓ " if i == sel else "") + String(labels[i])
-		M3.text(self, Vector2(i * w, size.y * 0.5 + M3.fs(28) * 0.36), txt, 28, UI.TEXT if i == sel else UI.MUTED, true, w, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(self, Vector2(i * w + 8.0, size.y * 0.5 + M3.fs(28) * 0.36), txt, 28, UI.TEXT if i == sel else UI.MUTED, true, w - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
 	draw_style_box(sb, Rect2(Vector2.ZERO, size))
 
 

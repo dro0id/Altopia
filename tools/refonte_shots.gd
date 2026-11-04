@@ -11,6 +11,8 @@ func _initialize() -> void:
 	var only: Array = args.slice(1)
 	await process_frame
 	g = root.get_node("Game")
+	var big := only.has("grand")
+	only.erase("grand")
 	g.save_path = "user://shot.json"
 	g.reset()
 	g.stage = 12
@@ -32,6 +34,9 @@ func _initialize() -> void:
 	for r in ["epique", "rare", "epique", "legendaire", "rare", "normal", "epique", "rare", "normal", "rare", "legendaire", "normal"]:
 		g.receive_item(Items.roll(rng, r, 12, Items.SLOTS[rng.randi() % 4]))
 	g.equip_best("mara")
+	if big:
+		g.text_size = 2
+		g.apply_performance()
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await _wait(1.0)
@@ -46,6 +51,29 @@ func _initialize() -> void:
 		"boutique": func(): main._open_shop(),
 		"carte": func(): main._open_map(),
 		"reglages": func(): main._open_settings(),
+		"defaite": func(): main._open_modal(DefeatScreen.new(12)),
+		"renfort": func(): main._open_modal(BoostScreen.new(g.offer_boosts(), 15)),
+		"palier": func(): main._open_modal(EvolveScreen.new("mara")),
+		"horsligne": func(): main._open_modal(OfflineScreen.new({"seconds": 18720, "credits": 9400.0, "shards": 27})),
+		"intro": func():
+			var it := IntroScreen.new()
+			main.add_child(it)
+			main._modal = it,
+		"detail": func(): main._open_item(int(g.inventory_items()[0].id)),
+		"choix": func(): main._open_pick("mara", "arme"),
+		"pourqui": func(): main._open_who(int(g.inventory_items()[1].id), "Nouvel objet"),
+		"forge": func():
+			var f := ForgeScreen.new()
+			main._open_modal(f)
+			f._auto_pick(),
+		"boss": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle(),
+		"tuto": func():
+			g.go_to(12)
+			main._tuto = 1
+			main._start_battle(),
 		"coffre": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch
@@ -62,7 +90,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" else 0.6)
+		await _wait(2.6 if k == "victoire" else (3.5 if k == "intro" or k == "boss" else 0.6))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

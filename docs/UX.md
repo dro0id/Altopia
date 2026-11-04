@@ -46,6 +46,11 @@ Quatre emplacements par héros (arme, armure, module, relique), débloqués aux 
 - Le niveau de puissance suit le meilleur étage ; si l'inventaire est plein, le surplus part en réserve.
 - Écart assumé avec la maquette AE : les tuiles n'affichent pas « Nv 12 » (les objets neufs sont de niveau 1, la puissance vient de l'étage).
 
-## Refonte Android (en cours)
+## Refonte Android
 
-Maquettes BA à BZ (canvas, rangées « Refonte Android »). Fait : lot 1 (bouton Retour, confirmation « Quitter ? », zones sûres, barre du bas 80 dp à pastille, boutons pilule 48 dp, zones d'appui 96 px) et flèche de retour plein écran. À faire : mise en page de chaque écran selon BB à BZ, réglage de la taille du texte, économie de batterie automatique.
+Maquettes BA à BZ (canvas, rangées « Refonte Android »), toutes codées :
+- Socle : bouton Retour (fermer la fenêtre, « Quitter Altopia ? » sur le combat), zones sûres, barre du bas 80 dp à pastille, boutons pilule, zones d'appui de 48 dp, kit `M3` (barre du haut, segments, puces, cartes, lignes, menu ⋮, feuilles du bas).
+- Écrans : combat (portraits = pouvoirs, Auto, pouvoirs prêts, vitesse), Héros / Objets / Ensembles (formation dans le menu ⋮), fiche héros (Stats / Équipement / Pouvoirs), recrutement héros et objets, résultat d'ouverture, boutique, carte des étages, réglages, coffre et victoire, défaite, renfort, évolution, hors ligne, intro, tutoriel, détail d'objet, choix d'objet, « À qui l'équiper ? », forge.
+- Taille du texte (Normal, Grand, Très grand) dans Réglages ; les textes trop longs se réduisent au lieu d'être coupés.
+- Non fait : économie de batterie automatique sous 20 % (Godot 4.3 ne donne pas le niveau de batterie sans module Android).
+- Écarts assumés : l'amélioration rapide d'un héros n'est plus sur l'écran de combat (elle se fait dans Héros, la pastille du bas l'indique) ; la forge et la formation passent par le menu ⋮ ; le coffre gratuit est dans la Boutique.

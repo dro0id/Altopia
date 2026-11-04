@@ -686,7 +686,8 @@ func _on_failed() -> void:
 		_start_battle())
 	d.upgrade_pressed.connect(func():
 		Game.retreat()
-		_start_battle())
+		_start_battle()
+		_open_collection.call_deferred(0))
 	d.recruit_pressed.connect(func():
 		Game.retreat()
 		_start_battle()

@@ -13,7 +13,7 @@ var _msg := ""
 
 
 func _init(item_id: int, title := "Nouvel objet") -> void:
-	super._init(title)
+	super._init(title, [["⋮", func(): _menu()]])
 	_item_id = item_id
 	var it: Dictionary = Game.item_by_id(item_id)
 	for hid in Game.squad_ids():
@@ -31,22 +31,15 @@ func _init(item_id: int, title := "Nouvel objet") -> void:
 			row.note = "Remplace %s" % cur.name
 		_rows.append(row)
 	_rows.sort_custom(func(a, b): return (not a.locked and b.locked) or (a.locked == b.locked and a.gain > b.gain))
-	canvas(Vector2(32, 148), Vector2(656, 156), _draw_preview)
-	lab("GAIN DE PUISSANCE PAR HÉROS", 22, UI.MUTED, Vector2(32, 332))
-	_list = canvas(Vector2(32, 372), Vector2(656, 640), _draw_list)
+	canvas(Vector2(32, 112), Vector2(656, 160), _draw_preview)
+	var sec := canvas(Vector2(0, 280), Vector2(720, 60), func(c: Control): M3.section(c, Vector2(32, 44), "GAIN DE PUISSANCE PAR HÉROS"))
+	sec.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_list = canvas(Vector2(32, 344), Vector2(656, 680), _draw_list)
 	_list.gui_input.connect(_list_input)
-	_go = button("", "main", Vector2(32, 1040), Vector2(656, 104), 32)
+	_go = button("", "main", Vector2(32, 1280 - 32 - 96 - 16 - 104), Vector2(656, 104), 32)
 	_go.pressed.connect(_equip)
-	var keep := button("Garder en inventaire", "ghost", Vector2(32, 1160), Vector2(320, 96), 26)
+	var keep := button("Garder dans l'inventaire", "ghost", Vector2(32, 1280 - 32 - 96), Vector2(656, 96), 30)
 	keep.pressed.connect(close)
-	var rec := button("", "ghost", Vector2(368, 1160), Vector2(320, 96), 26)
-	UI.set_button_parts(rec, ["Recycler ·", UI.icon("shard"), str(int(Items.RECYCLE_SHARDS[it.rarity]))], 26, Color("ff9b9b"))
-	rec.disabled = it.on != "" or it.locked
-	rec.pressed.connect(func():
-		Game.recycle_items([item_id])
-		Game.save_game()
-		changed.emit()
-		close())
 	_refresh()
 
 
@@ -74,38 +67,37 @@ func _equip() -> void:
 	close()
 
 
+func _menu() -> void:
+	var it: Dictionary = Game.item_by_id(_item_id)
+	if it.on != "" or it.locked:
+		M3.menu(st, Vector2(704, 96), [["Objet verrouillé ou porté : pas de recyclage", func(): pass]])
+		return
+	M3.menu(st, Vector2(704, 96), [["Recycler · %d éclats" % int(Items.RECYCLE_SHARDS[it.rarity]), func():
+		Game.recycle_items([_item_id])
+		Game.save_game()
+		changed.emit()
+		close()]])
+
+
 func _draw_preview(c: Control) -> void:
 	var it: Dictionary = Game.item_by_id(_item_id)
 	var col := ItemUI.color(it.rarity)
-	UI.draw_gradient_box(c, Rect2(Vector2.ZERO, c.size), 32.0, Color(col.r * 0.25, col.g * 0.2, col.b * 0.15, 1.0).lerp(Color("141d3a"), 0.35), UI.PANEL, col, 3.0)
-	ItemUI.tile(c, Rect2(24, 14, 128, 128), it, true)
-	var lab_txt := "%s %s" % [String(Items.SLOT_NAMES[it.slot]).to_upper(), String(Data.RARITY_NAMES[it.rarity]).to_upper()]
-	var x := 176.0
-	for ch in lab_txt:
-		c.draw_string(UI.bold_font(), Vector2(x, 54), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, col)
-		x += UI.bold_font().get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 2.5
-	c.draw_string(UI.bold_font(), Vector2(176, 92), it.name, HORIZONTAL_ALIGNMENT_LEFT, 460.0, 30, Color.WHITE)
-	c.draw_string(ThemeDB.fallback_font, Vector2(176, 126), Items.summary(it), HORIZONTAL_ALIGNMENT_LEFT, 460.0, 22, UI.MUTED)
+	UI.draw_gradient_box(c, Rect2(Vector2.ZERO, c.size), 40.0, Color(col.r * 0.25, col.g * 0.18, col.b * 0.05), M3.S2, col, 3.0)
+	ItemUI.tile(c, Rect2(24, 24, 112, 112), it, true)
+	M3.text(c, Vector2(160, 68), String(it.name), 30, col, true, 470)
+	M3.text(c, Vector2(160, 108), Items.summary(it), 24, UI.MUTED, false, 470)
 
 
 func _draw_list(c: Control) -> void:
 	for i in _rows.size():
 		var row: Dictionary = _rows[i]
-		var y := i * 126.0
-		var on := i == _sel
-		var sb := UI.box(Color("1a2a55") if on else UI.PANEL, UI.ACCENT if on else UI.LINE2, 24, 0)
-		sb.set_border_width_all(3)
-		c.draw_style_box(sb, Rect2(0, y, 656, 98))
-		UI.portrait(c, Data.HEROES[row.hero], Vector2(64, y + 49), 44.0, _t)
-		var nm: String = String(Data.HEROES[row.hero].name).split(" ")[0]
-		c.draw_string(UI.bold_font(), Vector2(120, y + 42), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color.WHITE if not row.locked else UI.MUTED)
-		if i == 0 and not row.locked:
-			var w := UI.bold_font().get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
-			c.draw_style_box(UI.box(Color(0, 0, 0, 0), Color(UI.GREEN, 0.5), 16, 0), Rect2(132 + w, y + 18, 104, 30))
-			c.draw_string(UI.bold_font(), Vector2(144 + w, y + 40), "Meilleur", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UI.GREEN)
-		c.draw_string(ThemeDB.fallback_font, Vector2(120, y + 76), row.note, HORIZONTAL_ALIGNMENT_LEFT, 380.0, 20, UI.MUTED)
+		var r := Rect2(0, i * 128.0, 656, 112)
+		M3.row(c, r, i == _sel)
+		M3.avatar(c, Data.HEROES[row.hero], r.position + Vector2(64, 56), 40.0, Color("4fb8c8"), _t)
+		M3.text(c, r.position + Vector2(128, 50), String(Data.HEROES[row.hero].name).split(" ")[0], 30, UI.MUTED if row.locked else UI.TEXT, true)
+		M3.text(c, r.position + Vector2(128, 86), String(row.note), 24, UI.MUTED, false, 380)
 		if not row.locked:
-			ItemUI.delta(c, 632.0, y + 58.0, float(row.gain))
+			ItemUI.delta(c, 632.0, r.position.y + 68.0, float(row.gain), M3.fs(26))
 
 
 var _lpress := Vector2.ZERO
@@ -131,7 +123,7 @@ func _list_input(ev: InputEvent) -> void:
 		_ldown = true
 	elif released and _ldown:
 		_ldown = false
-		var i := int(pos.y / 126.0)
+		var i := int(pos.y / 128.0)
 		if i >= 0 and i < _rows.size():
 			_sel = i
 			Sfx.play("click", -8.0)

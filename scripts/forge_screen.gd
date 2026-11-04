@@ -5,7 +5,7 @@ extends ItemScreen
 signal changed
 
 var _tab := 0
-var _tabs: Control
+var _tabs: M3Seg
 var _body: Control
 var _sel: Array = []                  # identifiants choisis
 var _threshold := 0                   # recyclage : rareté maximale sélectionnée par le raccourci
@@ -20,21 +20,20 @@ var _small: Array = []
 
 func _init() -> void:
 	super._init("Forge")
-	_tabs = canvas(Vector2(32, 138), Vector2(656, 72), _draw_tabs)
-	_tabs.gui_input.connect(func(ev: InputEvent):
-		if tap(ev):
-			var i := clampi(int(ev.position.x / (_tabs.size.x * 0.5)), 0, 1)
-			if i != _tab:
-				_tab = i
-				_sel = []
-				Sfx.play("click", -6.0)
-				_refresh())
+	var seg := M3Seg.new(["Fusion", "Recyclage"], 0)
+	seg.position = Vector2(32, 112)
+	seg.changed.connect(func(i: int):
+		_tab = i
+		_sel = []
+		_refresh())
+	st.add_child(seg)
+	_tabs = seg
 	_body = canvas(Vector2(0, 0), Vector2(720, 1280), _draw_body)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.gui_input.connect(_body_input)
 	_grid_scroll = ScrollContainer.new()
-	_grid_scroll.position = Vector2(0, 330)
-	_grid_scroll.size = Vector2(720, 640)
+	_grid_scroll.position = Vector2(0, 288)
+	_grid_scroll.size = Vector2(720, 1280 - 288 - 32 - 104 - 120)
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_grid_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	st.add_child(_grid_scroll)
@@ -43,9 +42,9 @@ func _init() -> void:
 	_grid.draw.connect(_draw_grid)
 	_grid.gui_input.connect(_grid_input)
 	_grid_scroll.add_child(_grid)
-	_auto = button("Auto", "ghost", Vector2(32, 1160), Vector2(240, 96), 28)
+	_auto = button("Auto", "ghost", Vector2(32, 1280 - 32 - 104), Vector2(200, 104), 30)
 	_auto.pressed.connect(_auto_pick)
-	_go = button("Fusionner", "main", Vector2(288, 1160), Vector2(400, 96), 32)
+	_go = button("Fusionner", "main", Vector2(248, 1280 - 32 - 104), Vector2(440, 104), 30)
 	_go.pressed.connect(_do)
 	_refresh()
 
@@ -57,15 +56,17 @@ func _free_items() -> Array:
 func _refresh() -> void:
 	_sel = _sel.filter(func(id): return not Game.item_by_id(int(id)).is_empty())
 	_grid_scroll.visible = _tab == 1
-	_auto.text = "Auto" if _tab == 0 else "Tout cocher"
-	_go.text = "Fusionner" if _tab == 0 else "Recycler"
-	_go.position = Vector2(288, 1160)
-	_go.size = Vector2(400, 96)
+	_auto.text = "Auto" if _tab == 0 else "Cocher"
+	if _tab == 0:
+		var first: Dictionary = Game.item_by_id(int(_sel[0])) if not _sel.is_empty() else {}
+		var nr: String = Items.RARITIES[Items.rarity_index(first.rarity) + 1] if (not first.is_empty() and first.rarity != "ultime") else ""
+		_go.text = "Fusionner · %s ¢" % UI.num(Items.fuse_cost(nr)) if nr != "" else "Fusionner"
+	else:
+		_go.text = "Recycler · +%d éclats" % int(_recycle_totals().shards)
 	if _tab == 1:
 		var items := _free_items()
 		_grid.custom_minimum_size = Vector2(720, 12.0 + ceili(float(items.size()) / 4.0) * 156.0 + 20.0)
 	_grid.queue_redraw()
-	_tabs.queue_redraw()
 	_body.mouse_filter = Control.MOUSE_FILTER_STOP if _tab == 0 else Control.MOUSE_FILTER_IGNORE
 	_body.queue_redraw()
 	var ok := false
@@ -153,7 +154,7 @@ func _draw_tabs(c: Control) -> void:
 
 
 func _small_rect(i: int) -> Rect2:
-	return Rect2(32.0 + i * 104.0, 968, 92, 92)
+	return Rect2(32.0 + i * 112.0, 900, 96, 96)
 
 
 func _body_input(ev: InputEvent) -> void:
@@ -182,40 +183,27 @@ func _draw_body(c: Control) -> void:
 	if _tab == 1:
 		_draw_recycle(c)
 		return
-	c.draw_string(f, Vector2(32, 262), "Trois objets de même emplacement et même rareté", HORIZONTAL_ALIGNMENT_LEFT, 656, 22, UI.MUTED)
-	c.draw_string(f, Vector2(32, 292), "donnent un objet de rareté supérieure.", HORIZONTAL_ALIGNMENT_LEFT, 656, 22, UI.MUTED)
+	M3.para(c, Vector2(32, 232), "Trois objets de même emplacement et rareté donnent un objet de rareté supérieure.", 26, UI.MUTED, 656)
 	var first: Dictionary = Game.item_by_id(int(_sel[0])) if not _sel.is_empty() else {}
 	for i in 3:
-		var r := Rect2(124.0 + i * 164.0, 320, 144, 144)
+		var r := Rect2(360.0 - 236.0 + i * 164.0, 300, 144, 144)
 		if i < _sel.size():
 			ItemUI.tile(c, r, Game.item_by_id(int(_sel[i])), true)
 		else:
 			ItemUI.empty(c, r)
 	var k := 1.0 + 0.1 * sin(_t * 5.0)
-	c.draw_string(f, Vector2(0, 520 + 4.0 * k), "↓", HORIZONTAL_ALIGNMENT_CENTER, 720, 44, UI.ACCENT)
-	var rr := Rect2(256, 535, 208, 208)
+	M3.text(c, Vector2(0, 500 + 4.0 * k), "↓", 44, UI.ACCENT, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	var rr := Rect2(264, 524, 192, 192)
 	var nr := ""
 	if not first.is_empty() and first.rarity != "ultime":
 		nr = Items.RARITIES[Items.rarity_index(first.rarity) + 1]
 	if nr != "" and _sel.size() == 3:
-		var col := ItemUI.color(nr)
-		c.draw_circle(rr.position + rr.size * 0.5, 130.0, Color(col.r, col.g, col.b, 0.12))
 		ItemUI.tile(c, rr, {"slot": first.slot, "rarity": nr, "level": 1}, false)
 	else:
 		ItemUI.empty(c, rr)
-	var lab := "Choisis trois objets" if nr == "" else "%s %s" % [String(Items.SLOT_NAMES[first.slot]).to_upper(), String(Data.RARITY_NAMES[nr]).to_upper()]
-	c.draw_string(fb, Vector2(0, 778), lab, HORIZONTAL_ALIGNMENT_CENTER, 720, 28, ItemUI.color(nr) if nr != "" else UI.MUTED)
-	c.draw_string(f, Vector2(0, 810), "Statistiques tirées au sort · niveau moyen conservé", HORIZONTAL_ALIGNMENT_CENTER, 720, 22, UI.MUTED)
-	var cost := Items.fuse_cost(nr) if nr != "" else 0
-	var w1 := 200.0
-	var w2 := 230.0
-	var x0 := (720.0 - w1 - w2 - 12.0) * 0.5
-	c.draw_style_box(UI.box(UI.HUD, UI.LINE, 24, 0), Rect2(x0, 838, w1, 48))
-	c.draw_string(fb, Vector2(x0 + 22, 871), "Coût", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
-	c.draw_texture(UI.icon("coin"), Vector2(x0 + 96, 848))
-	c.draw_string(fb, Vector2(x0 + 134, 871), UI.num(cost) if cost > 0 else "–", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE if Game.credits >= cost else UI.RED)
-	c.draw_style_box(UI.box(UI.HUD, UI.LINE, 24, 0), Rect2(x0 + w1 + 12.0, 838, w2, 48))
-	c.draw_string(fb, Vector2(x0 + w1 + 34.0, 871), "+1 bonus garanti", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
+	var lab := "Choisis trois objets" if nr == "" else "%s %s" % [Items.SLOT_NAMES[first.slot], String(Data.RARITY_NAMES[nr]).to_lower()]
+	M3.text(c, Vector2(0, 764), lab, 30, ItemUI.color(nr) if nr != "" else UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(c, Vector2(0, 800), "Statistiques tirées au sort · +1 bonus garanti", 24, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	var msg := "Choisis les objets : ceux du même type sont proposés en premier."
 	var msg_col := UI.MUTED
 	if _sel.size() == 3 and not _valid_fusion():
@@ -223,7 +211,7 @@ func _draw_body(c: Control) -> void:
 		msg_col = UI.RED
 	elif not _sel.is_empty() and _sel.size() < 3:
 		msg = "Fusion impossible pour l'instant : il faut trois objets de même emplacement et même rareté. Tu en as %d." % _sel.size()
-	c.draw_string(f, Vector2(32, 936), msg, HORIZONTAL_ALIGNMENT_LEFT, 656, 22, msg_col)
+	M3.para(c, Vector2(32, 846), msg, 22, msg_col, 656, 1.3)
 	# objets proposés : les groupes de trois ou plus d'abord
 	_small = []
 	for g in _fusion_groups():
@@ -236,7 +224,7 @@ func _draw_body(c: Control) -> void:
 		if _sel.has(int(_small[i].id)):
 			c.draw_arc(r2.position + r2.size * 0.5, 54.0, 0, TAU, 40, UI.ACCENT, 3.0, true)
 	if _small.is_empty():
-		c.draw_string(f, Vector2(0, 1020), "Aucun objet libre à fusionner pour l'instant.", HORIZONTAL_ALIGNMENT_CENTER, 720, 24, UI.MUTED)
+		M3.text(c, Vector2(0, 940), "Aucun objet libre à fusionner pour l'instant.", 24, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _recycle_totals() -> Dictionary:
@@ -251,20 +239,9 @@ func _recycle_totals() -> Dictionary:
 
 
 func _draw_recycle(c: Control) -> void:
-	var f := ThemeDB.fallback_font
-	var fb := UI.bold_font()
-	c.draw_string(f, Vector2(32, 262), "Recycle les objets choisis en éclats de verre", HORIZONTAL_ALIGNMENT_LEFT, 656, 22, UI.MUTED)
-	c.draw_string(f, Vector2(32, 292), "et en crédits. Les objets verrouillés sont protégés.", HORIZONTAL_ALIGNMENT_LEFT, 656, 22, UI.MUTED)
+	M3.para(c, Vector2(32, 232), "Recycle les objets choisis en éclats et en crédits. Les objets verrouillés sont protégés.", 26, UI.MUTED, 656)
 	var t := _recycle_totals()
-	c.draw_style_box(UI.box(UI.PANEL, Color(0, 0, 0, 0), 24, 0), Rect2(32, 984, 656, 150))
-	c.draw_string(fb, Vector2(56, 1030), "Recyclage", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color.WHITE)
-	c.draw_string(f, Vector2(0, 1028), "%d objet%s choisi%s" % [_sel.size(), "s" if _sel.size() > 1 else "", "s" if _sel.size() > 1 else ""], HORIZONTAL_ALIGNMENT_RIGHT, 664.0, 22, UI.MUTED)
-	c.draw_style_box(UI.box(UI.HUD, UI.LINE, 24, 0), Rect2(56, 1056, 150, 48))
-	c.draw_texture(UI.icon("shard"), Vector2(72, 1066))
-	c.draw_string(fb, Vector2(110, 1090), "+%d" % int(t.shards), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
-	c.draw_style_box(UI.box(UI.HUD, UI.LINE, 24, 0), Rect2(222, 1056, 180, 48))
-	c.draw_texture(UI.icon("coin"), Vector2(238, 1066))
-	c.draw_string(fb, Vector2(276, 1090), "+%s" % UI.num(float(t.credits)), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
+	M3.text(c, Vector2(32, 1280 - 32 - 104 - 40), "%d objet%s choisi%s · +%s ¢" % [_sel.size(), "s" if _sel.size() > 1 else "", "s" if _sel.size() > 1 else "", UI.num(float(t.credits))], 24, UI.MUTED)
 
 
 func _cell(i: int) -> Rect2:
