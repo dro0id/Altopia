@@ -825,14 +825,10 @@ func claim_free_chest() -> Dictionary:
 
 func save_game() -> void:
 	last_seen = int(Time.get_unix_time_from_system())
-	var f := FileAccess.open(save_path, FileAccess.WRITE)
-	if f == null:
-		push_warning("Sauvegarde impossible")
-		return
 	var star_save := {}
 	for k in stars:
 		star_save[str(k)] = stars[k]
-	f.store_string(JSON.stringify({
+	_write_atomic(JSON.stringify({
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
 		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake, "text_size": text_size, "battery_auto": battery_auto,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
@@ -842,16 +838,51 @@ func save_game() -> void:
 	}))
 
 
-func load_game() -> bool:
-	if not FileAccess.file_exists(save_path):
+## Écriture sûre : fichier temporaire relu et vérifié, copie de secours de l'ancienne sauvegarde, puis remplacement.
+## Si le téléphone coupe pendant l'écriture, l'ancienne sauvegarde (ou sa copie) reste intacte.
+func _write_atomic(text: String) -> bool:
+	var tmp := save_path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		push_warning("Sauvegarde impossible")
 		return false
-	var f := FileAccess.open(save_path, FileAccess.READ)
+	f.store_string(text)
+	f.flush()
+	f.close()
+	if _read_save(tmp).is_empty():
+		push_warning("Sauvegarde illisible : l'ancienne est conservée")
+		return false
+	if FileAccess.file_exists(save_path):
+		DirAccess.copy_absolute(save_path, save_path + ".bak")
+	return DirAccess.rename_absolute(tmp, save_path) == OK
+
+
+## Lit une sauvegarde ; renvoie un dictionnaire vide si le fichier manque, est tronqué ou d'une version inconnue.
+func _read_save(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
 	var parsed = JSON.parse_string(f.get_as_text())
 	if typeof(parsed) != TYPE_DICTIONARY:
-		return false
+		return {}
 	var ver := int(parsed.get("version", 0))
 	if ver < 1 or ver > SAVE_VERSION:
+		return {}
+	return parsed
+
+
+func load_game() -> bool:
+	# sauvegarde principale, sinon la copie de secours, sinon une écriture complète restée en attente
+	var parsed: Dictionary = {}
+	for path in [save_path, save_path + ".bak", save_path + ".tmp"]:
+		parsed = _read_save(path)
+		if not parsed.is_empty():
+			break
+	if parsed.is_empty():
 		return false
+	var ver := int(parsed.get("version", 0))
 	daily_day = int(parsed.get("daily_day", -1))
 	items = _load_items(parsed.get("items", []))
 	stash = _load_items(parsed.get("stash", []))

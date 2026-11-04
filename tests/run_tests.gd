@@ -471,6 +471,28 @@ func test_item_packs() -> void:
 	g2.free()
 
 
+func test_safe_save() -> void:
+	_g.reset()
+	_g.credits = 111.0
+	_g.save_game()
+	_g.credits = 222.0
+	_g.save_game()
+	# sauvegarde principale tronquée (coupure pendant une écriture) : on retrouve la précédente
+	var f := FileAccess.open(_g.save_path, FileAccess.WRITE)
+	f.store_string("{\"version\": 5, \"cred")
+	f.close()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	_check(g2.load_game() and is_equal_approx(g2.credits, 111.0), "sauvegarde tronquée : la copie de secours est rechargée")
+	g2.free()
+	_check(not FileAccess.file_exists(_g.save_path + ".tmp"), "pas de fichier temporaire laissé après une sauvegarde réussie")
+	_g.save_game()
+	var g3: Node = load("res://scripts/game.gd").new()
+	g3.save_path = _g.save_path
+	_check(g3.load_game() and is_equal_approx(g3.credits, 222.0), "la sauvegarde suivante répare le fichier principal")
+	g3.free()
+
+
 func test_settings_display_and_battery() -> void:
 	_g.reset()
 	var lv: int = _g.battery_level()
