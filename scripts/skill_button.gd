@@ -58,18 +58,15 @@ func _draw() -> void:
 		draw_arc(c, 52 + sin(t * 6.0) * 1.5, 0, TAU, 56, Color(col, 0.45), 3.0, true)
 		draw_circle(c + Vector2(34, -34), 15, col)
 		draw_glyph(self, int(look.glyph), c + Vector2(34, -34), Color("06101f"), 0.32)
-	elif alive:
-		draw_circle(c, 42, Color(0, 0, 0, 0.45))
-		draw_string(UI.bold_font(), c + Vector2(-40, 12), "%.0f" % ceil(unit.skill_cd), HORIZONTAL_ALIGNMENT_CENTER, 80, 34, Color.WHITE)
 	if not alive:
 		draw_circle(c, 46, Color(0, 0, 0, 0.6))
 	if flash > 0.0:
 		draw_circle(c, 46, Color(1, 1, 1, flash * 0.5))
 	# barre de vie
 	var hp := unit.hp_frac() if alive else 0.0
-	draw_style_box(UI.box(Color("1d2a52"), Color(0, 0, 0, 0), 6, 0), Rect2(8, 112, 96, 12))
+	draw_style_box(UI.box(Color("1d2a52"), Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, 112, 12))
 	if hp > 0.0:
-		draw_style_box(UI.box(UI.GREEN if hp > 0.35 else UI.RED, Color(0, 0, 0, 0), 6, 0), Rect2(8, 112, maxf(12.0, 96.0 * hp), 12))
+		draw_style_box(UI.box(UI.GREEN if hp > 0.35 else UI.RED, Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, maxf(12.0, 112.0 * hp), 12))
 
 
 func _glyph(g: int, c: Vector2, col: Color) -> void:

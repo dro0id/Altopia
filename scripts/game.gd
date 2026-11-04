@@ -40,6 +40,7 @@ var haptics := true
 var dmg_numbers := true
 var battery_saver := false
 var reduce_shake := false
+var battery_auto := true          # passe à 30 images par seconde quand la batterie descend sous 20 %
 var text_size := 0                # 0 normal, 1 grand, 2 très grand (réglage de lisibilité)
 var music_on := true
 var tutorial_done := false
@@ -331,6 +332,13 @@ func inventory_items() -> Array:
 	return out
 
 
+func equipped_any() -> bool:
+	for it in items:
+		if it.on != "":
+			return true
+	return false
+
+
 func inventory_count() -> int:
 	return inventory_items().size()
 
@@ -568,8 +576,21 @@ func _load_items(raw: Array) -> Array:
 
 ## Applique le réglage d'économie de batterie (30 images par seconde au lieu de 60).
 func apply_performance() -> void:
-	Engine.max_fps = 30 if battery_saver else 60
+	var low := battery_auto and battery_level() >= 0 and battery_level() < 20
+	Engine.max_fps = 30 if (battery_saver or low) else 60
 	UI.text_scale = [1.0, 1.1, 1.2][clampi(text_size, 0, 2)]
+
+
+## Niveau de batterie en % (lu dans le système du téléphone), ou -1 s'il n'est pas lisible.
+func battery_level() -> int:
+	for path in ["/sys/class/power_supply/battery/capacity", "/sys/class/power_supply/Battery/capacity", "/sys/class/power_supply/BAT0/capacity"]:
+		if FileAccess.file_exists(path):
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				var txt := f.get_as_text().strip_edges()
+				if txt.is_valid_int():
+					return clampi(int(txt), 0, 100)
+	return -1
 
 
 ## Petite vibration (si activée) : achat, étoile, coffre.
@@ -813,7 +834,7 @@ func save_game() -> void:
 		star_save[str(k)] = stars[k]
 	f.store_string(JSON.stringify({
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
-		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake, "text_size": text_size,
+		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake, "text_size": text_size, "battery_auto": battery_auto,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
@@ -875,6 +896,7 @@ func load_game() -> bool:
 	battery_saver = bool(parsed.get("battery_saver", false))
 	reduce_shake = bool(parsed.get("reduce_shake", false))
 	text_size = clampi(int(parsed.get("text_size", 0)), 0, 2)
+	battery_auto = bool(parsed.get("battery_auto", true))
 	apply_performance()
 	tutorial_done = bool(parsed.get("tutorial", ver == 1))
 	intro_seen = bool(parsed.get("intro", ver == 1))

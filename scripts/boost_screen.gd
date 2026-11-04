@@ -26,7 +26,7 @@ func _init(p_offer: Array, next_boss: int) -> void:
 		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
 		sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 		M3.text(sheet, Vector2(32, 88), "Choisis un renfort", 40, UI.TEXT, true)
-		M3.text(sheet, Vector2(32, 128), "Actif jusqu'au prochain boss (étage %d)" % next_boss, 26, UI.MUTED))
+		M3.text(sheet, Vector2(32, 128), "Actif jusqu'au prochain boss", 26, UI.MUTED))
 	st.add_child(sheet)
 	for i in offer.size():
 		var id: String = offer[i]

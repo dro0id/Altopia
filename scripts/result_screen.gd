@@ -156,7 +156,7 @@ func _draw_victory() -> void:
 	if not it.is_empty():
 		ItemUI.tile(c, Rect2(272, r.position.y + 84, 176, 176), it, false)
 		M3.text(c, Vector2(32, r.position.y + 310), String(it.name), 32, _rcol, true, 656, HORIZONTAL_ALIGNMENT_CENTER)
-		var sub := Items.summary(it)
+		var sub := Items.summary_short(it, 3)
 		if _drop.status == "recycled":
 			sub = "Recyclé : +%d éclat" % int(Items.RECYCLE_SHARDS[it.rarity])
 		elif _drop.status == "stash":
@@ -179,10 +179,6 @@ func _draw_victory() -> void:
 		_icon(c, ch[0], Vector2(x + 32, 736))
 		M3.text(c, Vector2(x + 54, 736 + M3.fs(26) * 0.36), ch[1], 26, UI.TEXT, true)
 		x += w + 12.0
-	var note := "Aucun héros tombé" if _star_count == 3 else ("Un héros est tombé" if _star_count == 2 else "Plusieurs héros sont tombés")
-	if _combo > 1:
-		note += " · combo max ×%d" % _combo
-	M3.text(c, Vector2(0, 820), note, 24, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:

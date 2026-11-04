@@ -109,7 +109,7 @@ func _draw_list(c: Control) -> void:
 		M3.row(c, r, i == _sel)
 		ItemUI.tile(c, Rect2(r.position + Vector2(16, 16), Vector2(96, 96)), it, true, other)
 		M3.text(c, r.position + Vector2(136, 56), String(it.name), 30, UI.TEXT, true, 340)
-		M3.text(c, r.position + Vector2(136, 94), Items.summary(it), 24, UI.MUTED, false, 340)
+		M3.text(c, r.position + Vector2(136, 94), Items.summary_short(it), 24, UI.MUTED, false, 360)
 		ItemUI.delta(c, r.end.x - 24.0, r.position.y + 76.0, Game.power_gain(it, _hero), M3.fs(26))
 	if _cands.is_empty():
 		M3.text(c, Vector2(0, 120), "Aucun objet pour cet emplacement.", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)

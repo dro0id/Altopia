@@ -32,6 +32,7 @@ var _toast: Label
 var _toast_t := 0.0
 var _claimed := 0.0
 var _refresh_t := 0.0
+var _battery_t := 0.0
 var _modal: Control
 var _buffs: Label
 # tutoriel
@@ -42,6 +43,7 @@ var _hint_title: Label
 var _toast_box: PanelContainer
 var _hl: Control
 var _tuto := 0
+const TUTO_DONE := 5               # cinq étapes (maquette BQ)
 var _tuto_t := 0.0
 var _manual_cast := false
 
@@ -89,7 +91,7 @@ func _ready() -> void:
 	resized.connect(_layout)
 	_layout()
 	_start_battle()
-	_tuto = 4 if Game.tutorial_done else 0
+	_tuto = TUTO_DONE if Game.tutorial_done else 0
 	if not Game.intro_seen:
 		var intro := IntroScreen.new()
 		add_child(intro)
@@ -378,7 +380,7 @@ func _build_hint() -> void:
 	var skip := UI.button(row, "Passer", M3.fs(30), "text")
 	skip.custom_minimum_size = Vector2(160, 96)
 	skip.pressed.connect(func():
-		_tuto = 4
+		_tuto = TUTO_DONE
 		Game.tutorial_done = true
 		Game.save_game())
 	var sp := Control.new()
@@ -387,8 +389,8 @@ func _build_hint() -> void:
 	var nxt := UI.button(row, "Suivant", M3.fs(30), "main")
 	nxt.custom_minimum_size = Vector2(240, 96)
 	nxt.pressed.connect(func():
-		_tuto = mini(_tuto + 1, 4)
-		if _tuto == 4:
+		_tuto = mini(_tuto + 1, TUTO_DONE)
+		if _tuto == TUTO_DONE:
 			Game.tutorial_done = true
 			Game.save_game()
 		_tuto_t = 0.0)
@@ -623,8 +625,8 @@ func _on_cleared(_credits: float) -> void:
 	var shows_chest := frontier or Data.is_boss_stage(stage)
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
-	if _tuto == 3:
-		_tuto = 4
+	if _tuto == 4:
+		_tuto = TUTO_DONE
 		Game.tutorial_done = true
 	if shows_chest:
 		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
@@ -707,6 +709,10 @@ func _process(delta: float) -> void:
 		_toast_t -= delta
 		_toast_box.modulate.a = 0.0 if _toast_t <= 0.0 else minf(1.0, _toast_t * 2.0)
 	_tuto_update(delta)
+	_battery_t += delta
+	if _battery_t > 60.0:
+		_battery_t = 0.0
+		Game.apply_performance()
 	_refresh_t += delta
 	if _refresh_t > 0.15:
 		_refresh_t = 0.0
@@ -738,12 +744,20 @@ func _tuto_update(delta: float) -> void:
 			if total > Game.squad_ids().size():
 				_tuto = 3
 		3:
+			title = "Équipe un objet"
+			text = "Les coffres donnent des objets. Dans Héros › Objets, « Équiper au mieux » les place sur tes héros."
+			target = Rect2(_nav.position + Vector2(180, 8), Vector2(180, 144))
+			if not Game.equipped_any():
+				pass
+			else:
+				_tuto = 4
+		4:
 			title = "Monte les étages"
 			text = "Un mini-boss t'attend à l'étage 5, un gros boss à l'étage 10."
 	var show := title != "" and (_modal == null or not is_instance_valid(_modal))
 	_hint.visible = show
 	if show:
-		_hint_step.text = "ÉTAPE %d / 4" % (_tuto + 1)
+		_hint_step.text = "ÉTAPE %d / %d" % [_tuto + 1, TUTO_DONE]
 		_hint_title.text = title
 		_hint_label.text = text
 	if target.size != Vector2.ZERO and show:
@@ -806,7 +820,7 @@ func _refresh() -> void:
 	_shards_chip.fit_chip()
 	_shards_chip.size.y = 64.0
 	_shards_chip.visible = not big
-	var rx := 616.0
+	var rx := 616.0 if not big else 696.0
 	if _shards_chip.visible:
 		_shards_chip.position = Vector2(rx - _shards_chip.size.x, 24)
 		rx -= _shards_chip.size.x + 12.0
@@ -817,7 +831,13 @@ func _refresh() -> void:
 	if not Game.is_frontier() and _boss == "":
 		sub = "Farm · " + sub
 	_info.text = sub
+	_info.visible = false
 	_auto_b.text = ("Auto · ×%d" if Game.auto_cast else "Manuel · ×%d") % int(Game.speed)
+	# gros boss (maquette BX) : un seul bouton flottant, pas de réglages ni d'éclats dans la barre
+	_fab_speed.visible = not big
+	_settings_btn.visible = not big
+	_auto_b.size.x = 528.0 if big else 400.0
+	_fab_cast.position.x = 576.0 if big else 448.0
 	_refresh_boss()
 	var parts: Array = []
 	if Game.perseverance > 0:

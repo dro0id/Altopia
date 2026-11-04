@@ -85,7 +85,7 @@ func _draw_preview(c: Control) -> void:
 	UI.draw_gradient_box(c, Rect2(Vector2.ZERO, c.size), 40.0, Color(col.r * 0.25, col.g * 0.18, col.b * 0.05), M3.S2, col, 3.0)
 	ItemUI.tile(c, Rect2(24, 24, 112, 112), it, true)
 	M3.text(c, Vector2(160, 68), String(it.name), 30, col, true, 470)
-	M3.text(c, Vector2(160, 108), Items.summary(it), 24, UI.MUTED, false, 470)
+	M3.text(c, Vector2(160, 108), Items.summary_short(it), 24, UI.MUTED, false, 470)
 
 
 func _draw_list(c: Control) -> void:

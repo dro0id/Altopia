@@ -233,11 +233,11 @@ const SHOP_ITEMS := [
 	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats", "cost": 6, "chest": "rare", "tab": "chests"},
 	{"id": "chest_epic", "name": "Coffre épique", "desc": "10 % d'héros en plus", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
 	{"id": "tokens6", "name": "Jetons ×6", "desc": "Deux appels", "cost": 8, "tokens": 6, "tab": "tokens"},
-	{"id": "itokens6", "name": "Jetons d'objet ×6", "desc": "Trois caisses", "cost": 8, "item_tokens": 6, "tab": "tokens"},
 	{"id": "boost2", "name": "Boost ×2", "desc": "1 h de crédits doublés", "cost": 10, "boost": 1.0, "tab": "boosts"},
+	{"id": "itokens6", "name": "Jetons d'objet ×6", "desc": "Trois caisses", "cost": 8, "item_tokens": 6, "tab": "tokens"},
 ]
 ## Offre du jour (renouvelée chaque jour) : un coffre légendaire et 3 jetons à -30 %.
-const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre légendaire + 3 jetons + 2 d'objet", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3, "item_tokens": 2}
+const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre + 3 jetons + 2 d'objet", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3, "item_tokens": 2}
 const BOOST_MULT := 2.0
 
 

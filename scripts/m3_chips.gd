@@ -24,7 +24,7 @@ func _draw() -> void:
 		var lab := String(labels[i])
 		var locked := lab.begins_with("🔒 ")
 		if locked:
-			lab = lab.substr(3)
+			lab = lab.substr(2)
 		var txt: String = ("✓ " if on else "") + lab
 		var w := M3.text_w(txt, 26, true) + 48.0 + (32.0 if locked else 0.0)
 		var r := Rect2(x, 16, w, 64)
@@ -34,8 +34,8 @@ func _draw() -> void:
 		else:
 			draw_style_box(UI.box(Color(0, 0, 0, 0), M3.OUT, 16, 0), r)
 		if locked:
-			M3.lock(self, Vector2(x + 36, 48), UI.MUTED, 1.0)
-			M3.text(self, Vector2(x + 32.0, 48 + M3.fs(26) * 0.36), txt, 26, UI.MUTED, true, w - 32.0, HORIZONTAL_ALIGNMENT_CENTER)
+			M3.lock(self, Vector2(x + 34, 48), UI.MUTED, 1.0)
+			M3.text(self, Vector2(x + 56.0, 48 + M3.fs(26) * 0.36), txt, 26, UI.MUTED, true)
 		else:
 			M3.text(self, Vector2(x, 48 + M3.fs(26) * 0.36), txt, 26, UI.TEXT if on else UI.MUTED, true, w, HORIZONTAL_ALIGNMENT_CENTER)
 		x += w + 12.0

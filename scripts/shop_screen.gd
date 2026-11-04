@@ -67,13 +67,13 @@ func _rebuild() -> void:
 			list.append(it)
 	var col := 0
 	for it in list:
-		_card(it, Vector2(32.0 + col * 336.0, y), Vector2(320, 316))
+		_card(it, Vector2(32.0 + col * 336.0, y), Vector2(320, 272))
 		col += 1
 		if col == 2:
 			col = 0
-			y += 332.0
+			y += 288.0
 	if col != 0:
-		y += 332.0
+		y += 288.0
 	if tab_id == "" or tab_id == "chests":
 		y = _free_row(y) + 16.0
 	if tab_id == "":
@@ -95,16 +95,16 @@ func _daily(y: float) -> float:
 	var it: Dictionary = Data.DAILY_OFFER
 	var c := Control.new()
 	c.position = Vector2(32, y)
-	c.size = Vector2(656, 296)
+	c.size = Vector2(656, 256)
 	c.draw.connect(func():
 		UI.draw_gradient_box(c, Rect2(Vector2.ZERO, c.size), 40.0, Color("3a2a0a"), Color("1a1004"), Color("ffb142"), 3.0)
-		M3.text(c, Vector2(32, 52), "OFFRE DU JOUR", 24, Color("ffb142"), true)
+		M3.text(c, Vector2(32, 44), "OFFRE DU JOUR", 24, Color("ffb142"), true)
 		var avail := Game.daily_available()
-		M3.text(c, Vector2(0, 52), ("-30 %% · %s" % _hm(Game.daily_remaining())) if avail else "Revient demain", 24, Color("ffb142"), false, 624, HORIZONTAL_ALIGNMENT_RIGHT)
-		M3.text(c, Vector2(32, 100), String(it.name), 36, UI.TEXT, true)
-		M3.text(c, Vector2(32, 136), String(it.desc), 26, UI.MUTED))
+		M3.text(c, Vector2(0, 44), ("-30 %% · %s" % _hm(Game.daily_remaining())) if avail else "Revient demain", 24, Color("ffb142"), false, 624, HORIZONTAL_ALIGNMENT_RIGHT)
+		M3.text(c, Vector2(32, 88), String(it.name), 36, UI.TEXT, true)
+		M3.text(c, Vector2(32, 122), String(it.desc), 26, UI.MUTED))
 	_content.add_child(c)
-	var b := _price_button(c, Rect2(24, 168, 608, 104), int(it.cost), "gold", func(): _buy(it.id))
+	var b := _price_button(c, Rect2(24, 140, 608, 96), int(it.cost), "gold", func(): _buy(it.id))
 	b.set_meta("avail_on", true)
 	_live.append([c, func():
 		var avail := Game.daily_available()
@@ -115,7 +115,7 @@ func _daily(y: float) -> float:
 			else:
 				b.remove_meta("avail_on")
 		b.disabled = not avail or Game.crystals < int(it.cost)])
-	return y + 296.0
+	return y + 256.0
 
 
 func _card(it: Dictionary, pos: Vector2, sz: Vector2) -> void:
@@ -125,10 +125,10 @@ func _card(it: Dictionary, pos: Vector2, sz: Vector2) -> void:
 	c.draw.connect(_draw_card.bind(c, it))
 	_content.add_child(c)
 	var d := UI.label(c, String(it.desc), M3.fs(24), UI.MUTED)
-	d.position = Vector2(32, 152)
+	d.position = Vector2(32, 122)
 	d.size = Vector2(256, 34)
 	d.clip_text = true
-	var b := _price_button(c, Rect2(32, 196, 256, 96), int(it.cost), "ghost", func(): _buy(it.id))
+	var b := _price_button(c, Rect2(32, 160, 256, 96), int(it.cost), "ghost", func(): _buy(it.id))
 	_live.append([c, func():
 		b.disabled = Game.crystals < int(it.cost)
 		if it.has("boost") and Game.boost_active():
@@ -139,12 +139,12 @@ func _card(it: Dictionary, pos: Vector2, sz: Vector2) -> void:
 
 func _draw_card(c: Control, it: Dictionary) -> void:
 	M3.card(c, Rect2(Vector2.ZERO, c.size))
-	var ctr := Vector2(c.size.x * 0.5, 64.0)
+	var ctr := Vector2(c.size.x * 0.5, 50.0)
 	match String(it.id):
 		"chest_rare":
-			_mini_chest(c, ctr + Vector2(0, 30), 96.0, CHEST_COLS.rare)
+			_mini_chest(c, ctr + Vector2(0, 24), 80.0, CHEST_COLS.rare)
 		"chest_epic":
-			_mini_chest(c, ctr + Vector2(0, 30), 96.0, CHEST_COLS.epique)
+			_mini_chest(c, ctr + Vector2(0, 24), 80.0, CHEST_COLS.epique)
 		"tokens6":
 			_token(c, ctr)
 		"itokens6":
@@ -152,7 +152,7 @@ func _draw_card(c: Control, it: Dictionary) -> void:
 		"boost2":
 			c.draw_circle(ctr, 36, M3.S3)
 			SkillButton.draw_glyph(c, 0, ctr, UI.GOLD, 0.8)
-	M3.text(c, Vector2(32, 144), String(it.name), 30, UI.TEXT, true, 270)
+	M3.text(c, Vector2(32, 116), String(it.name), 30, UI.TEXT, true, 270)
 	if it.has("badge"):
 		c.draw_style_box(UI.box(UI.GOLD, Color(0, 0, 0, 0), 16, 0), Rect2(c.size.x - 168.0, 16, 152, 40))
 		M3.text(c, Vector2(c.size.x - 168.0, 44), String(it.badge), 20, Color("1a1004"), true, 152, HORIZONTAL_ALIGNMENT_CENTER)

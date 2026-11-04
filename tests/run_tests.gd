@@ -471,6 +471,22 @@ func test_item_packs() -> void:
 	g2.free()
 
 
+func test_settings_display_and_battery() -> void:
+	_g.reset()
+	var lv: int = _g.battery_level()
+	_check(lv == -1 or (lv >= 0 and lv <= 100), "niveau de batterie lisible ou -1")
+	_g.text_size = 2
+	_g.battery_saver = true
+	_g.apply_performance()
+	_check(is_equal_approx(UI.text_scale, 1.2) and Engine.max_fps == 30, "texte très grand et économie de batterie appliqués")
+	_g.text_size = 0
+	_g.battery_saver = false
+	_g.battery_auto = false
+	_g.apply_performance()
+	_check(is_equal_approx(UI.text_scale, 1.0) and Engine.max_fps == 60, "retour aux réglages normaux")
+	_g.battery_auto = true
+
+
 func test_shop_and_tokens() -> void:
 	_g.crystals = 5
 	_check(_g.buy("tokens6") == "" and _g.crystals == 5, "pas d'achat sans assez de cristaux")

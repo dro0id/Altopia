@@ -20,20 +20,21 @@ func _init() -> void:
 		changed.emit()
 		close(), [["⋮", _menu]])
 	_rows = [
-		[176.0, "Effets sonores", func(): return "Volume %d %%" % int(round(Game.sfx_vol * 100.0)), "sfx_on", "sfx_vol"],
-		[280.0, "Musique", func(): return "Volume %d %%" % int(round(Game.music_vol * 100.0)), "music_on", "music_vol"],
-		[384.0, "Vibrations", func(): return "Retour haptique", "haptics", ""],
-		[640.0, "Chiffres de dégâts", func(): return "Au-dessus des ennemis", "dmg_numbers", ""],
-		[744.0, "Réduire les tremblements", func(): return "Moins de secousses à l'écran", "reduce_shake", ""],
-		[904.0, "Économie de batterie", func(): return "30 images par seconde", "battery_saver", ""],
+		[168.0, "Effets sonores", func(): return "Volume %d %%" % int(round(Game.sfx_vol * 100.0)), "sfx_on", "sfx_vol"],
+		[262.0, "Musique", func(): return "Volume %d %%" % int(round(Game.music_vol * 100.0)), "music_on", "music_vol"],
+		[356.0, "Vibrations", func(): return "Retour haptique", "haptics", ""],
+		[588.0, "Chiffres de dégâts", func(): return "Au-dessus des ennemis", "dmg_numbers", ""],
+		[698.0, "Réduire les tremblements", func(): return "", "reduce_shake", ""],
+		[850.0, "Économie de batterie", func(): return "30 images par seconde", "battery_saver", ""],
+		[958.0, "Économie auto sous 20 %", func(): return "" if Game.battery_level() >= 0 else "Niveau de batterie illisible sur ce téléphone", "battery_auto", ""],
 	]
 	_body = Control.new()
-	_body.size = Vector2(720, 1100)
+	_body.size = Vector2(720, 1280)
 	_body.draw.connect(_draw_body)
 	_body.gui_input.connect(_input_body)
 	_st.add_child(_body)
 	var seg := M3Seg.new(["Normal", "Grand", "Très grand"], Game.text_size)
-	seg.position = Vector2(32, 544)
+	seg.position = Vector2(32, 524)
 	seg.changed.connect(func(i: int):
 		Game.text_size = i
 		Game.apply_performance()
@@ -62,19 +63,22 @@ func _confirm_erase() -> void:
 
 func _draw_body() -> void:
 	M3.section(_body, Vector2(32, 152), "SON")
-	M3.section(_body, Vector2(32, 520), "AFFICHAGE")
-	M3.section(_body, Vector2(32, 880), "BATTERIE")
+	M3.section(_body, Vector2(32, 506), "AFFICHAGE")
+	M3.section(_body, Vector2(32, 838), "BATTERIE")
 	for r in _rows:
 		var y: float = r[0]
 		var on: bool = bool(Game.get(r[3]))
 		var sub: String = (r[2] as Callable).call()
-		M3.text(_body, Vector2(32, y + 44), r[1], 30, UI.TEXT)
-		M3.text(_body, Vector2(32, y + 80), sub, 24, UI.MUTED)
+		if sub == "":
+			M3.text(_body, Vector2(32, y + 62), r[1], 30, UI.TEXT)
+		else:
+			M3.text(_body, Vector2(32, y + 44), r[1], 30, UI.TEXT)
+			M3.text(_body, Vector2(32, y + 80), sub, 24, UI.MUTED, false, 520)
 		# interrupteur (52 × 32 dp)
 		var sr := Rect2(584, y + 20, 104, 64)
 		_body.draw_style_box(UI.box(UI.ACCENT if on else M3.S3, UI.ACCENT if on else M3.OUT, 32, 0), sr)
 		_body.draw_circle(Vector2(sr.end.x - 32.0, sr.get_center().y) if on else Vector2(sr.position.x + 32.0, sr.get_center().y), 20.0 if on else 16.0, UI.DARK if on else UI.MUTED)
-	M3.text(_body, Vector2(32, 1040), "Altopia 0.1.0 · sauvegarde automatique", 24, UI.MUTED)
+	M3.text(_body, Vector2(32, _body.size.y - 32.0), "Altopia 0.1.0 · sauvegarde automatique", 24, UI.MUTED)
 
 
 func _input_body(ev: InputEvent) -> void:
@@ -83,7 +87,7 @@ func _input_body(ev: InputEvent) -> void:
 	var p: Vector2 = ev.position
 	for r in _rows:
 		var y: float = r[0]
-		if p.y < y or p.y > y + 104.0:
+		if p.y < y or p.y > y + 100.0:
 			continue
 		if p.x < 540.0 and String(r[4]) != "":
 			# toucher le texte change le volume par paliers
@@ -96,7 +100,7 @@ func _input_body(ev: InputEvent) -> void:
 			Game.set(r[3], true)
 		else:
 			Game.set(r[3], not bool(Game.get(r[3])))
-		if r[3] == "battery_saver":
+		if r[3] == "battery_saver" or r[3] == "battery_auto":
 			Game.apply_performance()
 		if r[3] == "music_on" or r[4] == "music_vol":
 			Sfx.refresh_music()

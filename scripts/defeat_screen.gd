@@ -76,13 +76,13 @@ func _draw_body() -> void:
 	M3.text(c, Vector2(32, 222), "Ta persévérance monte : +%d %% de puissance" % Game.perseverance_pct(), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(32, 260), "au prochain essai (max +%d %%)." % int(round(Data.PERSEVERANCE_STEP * Data.PERSEVERANCE_MAX * 100.0)), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	var ids := Game.squad_ids()
-	var x0 := 360.0 - (ids.size() * 104.0 + (ids.size() - 1) * 20.0) * 0.5
+	var x0 := 360.0 - (ids.size() * 92.0 + (ids.size() - 1) * 20.0) * 0.5
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	for i in ids.size():
-		var cc := Vector2(x0 + 52.0 + i * 124.0, 362)
-		M3.avatar(c, Data.HEROES[ids[i]], cc, 52.0, UI.RED, _t)
-		c.draw_circle(cc, 50.0, Color(0.04, 0.06, 0.12, 0.45))
-	var r := Rect2(32, 452, 656, 168)
+		var cc := Vector2(x0 + 46.0 + i * 112.0, 346)
+		M3.avatar(c, Data.HEROES[ids[i]], cc, 46.0, UI.RED, _t)
+		c.draw_circle(cc, 44.0, Color(0.04, 0.06, 0.12, 0.45))
+	var r := Rect2(32, 432, 656, 168)
 	M3.card(c, r)
 	M3.text(c, r.position + Vector2(32, 52), "CONSEIL", 24, UI.GREEN, true)
 	M3.para(c, r.position + Vector2(32, 96), _advice(), 28, UI.TEXT, 592)

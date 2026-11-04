@@ -21,14 +21,14 @@ func _init() -> void:
 	size = Vector2(720, 1120)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chips = M3Chips.new(["Tous", "Arme", "Armure", "Module", "Relique"], 0)
-	_chips.position = Vector2(32, 248)
+	_chips.position = Vector2(32, 260)
 	_chips.changed.connect(func(i: int):
 		_filter = "" if i == 0 else Items.SLOTS[i - 1]
 		refresh())
 	add_child(_chips)
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(0, 352)
-	_scroll.size = Vector2(720, 768)
+	_scroll.position = Vector2(0, 344)
+	_scroll.size = Vector2(720, 776)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(_scroll)
@@ -86,9 +86,9 @@ func _draw() -> void:
 	var n: int = Game.inventory_count()
 	var full := n >= Items.INVENTORY_MAX
 	var lab := "Inventaire" if Game.stash.is_empty() else "Inventaire · %d en réserve" % Game.stash.size()
-	M3.text(self, Vector2(32, 228), lab, 24, UI.MUTED if Game.stash.is_empty() else UI.RED)
-	M3.text(self, Vector2(32, 228), "%d / %d" % [n, Items.INVENTORY_MAX], 26, UI.TEXT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
-	M3.bar(self, Rect2(32, 244, 656, 12), float(n) / float(Items.INVENTORY_MAX), UI.RED if full else (Color("ffb142") if n >= 54 else UI.ACCENT))
+	M3.text(self, Vector2(32, 216), lab, 24, UI.MUTED if Game.stash.is_empty() else UI.RED)
+	M3.text(self, Vector2(32, 216), "%d / %d" % [n, Items.INVENTORY_MAX], 26, UI.TEXT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
+	M3.bar(self, Rect2(32, 230, 656, 12), float(n) / float(Items.INVENTORY_MAX), UI.RED if full else (Color("ffb142") if n >= 54 else UI.ACCENT))
 
 
 func _cell(i: int) -> Rect2:

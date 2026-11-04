@@ -164,6 +164,13 @@ static func sub_lines(item: Dictionary) -> Array:
 	return out
 
 
+## Résumé court : valeur principale et au plus `n` - 1 bonus (pour les lignes de liste).
+static func summary_short(item: Dictionary, n := 2) -> String:
+	var parts: Array = [main_text(item)]
+	parts.append_array(sub_lines(item))
+	return " · ".join(parts.slice(0, n))
+
+
 static func summary(item: Dictionary) -> String:
 	var parts: Array = [main_text(item)]
 	parts.append_array(sub_lines(item))
