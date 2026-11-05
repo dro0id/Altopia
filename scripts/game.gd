@@ -26,7 +26,8 @@ var fragments := {}            # héros -> fragments pour la prochaine étoile
 var squad: Array = []          # les 5 héros au combat, un par emplacement (0 = première ligne au centre)
 var seen_scenes: Array = []      # scènes d'histoire déjà vues (branche 2)
 var story_choices := {}          # réponse choisie par le Capitaine, par scène
-var chapters_done: Array = []    # chapitres terminés (récompense versée)
+var chapters_done: Array = []
+var tips: Array = []               # astuces déjà montrées (ex. « items »)    # chapitres terminés (récompense versée)
 var item_tokens := 0           # jetons d'objet (caisses d'équipement)
 var item_pack_pity := {"epic": 0, "leg": 0}
 var item_pulls: Array = []       # derniers objets ouverts {slot, rarity}, les plus récents en tête
@@ -95,6 +96,7 @@ func reset() -> void:
 	seen_scenes = []
 	story_choices = {}
 	chapters_done = []
+	tips = []
 	item_pack_pity = {"epic": 0, "leg": 0}
 	item_pulls = []
 	daily_day = -1
@@ -864,7 +866,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -929,6 +931,9 @@ func load_game() -> bool:
 	var sc: Dictionary = parsed.get("story_choices", {})
 	for k in sc:
 		story_choices[String(k)] = int(sc[k])
+	tips = []
+	for tp in parsed.get("tips", []):
+		tips.append(String(tp))
 	chapters_done = []
 	for n in parsed.get("chapters_done", []):
 		chapters_done.append(int(n))

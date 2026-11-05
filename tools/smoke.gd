@@ -8,6 +8,7 @@ func _initialize() -> void:
 	g.reset()
 	g.intro_seen = true
 	g.seen_scenes = ["prologue"]
+	g.tutorial_done = true
 	g.speed = 3.0
 	Engine.time_scale = 6.0
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()

@@ -14,6 +14,7 @@ var _t := 0.0
 var _picker: Control
 var _page := 0
 var _head: Control
+var level_button: Button        # « Monter le niveau » (le tutoriel le met en avant)
 
 
 ## `page` : 0 statistiques, 1 équipement, 2 pouvoirs.
@@ -134,6 +135,7 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 	var cost_v: int = int(Game.evolve_cost(_id).credits) if evo else Game.level_cost(_id)
 	var up := M3.button(_stage, ("Évoluer · %s ¢" if evo else "Monter le niveau · %s ¢") % UI.num(cost_v), Rect2(32, 1144, 656, 104), "main")
 	up.disabled = Game.credits < cost_v and not evo
+	level_button = up
 	up.pressed.connect(func():
 		if Game.can_evolve(_id):
 			evolve_requested.emit(_id)
