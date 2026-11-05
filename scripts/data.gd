@@ -117,7 +117,12 @@ const ENEMIES := {
 	"reine": {"name": "Reine des mites", "hp": 120.0, "atk": 3.2, "def": 1.5, "interval": 1.4, "ranged": false, "gold": 30.0},
 }
 const BOSS_KINDS := ["foreur", "titan", "sentinelle", "reine"]
-const BIG_BOSSES := ["titan", "sentinelle", "reine"]   # un gros boss différent tous les 10 étages, en boucle
+const BIG_BOSSES := ["titan", "sentinelle", "reine"]
+## Réglage de difficulté des boss (attaque et points de vie, en plus de l'échelle des étages).
+const BIG_BOSS_ATK := 1.0
+const BIG_BOSS_HP := 1.0
+const MINI_BOSS_ATK := 1.0
+const BIG_BOSS_ATK_GROWTH := 0.0   # attaque en plus par tranche de 10 étages après le premier gros boss
 
 const ENEMY_HP := 62.0
 const ENEMY_ATK := 8.0
@@ -155,6 +160,8 @@ static func boss_type(stage: int) -> String:
 
 ## Type de gros boss d'un étage multiple de 10 (Gardien de verre, Sentinelle prismatique, Reine des mites, puis on recommence).
 static func big_boss_kind(stage: int) -> String:
+	if Sector.is_generated(stage):
+		return String(Sector.info(stage).boss_kind)
 	return BIG_BOSSES[(stage / BIG_BOSS_EVERY - 1) % BIG_BOSSES.size()]
 
 
@@ -169,7 +176,11 @@ static func boss_kind(stage: int) -> String:
 
 static func boss_name(stage: int) -> String:
 	var k := boss_kind(stage)
-	return ENEMIES[k].name if k != "" else ""
+	if k == "":
+		return ""
+	if boss_type(stage) == "big" and Sector.is_generated(stage):
+		return "%s · %s" % [ENEMIES[k].name, Sector.info(stage).boss_title]
+	return ENEMIES[k].name
 
 
 static func is_boss_stage(stage: int) -> bool:

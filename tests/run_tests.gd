@@ -513,6 +513,46 @@ func test_story() -> void:
 	g2.free()
 
 
+func test_generated_sectors() -> void:
+	_g.reset()
+	_check(Sector.info(40).is_empty() and not Sector.info(41).is_empty(), "secteurs générés à partir de l'étage 41")
+	var a := Sector.info(55)
+	var b := Sector.info(52)
+	_check(a.name == b.name and a.rule == b.rule and int(a.index) == 6 and int(a.from) == 51 and int(a.to) == 60, "un secteur est identique pour tous ses étages")
+	_check(Sector.info(55).hash() == Sector.info(55).hash(), "génération déterministe")
+	var names := {}
+	for k in range(5, 25):
+		names[Sector.info(k * 10).name] = true
+	_check(names.size() >= 12, "des noms de secteurs variés")
+	_check(Data.boss_type(60) == "big" and Data.boss_name(60).find(String(Sector.info(60).boss_title)) >= 0, "le gros boss d'un secteur généré porte un titre")
+	# difficulté adaptative : l'équilibre des pas donne environ 85 % de victoires
+	var p := -log(Sector.STEP_LOSS) / (log(Sector.STEP_WIN) - log(Sector.STEP_LOSS))
+	_check(absf(p - Sector.TARGET_WIN) < 0.02, "les pas visent 85 %% de victoires (%.3f)" % p)
+	_g.best_stage = 45
+	_g.stage = 45
+	var f0: float = _g.inf_diff
+	_g.record_generated(45, true)
+	_check(_g.inf_diff > f0 and is_equal_approx(Sector.factor, _g.inf_diff), "une victoire durcit le secteur")
+	_g.record_generated(45, false)
+	_check(_g.inf_diff < f0, "une défaite l'adoucit")
+	_g.record_generated(30, false)
+	_check(_g.gen_tries == 2, "les étages de l'histoire ne comptent pas")
+	# le butin suit la difficulté
+	Sector.factor = 2.0
+	var c2: Dictionary = _g.open_chest("rare", 45)
+	Sector.factor = 1.0
+	var c1: Dictionary = _g.open_chest("rare", 45)
+	_check(float(c2.credits) > float(c1.credits) * 1.8, "le butin des secteurs générés suit la difficulté")
+	_g.sectors_seen = [5]
+	_g.save_game()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	g2.load_game()
+	_check(is_equal_approx(g2.inf_diff, _g.inf_diff) and g2.sectors_seen.has(5) and g2.gen_tries == 2, "difficulté adaptative et secteurs vus sauvegardés")
+	g2.free()
+	Sector.factor = 1.0
+
+
 func test_safe_save() -> void:
 	_g.reset()
 	_g.credits = 111.0

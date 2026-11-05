@@ -27,7 +27,11 @@ var squad: Array = []          # les 5 héros au combat, un par emplacement (0 =
 var seen_scenes: Array = []      # scènes d'histoire déjà vues (branche 2)
 var story_choices := {}          # réponse choisie par le Capitaine, par scène
 var chapters_done: Array = []
-var tips: Array = []               # astuces déjà montrées (ex. « items »)    # chapitres terminés (récompense versée)
+var tips: Array = []
+var inf_diff := 1.0                # difficulté adaptative des secteurs générés (vise 85 % de victoires)
+var gen_tries := 0
+var gen_wins := 0
+var sectors_seen: Array = []       # secteurs générés déjà présentés               # astuces déjà montrées (ex. « items »)    # chapitres terminés (récompense versée)
 var item_tokens := 0           # jetons d'objet (caisses d'équipement)
 var item_pack_pity := {"epic": 0, "leg": 0}
 var item_pulls: Array = []       # derniers objets ouverts {slot, rarity}, les plus récents en tête
@@ -338,6 +342,19 @@ func inventory_items() -> Array:
 		if it.on == "":
 			out.append(it)
 	return out
+
+
+## Tentative sur un étage généré (à la frontière) : la difficulté monte un peu après une victoire et baisse
+## nettement après une défaite. L'équilibre de ces deux pas donne environ 85 % de victoires.
+func record_generated(at_stage: int, won: bool) -> void:
+	if not Sector.is_generated(at_stage):
+		return
+	gen_tries += 1
+	if won:
+		gen_wins += 1
+	inf_diff = clampf(inf_diff * (Sector.STEP_WIN if won else Sector.STEP_LOSS), Sector.MIN_FACTOR, Sector.MAX_FACTOR)
+	Sector.factor = inf_diff
+	changed.emit()
 
 
 func equipped_any() -> bool:
@@ -734,6 +751,9 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 
 func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: bool = false, big_boss := false) -> Dictionary:
 	var rw := Data.chest_rewards(at_stage, rarity)
+	if Sector.is_generated(at_stage):
+		# plus la difficulté adaptative est haute, plus le butin est généreux
+		rw = {"credits": rw.credits * Sector.factor, "shards": int(round(float(rw.shards) * Sector.factor))}
 	var cr: float = round(rw.credits * (1.0 + loot_bonus))
 	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus, "tokens": int(Data.CHEST_TOKENS[rarity]), "crystals": 0, "item_tokens": 1 if big_boss else 0}
 	chest["item"] = _roll_chest_item(rarity, at_stage, big_boss)
@@ -866,7 +886,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -931,6 +951,13 @@ func load_game() -> bool:
 	var sc: Dictionary = parsed.get("story_choices", {})
 	for k in sc:
 		story_choices[String(k)] = int(sc[k])
+	inf_diff = clampf(float(parsed.get("inf_diff", 1.0)), Sector.MIN_FACTOR, Sector.MAX_FACTOR)
+	Sector.factor = inf_diff
+	gen_tries = int(parsed.get("gen_tries", 0))
+	gen_wins = int(parsed.get("gen_wins", 0))
+	sectors_seen = []
+	for k in parsed.get("sectors_seen", []):
+		sectors_seen.append(int(k))
 	tips = []
 	for tp in parsed.get("tips", []):
 		tips.append(String(tp))

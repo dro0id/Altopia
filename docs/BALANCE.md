@@ -50,3 +50,10 @@ Les renforts choisis entre les étages n'étaient pas transmis au combat affich�
 - Joueur simulé : il joue en automatique, sans lancer les pouvoirs à la main, donc sans combos. Un vrai joueur ira un peu plus vite. Il choisit les renforts dans un ordre fixe, ce qui n'est pas optimal.
 - Les chiffres de coffre et d'économie sont à régler au test sur téléphone.
 - Le temps réel d'une session dépend du temps passé dans les écrans, non simulé.
+
+## Secteurs générés (étage 41 et au-delà)
+- Chaque secteur de 10 étages est tiré d'une graine fixe (`scripts/sector.gd`) : nom, couleurs, règle, ennemis d'élite (12 % puis jusqu'à 35 %), gros boss titré avec un trait.
+- Difficulté adaptative : ×1,04 par victoire, ×0,80 par défaite (à la frontière) ; l'équilibre donne 85 % de victoires. Le butin des secteurs générés est multiplié par ce même facteur.
+- Un combat de secteur généré ne peut pas durer plus de 3 minutes : l'escouade se replie (compte comme une défaite).
+- Mesure (`tools/progress.gd -- 160`) : 83 % de victoires sur 145 tentatives entre les étages 41 et 160 ; facteur entre ×0,4 et ×3,5 selon la profondeur.
+- Les étages 1 à 40 (histoire) ne changent pas.

@@ -11,10 +11,12 @@ var _st: Control
 var _stage := 1
 var _t := 0.0
 var _body: Control
+var _timeout := false
 
 
-func _init(stage_n: int) -> void:
+func _init(stage_n: int, timed_out := false) -> void:
 	super._init(720.0)
+	_timeout = timed_out
 	_st = use_stage(1.0)
 	_stage = stage_n
 	_body = Control.new()
@@ -72,9 +74,21 @@ func _draw_body() -> void:
 	for ch in txt:
 		c.draw_string(fb, Vector2(x, 104), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24), UI.RED)
 		x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24)).x + 3.0
-	M3.text(c, Vector2(0, 168), "Équipe à terre", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(c, Vector2(0, 168), "Temps écoulé" if _timeout else "Équipe à terre", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	if _timeout:
+		M3.text(c, Vector2(32, 222), "Après 3 minutes de combat, l'escouade se replie.", 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(c, Vector2(32, 260), "La difficulté du secteur baisse un peu.", 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		_draw_perseverance(c)
+	_draw_rest(c)
+
+
+func _draw_perseverance(c: Control) -> void:
 	M3.text(c, Vector2(32, 222), "Ta persévérance monte : +%d %% de puissance" % Game.perseverance_pct(), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(32, 260), "au prochain essai (max +%d %%)." % int(round(Data.PERSEVERANCE_STEP * Data.PERSEVERANCE_MAX * 100.0)), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+func _draw_rest(c: Control) -> void:
 	var ids := Game.squad_ids()
 	var x0 := 360.0 - (ids.size() * 92.0 + (ids.size() - 1) * 20.0) * 0.5
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

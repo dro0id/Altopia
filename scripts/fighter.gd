@@ -128,4 +128,11 @@ func _draw() -> void:
 		draw_rect(Rect2(-w * 0.5, 0, w * unit.hp_frac(), 7), col)
 		if unit.shield > 0.0:
 			draw_rect(Rect2(-w * 0.5, -4, w * minf(1.0, unit.shield / unit.max_hp), 3), Color(0.5, 0.85, 1.0))
+		if unit.elite != "":
+			# étiquette d'élite (maquette FC) au-dessus de la barre de vie
+			var lab := "★ Élite · %s" % unit.elite
+			var f := UI.bold_font()
+			var tw := f.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 16.0
+			draw_style_box(UI.box(Color(0.23, 0.16, 0.04, 0.93), Color("ffb142"), 10, 0), Rect2(-tw * 0.5, -30, tw, 24))
+			draw_string(f, Vector2(-tw * 0.5 + 8.0, -12), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("ffb142"))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

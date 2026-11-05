@@ -308,7 +308,7 @@ func _shot_pos(s: Dictionary) -> Vector2:
 
 
 func _draw() -> void:
-	Art.draw_background(self, Rect2(Vector2.ZERO, SIZE), clock, stars, boss_wave)
+	Art.draw_background(self, Rect2(Vector2.ZERO, SIZE), clock, stars, boss_wave, Sector.info(sim.stage).get("palette", []) if sim != null else [])
 	var order := fighters.values()
 	order.sort_custom(func(a, b): return a.home.y < b.home.y)
 	for f in order:
