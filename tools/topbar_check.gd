@@ -40,12 +40,17 @@ func _initialize() -> void:
 	for name in screens:
 		(screens[name] as Callable).call()
 		await _wait(0.4)
-		var m: Control = main._modal
+		var m = main._modal
+		if m == null or not is_instance_valid(m):
+			print("— ", name, " : écran non ouvert")
+			continue
 		var bar: Node = _find_bar(m)
 		if bar == null:
 			print("— ", name, " : pas de barre du haut")
 		else:
-			for b in bar.get_children():
+			var kids: Array = bar.get_children()
+			kids.reverse()
+			for b in kids:
 				if not is_instance_valid(b) or not is_instance_valid(bar):
 					break
 				if not (b is Button) or not (b as Button).is_visible_in_tree():
@@ -53,9 +58,9 @@ func _initialize() -> void:
 				var ok := [false]
 				(b as Button).pressed.connect(func(): ok[0] = true)
 				var c: Vector2 = (b as Button).get_global_rect().get_center()
+				var label: String = (b as Button).text if (b as Button).text != "" else "(icône)"
 				_click(c)
 				await _wait(0.2)
-				var label: String = (b as Button).text if (b as Button).text != "" else "(icône)"
 				if ok[0]:
 					print("ok  ", name, " · ", label)
 				else:
