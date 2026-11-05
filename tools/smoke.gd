@@ -7,12 +7,16 @@ func _initialize() -> void:
 	g.save_path = "user://smoke.json"
 	g.reset()
 	g.intro_seen = true
+	g.seen_scenes = ["prologue"]
+	g.tutorial_done = true
 	g.speed = 3.0
 	Engine.time_scale = 6.0
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	var t := 0.0
 	var results := 0
+	var scenes := 0
+	var chapters := 0
 	var defeats := 0
 	var last_stage := 1
 	var last_print := -1
@@ -31,6 +35,12 @@ func _initialize() -> void:
 				m.close()
 			elif m is BoostScreen:
 				m.picked.emit(m.offer[0])
+				m.close()
+			elif m is DialogueScreen:
+				scenes += 1
+				m._finish()
+			elif m is ChapterEndScreen:
+				chapters += 1
 				m.close()
 			elif m is DefeatScreen:
 				defeats += 1
@@ -53,6 +63,7 @@ func _initialize() -> void:
 		if int(t) % 7 == 0:
 			g.equip_best_all()
 			g.recycle_items(g.inventory_items().filter(func(it): return Items.rarity_index(it.rarity) < 2).map(func(it): return int(it.id)))
+	print("SMOKE histoire : %d scènes, %d chapitre(s) terminé(s), vues : %s" % [scenes, chapters, str(g.seen_scenes)])
 	print("SMOKE objets : %d, équipés : %d, éclats : %d" % [g.items.size(), g.items.filter(func(it): return it.on != "").size(), g.shards])
 	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0

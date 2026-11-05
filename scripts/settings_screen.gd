@@ -42,6 +42,8 @@ func _init() -> void:
 		changed.emit()
 		_body.queue_redraw())
 	_st.add_child(seg)
+	# la zone des réglages couvre l'écran : la barre du haut doit rester au-dessus pour recevoir les appuis
+	_st.move_child(_st.get_node("TopBar"), -1)
 
 
 func _menu() -> void:

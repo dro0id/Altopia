@@ -36,16 +36,9 @@ var _battery_t := 0.0
 var _modal: Control
 var _buffs: Label
 # tutoriel
-var _hint: PanelContainer
-var _hint_label: Label
-var _hint_step: Label
-var _hint_title: Label
 var _toast_box: PanelContainer
-var _hl: Control
-var _tuto := 0
-const TUTO_DONE := 5               # cinq étapes (maquette BQ)
-var _tuto_t := 0.0
 var _manual_cast := false
+var coach: Coach
 
 
 func _ready() -> void:
@@ -86,12 +79,11 @@ func _ready() -> void:
 	_build_squad()
 	_build_nav()
 	_build_toast()
-	_build_hint()
+	_build_coach()
 	_build_buffs()
 	resized.connect(_layout)
 	_layout()
 	_start_battle()
-	_tuto = TUTO_DONE if Game.tutorial_done else 0
 	if not Game.intro_seen:
 		var intro := IntroScreen.new()
 		add_child(intro)
@@ -100,7 +92,8 @@ func _ready() -> void:
 		intro.finished.connect(func():
 			Game.intro_seen = true
 			_nav.visible = true
-			get_tree().paused = false)
+			get_tree().paused = false
+			_open_prologue.call_deferred())
 	elif not Game.offline_report.is_empty():
 		_open_offline()
 
@@ -315,7 +308,6 @@ func _layout() -> void:
 	_info.position = Vector2(32, top + (96.0 if _boss != "" else 16.0))
 	_buffs.position = Vector2(32, _strip.position.y - 64.0)
 	_toast_box.position = Vector2(32, _strip.position.y - 120.0)
-	_hint.position = Vector2(32, _strip.position.y - 24.0 - 340.0)
 
 
 func _on_tab(i: int) -> void:
@@ -345,55 +337,6 @@ func _build_toast() -> void:
 	_toast = UI.label(_toast_box, "", M3.fs(26), UI.BG)
 	_toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
-
-## Carte du tutoriel (maquette BQ) : étape, titre, texte, Passer et Suivant ; un cadre pulse autour de l'élément à utiliser.
-func _build_hint() -> void:
-	_hl = Control.new()
-	_hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hl.draw.connect(func():
-		if _hl.has_meta("rect"):
-			var r: Rect2 = _hl.get_meta("rect")
-			var k := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 200.0)
-			_hl.draw_style_box(UI.box(Color(0, 0, 0, 0), Color(UI.ACCENT, 0.5 + 0.5 * k), 32, 0), r.grow(6.0 + 3.0 * k)))
-	_hl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_hl.z_index = 3000
-	add_child(_hl)
-	_hint = PanelContainer.new()
-	_hint.size = Vector2(656, 300)
-	_hint.custom_minimum_size = Vector2(656, 0)
-	_hint.add_theme_stylebox_override("panel", UI.box(M3.SHEET, UI.ACCENT, 48, 32))
-	_hint.mouse_filter = Control.MOUSE_FILTER_STOP
-	_hint.visible = false
-	_hint.z_index = 3000
-	add_child(_hint)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	_hint.add_child(v)
-	_hint_step = UI.label(v, "", M3.fs(24), UI.ACCENT, true)
-	_hint_title = UI.label(v, "", M3.fs(36), UI.TEXT, true)
-	_hint_label = UI.label(v, "", M3.fs(28), UI.MUTED)
-	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	v.add_child(row)
-	var skip := UI.button(row, "Passer", M3.fs(30), "text")
-	skip.custom_minimum_size = Vector2(160, 96)
-	skip.pressed.connect(func():
-		_tuto = TUTO_DONE
-		Game.tutorial_done = true
-		Game.save_game())
-	var sp := Control.new()
-	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(sp)
-	var nxt := UI.button(row, "Suivant", M3.fs(30), "main")
-	nxt.custom_minimum_size = Vector2(240, 96)
-	nxt.pressed.connect(func():
-		_tuto = mini(_tuto + 1, TUTO_DONE)
-		if _tuto == TUTO_DONE:
-			Game.tutorial_done = true
-			Game.save_game()
-		_tuto_t = 0.0)
 
 
 func _build_buffs() -> void:
@@ -444,6 +387,7 @@ func _open_map() -> void:
 		Game.go_to(n)
 		_start_battle())
 	m.chest_claimed.connect(_show_chest_toast)
+	m.journal_requested.connect(func(): _open_journal.call_deferred())
 	_open_modal(m)
 
 
@@ -454,11 +398,10 @@ func _open_settings() -> void:
 		battle.sim.auto_cast = Game.auto_cast
 		_refresh())
 	s.tutorial_requested.connect(func():
-		_tuto = 0)
+		Game.tutorial_done = false)
 	s.erase_requested.connect(func():
 		Game.reset()
 		Game.save_game()
-		_tuto = 0
 		_start_battle())
 	_open_modal(s)
 
@@ -606,16 +549,56 @@ func _start_battle() -> void:
 	battle.speed = Game.speed
 	battle.start(Game.team(), Game.stage, Game.auto_cast, Game.boosts)
 	_claimed = 0.0
-	_tuto_t = 0.0
 	for i in skill_buttons.size():
 		skill_buttons[i].unit = null
 	for u in battle.sim.units:
 		if u.side == 0:
 			skill_buttons[u.slot].unit = u
 			skill_buttons[u.slot].hero = Data.HEROES[u.id]
-			if _tuto < 2 and u.slot == 0:
-				u.skill_cd = 0.5        # pendant le tutoriel, le premier pouvoir est prêt tout de suite
 	_refresh()
+
+
+## Histoire (branche 2) : prologue, puis scènes avant ou après les étages ; la scène de fin de chapitre ouvre l'écran de fin.
+func _open_prologue() -> void:
+	if Game.seen_scenes.has("prologue"):
+		return
+	var p := PrologueScreen.new()
+	_open_modal(p)
+
+
+## Ouvre la scène en attente s'il y en a une (et rien d'autre à l'écran) ; renvoie vrai si le combat doit attendre.
+func _story_check() -> bool:
+	if not Game.intro_seen or (_modal != null and is_instance_valid(_modal)):
+		return false
+	if not Game.seen_scenes.has("prologue"):
+		return false
+	var sc: Dictionary = Story.pending(Game.seen_scenes, Game.stage, Game.best_stage)
+	if sc.is_empty():
+		return false
+	var d := DialogueScreen.new(sc)
+	d.finished.connect(func(_id: String):
+		if sc.has("end"):
+			_open_chapter_end.call_deferred(int(sc.end)))
+	_open_modal(d)
+	return true
+
+
+func _open_chapter_end(n: int) -> void:
+	var reward: Dictionary = Game.complete_chapter(n)
+	Game.save_game()
+	var e := ChapterEndScreen.new(n, reward if not reward.is_empty() else Story.chapter(n).reward)
+	e.journal_requested.connect(func(): _open_journal.call_deferred())
+	_open_modal(e)
+
+
+func _open_journal() -> void:
+	var j := JournalScreen.new()
+	_open_modal(j)
+	# le journal garde la barre du bas, onglet Combat (maquette CI)
+	_tab_modal = true
+	_nav.active = 0
+	_nav.visible = true
+	move_child(_nav, get_child_count() - 1)
 
 
 func _on_cleared(_credits: float) -> void:
@@ -625,9 +608,6 @@ func _on_cleared(_credits: float) -> void:
 	var shows_chest := frontier or Data.is_boss_stage(stage)
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
-	if _tuto == 4:
-		_tuto = TUTO_DONE
-		Game.tutorial_done = true
 	if shows_chest:
 		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
@@ -708,7 +688,7 @@ func _process(delta: float) -> void:
 	if _toast_t > 0.0:
 		_toast_t -= delta
 		_toast_box.modulate.a = 0.0 if _toast_t <= 0.0 else minf(1.0, _toast_t * 2.0)
-	_tuto_update(delta)
+	_coach_update()
 	_battery_t += delta
 	if _battery_t > 60.0:
 		_battery_t = 0.0
@@ -716,55 +696,28 @@ func _process(delta: float) -> void:
 	_refresh_t += delta
 	if _refresh_t > 0.15:
 		_refresh_t = 0.0
+		_story_check()
 		_refresh()
 
 
-func _tuto_update(delta: float) -> void:
-	var title := ""
-	var text := ""
-	var target := Rect2()
-	_tuto_t += delta
-	match _tuto:
-		0:
-			title = "Regarde ton équipe"
-			text = "Tes héros combattent tout seuls, même quand tu n'es pas là."
-		1:
-			title = "Lance un pouvoir"
-			text = "Touche un portrait quand son anneau est plein. Deux pouvoirs rapprochés forment un combo."
-			target = Rect2(_strip.position + Vector2(24, 4), Vector2(672, 136))
-			if _manual_cast:
-				_tuto = 2
-		2:
-			title = "Améliore un héros"
-			text = "Ouvre Héros, choisis un héros et monte son niveau avec tes crédits."
-			target = Rect2(_nav.position + Vector2(180, 8), Vector2(180, 144))
-			var total := 0
-			for id in Game.squad_ids():
-				total += int(Game.levels[id])
-			if total > Game.squad_ids().size():
-				_tuto = 3
-		3:
-			title = "Équipe un objet"
-			text = "Les coffres donnent des objets. Dans Héros › Objets, « Équiper au mieux » les place sur tes héros."
-			target = Rect2(_nav.position + Vector2(180, 8), Vector2(180, 144))
-			if not Game.equipped_any():
-				pass
-			else:
-				_tuto = 4
-		4:
-			title = "Monte les étages"
-			text = "Un mini-boss t'attend à l'étage 5, un gros boss à l'étage 10."
-	var show := title != "" and (_modal == null or not is_instance_valid(_modal))
-	_hint.visible = show
-	if show:
-		_hint_step.text = "ÉTAPE %d / %d" % [_tuto + 1, TUTO_DONE]
-		_hint_title.text = title
-		_hint_label.text = text
-	if target.size != Vector2.ZERO and show:
-		_hl.set_meta("rect", target)
-	elif _hl.has_meta("rect"):
-		_hl.remove_meta("rect")
-	_hl.queue_redraw()
+## Tutoriel guidé (maquettes DA à DH) : il démarre une fois le prologue et la première scène vus,
+## et l'astuce du premier objet s'affiche à la première visite de l'onglet Objets avec des objets en stock.
+func _build_coach() -> void:
+	coach = Coach.new()
+	coach.main = self
+	add_child(coach)
+
+
+func _coach_update() -> void:
+	if coach.step >= 0:
+		return
+	var free_screen: bool = _modal == null or not is_instance_valid(_modal)
+	if not Game.tutorial_done and Game.intro_seen and Game.seen_scenes.has("prologue") and free_screen:
+		if Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
+			coach.start()
+	elif Game.tutorial_done and not Game.tips.has("items") and not free_screen and _modal is CollectionScreen:
+		if _modal._items_view.is_visible_in_tree() and not Game.inventory_items().is_empty():
+			coach.tip()
 
 
 const BOSS_INFO := {

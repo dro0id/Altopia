@@ -24,6 +24,10 @@ var owned := {}                # héros possédés (id -> true)
 var hero_stars := {}           # héros -> étoiles (1 à 5)
 var fragments := {}            # héros -> fragments pour la prochaine étoile
 var squad: Array = []          # les 5 héros au combat, un par emplacement (0 = première ligne au centre)
+var seen_scenes: Array = []      # scènes d'histoire déjà vues (branche 2)
+var story_choices := {}          # réponse choisie par le Capitaine, par scène
+var chapters_done: Array = []
+var tips: Array = []               # astuces déjà montrées (ex. « items »)    # chapitres terminés (récompense versée)
 var item_tokens := 0           # jetons d'objet (caisses d'équipement)
 var item_pack_pity := {"epic": 0, "leg": 0}
 var item_pulls: Array = []       # derniers objets ouverts {slot, rarity}, les plus récents en tête
@@ -89,6 +93,10 @@ func reset() -> void:
 	last_drop = {}
 	last_pulls = []
 	item_tokens = 4
+	seen_scenes = []
+	story_choices = {}
+	chapters_done = []
+	tips = []
 	item_pack_pity = {"epic": 0, "leg": 0}
 	item_pulls = []
 	daily_day = -1
@@ -337,6 +345,30 @@ func equipped_any() -> bool:
 		if it.on != "":
 			return true
 	return false
+
+
+## Marque une scène comme vue (et retient la réponse du Capitaine, -1 sans choix).
+func see_scene(id: String, choice := -1) -> void:
+	if not seen_scenes.has(id):
+		seen_scenes.append(id)
+	if choice >= 0:
+		story_choices[id] = choice
+	changed.emit()
+
+
+## Fin d'un chapitre : verse sa récompense une seule fois. Renvoie la récompense, ou {} si déjà versée.
+func complete_chapter(n: int) -> Dictionary:
+	if chapters_done.has(n):
+		return {}
+	var c := Story.chapter(n)
+	if c.is_empty():
+		return {}
+	chapters_done.append(n)
+	credits += float(c.reward.credits)
+	shards += int(c.reward.shards)
+	tokens += int(c.reward.tokens)
+	changed.emit()
+	return c.reward
 
 
 func inventory_count() -> int:
@@ -834,7 +866,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
 	}))
 
 
@@ -892,6 +924,19 @@ func load_game() -> bool:
 	auto_recycle = bool(parsed.get("auto_recycle", true))
 	item_pity = int(parsed.get("item_pity", 0))
 	item_tokens = maxi(0, int(parsed.get("item_tokens", 4)))
+	seen_scenes = []
+	for sid in parsed.get("seen_scenes", []):
+		seen_scenes.append(String(sid))
+	story_choices = {}
+	var sc: Dictionary = parsed.get("story_choices", {})
+	for k in sc:
+		story_choices[String(k)] = int(sc[k])
+	tips = []
+	for tp in parsed.get("tips", []):
+		tips.append(String(tp))
+	chapters_done = []
+	for n in parsed.get("chapters_done", []):
+		chapters_done.append(int(n))
 	var ipp: Dictionary = parsed.get("item_pack_pity", {})
 	item_pack_pity = {"epic": int(ipp.get("epic", 0)), "leg": int(ipp.get("leg", 0))}
 	item_pulls = []
@@ -931,6 +976,12 @@ func load_game() -> bool:
 	apply_performance()
 	tutorial_done = bool(parsed.get("tutorial", ver == 1))
 	intro_seen = bool(parsed.get("intro", ver == 1))
+	# parties commencées avant l'histoire : on ne rejoue pas les scènes des étages déjà passés
+	if not parsed.has("seen_scenes") and intro_seen:
+		seen_scenes.append("prologue")
+		for s0 in Story.SCENES:
+			if (s0.when == "after" and best_stage > int(s0.stage)) or (s0.when == "before" and best_stage > int(s0.stage)):
+				seen_scenes.append(String(s0.id))
 	last_seen = int(parsed.get("last_seen", 0))
 	last_free_chest = int(parsed.get("free_chest", 0))
 	perseverance = clampi(int(parsed.get("perseverance", 0)), 0, Data.PERSEVERANCE_MAX)

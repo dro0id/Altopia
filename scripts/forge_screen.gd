@@ -46,6 +46,7 @@ func _init() -> void:
 	_auto.pressed.connect(_auto_pick)
 	_go = button("Fusionner", "main", Vector2(248, 1280 - 32 - 104), Vector2(440, 104), 30)
 	_go.pressed.connect(_do)
+	st.move_child(st.get_node("TopBar"), -1)
 	_refresh()
 
 

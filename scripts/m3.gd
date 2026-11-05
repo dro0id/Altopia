@@ -133,8 +133,8 @@ static func text_w(s: String, size: int, bold := false) -> float:
 
 
 ## Texte sur plusieurs lignes dans une largeur donnée ; renvoie la hauteur utilisée.
-static func para(ci: CanvasItem, pos: Vector2, s: String, size: int, col: Color, width: float, line_h := 1.45) -> float:
-	var f := ThemeDB.fallback_font
+static func para(ci: CanvasItem, pos: Vector2, s: String, size: int, col: Color, width: float, line_h := 1.45, bold := false) -> float:
+	var f: Font = UI.bold_font() if bold else ThemeDB.fallback_font
 	var words := s.split(" ")
 	var line := ""
 	var y := pos.y
