@@ -46,6 +46,8 @@ func _initialize() -> void:
 			print("— ", name, " : pas de barre du haut")
 		else:
 			for b in bar.get_children():
+				if not is_instance_valid(b) or not is_instance_valid(bar):
+					break
 				if not (b is Button) or not (b as Button).is_visible_in_tree():
 					continue
 				var ok := [false]
@@ -62,7 +64,7 @@ func _initialize() -> void:
 				if not is_instance_valid(m) or main._modal != m:
 					break
 				# un menu ⋮ ouvert : on le referme en appuyant ailleurs
-				_click(Vector2(20, 1200))
+				_click(Vector2(300, 56))
 				await _wait(0.2)
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()
