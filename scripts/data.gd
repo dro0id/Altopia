@@ -117,7 +117,12 @@ const ENEMIES := {
 	"reine": {"name": "Reine des mites", "hp": 120.0, "atk": 3.2, "def": 1.5, "interval": 1.4, "ranged": false, "gold": 30.0},
 }
 const BOSS_KINDS := ["foreur", "titan", "sentinelle", "reine"]
-const BIG_BOSSES := ["titan", "sentinelle", "reine"]   # un gros boss différent tous les 10 étages, en boucle
+const BIG_BOSSES := ["titan", "sentinelle", "reine"]
+## Réglage de difficulté des boss (attaque et points de vie, en plus de l'échelle des étages).
+const BIG_BOSS_ATK := 1.0
+const BIG_BOSS_HP := 1.0
+const MINI_BOSS_ATK := 1.0
+const BIG_BOSS_ATK_GROWTH := 0.0   # attaque en plus par tranche de 10 étages après le premier gros boss
 
 const ENEMY_HP := 62.0
 const ENEMY_ATK := 8.0

@@ -176,9 +176,10 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	u.role = "boss" if boss else "enemy"
 	u.boss = boss
 	var boss_k := 1.0 + (0.035 * stage if kind in Data.BIG_BOSSES else (0.015 * stage if kind == "foreur" else 0.0))   # les boss durcissent avec la profondeur
-	u.max_hp = Data.ENEMY_HP * s * e.hp * boss_k
+	var big := kind in Data.BIG_BOSSES
+	u.max_hp = Data.ENEMY_HP * s * e.hp * boss_k * (Data.BIG_BOSS_HP if big else 1.0)
 	u.hp = u.max_hp
-	u.atk = Data.ENEMY_ATK * s * e.atk
+	u.atk = Data.ENEMY_ATK * s * e.atk * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
 	u.def = (Data.ENEMY_DEF + stage * 0.6) * e.def
 	u.interval = e.interval
 	u.ranged = e.ranged
