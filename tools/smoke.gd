@@ -39,6 +39,8 @@ func _initialize() -> void:
 			elif m is DialogueScreen:
 				scenes += 1
 				m._finish()
+			elif m is SectorScreen:
+				m.close()
 			elif m is ChapterEndScreen:
 				chapters += 1
 				m.close()

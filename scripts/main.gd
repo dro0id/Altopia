@@ -572,6 +572,12 @@ func _story_check() -> bool:
 		return false
 	if not Game.seen_scenes.has("prologue"):
 		return false
+	var sec := Sector.info(Game.stage)
+	if not sec.is_empty() and Game.is_frontier() and not Game.sectors_seen.has(int(sec.index)):
+		Game.sectors_seen.append(int(sec.index))
+		Game.save_game()
+		_open_modal(SectorScreen.new(Game.stage))
+		return true
 	var sc: Dictionary = Story.pending(Game.seen_scenes, Game.stage, Game.best_stage)
 	if sc.is_empty():
 		return false
@@ -606,6 +612,8 @@ func _on_cleared(_credits: float) -> void:
 	var stars: int = battle.sim.stars
 	var frontier := Game.is_frontier()
 	var shows_chest := frontier or Data.is_boss_stage(stage)
+	if frontier:
+		Game.record_generated(stage, true)
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if shows_chest:
@@ -659,9 +667,11 @@ func _pick_boost(then: Callable) -> void:
 
 
 func _on_failed() -> void:
+	if Game.is_frontier():
+		Game.record_generated(Game.stage, false)
 	Game.defeated()
 	Game.save_game()
-	var d := DefeatScreen.new(Game.stage)
+	var d := DefeatScreen.new(Game.stage, battle.sim.timed_out)
 	d.retry_pressed.connect(_start_battle)
 	d.farm_pressed.connect(func():
 		Game.retreat()
@@ -783,8 +793,14 @@ func _refresh() -> void:
 		sub += " · Combo ×%d" % battle.sim.combo
 	if not Game.is_frontier() and _boss == "":
 		sub = "Farm · " + sub
-	_info.text = sub
-	_info.visible = false
+	var sec := Sector.info(Game.stage)
+	if sec.is_empty():
+		_info.visible = false
+	else:
+		# secteur généré (maquette FC) : nom et règle en haut du terrain
+		_info.text = "%s\n%s %s" % [sec.name, sec.rule_glyph, sec.rule_text]
+		_info.add_theme_color_override("font_color", sec.rule_color)
+		_info.visible = true
 	_auto_b.text = ("Auto · ×%d" if Game.auto_cast else "Manuel · ×%d") % int(Game.speed)
 	# gros boss (maquette BX) : un seul bouton flottant, pas de réglages ni d'éclats dans la barre
 	_fab_speed.visible = not big

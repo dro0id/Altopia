@@ -160,6 +160,8 @@ static func boss_type(stage: int) -> String:
 
 ## Type de gros boss d'un étage multiple de 10 (Gardien de verre, Sentinelle prismatique, Reine des mites, puis on recommence).
 static func big_boss_kind(stage: int) -> String:
+	if Sector.is_generated(stage):
+		return String(Sector.info(stage).boss_kind)
 	return BIG_BOSSES[(stage / BIG_BOSS_EVERY - 1) % BIG_BOSSES.size()]
 
 
@@ -174,7 +176,11 @@ static func boss_kind(stage: int) -> String:
 
 static func boss_name(stage: int) -> String:
 	var k := boss_kind(stage)
-	return ENEMIES[k].name if k != "" else ""
+	if k == "":
+		return ""
+	if boss_type(stage) == "big" and Sector.is_generated(stage):
+		return "%s · %s" % [ENEMIES[k].name, Sector.info(stage).boss_title]
+	return ENEMIES[k].name
 
 
 static func is_boss_stage(stage: int) -> bool:

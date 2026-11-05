@@ -686,9 +686,12 @@ static func _ridge(ci: CanvasItem, rect: Rect2, base: float, h: float, step: flo
 		ci.draw_colored_polygon(PackedVector2Array([Vector2(x, base), peak, Vector2(x + step * 0.75, base)]), _shade(col, 0.8))
 
 
-static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: PackedVector2Array, boss: bool) -> void:
-	var top := Color(0.02, 0.03, 0.09)
-	var bot := Color(0.09, 0.07, 0.2) if not boss else Color(0.18, 0.05, 0.1)
+## `pal` (secteurs générés) : ciel haut, ciel bas, crêtes lointaines, crêtes proches, sol lointain, sol proche, lignes, planète.
+static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: PackedVector2Array, boss: bool, pal: Array = []) -> void:
+	var gen := pal.size() >= 8
+	var top := Color(0.02, 0.03, 0.09) if not gen else Color(pal[0])
+	var bot := (Color(0.09, 0.07, 0.2) if not gen else Color(pal[1])) if not boss else Color(0.18, 0.05, 0.1)
+	var line := Color(0.3, 0.8, 1.0) if not gen else Color(pal[6])
 	var fy := rect.position.y + 110.0
 	var cx := rect.position.x + rect.size.x * 0.5
 	for i in 5:
@@ -703,7 +706,7 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 		var c := rect.position + Vector2(x, y)
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 1.6), c + Vector2(r, 0), c + Vector2(0, r * 1.6), c + Vector2(-r, 0)]), Color(1, 1, 1, a))
 	var pc := rect.position + Vector2(rect.size.x * 0.8, 48.0)
-	ellipse(ci, pc, 50, 50, Color(0.14, 0.34, 0.66) if not boss else Color(0.6, 0.2, 0.16), t * 0.05, 10)
+	ellipse(ci, pc, 50, 50, (Color(0.14, 0.34, 0.66) if not gen else Color(pal[7])) if not boss else Color(0.6, 0.2, 0.16), t * 0.05, 10)
 	var ring := PackedVector2Array()
 	for i in 7:
 		var a := TAU * i / 7.0 + t * 0.2
@@ -713,22 +716,22 @@ static func draw_background(ci: CanvasItem, rect: Rect2, t: float, stars: Packed
 	for k in 3:
 		var x := fposmod(120.0 + k * 260.0 - t * 14.0, rect.size.x + 80.0) - 40.0
 		ellipse(ci, Vector2(rect.position.x + x, rect.position.y + 22 + k * 20 + sin(t * 0.8 + k) * 3.0), 12 + k * 3, 8 + k * 2, Color(0.24, 0.21, 0.31), t * 0.4 + k, 5)
-	_ridge(ci, rect, fy - 4, 48.0, 70.0, 5.0, 1.3, t, Color(0.13, 0.12, 0.26) if not boss else Color(0.26, 0.1, 0.16))
-	_ridge(ci, rect, fy, 28.0, 46.0, 12.0, 4.1, t, Color(0.09, 0.1, 0.2) if not boss else Color(0.19, 0.07, 0.12))
+	_ridge(ci, rect, fy - 4, 48.0, 70.0, 5.0, 1.3, t, (Color(0.13, 0.12, 0.26) if not gen else Color(pal[2])) if not boss else Color(0.26, 0.1, 0.16))
+	_ridge(ci, rect, fy, 28.0, 46.0, 12.0, 4.1, t, (Color(0.09, 0.1, 0.2) if not gen else Color(pal[3])) if not boss else Color(0.19, 0.07, 0.12))
 	# sol en perspective : bandes sombres vers lointain, claires vers la caméra
 	var h := rect.end.y - fy
-	var floor_far := Color(0.06, 0.08, 0.15)
-	var floor_near := Color(0.11, 0.15, 0.27)
+	var floor_far := Color(0.06, 0.08, 0.15) if not gen else Color(pal[4])
+	var floor_near := Color(0.11, 0.15, 0.27) if not gen else Color(pal[5])
 	for i in 6:
 		var y0 := fy + h * pow(float(i) / 6.0, 1.7)
 		var y1 := fy + h * pow(float(i + 1) / 6.0, 1.7)
 		ci.draw_rect(Rect2(rect.position.x, y0, rect.size.x, y1 - y0 + 1.0), floor_far.lerp(floor_near, float(i) / 5.0))
-	ci.draw_line(Vector2(rect.position.x, fy), Vector2(rect.end.x, fy), Color(0.3, 0.8, 1.0, 0.7), 3.0)
+	ci.draw_line(Vector2(rect.position.x, fy), Vector2(rect.end.x, fy), Color(line, 0.7), 3.0)
 	for k in range(-9, 10):
-		ci.draw_line(Vector2(cx + k * 14.0, fy), Vector2(cx + k * 120.0, rect.end.y), Color(0.3, 0.8, 1.0, 0.13), 2.0)
+		ci.draw_line(Vector2(cx + k * 14.0, fy), Vector2(cx + k * 120.0, rect.end.y), Color(line, 0.13), 2.0)
 	for k in 8:
 		var u := (float(k) + fposmod(t * 0.35, 1.0)) / 8.0
-		ci.draw_line(Vector2(rect.position.x, fy + h * u * u), Vector2(rect.end.x, fy + h * u * u), Color(0.3, 0.8, 1.0, 0.05 + 0.2 * u), 2.0)
+		ci.draw_line(Vector2(rect.position.x, fy + h * u * u), Vector2(rect.end.x, fy + h * u * u), Color(line, 0.05 + 0.2 * u), 2.0)
 	# plots d'équipe : ennemis en haut (rouge), escouade en bas (cyan)
 	var enemy_col := Color(1.0, 0.35, 0.3, 0.1) if not boss else Color(1.0, 0.35, 0.3, 0.16)
 	var ally_col := Color(0.3, 0.85, 1.0, 0.1)

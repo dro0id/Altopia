@@ -91,6 +91,16 @@ func _initialize() -> void:
 		"journal": func():
 			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"]
 			main._open_journal(),
+		"secteur": func():
+			main._open_modal(SectorScreen.new(53)),
+		"combat53": func():
+			g.best_stage = 53
+			g.go_to(53)
+			g.sectors_seen = [6]
+			for id in g.levels.keys():
+				g.levels[id] = 60
+			g.evolved = {"mara": 2, "kai": 2, "zyra": 2, "t9": 2, "oru": 2}
+			main._start_battle(),
 		"coffre": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch
@@ -107,7 +117,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" else (3.5 if k == "intro" or k == "boss" else 0.6))
+		await _wait(2.6 if k == "victoire" else (1.4 if k == "combat53" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

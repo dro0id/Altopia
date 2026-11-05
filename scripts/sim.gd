@@ -36,6 +36,8 @@ class Unit:
 	var crit := 0.0              # équipement : chance de coup critique
 	var boss_dmg := 0.0          # équipement : dégâts supplémentaires aux boss
 	var heal_mult := 1.0         # équipement : soins
+	var regen := 0.0             # PV rendus par seconde (part des PV max) : élites et boss Régénérants
+	var elite := ""              # trait d'élite (secteurs générés)
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -59,6 +61,7 @@ var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
+var timed_out := false           # secteurs générés : combat trop long, l'escouade se replie
 var rng := RandomNumberGenerator.new()
 var _wave_timer := 0.0
 
@@ -72,7 +75,26 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)
+	_apply_sector_heroes()
 	_spawn_wave()
+
+
+## Règle du secteur généré qui touche l'escouade.
+func _apply_sector_heroes() -> void:
+	var sec := Sector.info(stage)
+	if sec.is_empty():
+		return
+	for u in units:
+		if u.side != 0:
+			continue
+		match String(sec.rule):
+			"vents":
+				u.skill_max *= 0.85
+				u.skill_cd *= 0.85
+			"gravite":
+				u.interval *= 1.1
+			"cristaux":
+				u.crit += 0.10
 
 
 ## Renforts choisis (peuvent se cumuler).
@@ -166,7 +188,7 @@ func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int 
 
 func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	var e: Dictionary = Data.ENEMIES[kind]
-	var s := Data.stage_scale(stage)
+	var s := Sector.enemy_scale(stage)
 	var u := Unit.new()
 	u.side = 1
 	u.slot = slot
@@ -175,11 +197,17 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	u.name = e.name
 	u.role = "boss" if boss else "enemy"
 	u.boss = boss
-	var boss_k := 1.0 + (0.035 * stage if kind in Data.BIG_BOSSES else (0.015 * stage if kind == "foreur" else 0.0))   # les boss durcissent avec la profondeur
+	# les boss durcissent avec la profondeur, jusqu'à l'étage 40 ; au-delà, c'est la difficulté adaptative qui règle
+	var depth := float(mini(stage, Sector.GEN_START - 1))
+	var boss_k := 1.0 + (0.035 * depth if kind in Data.BIG_BOSSES else (0.015 * depth if kind == "foreur" else 0.0))
 	var big := kind in Data.BIG_BOSSES
-	u.max_hp = Data.ENEMY_HP * s * e.hp * boss_k * (Data.BIG_BOSS_HP if big else 1.0)
+	var gen := Sector.is_generated(stage)
+	var gk := Sector.factor if gen else 1.0     # difficulté adaptative des secteurs générés
+	var gk_hp := gk
+	var gk_atk := gk
+	u.max_hp = Data.ENEMY_HP * Sector.enemy_scale(stage, true) * e.hp * boss_k * gk_hp * (Sector.GEN_HP * (Sector.GEN_BOSS_HP if big else 1.0) if gen else 1.0) * (Data.BIG_BOSS_HP if big else 1.0)
 	u.hp = u.max_hp
-	u.atk = Data.ENEMY_ATK * s * e.atk * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
+	u.atk = Data.ENEMY_ATK * s * e.atk * gk_atk * (Sector.GEN_ATK if gen else 1.0) * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
 	u.def = (Data.ENEMY_DEF + stage * 0.6) * e.def
 	u.interval = e.interval
 	u.ranged = e.ranged
@@ -190,6 +218,27 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 		u.skill_max = {"prism": 7.5, "swarm": 9.0}.get(u.skill_kind, 7.0)
 		u.skill_cd = 5.0
 	u.data = e
+	var sec := Sector.info(stage)
+	if not sec.is_empty():
+		match String(sec.rule):
+			"blindes":
+				u.def *= 1.3
+			"gravite":
+				u.interval *= 1.1
+			"aubaine":
+				u.atk *= 1.1
+				u.gold *= 1.25
+			"rage":
+				u.atk *= 1.2
+				u.max_hp *= 0.9
+				u.hp = u.max_hp
+		if boss and big:
+			Sector.apply_trait(u, String(sec.boss_trait), true)
+		elif not boss:
+			u.elite = Sector.roll_elite(stage, rng)
+			if u.elite != "":
+				Sector.apply_trait(u, u.elite)
+				u.gold *= 2.0
 	return u
 
 
@@ -218,6 +267,9 @@ func _wave_kinds() -> Array:
 		kinds.append("mite" if w == 1 else "drone")
 	if stage >= 12:
 		kinds.append("gunner")
+	var sec := Sector.info(stage)
+	if not sec.is_empty() and String(sec.rule) == "essaim":
+		kinds.append("mite" if w == 1 else "drone")
 	return kinds
 
 
@@ -412,6 +464,8 @@ func step(dt: float) -> void:
 			u.shield_t -= dt
 			if u.shield_t <= 0.0:
 				u.shield = 0.0
+		if u.regen > 0.0 and u.hp < u.max_hp:
+			u.hp = minf(u.max_hp, u.hp + u.max_hp * u.regen * dt)
 		if u.stun_t > 0.0:
 			continue
 		if u.side == 1 and u.boss and u.skill_cd <= 0.9 and u.skill_cd > 0.0 and not u.warned:
@@ -435,6 +489,11 @@ func step(dt: float) -> void:
 	if _alive(0).is_empty():
 		state = "defeat"
 		events.append({"type": "defeat"})
+		return
+	if Sector.is_generated(stage) and time >= Sector.TIME_LIMIT:
+		timed_out = true
+		state = "defeat"
+		events.append({"type": "defeat", "timeout": true})
 		return
 	if _alive(1).is_empty() and pending.is_empty():
 		if wave < waves_total:

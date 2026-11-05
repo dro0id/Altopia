@@ -21,20 +21,32 @@ func _initialize() -> void:
 	var fails := 0
 	var attempts := 0
 	var rows: Array = []
+	var timeouts := 0
+	var facs: Array = []
+	var real_defeats := 0
 	while g.best_stage <= max_stage and t_total < 3600.0 * 4.0:
 		_spend(g)
 		var sim := BattleSim.new(g.team(), g.stage, seed_v * 7919 + attempts, g.boosts)
 		attempts += 1
 		var res: String = sim.run(240.0)
+		if Sector.is_generated(g.stage) and g.stage >= g.best_stage:
+			if res == "fighting" or sim.timed_out:
+				timeouts += 1
+			if res == "defeat" and not sim.timed_out:
+				real_defeats += 1
 		t_total += sim.time
 		t_stage += sim.time
 		g.credits += sim.credits * (Data.BOOST_MULT if g.boost_active() else 1.0)
 		if res == "clear":
 			var frontier: bool = g.stage >= g.best_stage
 			var st: int = g.stage
+			if frontier:
+				g.record_generated(st, true)
 			g.stage_cleared(sim.stars, sim.max_combo, false)
 			g.equip_best_all()
 			if frontier:
+				if st % 10 == 0 and Sector.is_generated(st):
+					facs.append("%d:%.2f" % [st, g.inf_diff])
 				if Data.is_boss_stage(st):
 					rows.append({"stage": st, "type": Data.boss_type(st), "time": t_stage, "fails": fails, "lvl": _avg(g), "total": t_total})
 				t_stage = 0.0
@@ -44,6 +56,7 @@ func _initialize() -> void:
 				g.advance()
 		else:
 			fails += 1
+			g.record_generated(g.stage, false)
 			g.defeated()
 			# farm de l'étage précédent jusqu'à pouvoir acheter quelque chose d'utile
 			g.retreat()
@@ -60,10 +73,14 @@ func _initialize() -> void:
 				if _affordable(g):
 					break
 			g.go_to(g.best_stage)
+	print("FACTEURS ", facs)
 	print("étage ; type ; temps sur l'étage (s) ; défaites ; niveau moyen ; temps cumulé (min)")
 	for r in rows:
 		print("%d ; %s ; %.0f ; %d ; %.1f ; %.1f" % [r.stage, r.type, r.time, r.fails, r.lvl, r.total / 60.0])
 	print("TOTAL %.1f min de combat jusqu'à l'étage %d" % [t_total / 60.0, g.best_stage - 1])
+	if g.gen_tries > 0:
+		print("GÉNÉRÉ échecs : %d défaites, %d combats trop longs (> 240 s)" % [real_defeats, timeouts])
+		print("GÉNÉRÉ tentatives %d · victoires %.0f %% · difficulté ×%.2f" % [g.gen_tries, 100.0 * g.gen_wins / g.gen_tries, g.inf_diff])
 	quit()
 
 
