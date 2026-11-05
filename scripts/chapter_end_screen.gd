@@ -43,10 +43,7 @@ func _draw_body() -> void:
 	M3.text(c, Vector2(0, 104), "CHAPITRE %d TERMINÉ" % _n, 24, UI.ACCENT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(0, 168), String(ch.get("title", "")), 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	# dernière réplique du chapitre
-	var last: Dictionary = {}
-	for s in Story.chapter_scenes(_n):
-		if s.has("end"):
-			last = s.lines[0]
+	var last: Dictionary = Story.end_line(_n)
 	var r := Rect2(32, 216, 656, 176)
 	M3.card(c, r)
 	if not last.is_empty():

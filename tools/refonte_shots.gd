@@ -87,10 +87,21 @@ func _initialize() -> void:
 		"dialogue": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_soleil"), true)),
 		"choixcap": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_haut"), true)),
 		"gardien": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_gardien"), true)),
+		"epave": func(): main._open_modal(DialogueScreen.new(Story.scene("c2_epave"))),
+		"phare": func(): main._open_modal(DialogueScreen.new(Story.scene("c2_porteuse"), true)),
+		"finchap2": func(): main._open_modal(ChapterEndScreen.new(2, Story.chapter(2).reward)),
 		"finchap": func(): main._open_modal(ChapterEndScreen.new(1, Story.chapter(1).reward)),
 		"journal": func():
 			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"]
 			main._open_journal(),
+		"journal2": func():
+			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin", "c2_voix", "c2_epave", "c2_holt"]
+			g.chapters_done = [1]
+			main._open_journal()
+			var j = main._modal
+			j._ch = 2
+			j._chips.sel = 1
+			j._rebuild(),
 		"secteur": func():
 			main._open_modal(SectorScreen.new(53)),
 		"combat53": func():

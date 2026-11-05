@@ -7,14 +7,18 @@ const Data = preload("res://scripts/data.gd")
 ## Une scène : {id, chapter, title, sub, when ("before" ou "after"), stage, lines}. Une réplique : {who, text} ;
 ## une réplique avec `choice` propose deux réponses au Capitaine, et `replies` donne la réplique qui suit chacune.
 
+## Un chapitre = un secteur = 10 étages (maquettes GA à GF). Les chapitres 3 et 4 (étages 21 à 40) restent à écrire ;
+## à partir de l'étage 41, secteurs générés sans histoire.
 const CHAPTERS := [
-	{"n": 1, "title": "Le signal", "from": 1, "to": 20, "reward": {"credits": 2000, "shards": 20, "tokens": 6}},
-	{"n": 2, "title": "Les Échos", "from": 21, "to": 40, "teaser": "la Reine des mites attend au fond.", "reward": {"credits": 6000, "shards": 40, "tokens": 9}},
+	{"n": 1, "title": "Le signal", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1000, "shards": 10, "tokens": 6}},
+	{"n": 2, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 2000, "shards": 20, "tokens": 6}},
+	{"n": 3, "title": "Le Retour", "from": 21, "to": 30, "color": Color("a9b6d6"), "head": Color("1c2640"), "teaser": "la suite arrive bientôt.", "reward": {"credits": 3000, "shards": 30, "tokens": 6}},
 ]
 
-## Personnages qui parlent sans être des héros jouables.
+## Personnages qui parlent sans être des héros jouables : gros boss, avec leur dessin (« crystal » ou « prism »).
 const SPEAKERS := {
-	"gardien": {"name": "Gardien de verre", "role": "Gardien du premier seuil", "color": Color("ff9b9b")},
+	"gardien": {"name": "Gardien de verre", "role": "Gardien du premier seuil", "color": Color("ff9b9b"), "art": "crystal", "fight": "Combattre le Gardien"},
+	"phare": {"name": "Sentinelle prismatique · le Phare", "role": "Porteuse des voix", "color": Color("d6bfff"), "art": "prism", "fight": "Combattre la Sentinelle"},
 }
 
 const PROLOGUE := [
@@ -43,17 +47,37 @@ const SCENES := [
 		{"who": "vance", "text": "Il parle ? Personne ne m'avait dit qu'ils parlaient."},
 		{"who": "gardien", "text": "Je garde. Je ne parle qu'une fois."},
 	]},
-	{"id": "c1_coeur", "chapter": 1, "title": "Un cœur qui bat", "sub": "Après l'étage 10 · Oru", "when": "after", "stage": 10, "lines": [
+	{"id": "c1_fin", "chapter": 1, "title": "Une réponse", "sub": "Fin du chapitre 1 · Oru, Vance, Zyra", "when": "after", "stage": 10, "end": 1, "lines": [
 		{"who": "oru", "text": "Son cœur de verre bat encore… au rythme du signal."},
-		{"who": "vance", "text": "On note. On avance."},
+		{"who": "vance", "text": "Le signal a changé. Ce n'est plus un appel… c'est une réponse.", "key": true},
+		{"who": "zyra", "text": "Il nous a reconnus."},
 	]},
-	{"id": "c1_phare", "chapter": 1, "title": "Le phare", "sub": "Avant l'étage 20 · Mara", "when": "before", "stage": 20, "lines": [
+	{"id": "c2_voix", "chapter": 2, "title": "Des voix connues", "sub": "Avant l'étage 11 · Vance, Zyra", "when": "before", "stage": 11, "lines": [
+		{"who": "vance", "text": "Le signal répond… avec des voix humaines. Enregistrées il y a quarante ans."},
+		{"who": "zyra", "text": "Ce ne sont pas des échos. Ce sont des souvenirs."},
+	]},
+	{"id": "c2_epave", "chapter": 2, "title": "L'épave de l'Aube", "sub": "Après l'étage 12 · Kaï", "when": "after", "stage": 12, "lines": [
+		{"who": "kai", "text": "Une épave terrienne. Classe Aurore. Comme nous.", "choice": ["On fouille l'épave.", "On la laisse en paix."],
+			"replies": [{"who": "kai", "text": "Je prends la soute. Si quelque chose bouge, je hurle."}, {"who": "kai", "text": "Reçu. Je note juste son nom sur la coque : l'Aube."}]},
+	]},
+	{"id": "c2_holt", "chapter": 2, "title": "Commandant Holt", "sub": "Après l'étage 14 · T-9, Vance", "when": "after", "stage": 14, "lines": [
+		{"who": "t9", "text": "Journal de bord récupéré. Commandant : Holt."},
+		{"who": "vance", "text": "… Mon père commandait l'Aube."},
+	]},
+	{"id": "c2_temple", "chapter": 2, "title": "Le temple", "sub": "Après l'étage 15 · Oru", "when": "after", "stage": 15, "lines": [
+		{"who": "oru", "text": "Les mites ne mangent pas le verre. Elles le gardent propre. Comme un temple."},
+	]},
+	{"id": "c2_phare", "chapter": 2, "title": "Le phare", "sub": "Avant l'étage 18 · Mara", "when": "before", "stage": 18, "lines": [
 		{"who": "mara", "text": "Lecture énorme droit devant. On dirait un phare.", "choice": ["Éteignons-le.", "Voyons ce qu'il éclaire."],
 			"replies": [{"who": "vance", "text": "Escouade, on éteint la lumière."}, {"who": "vance", "text": "Curiosité scientifique. Je note que c'était votre idée."}]},
 	]},
-	{"id": "c1_fin", "chapter": 1, "title": "Une réponse", "sub": "Fin du chapitre 1 · Vance, Zyra", "when": "after", "stage": 20, "end": 1, "lines": [
-		{"who": "vance", "text": "Le signal a changé, Capitaine. Ce n'est plus un appel… c'est une réponse."},
-		{"who": "zyra", "text": "Il nous a reconnus."},
+	{"id": "c2_porteuse", "chapter": 2, "title": "Porteuse des voix", "sub": "Avant l'étage 20", "when": "before", "stage": 20, "lines": [
+		{"who": "phare", "text": "J'ai porté leurs voix jusqu'à vous. Je porterai les vôtres plus loin."},
+		{"who": "vance", "text": "Pas aujourd'hui."},
+	]},
+	{"id": "c2_fin", "chapter": 2, "title": "Ne répondez pas", "sub": "Fin du chapitre 2 · Vance, Kaï", "when": "after", "stage": 20, "end": 2, "lines": [
+		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
+		{"who": "kai", "text": "Un peu tard."},
 	]},
 ]
 
@@ -67,6 +91,28 @@ static func scene(id: String) -> Dictionary:
 
 static func chapter_scenes(n: int) -> Array:
 	return SCENES.filter(func(s): return int(s.chapter) == n)
+
+
+## Scènes d'étages déjà dépassés (au-delà de l'étage tout juste vaincu) : on ne les rejoue pas d'un coup,
+## elles sont débloquées dans le journal (parties commencées avant un nouveau chapitre).
+static func behind(seen: Array, best_stage: int) -> Array:
+	return SCENES.filter(func(s): return not seen.has(s.id) and int(s.stage) + 1 < best_stage)
+
+
+## Réplique mise en avant à la fin d'un chapitre.
+static func end_line(n: int) -> Dictionary:
+	for s in chapter_scenes(n):
+		if s.has("end"):
+			for l in s.lines:
+				if l.get("key", false):
+					return l
+			return s.lines[0]
+	return {}
+
+
+## Chapitres qui ont des scènes (le journal n'affiche que ceux-là).
+static func written() -> Array:
+	return CHAPTERS.filter(func(c): return not chapter_scenes(int(c.n)).is_empty())
 
 
 static func chapter(n: int) -> Dictionary:

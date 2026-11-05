@@ -14,13 +14,13 @@ func _init() -> void:
 	_st = use_stage(1.0)
 	M3.top_bar(_st, "Journal de bord", close)
 	var labels: Array = []
-	for c in Story.CHAPTERS:
+	for c in Story.written():
 		var open := int(c.n) == 1 or Game.chapters_done.has(int(c.n) - 1)
 		labels.append(("" if open else "🔒 ") + "Chapitre %d" % int(c.n))
 	_chips = M3Chips.new(labels, 0)
 	_chips.position = Vector2(32, 96)
 	_chips.changed.connect(func(i: int):
-		var n := int(Story.CHAPTERS[i].n)
+		var n := int(Story.written()[i].n)
 		if n > 1 and not Game.chapters_done.has(n - 1):
 			_chips.sel = _ch - 1
 			_chips.queue_redraw()
@@ -64,10 +64,11 @@ func _draw_list() -> void:
 	for r in _rows:
 		seen += 1 if r.seen else 0
 	var head := Rect2(32, 0, 656, 200)
-	UI.draw_gradient_box(c, head, 32.0, Color("16305e"), M3.S2, Color(0, 0, 0, 0), 0.0)
-	M3.text(c, Vector2(64, 52), "CHAPITRE %d · ÉTAGES %d À %d" % [_ch, int(ch.from), int(ch.to)], 24, UI.ACCENT, true)
+	var col: Color = ch.get("color", UI.ACCENT)
+	UI.draw_gradient_box(c, head, 32.0, ch.get("head", Color("16305e")), M3.S2, Color(0, 0, 0, 0), 0.0)
+	M3.text(c, Vector2(64, 52), "CHAPITRE %d · ÉTAGES %d À %d" % [_ch, int(ch.from), int(ch.to)], 24, col, true)
 	M3.text(c, Vector2(64, 100), String(ch.title), 36, UI.TEXT, true)
-	M3.bar(c, Rect2(64, 124, 592, 12), float(seen) / float(maxi(1, _rows.size())))
+	M3.bar(c, Rect2(64, 124, 592, 12), float(seen) / float(maxi(1, _rows.size())), col)
 	M3.text(c, Vector2(64, 172), "%d scène%s sur %d vue%s" % [seen, "s" if seen > 1 else "", _rows.size(), "s" if seen > 1 else ""], 24, UI.MUTED)
 	for i in _rows.size():
 		var r := _row_rect(i)
@@ -77,7 +78,7 @@ func _draw_list() -> void:
 		var title := "Prologue" if row.kind == "prologue" else String(row.scene.title)
 		var sub := "Terre, le signal, le décollage" if row.kind == "prologue" else String(row.scene.sub)
 		c.draw_circle(r.position + Vector2(64, 64), 40, M3.S3)
-		M3.text(c, r.position + Vector2(24, 64 + M3.fs(28) * 0.36), str(n), 28, UI.ACCENT if row.seen else UI.MUTED, true, 80, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(c, r.position + Vector2(24, 64 + M3.fs(28) * 0.36), str(n), 28, col if row.seen else UI.MUTED, true, 80, HORIZONTAL_ALIGNMENT_CENTER)
 		M3.text(c, r.position + Vector2(128, 56), title, 30, UI.TEXT if row.seen else UI.MUTED, true, 440)
 		M3.text(c, r.position + Vector2(128, 94), sub if row.seen else "À découvrir en jouant", 24, UI.MUTED, false, 440)
 		if row.seen:

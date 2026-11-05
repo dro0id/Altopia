@@ -37,10 +37,12 @@ func _init(scene: Dictionary, replay := false) -> void:
 		top.size = Vector2(720, 700)
 		top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		top.draw.connect(func():
+			var sp: Dictionary = Story.SPEAKERS[_boss()]
+			var halo := Color(1.0, 0.42, 0.42, 0.018) if sp.art == "crystal" else Color(0.7, 0.53, 1.0, 0.022)
 			for k in 14:
-				top.draw_circle(Vector2(360, 330), 360.0 - k * 24.0, Color(1.0, 0.42, 0.42, 0.018))
+				top.draw_circle(Vector2(360, 330), 360.0 - k * 24.0, halo)
 			var bob := sin(_t * 2.2) * 8.0
-			_crystal(top, Vector2(360, 330 + bob), 2.6)
+			_art(top, String(sp.art), Vector2(360, 330 + bob), 2.6)
 			top.draw_style_box(UI.box(Color("3a1620"), Color(0, 0, 0, 0), 40, 0), Rect2(32, 32, 336, 80))
 			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Étage %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
 		_st.add_child(top)
@@ -68,10 +70,15 @@ func _init(scene: Dictionary, replay := false) -> void:
 
 
 func _has_boss() -> bool:
+	return _boss() != ""
+
+
+## Gros boss qui parle dans la scène (clé de Story.SPEAKERS), ou "".
+func _boss() -> String:
 	for l in _lines:
 		if Story.SPEAKERS.has(String(l.who)):
-			return true
-	return false
+			return String(l.who)
+	return ""
 
 
 func _process(delta: float) -> void:
@@ -106,7 +113,7 @@ func _layout() -> void:
 	if _has_boss():
 		_restyle(_btn, Color("ff6b6b"), Color("1a0505"))
 		if last:
-			_btn.text = "Combattre le %s" % String(Story.SPEAKERS.gardien.name).split(" ")[0]
+			_btn.text = String(Story.SPEAKERS[_boss()].fight)
 	if has_choice:
 		var y0 := _sheet.position.y + 72.0 + 144.0 + 24.0 + text_h + 32.0 + 64.0
 		for k in 2:
@@ -217,14 +224,31 @@ func _step_label() -> String:
 	return "Étage %d" % int(_scene.stage)
 
 
-## Portrait d'un personnage : héros dessiné, ou le cristal du Gardien.
+## Portrait d'un personnage : héros dessiné, ou le dessin du gros boss.
 func _face(ci: CanvasItem, who: String, c: Vector2, r: float, ring: Color) -> void:
 	if Story.SPEAKERS.has(who):
 		ci.draw_circle(c, r, Color("0a1424"))
-		_crystal(ci, c, r / 64.0)
+		_art(ci, String(Story.SPEAKERS[who].art), c, r / 64.0)
 		ci.draw_arc(c, r - 2.0, 0, TAU, 56, ring, 4.0, true)
 	else:
 		M3.avatar(ci, Data.HEROES[who], c, r, ring, _t)
+
+
+static func _art(ci: CanvasItem, art: String, c: Vector2, k: float) -> void:
+	if art == "prism":
+		_prism(ci, c, k)
+	else:
+		_crystal(ci, c, k)
+
+
+## La Sentinelle prismatique, « le Phare » (maquette GE) : un prisme violet, un cœur de lumière et deux faisceaux.
+static func _prism(ci: CanvasItem, c: Vector2, k: float) -> void:
+	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x - 30.0, y - 30.0) * k * 1.6
+	ci.draw_line(P.call(30, 30), P.call(60, 10), Color(1.0, 0.96, 0.77, 0.6), 1.5 * k * 1.6, true)
+	ci.draw_line(P.call(30, 30), P.call(0, 10), Color(1.0, 0.96, 0.77, 0.6), 1.5 * k * 1.6, true)
+	ci.draw_colored_polygon(PackedVector2Array([P.call(30, 4), P.call(44, 22), P.call(38, 56), P.call(22, 56), P.call(16, 22)]), Color(0.7, 0.53, 1.0, 0.85))
+	ci.draw_colored_polygon(PackedVector2Array([P.call(30, 4), P.call(44, 22), P.call(30, 28), P.call(16, 22)]), Color("e6d6ff"))
+	ci.draw_circle(P.call(30, 30), 6.0 * k * 1.6, Color("fff4c4"))
 
 
 ## Le Gardien de verre : un cristal à facettes avec un cœur rouge.
