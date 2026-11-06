@@ -9,6 +9,7 @@ func _initialize() -> void:
 	g.intro_seen = true
 	g.seen_scenes = ["prologue"]
 	g.tutorial_done = true
+	g.tips = ["items", "ship"]
 	g.speed = 3.0
 	Engine.time_scale = 6.0
 	var main: Control = (load("res://scenes/main.tscn") as PackedScene).instantiate()
@@ -18,6 +19,9 @@ func _initialize() -> void:
 	var scenes := 0
 	var chapters := 0
 	var defeats := 0
+	var tiers := 0
+	var ship_t := 0.0
+	var ups := 0
 	var last_stage := 1
 	var last_print := -1
 	var farm_t := 0.0
@@ -44,6 +48,11 @@ func _initialize() -> void:
 			elif m is ChapterEndScreen:
 				chapters += 1
 				m.close()
+			elif m is ShipTierScreen:
+				tiers += 1
+				m.close()
+			elif m.get_script() == ShipScreen:
+				m.close()
 			elif m is DefeatScreen:
 				defeats += 1
 				m.farm_pressed.emit()
@@ -55,17 +64,35 @@ func _initialize() -> void:
 				farm_t = 0.0
 				g.go_to(g.best_stage)
 				main._start_battle()
+		# le vaisseau : récolte, améliorations, le temps avance plus vite (10 min par seconde de jeu simulé)
+		ship_t += 1.0 / 60.0 * 6.0
+		if g.ship.unlocked and ship_t > 1.0:
+			ship_t = 0.0
+			ShipState.clock_offset += 600
+			g.ship_update()
+			g.ship.collect_all(g)
+		var ship_need := 0.0
+		if g.ship.unlocked:
+			for r in Ship.ORDER:
+				var blk: String = g.ship.upgrade_block(g, r)
+				if blk == "":
+					if g.ship.start_upgrade(g, r):
+						ups += 1
+				elif blk == "Pas assez de ressources":
+					var cc: float = float(Ship.upgrade_cost(r, g.ship.room_level(r) + 1).credits)
+					ship_need = cc if ship_need == 0.0 else minf(ship_need, cc)
 		# on évolue dès que possible, puis on dépense les crédits comme un joueur
 		for id in g.squad_ids():
 			if g.can_afford_evolve(id):
 				g.evolve(id)
 		for id in g.squad_ids():
-			if g.can_level(id):
+			if g.can_level(id) and (ship_need == 0.0 or g.credits - float(g.level_cost(id)) > ship_need * 0.5 or int(t) % 5 == 0):
 				g.level_up(id)
 		if int(t) % 7 == 0:
 			g.equip_best_all()
 			g.recycle_items(g.inventory_items().filter(func(it): return Items.rarity_index(it.rarity) < 2).map(func(it): return int(it.id)))
 	print("SMOKE histoire : %d scènes, %d chapitre(s) terminé(s), vues : %s" % [scenes, chapters, str(g.seen_scenes)])
+	print("SMOKE vaisseau : niveau %d, salles %s, améliorations %d, nouvelles versions vues %d" % [g.ship.level, str(g.ship.rooms), ups, tiers])
 	print("SMOKE objets : %d, équipés : %d, éclats : %d" % [g.items.size(), g.items.filter(func(it): return it.on != "").size(), g.shards])
 	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0

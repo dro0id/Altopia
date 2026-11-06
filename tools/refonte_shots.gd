@@ -127,6 +127,81 @@ func _initialize() -> void:
 				g.levels[id] = 60
 			g.evolved = {"mara": 2, "kai": 2, "zyra": 2, "t9": 2, "oru": 2}
 			main._start_battle(),
+		"vaisseau": func():
+			_ship(10)
+			main._open_ship(),
+		"vaisseau20": func():
+			_ship(20)
+			main._open_ship(),
+		"vaisseau8": func():
+			_ship(8)
+			main._open_ship(),
+		"vaisseau5": func():
+			_ship(5)
+			main._open_ship(),
+		"vaisseau15": func():
+			_ship(15)
+			main._open_ship(),
+		"vaisseau1": func():
+			_ship(3)
+			main._open_ship(),
+		"salle": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("raffinerie"),
+		"pont": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("pont"),
+		"labo": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("labo"),
+		"quartiers": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("quartiers"),
+		"hangar": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("hangar"),
+		"ameliorer": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("raffinerie")
+			await process_frame
+			var rs = main._modal.get_child(main._modal.get_child_count() - 1)
+			rs._upgrade_dialog(),
+		"affecter": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("atelier")
+			await process_frame
+			var rs = main._modal.get_child(main._modal.get_child_count() - 1)
+			rs._assign_sheet(""),
+		"expedition": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("hangar")
+			await process_frame
+			var rs = main._modal.get_child(main._modal.get_child_count() - 1)
+			rs._expedition_sheet("martin"),
+		"version": func():
+			_ship(11)
+			var ts := ShipTierScreen.new(11)
+			main._open_modal(ts),
+		"niveau20": func():
+			_ship(20)
+			var ts := ShipTierScreen.new(20)
+			main._open_modal(ts),
+		"horsligne_vaisseau": func():
+			_ship(10)
+			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
+		"fiche_salle": func():
+			_ship(10)
+			main._open_ship()
+			await process_frame
+			main._modal._select("raffinerie"),
 		"coffre": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch
@@ -143,12 +218,46 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" else (1.4 if k == "combat53" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(2.6 if k == "victoire" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()
 		await _wait(0.3)
 	quit()
+
+
+## Vaisseau d'exemple (comme les maquettes) : niveau donné, équipage, réserves, un chantier, une recherche, une expédition.
+func _ship(lv: int) -> void:
+	var sh = g.ship
+	sh.unlock()
+	sh.level = lv
+	sh.open_rooms()
+	var lvs := {"centrale": lv - 1, "raffinerie": lv - 1, "atelier": lv - 2, "antenne": maxi(1, lv - 9), "labo": maxi(1, lv - 9), "quartiers": maxi(1, lv - 5), "hangar": maxi(1, lv - 7), "serre": maxi(1, lv - 4), "observatoire": maxi(1, lv - 11)}
+	for r in lvs:
+		if sh.room_level(r) > 0:
+			sh.rooms[r] = maxi(1, lvs[r])
+	for id in ["dax", "pim", "neelo", "sora", "lumi", "gorn", "omega", "vance", "t9", "brix"]:
+		g.owned[id] = true
+	g.squad = ["mara", "kai", "zyra", "aria", "oru"]
+	var posts := {"raffinerie": ["gorn", "omega"], "atelier": ["pim"], "antenne": ["lumi"], "labo": ["t9"], "quartiers": ["neelo", "dax"], "pont": ["vance"], "centrale": ["brix"]}
+	for r in sh.posts:
+		sh.posts[r] = []
+	for r in posts:
+		for h in posts[r]:
+			if sh.room_level(r) > 0:
+				sh.posts[r].append(h)
+	sh.stock["raffinerie"] = 38.0
+	sh.stock["atelier"] = 3.4
+	sh.stock["antenne"] = 2.2
+	sh.builds = [{"room": "labo", "to": sh.room_level("labo") + 1, "end": ShipState.now() + 720}]
+	sh.research = {"blindage": 1, "armement": 2}
+	sh.research_job = {"id": "blindage", "end": ShipState.now() + 720}
+	if sh.room_level("hangar") > 0:
+		sh.rooms["hangar"] = maxi(4, sh.room_level("hangar"))
+		sh.shuttles = {"colibri": {"dest": "epave", "hero": "dax", "end": ShipState.now() + 7800}}
+	g.credits = 1.2e6
+	g.shards = 900
+	g.crystals = 14
 
 
 func _snap(path: String) -> void:

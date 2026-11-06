@@ -23,7 +23,7 @@ func _init(report: Dictionary) -> void:
 			body.draw_string(fb, Vector2(x, 136), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24), UI.ACCENT)
 			x += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24)).x + 3.0
 		M3.text(body, Vector2(0, 208), _hm(float(report.seconds)), 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
-		M3.text(body, Vector2(0, 248), "Plafond %d h" % int(Data.OFFLINE_CAP_HOURS), 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(body, Vector2(0, 248), "Plafond %d h" % int(round(Game.offline_cap_hours())), 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
 		var rows := [["coin", "Crédits", "Farm automatique", "+" + UI.num(report.credits), UI.GOLD], ["shard", "Éclats de verre", "Collectés", "+%d" % int(report.get("shards", 0)), Color("7fdcff")]]
 		for i in 2:
 			var r := Rect2(32, 296 + i * 128.0, 656, 112)
@@ -32,13 +32,27 @@ func _init(report: Dictionary) -> void:
 			M3.text(body, r.position + Vector2(88, 48), rows[i][1], 30, UI.TEXT, true)
 			M3.text(body, r.position + Vector2(88, 84), rows[i][2], 24, UI.MUTED)
 			M3.text(body, r.position + Vector2(0, 68), rows[i][3], 34, rows[i][4], true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
+		var yy := 568.0
+		var ship_lines := _ship_lines(report.get("ship", {}))
+		if not ship_lines.is_empty():
+			# l'Aurore a travaillé (maquette IJ)
+			var h := 88.0 + ship_lines.size() * 46.0
+			M3.card(body, Rect2(32, yy, 656, h))
+			M3.text(body, Vector2(64, yy + 52), "L’AURORE A TRAVAILLÉ", 22, UI.ACCENT, true)
+			for i in ship_lines.size():
+				M3.text(body, Vector2(64, yy + 100 + i * 46), String(ship_lines[i][0]), 26, UI.TEXT)
+				M3.text(body, Vector2(64, yy + 100 + i * 46), String(ship_lines[i][1]), 26, UI.GREEN, true, 592, HORIZONTAL_ALIGNMENT_RIGHT)
+			yy += h + 16.0
 		if ready:
-			M3.card(body, Rect2(32, 568, 656, 96))
-			M3.text(body, Vector2(64, 626), "Un coffre gratuit est prêt à ouvrir.", 26, UI.GREEN))
+			M3.card(body, Rect2(32, yy, 656, 96))
+			M3.text(body, Vector2(64, yy + 58), "Un coffre gratuit est prêt à ouvrir.", 26, UI.GREEN))
 	st.add_child(body)
 	var h := 1280.0
 	var ok := M3.button(st, "Tout récupérer", Rect2(32, h - 32 - (96 + 16 if ready else 0) - 104, 656, 104), "main", 32)
-	ok.pressed.connect(close)
+	ok.pressed.connect(func():
+		Game.ship.collect_all(Game)
+		Game.changed.emit()
+		close())
 	if ready:
 		var oc := M3.button(st, "Récupérer et ouvrir le coffre", Rect2(32, h - 32 - 96, 656, 96), "ghost", 30)
 		oc.pressed.connect(func():
@@ -47,6 +61,27 @@ func _init(report: Dictionary) -> void:
 				chest_claimed.emit(c)
 			close())
 	Sfx.play("coin")
+
+
+## Lignes du résumé du vaisseau : réserves remplies, chantiers, recherche, entraînement, navettes.
+func _ship_lines(ev: Dictionary) -> Array:
+	var out: Array = []
+	if ev.is_empty():
+		return out
+	for r in Ship.ORDER:
+		var v := float(ev.get("stock", {}).get(r, 0.0))
+		var res := String(Ship.ROOMS[r].res)
+		if res != "" and v >= 1.0:
+			out.append([Ship.ROOMS[r].short, "+%s %s" % [UI.num(v) if res == "credits" else str(int(v)), Ship.RES_NAMES[res]]])
+	for d in ev.get("done", []):
+		out.append([Ship.ROOMS[d.room].short, "niveau %d terminé" % int(d.to)])
+	if String(ev.get("research", "")) != "":
+		out.append(["Labo", "%s terminée" % Ship.RESEARCH[ev.research].name])
+	for h in ev.get("trained", {}):
+		out.append(["Quartiers", "%s +%d niv." % [String(Data.HEROES[h].name).split(" ")[0], int(ev.trained[h])]])
+	for sh in ev.get("shuttles", []):
+		out.append(["Hangar", "%s est rentrée" % Ship.SHUTTLES[sh].name])
+	return out.slice(0, 5)
 
 
 func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:

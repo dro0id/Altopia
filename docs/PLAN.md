@@ -48,10 +48,11 @@ Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : ti
 - **Livrable** : un objet change réellement l'issue d'un combat.
 - **À valider** : emplacements, profondeur des bonus, objets liés à un héros ou communs.
 
-## Branche 5 · `feat/vaisseau-base` (L) : le hub et la production
-- **Contenu** : le vaisseau comme hub avec des salles (mine, centrale, labo, atelier, quartiers), production hors ligne, améliorations permanentes, la Base débloquée à l'arrivée de la première planète.
-- **Livrable** : le joueur a une raison de revenir hors combat.
-- **À valider** : nombre de salles, lien avec les héros (affectation) ou production passive seule.
+## Branche 5 · `feat/vaisseau-base` (L) : l'Aurore, le hub (FAIT dans le code, à tester sur téléphone)
+- **Décidé** : onglet Vaisseau au centre de la barre du bas, coupe 3D (maquettes PA à QC). Niveau max 20, un design par tranche (1–5, 6–10, 11–15, 16–19) et un design unique au niveau 20 (Aurore Éternelle). 10 salles : Pont, Centrale, Raffinerie, Atelier, Antenne, Labo, Quartiers, Hangar (navettes et expéditions), Serre, Observatoire.
+- **Règles** : améliorations en temps réel, accélérables contre des cristaux (achat en argent réel à la publication) ; seuls les héros hors escouade occupent les postes ; le Pont monte avec l'étage atteint et a son propre chantier.
+- **Rythme** : niveau 10 à la fin des 40 étages de l'histoire (chantiers courts) ; niveaux 11 à 20 dans les secteurs générés (étage 45 à 130, chantiers de 30 min à 12 h). Vérifié par `tools/progress.gd` et les tests.
+- **Reporté** : la Base sur une planète. Plus tard : cadre doré des portraits au niveau 20.
 
 ## Branche 6 · `feat/modes-de-jeu` (M) : varier le rythme
 - **Contenu** : failles (combat de boss à tentatives limitées), expéditions chronométrées, défis quotidiens ; les modes Dérive et Route de l'ancien projet ne sont repris que si tu les veux.

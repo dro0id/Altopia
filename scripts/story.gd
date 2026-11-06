@@ -47,6 +47,10 @@ const SCENES := [
 		{"who": "zyra", "text": "Le Foreur creusait vers le haut. Quelque chose veut sortir, Capitaine.", "choice": ["Ou quelqu'un veut entrer.", "Alors on l'en empêche."],
 			"replies": [{"who": "zyra", "text": "Entrer… Oui. C'est peut-être nous qu'il attendait."}, {"who": "zyra", "text": "Alors il faudra descendre plus vite que lui ne monte."}]},
 	]},
+	{"id": "c1_aurore", "chapter": 1, "title": "L’Aurore tourne à vide", "sub": "Après le mini-boss · Mara, T-9", "when": "after", "stage": 5, "lines": [
+		{"who": "mara", "text": "Capitaine, l’Aurore tourne à vide. Donnez-moi des bras et je vous rends des éclats."},
+		{"who": "t9", "text": "Traduction : le vaisseau est à vous. Félicitations."},
+	]},
 	{"id": "c1_gardien", "chapter": 1, "title": "Le Gardien parle", "sub": "Avant l'étage 10", "when": "before", "stage": 10, "lines": [
 		{"who": "gardien", "text": "Vous portez le signal sur vous comme une odeur. Repartez tant que le verre vous laisse passer."},
 		{"who": "vance", "text": "Il parle ? Personne ne m'avait dit qu'ils parlaient."},

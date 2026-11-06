@@ -509,8 +509,8 @@ func test_story() -> void:
 	for c in Story.CHAPTERS:
 		_check(int(c.to) - int(c.from) == 9, "chapitre %d sur 10 étages" % int(c.n))
 	_check(Story.chapter_scenes(2).size() == 7 and int(Story.scene("c1_fin").stage) == 10 and int(Story.scene("c2_fin").end) == 2, "chapitre 1 jusqu'à 10, chapitre 2 en 7 scènes")
-	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
-	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
 	_check(Story.pending([], 20, 20).get("id", "") == "c1_soleil", "scène manquée jouée tant qu'on n'a pas rattrapé")
 	# partie déjà loin : les scènes passées vont au journal sans rafale, chapitres payés une fois
 	_g.best_stage = 22
@@ -749,3 +749,93 @@ func test_items_combat_and_save() -> void:
 		var c: Dictionary = _g.open_chest("commun", 10, 0.0, false, true)
 		rarities.append(c.item.rarity)
 	_check(Items.rarity_index(rarities[2]) >= 4 or Items.rarity_index(rarities[0]) >= 4 or Items.rarity_index(rarities[1]) >= 4, "un objet légendaire est garanti au 3e gros boss")
+
+
+func test_ship() -> void:
+	ShipState.clock_offset = 0
+	var s: ShipState = _g.ship
+	_check(not s.unlocked, "vaisseau fermé au départ")
+	_g.best_stage = 6
+	_g.ship_update()
+	_check(s.unlocked and s.room_level("pont") == 1 and s.room_level("raffinerie") == 1 and s.room_level("atelier") == 0, "vaisseau ouvert après l'étage 5, salles du niveau 1")
+	# production en temps réel, plafonnée par l'autonomie
+	ShipState.clock_offset += 3600
+	_g.ship_update()
+	var r1: float = s.stock.raffinerie
+	_check(r1 > 2.0 and r1 < 4.0, "la Raffinerie produit environ 2,6 éclats par heure (%.2f)" % r1)
+	ShipState.clock_offset += 3600 * 100
+	_g.ship_update()
+	_check(is_equal_approx(float(s.stock.raffinerie), s.capacity("raffinerie", _g.best_stage)), "réserve plafonnée par l'autonomie")
+	var sh0: int = _g.shards
+	var got: Dictionary = s.collect(_g, "raffinerie")
+	_check(_g.shards == sh0 + int(got.amount) and float(s.stock.raffinerie) < 1.0, "récolte des éclats")
+	# améliorations : le Pont exige l'étage, les salles ne dépassent pas le Pont
+	_g.credits = 1.0e9
+	_g.shards = 100000
+	_check(s.upgrade_block(_g, "raffinerie") != "", "une salle ne dépasse pas le niveau du Pont")
+	_g.best_stage = 6
+	_check(s.upgrade_block(_g, "pont").begins_with("Étage"), "le Pont exige l'étage suivant")
+	_g.best_stage = 9
+	_check(s.start_upgrade(_g, "pont") and s.builds.size() == 1, "chantier du Pont lancé")
+	_check(not s.start_upgrade(_g, "raffinerie"), "un seul chantier à la fois au début")
+	ShipState.clock_offset += 3600
+	_g.ship_update()
+	_check(s.level == 2 and s.room_level("pont") == 2 and s.builds.is_empty(), "chantier terminé en temps réel")
+	_check(s.start_upgrade(_g, "raffinerie"), "chantier de salle")
+	_g.crystals = 0
+	_check(not s.rush_build(_g, "raffinerie"), "accélérer demande des cristaux")
+	_g.crystals = 50
+	var cost := Ship.rush_cost(s.remaining(int(s.building("raffinerie").end)))
+	_check(s.rush_build(_g, "raffinerie") and s.room_level("raffinerie") == 2 and _g.crystals == 50 - cost, "terminé tout de suite contre %d cristaux" % cost)
+	# postes : seulement les héros hors escouade
+	_g.owned["dax"] = true
+	_check(not s.assign(_g, "mara", "raffinerie"), "un héros de l'escouade ne travaille pas")
+	_check(s.assign(_g, "dax", "raffinerie") and s.posts.raffinerie.has("dax"), "un héros hors escouade prend un poste")
+	_check(s.production_mult("raffinerie") > 1.2, "le poste augmente la production")
+	_g.set_slot(0, "dax")
+	_check(s.post_of("dax") == "", "entré dans l'escouade, il quitte son poste")
+	# recherche : bonus de combat
+	s.level = 10
+	s.open_rooms()
+	s.rooms["labo"] = 3
+	_check(s.start_research(_g, "armement"), "recherche lancée")
+	ShipState.clock_offset += 3600 * 3
+	_g.ship_update()
+	_check(s.rank("armement") == 1 and is_equal_approx(float(_g.team()[0].ship.atk), 0.03), "recherche terminée, +3 % d'attaque")
+	var sim := BattleSim.new(_g.team(), 1, 7)
+	var sim0 := BattleSim.new(_team(1), 1, 7)
+	_check(sim.units[0].atk > sim0.units[0].atk, "le bonus du Labo s'applique au combat")
+	# expéditions
+	s.rooms["hangar"] = 1
+	_g.owned["sora"] = true
+	_check(s.fleet() == ["colibri"] and s.launch(_g, "colibri", "asteroides", "sora"), "expédition lancée")
+	ShipState.clock_offset += 3600 * 2
+	_g.ship_update()
+	var sh1: int = _g.shards
+	var res: Dictionary = s.claim(_g, "colibri")
+	_check(int(res.get("shards", 0)) > 0 and _g.shards == sh1 + int(res.shards) and s.shuttle_state("colibri").is_empty(), "navette rentrée, butin versé")
+	# entraînement des Quartiers
+	s.rooms["quartiers"] = 10
+	_g.levels["sora"] = 1
+	for id in _g.squad_ids():
+		_g.levels[id] = 30
+	_check(s.assign(_g, "sora", "quartiers"), "un héros au repos")
+	ShipState.clock_offset += 3600 * 20
+	_g.ship_update()
+	_check(int(_g.levels.sora) > 1 and int(_g.levels.sora) <= 27, "l'entraînement monte son niveau, sans dépasser l'escouade − 3 (%d)" % int(_g.levels.sora))
+	# sauvegarde
+	_g.save_game()
+	var g2: Node = load("res://scripts/game.gd").new()
+	g2.save_path = _g.save_path
+	g2.load_game()
+	_check(g2.ship.unlocked and g2.ship.level == 10 and g2.ship.rank("armement") == 1 and g2.ship.posts.quartiers.has("sora"), "vaisseau sauvegardé")
+	g2.free()
+	# rythme : le vaisseau atteint le niveau 10 pendant l'histoire (étages 1 à 40), les niveaux 11 à 20 viennent ensuite
+	_check(int(Ship.PONT_STAGE[10]) <= 35 and int(Ship.PONT_STAGE[11]) > 40, "niveau 10 pendant l'histoire, 11 et plus après l'étage 40")
+	var total := 0
+	for lv in range(2, 11):
+		total += int(Ship.upgrade_cost("pont", lv).time)
+	_check(total <= 600, "chantiers du Pont jusqu'au niveau 10 courts (%d s)" % total)
+	_check(int(Ship.upgrade_cost("pont", 11).time) >= 1800, "chantiers longs au-delà du niveau 10")
+	_check(Ship.tier_of(1) == 1 and Ship.tier_of(6) == 2 and Ship.tier_of(15) == 3 and Ship.tier_of(19) == 4 and Ship.tier_of(20) == 5, "cinq versions du vaisseau")
+	ShipState.clock_offset = 0
