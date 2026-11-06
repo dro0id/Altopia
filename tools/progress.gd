@@ -24,8 +24,14 @@ func _initialize() -> void:
 	var timeouts := 0
 	var facs: Array = []
 	var real_defeats := 0
+	var t0 := int(Time.get_unix_time_from_system())
 	while g.best_stage <= max_stage and t_total < 3600.0 * 4.0:
-		_spend(g)
+		# le vaisseau suit le temps de jeu : production, chantiers, puis on investit comme un joueur
+		ShipState.clock_offset = int(t_total) - (int(Time.get_unix_time_from_system()) - t0)
+		g.ship_update()
+		g.ship.collect_all(g)
+		if _ship(g):
+			_spend(g)
 		var sim := BattleSim.new(g.team(), g.stage, seed_v * 7919 + attempts, g.boosts)
 		attempts += 1
 		var res: String = sim.run(240.0)
@@ -48,7 +54,7 @@ func _initialize() -> void:
 				if st % 10 == 0 and Sector.is_generated(st):
 					facs.append("%d:%.2f" % [st, g.inf_diff])
 				if Data.is_boss_stage(st):
-					rows.append({"stage": st, "type": Data.boss_type(st), "time": t_stage, "fails": fails, "lvl": _avg(g), "total": t_total})
+					rows.append({"stage": st, "type": Data.boss_type(st), "time": t_stage, "fails": fails, "lvl": _avg(g), "total": t_total, "ship": g.ship.level})
 				t_stage = 0.0
 				fails = 0
 				var offer: Array = g.offer_boosts()
@@ -74,14 +80,34 @@ func _initialize() -> void:
 					break
 			g.go_to(g.best_stage)
 	print("FACTEURS ", facs)
-	print("étage ; type ; temps sur l'étage (s) ; défaites ; niveau moyen ; temps cumulé (min)")
+	print("étage ; type ; temps sur l'étage (s) ; défaites ; niveau moyen ; temps cumulé (min) ; vaisseau")
 	for r in rows:
-		print("%d ; %s ; %.0f ; %d ; %.1f ; %.1f" % [r.stage, r.type, r.time, r.fails, r.lvl, r.total / 60.0])
+		print("%d ; %s ; %.0f ; %d ; %.1f ; %.1f ; %d" % [r.stage, r.type, r.time, r.fails, r.lvl, r.total / 60.0, r.ship])
+	print("VAISSEAU niveau %d, salles %s, Pont : %s, crédits %d, éclats %d, coût %s" % [g.ship.level, str(g.ship.rooms), g.ship.upgrade_block(g, "pont"), g.credits, g.shards, str(Ship.upgrade_cost("pont", g.ship.level + 1))])
 	print("TOTAL %.1f min de combat jusqu'à l'étage %d" % [t_total / 60.0, g.best_stage - 1])
 	if g.gen_tries > 0:
 		print("GÉNÉRÉ échecs : %d défaites, %d combats trop longs (> 240 s)" % [real_defeats, timeouts])
 		print("GÉNÉRÉ tentatives %d · victoires %.0f %% · difficulté ×%.2f" % [g.gen_tries, 100.0 * g.gen_wins / g.gen_tries, g.inf_diff])
 	quit()
+
+
+## Joueur type : le Pont dès que possible, une salle quand il reste de quoi faire monter les héros.
+func _ship(g) -> bool:
+	if not g.ship.unlocked:
+		return true
+	var blk: String = g.ship.upgrade_block(g, "pont")
+	if blk == "":
+		g.ship.start_upgrade(g, "pont")
+	elif blk == "Pas assez de ressources":
+		return false
+	for r in Ship.ORDER:
+		if r == "pont" or g.ship.upgrade_block(g, r) != "":
+			continue
+		var c: Dictionary = Ship.upgrade_cost(r, g.ship.room_level(r) + 1)
+		var pc: Dictionary = Ship.upgrade_cost("pont", mini(Ship.MAX_LEVEL, g.ship.level + 1))
+		if g.credits > 2.0 * float(c.credits) and g.shards - int(c.shards) >= int(pc.shards):
+			g.ship.start_upgrade(g, r)
+	return true
 
 
 func _affordable(g) -> bool:

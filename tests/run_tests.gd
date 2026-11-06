@@ -830,5 +830,12 @@ func test_ship() -> void:
 	g2.load_game()
 	_check(g2.ship.unlocked and g2.ship.level == 10 and g2.ship.rank("armement") == 1 and g2.ship.posts.quartiers.has("sora"), "vaisseau sauvegardé")
 	g2.free()
+	# rythme : le vaisseau atteint le niveau 10 pendant l'histoire (étages 1 à 40), les niveaux 11 à 20 viennent ensuite
+	_check(int(Ship.PONT_STAGE[10]) <= 35 and int(Ship.PONT_STAGE[11]) > 40, "niveau 10 pendant l'histoire, 11 et plus après l'étage 40")
+	var total := 0
+	for lv in range(2, 11):
+		total += int(Ship.upgrade_cost("pont", lv).time)
+	_check(total <= 600, "chantiers du Pont jusqu'au niveau 10 courts (%d s)" % total)
+	_check(int(Ship.upgrade_cost("pont", 11).time) >= 1800, "chantiers longs au-delà du niveau 10")
 	_check(Ship.tier_of(1) == 1 and Ship.tier_of(6) == 2 and Ship.tier_of(15) == 3 and Ship.tier_of(19) == 4 and Ship.tier_of(20) == 5, "cinq versions du vaisseau")
 	ShipState.clock_offset = 0

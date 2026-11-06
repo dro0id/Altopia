@@ -244,7 +244,9 @@ func upgrade_block(game: Node, r: String) -> String:
 		return "Monte d’abord le Pont (niveau %d)" % (level + 1)
 	if r == "pont" and int(game.best_stage) <= int(Ship.PONT_STAGE[lv + 1]) - 1:
 		return "Étage %d requis" % int(Ship.PONT_STAGE[lv + 1])
-	if builds.size() >= max_builds():
+	# le Pont a son propre chantier ; les salles se partagent les autres
+	var room_builds := builds.filter(func(b): return String(b.room) != "pont").size()
+	if r != "pont" and room_builds >= max_builds():
 		return "Un chantier à la fois" if max_builds() == 1 else "Deux chantiers à la fois"
 	var c := Ship.upgrade_cost(r, lv + 1, rank("logistique"))
 	if float(game.credits) < float(c.credits) or int(game.shards) < int(c.shards):

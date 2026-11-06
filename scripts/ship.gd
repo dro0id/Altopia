@@ -25,9 +25,11 @@ const ROOMS := {
 const RES_NAMES := {"shards": "éclats", "item_tokens": "jetons d’objet", "tokens": "jetons de recrutement", "credits": "crédits"}
 
 ## Étage à atteindre pour monter le Pont (= le vaisseau) à chaque niveau.
-const PONT_STAGE := [0, 5, 8, 11, 14, 17, 20, 24, 28, 32, 36, 40, 46, 52, 58, 64, 72, 80, 90, 100, 120]
-## Durée d'un chantier pour atteindre chaque niveau (secondes) : 2 min au début, 16 h au niveau 20.
-const BUILD_TIME := [0, 0, 120, 300, 600, 1200, 1800, 2700, 3600, 5400, 7200, 9000, 10800, 14400, 18000, 21600, 25200, 28800, 36000, 43200, 57600]
+## Niveaux 1 à 10 pendant l'histoire (niveau 10 dès l’étage 32) ; 11 à 20 dans les secteurs générés (boucle AFK).
+const PONT_STAGE := [0, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 45, 52, 60, 68, 76, 85, 95, 105, 115, 130]
+## Durée d'un chantier pour atteindre chaque niveau (secondes) : courte jusqu'au niveau 10 (le vaisseau suit l'histoire),
+## puis de 30 min à 12 h pour les niveaux 11 à 20 (accélérables contre des cristaux).
+const BUILD_TIME := [0, 0, 15, 20, 25, 30, 35, 40, 45, 50, 60, 1800, 3600, 5400, 7200, 10800, 14400, 18000, 21600, 28800, 43200]
 
 const TIERS := [
 	{"from": 1, "to": 5, "name": "Aurore I", "sub": "coque d’origine", "color": Color("a9b6d6")},
@@ -92,10 +94,13 @@ static func income_per_min(stage: int) -> float:
 ## Coût d'amélioration d'une salle (ou du Pont) vers `to_level` : crédits, éclats, durée (secondes).
 static func upgrade_cost(room: String, to_level: int, logistique := 0) -> Dictionary:
 	var lv := clampi(to_level, 2, MAX_LEVEL)
-	var k := 2.0 if room == "pont" else 1.0
-	var credits: float = roundf(6.0 * income_per_min(PONT_STAGE[lv]) * k / 10.0) * 10.0
+	# jusqu'au niveau 10, quelques minutes de farm (le vaisseau suit l'histoire) ; au-delà, nettement plus cher
+	var k := (3.0 if lv <= 10 else 6.0) * (1.5 if room == "pont" else 1.0)
+	var credits: float = roundf(k * income_per_min(PONT_STAGE[lv]) / 10.0) * 10.0
 	var shards := int(round(1.5 * pow(float(lv), 1.25) * (1.5 if room == "pont" else 1.0)))
-	var t := float(BUILD_TIME[lv]) * (1.5 if room == "pont" else 1.0) * maxf(0.5, 1.0 - 0.05 * logistique)
+	if lv <= 10:
+		shards = int(round(float(lv) * (1.0 if room == "pont" else 1.5)))
+	var t := float(BUILD_TIME[lv]) * maxf(0.5, 1.0 - 0.05 * logistique)
 	return {"credits": credits, "shards": shards, "time": int(t)}
 
 
