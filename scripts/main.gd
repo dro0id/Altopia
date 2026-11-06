@@ -319,8 +319,10 @@ func _on_tab(i: int) -> void:
 		1:
 			_open_collection()
 		2:
-			_open_recruit()
+			_open_ship()
 		3:
+			_open_recruit()
+		4:
 			_open_shop()
 
 
@@ -475,13 +477,29 @@ func _open_recruit() -> void:
 	rs.inventory_requested.connect(func(): _open_collection.call_deferred(1))
 	rs.equipped.connect(_start_battle)
 	rs.fullscreen.connect(func(on: bool): _nav.visible = not on)
-	_open_modal(rs, 2)
+	_open_modal(rs, 3)
 
 
 func _open_shop() -> void:
 	var sh := ShopScreen.new()
 	sh.bought.connect(_show_toast.bind(3.0))
-	_open_modal(sh, 3)
+	_open_modal(sh, 4)
+
+
+## Onglet Vaisseau (branche 5) : l'Aurore en coupe 3D.
+func _open_ship() -> void:
+	var sc := ShipScreen.new()
+	sc.room_requested.connect(func(r: String): _open_room.call_deferred(r))
+	sc.builds_requested.connect(func(): _open_room.call_deferred("pont"))
+	_open_modal(sc, 2)
+
+
+## Écran d'une salle, par-dessus l'onglet Vaisseau.
+func _open_room(r: String) -> void:
+	if _modal == null or not is_instance_valid(_modal):
+		return
+	var rs := RoomScreen.new(r)
+	_modal.add_child(rs)
 
 
 func _open_offline() -> void:
@@ -826,4 +844,9 @@ func _refresh() -> void:
 		var bh: Dictionary = Game.best_hero_for(it)
 		if bh.hero != "" and float(bh.gain) > 0.0 and (it.bound == "" or it.bound == bh.hero):
 			ready_items += 1
-	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]
+	_nav.ship_on = Game.ship.unlocked
+	var back := 0
+	for sh in Game.ship.shuttles:
+		if bool(Game.ship.shuttles[sh].get("back", false)):
+			back += 1
+	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back, Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]

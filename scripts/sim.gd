@@ -72,6 +72,15 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	var slot := 0
 	for e in team:
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
+		var sb: Dictionary = e.get("ship", {})
+		if not sb.is_empty():
+			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss
+			u.max_hp *= 1.0 + float(sb.get("hp", 0.0))
+			u.hp = u.max_hp
+			u.atk *= 1.0 + float(sb.get("atk", 0.0))
+			u.skill_max *= 1.0 - minf(0.5, float(sb.get("cdr", 0.0)))
+			u.skill_cd = minf(u.skill_cd, u.skill_max)
+			u.boss_dmg += float(sb.get("boss", 0.0))
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)

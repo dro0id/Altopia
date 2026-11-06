@@ -18,7 +18,7 @@ func _initialize() -> void:
 	root.add_child(main)
 	await _wait(1.0)
 	var rs := RecruitScreen.new()
-	main._open_modal(rs, 2)
+	main._open_modal(rs, 3)
 	await _wait(0.4)
 	await _snap(out + "/rec_heros.png")
 	rs._set_mode(1)

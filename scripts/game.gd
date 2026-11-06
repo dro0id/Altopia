@@ -65,8 +65,11 @@ var last_pulls: Array = []       # derniers héros obtenus au recrutement (id, r
 var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
 var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
+var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
+var _ship_t := 0.0
+signal ship_events(events: Dictionary)
 
 
 func _ready() -> void:
@@ -77,6 +80,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_ship_t += delta
+	if _ship_t >= 1.0:
+		_ship_t = 0.0
+		ship_update()
 	_timer += delta
 	if _timer >= AUTOSAVE_EVERY:
 		_timer = 0.0
@@ -136,6 +143,7 @@ func reset() -> void:
 	intro_seen = false
 	last_free_chest = 0
 	offline_report = {}
+	ship = ShipState.new()
 
 
 func team() -> Array:
@@ -144,7 +152,7 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id))})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat()})
 	return out
 
 
@@ -198,6 +206,7 @@ func set_slot(slot: int, id: String) -> bool:
 	if other >= 0 and other != slot:
 		squad[other] = squad[slot]
 	squad[slot] = id
+	ship.clean_posts(self)
 	changed.emit()
 	return true
 
@@ -658,7 +667,7 @@ func buzz(ms: int = 30) -> void:
 
 
 func add_credits(v: float) -> void:
-	credits += v
+	credits += v * (1.0 + ship.research_bonus("prospection"))
 	changed.emit()
 
 
@@ -763,6 +772,10 @@ func open_chest(rarity: String, at_stage: int, loot_bonus: float = 0.0, defer: b
 	if Sector.is_generated(at_stage):
 		# plus la difficulté adaptative est haute, plus le butin est généreux
 		rw = {"credits": rw.credits * Sector.factor, "shards": int(round(float(rw.shards) * Sector.factor))}
+	if Sector.is_generated(at_stage) and ship.room_level("observatoire") > 0:
+		var ob := Ship.observatory_bonus(ship.room_level("observatoire")) * (1.0 + ship.workers_bonus("observatoire"))
+		rw = {"credits": rw.credits * (1.0 + ob), "shards": int(round(float(rw.shards) * (1.0 + ob)))}
+	rw = {"credits": rw.credits * (1.0 + ship.research_bonus("prospection")), "shards": int(round(float(rw.shards) * (1.0 + ship.research_bonus("tamisage"))))}
 	var cr: float = round(rw.credits * (1.0 + loot_bonus))
 	var chest := {"rarity": rarity, "credits": cr, "shards": rw.shards, "combo_bonus": loot_bonus, "tokens": int(Data.CHEST_TOKENS[rarity]), "crystals": 0, "item_tokens": 1 if big_boss else 0}
 	chest["item"] = _roll_chest_item(rarity, at_stage, big_boss)
@@ -858,11 +871,37 @@ func offline_rate_per_minute() -> float:
 
 
 func compute_offline(away_seconds: float) -> Dictionary:
-	var capped := minf(away_seconds, Data.OFFLINE_CAP_HOURS * 3600.0)
+	var capped := minf(away_seconds, offline_cap_hours() * 3600.0)
 	var gain := offline_rate_per_minute() * capped / 60.0
 	# quelques éclats de verre aussi : environ 1 par heure et par tranche de 8 étages atteints
 	var sh := int(floor(capped / 3600.0 * maxf(0.5, float(best_stage) / 8.0)))
 	return {"seconds": capped, "credits": gain, "shards": sh}
+
+
+## Plafond des gains hors ligne : 8 h, ou l'autonomie de l'Aurore si elle est plus longue (Centrale).
+func offline_cap_hours() -> float:
+	return maxf(Data.OFFLINE_CAP_HOURS, ship.autonomy_hours()) if ship.unlocked else Data.OFFLINE_CAP_HOURS
+
+
+# ---------------------------------------------------------------- vaisseau
+
+## Fait avancer le vaisseau (production, chantiers, recherche, entraînement, navettes) et signale ce qui s'est passé.
+func ship_update() -> Dictionary:
+	if not ship.unlocked:
+		if best_stage > Ship.UNLOCK_STAGE:
+			ship.unlock()
+			changed.emit()
+		return {}
+	var ev := ship.tick(self)
+	if not ev.done.is_empty() or ev.research != "" or not ev.trained.is_empty() or not ev.shuttles.is_empty():
+		ship_events.emit(ev)
+		changed.emit()
+	return ev
+
+
+## Bonus du Labo appliqués au combat.
+func ship_combat() -> Dictionary:
+	return {"hp": ship.research_bonus("blindage"), "atk": ship.research_bonus("armement"), "cdr": ship.research_bonus("reacteurs"), "boss": ship.research_bonus("briseur")}
 
 
 func free_chest_remaining() -> float:
@@ -895,7 +934,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
 	}))
 
 
@@ -1067,9 +1106,15 @@ func load_game() -> bool:
 	_normalize_squad()
 	if pending_load.has("credits"):
 		_pay(pending_load)                    # un coffre non ouvert avant la fermeture est versé au rechargement
+	ship = ShipState.from_dict(parsed.get("ship", {}))
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)
 	if last_seen > 0 and away > 60:
 		offline_report = compute_offline(float(away))
 		credits += float(offline_report.credits)
 		shards += int(offline_report.shards)
+		var sev := ship.tick(self)
+		if ship.unlocked:
+			offline_report["ship"] = sev
+	else:
+		ship.tick(self)
 	return true

@@ -105,7 +105,7 @@ func _find_target() -> Rect2:
 			if has_modal:
 				return Rect2()
 			var nav: Control = main._nav
-			var w := (nav.size.x - 16.0) / 4.0
+			var w := (nav.size.x - 16.0) / float(nav.tabs().size())
 			return Rect2(nav.global_position + Vector2(8.0 + w + 12.0, 8.0), Vector2(w - 24.0, 136.0))
 		3:
 			if not (has_modal and m is CollectionScreen):
