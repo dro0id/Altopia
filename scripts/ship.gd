@@ -93,8 +93,8 @@ static func income_per_min(stage: int) -> float:
 static func upgrade_cost(room: String, to_level: int, logistique := 0) -> Dictionary:
 	var lv := clampi(to_level, 2, MAX_LEVEL)
 	var k := 2.0 if room == "pont" else 1.0
-	var credits: float = roundf(30.0 * income_per_min(PONT_STAGE[lv]) * k / 10.0) * 10.0
-	var shards := int(round(4.0 * pow(float(lv), 1.6) * k))
+	var credits: float = roundf(6.0 * income_per_min(PONT_STAGE[lv]) * k / 10.0) * 10.0
+	var shards := int(round(1.5 * pow(float(lv), 1.25) * (1.5 if room == "pont" else 1.0)))
 	var t := float(BUILD_TIME[lv]) * (1.5 if room == "pont" else 1.0) * maxf(0.5, 1.0 - 0.05 * logistique)
 	return {"credits": credits, "shards": shards, "time": int(t)}
 

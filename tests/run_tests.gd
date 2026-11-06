@@ -509,8 +509,8 @@ func test_story() -> void:
 	for c in Story.CHAPTERS:
 		_check(int(c.to) - int(c.from) == 9, "chapitre %d sur 10 étages" % int(c.n))
 	_check(Story.chapter_scenes(2).size() == 7 and int(Story.scene("c1_fin").stage) == 10 and int(Story.scene("c2_fin").end) == 2, "chapitre 1 jusqu'à 10, chapitre 2 en 7 scènes")
-	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
-	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
 	_check(Story.pending([], 20, 20).get("id", "") == "c1_soleil", "scène manquée jouée tant qu'on n'a pas rattrapé")
 	# partie déjà loin : les scènes passées vont au journal sans rafale, chapitres payés une fois
 	_g.best_stage = 22

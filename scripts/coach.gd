@@ -16,6 +16,7 @@ const STEPS := [
 	{"title": "Monte son niveau", "text": "Chaque niveau augmente PV, attaque et défense. Au niveau 10, le héros devra évoluer.", "action": "Touche « Monter le niveau »"},
 	{"title": "Monte les étages", "text": "Le jeu passe seul à l'étage suivant. Touche l'étage pour voir la carte, farmer un étage ou revoir le journal.", "btn": "Terminer"},
 ]
+const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec l’étage atteint.", "action": "Touche « Vaisseau »"}
 const TIP := {"eyebrow": "ASTUCE · PREMIER OBJET", "title": "Équipe ton butin", "text": "Les coffres donnent des objets. Un seul bouton les place sur les héros qui en profitent le plus.", "action": "Touche « Équiper au mieux »"}
 
 var main: Control
@@ -43,6 +44,17 @@ func start() -> void:
 
 func tip() -> void:
 	step = 10
+
+
+## Bulle du nouvel onglet Vaisseau (maquette II), une seule fois.
+func ship_tip() -> void:
+	step = 11
+
+
+func _info() -> Dictionary:
+	if step == 11:
+		return TIP_SHIP
+	return TIP if step == 10 else STEPS[step]
 
 
 func active() -> bool:
@@ -75,7 +87,7 @@ func _process(delta: float) -> void:
 	_target = _find_target()
 	visible = _target.size != Vector2.ZERO
 	# combat en pause pendant les étapes jouées sur l'écran de combat
-	if step in [0, 1, 2, 5] and (main._modal == null or not is_instance_valid(main._modal)):
+	if step in [0, 1, 2, 5, 11] and (main._modal == null or not is_instance_valid(main._modal)):
 		get_tree().paused = true
 	if step == 1:
 		for u in main.battle.sim.units:
@@ -125,6 +137,12 @@ func _find_target() -> Rect2:
 			if has_modal:
 				return Rect2()
 			return main._stage_btn.get_global_rect().grow(6)
+		11:
+			if has_modal:
+				return Rect2()
+			var nav: Control = main._nav
+			var w := (nav.size.x - 16.0) / float(nav.tabs().size())
+			return Rect2(nav.global_position + Vector2(8.0 + w * 2 + 8.0, 8.0), Vector2(w - 16.0, 136.0))
 		10:
 			if not (has_modal and m is CollectionScreen) or not m._items_view.is_visible_in_tree():
 				return Rect2()
@@ -141,7 +159,7 @@ func _gui_input(ev: InputEvent) -> void:
 		Sfx.play("click", -6.0)
 		_finish()
 		return
-	var info: Dictionary = TIP if step == 10 else STEPS[step]
+	var info: Dictionary = _info()
 	if info.has("btn"):
 		if _btn_rect.has_point(p) or _target.has_point(p):
 			Sfx.play("click", -6.0)
@@ -177,12 +195,19 @@ func _gui_input(ev: InputEvent) -> void:
 		10:
 			main._modal._items_view._fab.pressed.emit()
 			_finish()
+		11:
+			get_tree().paused = false
+			main._open_ship()
+			_finish()
 
 
 func _finish() -> void:
 	if step == 10:
 		if not Game.tips.has("items"):
 			Game.tips.append("items")
+	elif step == 11:
+		if not Game.tips.has("ship"):
+			Game.tips.append("ship")
 	else:
 		Game.tutorial_done = true
 	Game.save_game()
@@ -244,7 +269,7 @@ func _corner(corner: Vector2, center: Vector2, a0: float, a1: float, rad: float,
 
 
 func _draw_bubble() -> void:
-	var info: Dictionary = TIP if step == 10 else STEPS[step]
+	var info: Dictionary = _info()
 	var nm := String(Data.HEROES[hero_id()].name).split(" ")[0]
 	var title := String(info.title)
 	var text := String(info.text) % nm if String(info.text).find("%s") >= 0 else String(info.text)

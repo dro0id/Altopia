@@ -74,6 +74,7 @@ func _ready() -> void:
 	_field.add_child(shade)
 	battle.stage_cleared.connect(_on_cleared)
 	battle.stage_failed.connect(_on_failed)
+	Game.ship_events.connect(_on_ship_events)
 	_build_top()
 	_build_skills()
 	_build_squad()
@@ -486,6 +487,20 @@ func _open_shop() -> void:
 	_open_modal(sh, 4)
 
 
+## Fin de chantier, de recherche ou d'expédition : un message bref.
+func _on_ship_events(ev: Dictionary) -> void:
+	var parts: Array = []
+	for d in ev.get("done", []):
+		parts.append("%s niveau %d terminé" % [Ship.ROOMS[d.room].short, int(d.to)])
+	if String(ev.get("research", "")) != "":
+		parts.append("Recherche %s rang %d terminée" % [Ship.RESEARCH[ev.research].name, Game.ship.rank(ev.research)])
+	for sh in ev.get("shuttles", []):
+		parts.append("%s est rentrée au Hangar" % Ship.SHUTTLES[sh].name)
+	if not parts.is_empty():
+		_show_toast("L’Aurore : " + " · ".join(parts), 3.5)
+		Game.save_game()
+
+
 ## Onglet Vaisseau (branche 5) : l'Aurore en coupe 3D.
 func _open_ship() -> void:
 	var sc := ShipScreen.new()
@@ -595,6 +610,14 @@ func _story_check() -> bool:
 		Game.sectors_seen.append(int(sec.index))
 		Game.save_game()
 		_open_modal(SectorScreen.new(Game.stage))
+		return true
+	if Game.ship.unlocked and Game.ship.tier() > Game.ship.seen_tier:
+		# nouvelle version de l'Aurore (maquettes PE et QC)
+		Game.ship.seen_tier = Game.ship.tier()
+		Game.save_game()
+		var ts := ShipTierScreen.new(Game.ship.level)
+		ts.visit_requested.connect(func(): _open_ship.call_deferred())
+		_open_modal(ts)
 		return true
 	var sc: Dictionary = Story.pending(Game.seen_scenes, Game.stage, Game.best_stage)
 	if sc.is_empty():
@@ -743,6 +766,8 @@ func _coach_update() -> void:
 	if not Game.tutorial_done and Game.intro_seen and Game.seen_scenes.has("prologue") and free_screen:
 		if Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
 			coach.start()
+	elif Game.tutorial_done and Game.ship.unlocked and not Game.tips.has("ship") and free_screen and Game.seen_scenes.has("c1_aurore") and Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
+		coach.ship_tip()
 	elif Game.tutorial_done and not Game.tips.has("items") and not free_screen and _modal is CollectionScreen:
 		if _modal._items_view.is_visible_in_tree() and not Game.inventory_items().is_empty():
 			coach.tip()

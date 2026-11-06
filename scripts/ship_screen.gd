@@ -102,7 +102,7 @@ func _refresh() -> void:
 	if view.level != s.level:
 		view.setup(s.level, s.posts)
 	var ti := Ship.tier_info(s.level)
-	_sub.text = "Niveau %d · %s" % [s.level, ti.name]
+	_sub.text = ("Niveau %d · Amiral de l’Aurore" % s.level) if Game.tips.has("prestige") else ("Niveau %d · %s" % [s.level, ti.name])
 	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))
 	(_chips[1] as HudButton).set_texts(str(Game.shards))
 	var n := s.ready_rooms().size()

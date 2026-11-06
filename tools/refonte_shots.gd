@@ -177,6 +177,17 @@ func _initialize() -> void:
 			await process_frame
 			var rs = main._modal.get_child(main._modal.get_child_count() - 1)
 			rs._expedition_sheet("martin"),
+		"version": func():
+			_ship(11)
+			var ts := ShipTierScreen.new(11)
+			main._open_modal(ts),
+		"niveau20": func():
+			_ship(20)
+			var ts := ShipTierScreen.new(20)
+			main._open_modal(ts),
+		"horsligne_vaisseau": func():
+			_ship(10)
+			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
 		"fiche_salle": func():
 			_ship(10)
 			main._open_ship()
