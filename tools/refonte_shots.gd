@@ -194,6 +194,15 @@ func _initialize() -> void:
 			_ship(20)
 			var ts := ShipTierScreen.new(20)
 			main._open_modal(ts),
+		"bord": func():
+			_ship(5)
+			main._open_modal(AboardScreen.new()),
+		"mission": func():
+			_ship(12)
+			g.tips.append("ship")
+			g.ship.research["blindage"] = 4
+			g.ship.research["armement"] = 3
+			main._start_battle(),
 		"horsligne_vaisseau": func():
 			_ship(10)
 			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
@@ -250,6 +259,7 @@ func _ship(lv: int) -> void:
 	sh.stock["atelier"] = 3.4
 	sh.stock["antenne"] = 2.2
 	sh.builds = [{"room": "labo", "to": sh.room_level("labo") + 1, "end": ShipState.now() + 720}]
+
 	sh.research = {"blindage": 1, "armement": 2}
 	sh.research_job = {"id": "blindage", "end": ShipState.now() + 720}
 	if sh.room_level("hangar") > 0:

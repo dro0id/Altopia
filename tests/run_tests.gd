@@ -758,6 +758,26 @@ func test_ship() -> void:
 	_g.best_stage = 6
 	_g.ship_update()
 	_check(s.unlocked and s.room_level("pont") == 1 and s.room_level("raffinerie") == 1 and s.room_level("atelier") == 0, "vaisseau ouvert après l'étage 5, salles du niveau 1")
+	# chantier conseillé sur l'accueil : le Pont d'abord, lançable s'il y a de quoi payer
+	_check(s.advice(_g).is_empty(), "rien à conseiller tant que le Pont attend son étage")
+	_g.best_stage = 20
+	_g.credits = 0.0
+	_g.shards = 0
+	var adv: Dictionary = s.advice(_g)
+	_check(adv.get("room", "") == "pont" and not bool(adv.ok), "chantier conseillé : le Pont, en attente de ressources (%s)" % str(adv))
+	_g.credits = 1e6
+	_g.shards = 1000
+	adv = s.advice(_g)
+	_check(adv.get("room", "") == "pont" and bool(adv.ok), "chantier conseillé : le Pont, lançable")
+	_g.best_stage = 6
+	_g.credits = 0.0
+	_g.shards = 0
+	var nb = load("res://scripts/nav_bar.gd").new()
+	nb.ship_on = true
+	_check(nb.tabs()[0] == 2 and nb.label_of(2) == "Aurore" and nb.label_of(0) == "Mission", "barre du bas : l'Aurore en premier, le combat devient Mission")
+	nb.ship_on = false
+	_check(nb.tabs() == [0, 1, 3, 4] and nb.label_of(0) == "Combat", "avant l'Aurore : quatre onglets, Combat en premier")
+	nb.free()
 	# production en temps réel, plafonnée par l'autonomie
 	ShipState.clock_offset += 3600
 	_g.ship_update()

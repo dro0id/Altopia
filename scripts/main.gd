@@ -35,6 +35,7 @@ var _refresh_t := 0.0
 var _battery_t := 0.0
 var _modal: Control
 var _buffs: Label
+var _aurora: HudButton             # bonus de l'Aurore sur la mission (maquette RD) ; ouvre le vaisseau
 # tutoriel
 var _toast_box: PanelContainer
 var _manual_cast := false
@@ -97,6 +98,14 @@ func _ready() -> void:
 			_open_prologue.call_deferred())
 	elif not Game.offline_report.is_empty():
 		_open_offline()
+	else:
+		_go_home.call_deferred()
+
+
+## L'Aurore est l'accueil du jeu une fois montée à bord (maquette RC) ; avant, on reste sur la mission.
+func _go_home() -> void:
+	if Game.ship.unlocked and Game.tips.has("ship") and (_modal == null or not is_instance_valid(_modal)):
+		_open_ship()
 
 
 # ---------------------------------------------------------------- construction
@@ -142,6 +151,17 @@ func _build_top() -> void:
 	_info.z_index = 3000
 	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_info)
+	_aurora = HudButton.new()
+	_aurora.font_size = M3.fs(22)
+	_aurora.bold = true
+	_aurora.fill = Color("12224aee")
+	_aurora.border = Color(UI.ACCENT, 0.45)
+	_aurora.radius = 28.0
+	_aurora.text_color = UI.ACCENT
+	_aurora.z_index = 3000
+	_aurora.visible = false
+	_aurora.pressed.connect(_open_ship)
+	add_child(_aurora)
 	_warn = HudButton.new()
 	_warn.fill = Color("3a1620ee")
 	_warn.border = UI.RED
@@ -313,8 +333,7 @@ func _layout() -> void:
 
 func _on_tab(i: int) -> void:
 	if i == 0:
-		if _modal != null and is_instance_valid(_modal) and _tab_modal:
-			(_modal as Overlay).close()
+		_open_mission()
 		return
 	match i:
 		1:
@@ -501,12 +520,28 @@ func _on_ship_events(ev: Dictionary) -> void:
 		Game.save_game()
 
 
+## « Bienvenue à bord » (maquette RF) : une fois, quand l'Aurore est débloquée ; ensuite le jeu s'ouvre sur elle.
+func _open_aboard() -> void:
+	Game.tips.append("ship")
+	Game.save_game()
+	var a := AboardScreen.new()
+	a.board_requested.connect(func(): _open_ship.call_deferred())
+	_open_modal(a)
+
+
 ## Onglet Vaisseau (branche 5) : l'Aurore en coupe 3D.
 func _open_ship() -> void:
 	var sc := ShipScreen.new()
 	sc.room_requested.connect(func(r: String): _open_room.call_deferred(r))
 	sc.builds_requested.connect(func(): _open_room.call_deferred("pont"))
+	sc.mission_requested.connect(_open_mission)
 	_open_modal(sc, 2)
+
+
+## Retour à la mission (le combat) depuis l'Aurore.
+func _open_mission() -> void:
+	if _modal != null and is_instance_valid(_modal) and _tab_modal:
+		(_modal as Overlay).close()
 
 
 ## Écran d'une salle, par-dessus l'onglet Vaisseau.
@@ -514,6 +549,8 @@ func _open_room(r: String) -> void:
 	if _modal == null or not is_instance_valid(_modal):
 		return
 	var rs := RoomScreen.new(r)
+	rs.mission_requested.connect(_open_mission)
+	rs.map_requested.connect(func(): _open_map.call_deferred())
 	_modal.add_child(rs)
 
 
@@ -521,6 +558,7 @@ func _open_offline() -> void:
 	var o := OfflineScreen.new(Game.offline_report)
 	Game.offline_report = {}
 	o.chest_claimed.connect(_show_chest_toast)
+	o.closed.connect(func(): _go_home.call_deferred())
 	_open_modal(o)
 
 
@@ -767,7 +805,7 @@ func _coach_update() -> void:
 		if Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
 			coach.start()
 	elif Game.tutorial_done and Game.ship.unlocked and not Game.tips.has("ship") and free_screen and Game.seen_scenes.has("c1_aurore") and Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
-		coach.ship_tip()
+		_open_aboard()
 	elif Game.tutorial_done and not Game.tips.has("items") and not free_screen and _modal is CollectionScreen:
 		if _modal._items_view.is_visible_in_tree() and not Game.inventory_items().is_empty():
 			coach.tip()
@@ -780,6 +818,19 @@ const BOSS_INFO := {
 	"foreur": {"attack": "Forage", "kind": "shield", "tip": "Le Foreur frappe un héros puis charge lentement. Garde le bouclier pour le coup."},
 }
 const KIND_NAMES := {"shield": "Bouclier", "gravity": "Onde", "volley": "Salve", "pierce": "Tir perforant", "repair": "Soin"}
+
+
+## Ce que l'Aurore apporte à la mission, en une ligne : bonus du Labo, sinon l'autonomie de la Centrale.
+static func aurora_line() -> String:
+	var b: Dictionary = Game.ship_combat()
+	var parts: Array = []
+	for k in [["hp", "PV"], ["atk", "ATQ"], ["cdr", "recharge"], ["boss", "boss"]]:
+		var v := float(b.get(k[0], 0.0))
+		if v > 0.0:
+			parts.append(("−%d %% %s" if k[0] == "cdr" else "+%d %% %s") % [int(round(v * 100.0)), k[1]])
+	if parts.is_empty():
+		return "Aurore · autonomie %d h" % int(round(Game.offline_cap_hours()))
+	return "Aurore · " + " · ".join(parts.slice(0, 2))
 
 
 ## Contenu propre aux combats de boss : barre de vie, avertissement, conseil.
@@ -860,6 +911,13 @@ func _refresh() -> void:
 			names.append(Data.BOOSTS[b].name)
 		parts.append("Renforts : " + ", ".join(names))
 	_buffs.text = "\n".join(parts)
+	_aurora.visible = Game.ship.unlocked and Game.tips.has("ship") and not big
+	if _aurora.visible:
+		_aurora.set_texts(aurora_line())
+		_aurora.fit_chip()
+		_aurora.size.y = 56.0
+		_aurora.position = Vector2(696.0 - _aurora.size.x, _strip.position.y - 72.0)
+	_buffs.size.x = 656.0 - (_aurora.size.x + 16.0 if _aurora.visible else 0.0)
 	var affordable := 0
 	for id in Game.squad_ids():
 		if (Game.credits >= Game.level_cost(id) and not Game.can_evolve(id)) or Game.can_afford_evolve(id):

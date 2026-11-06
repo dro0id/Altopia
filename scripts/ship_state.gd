@@ -254,6 +254,28 @@ func upgrade_block(game: Node, r: String) -> String:
 	return ""
 
 
+## Chantier conseillé sur l'accueil (maquette RC) : le Pont d'abord, sinon la salle la moins chère.
+## Renvoie {room, ok} (ok : lançable tout de suite) ou {} s'il n'y a rien à proposer.
+func advice(game: Node) -> Dictionary:
+	var ready: Array = []
+	var waiting: Array = []
+	for r in Ship.ORDER:
+		var b := upgrade_block(game, r)
+		if b == "":
+			ready.append(r)
+		elif b == "Pas assez de ressources":
+			waiting.append(r)
+	var cost := func(r: String) -> float: return float(Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique")).credits)
+	for lst in [ready, waiting]:
+		if lst.is_empty():
+			continue
+		if lst.has("pont"):
+			return {"room": "pont", "ok": lst == ready}
+		lst.sort_custom(func(a, b): return cost.call(a) < cost.call(b))
+		return {"room": lst[0], "ok": lst == ready}
+	return {}
+
+
 func start_upgrade(game: Node, r: String) -> bool:
 	if upgrade_block(game, r) != "":
 		return false

@@ -6,6 +6,9 @@ extends Control
 
 const Data = preload("res://scripts/data.gd")
 
+signal mission_requested              # Pont : rejoindre la mission (le combat)
+signal map_requested                  # Pont : choisir un étage
+
 var room := ""
 var _scroll: ScrollContainer
 var _content: Control
@@ -283,6 +286,7 @@ func _empty_slot(c: Control, r: Rect2, label: String) -> void:
 
 func _pont(c: Control, y: float) -> float:
 	var st := s()
+	y = _destinations(c, y)
 	M3.section(c, Vector2(32, y + 32), "PROCHAINS NIVEAUX")
 	y += 48.0
 	var unl := {}
@@ -314,6 +318,63 @@ func _pont(c: Control, y: float) -> float:
 		y += 104.0
 		shown += 1
 	return y + 16.0
+
+
+## Le Pont pilote la mission (maquette RE) : étage en cours, choix d'un étage, Ceinture sans fin.
+func _destinations(c: Control, y: float) -> float:
+	M3.section(c, Vector2(32, y + 32), "DESTINATION DE LA MISSION")
+	y += 52.0
+	var stg := int(Game.stage)
+	var best := int(Game.best_stage)
+	var sec := Sector.info(stg)
+	var belt := best >= Sector.GEN_START
+	var go_belt := func():
+		Game.go_to(best)
+		mission_requested.emit()
+	var rows := [
+		["Étage %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur étage %d" % best, "run", func(): mission_requested.emit()],
+		["Choisir un étage", "Monter, ou farmer un étage déjà vaincu", "map", func(): map_requested.emit()],
+		["Ceinture sans fin", ("Secteurs générés · front à l’étage %d" % best) if belt else "Secteurs générés · après l’étage %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
+	]
+	for row in rows:
+		var r := Rect2(32, y, 656, 112)
+		var on: bool = row[2] == "run"
+		var lock: bool = row[2] == "lock"
+		var sb := UI.box(Color("12305a") if on else M3.S2, UI.ACCENT if on else M3.OUT, 32, 0)
+		sb.set_border_width_all(3 if on else 2)
+		c.draw_style_box(sb, r)
+		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 20, 0), Rect2(56, y + 24, 64, 64))
+		var ic := Vector2(88, y + 56)
+		if lock:
+			M3.lock(c, ic, UI.MUTED, 1.0)
+		else:
+			c.draw_arc(ic, 18, 0, TAU, 32, UI.ACCENT if on else UI.MUTED, 3.0, true)
+			if on:
+				c.draw_circle(ic, 9, UI.ACCENT)
+		var tc := UI.MUTED if lock else UI.TEXT
+		M3.text(c, Vector2(144, y + 48), String(row[0]), 28, tc, true, 400)
+		M3.text(c, Vector2(144, y + 84), String(row[1]), 22, UI.MUTED, false, 400)
+		if on:
+			M3.text(c, Vector2(0, y + 66), "REJOINDRE", 22, UI.ACCENT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
+		elif not lock:
+			M3.text(c, Vector2(0, y + 68), "›", 36, UI.MUTED, true, 648, HORIZONTAL_ALIGNMENT_RIGHT)
+		if not lock:
+			_hit(r, row[3])
+		y += 128.0
+	# ce que l'Aurore apporte à la mission
+	M3.text(c, Vector2(32, y + 24), main_aurora_line(), 24, UI.GREEN, true, 656)
+	return y + 48.0
+
+
+static func main_aurora_line() -> String:
+	var b: Dictionary = Game.ship_combat()
+	var parts: Array = []
+	for k in [["hp", "PV"], ["atk", "ATQ"], ["cdr", "recharge"], ["boss", "dégâts aux boss"]]:
+		var v := float(b.get(k[0], 0.0))
+		if v > 0.0:
+			parts.append(("−%d %% %s" if k[0] == "cdr" else "+%d %% %s") % [int(round(v * 100.0)), k[1]])
+	parts.append("autonomie %d h" % int(round(Game.offline_cap_hours())))
+	return "Apport à la mission : " + ", ".join(parts)
 
 
 # ---------------------------------------------------------------- Labo (maquette IG)
