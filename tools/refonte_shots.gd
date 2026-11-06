@@ -133,6 +133,9 @@ func _initialize() -> void:
 		"vaisseau20": func():
 			_ship(20)
 			main._open_ship(),
+		"vaisseau8": func():
+			_ship(8)
+			main._open_ship(),
 		"vaisseau1": func():
 			_ship(3)
 			main._open_ship(),
