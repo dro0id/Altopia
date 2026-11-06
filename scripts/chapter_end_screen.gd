@@ -21,9 +21,12 @@ func _init(n: int, reward: Dictionary) -> void:
 	_body.draw.connect(_draw_body)
 	st.add_child(_body)
 	var nxt := Story.chapter(n + 1)
-	var go := M3.button(st, "Continuer vers le chapitre %d" % (n + 1) if not nxt.is_empty() else "Continuer", Rect2(32, 1280 - 32 - 96 - 16 - 104, 656, 104), "main", 32)
+	var label := "Continuer vers le chapitre %d" % (n + 1) if not nxt.is_empty() else "Continuer"
+	if n == Story.last_chapter():
+		label = "Continuer l'exploration"
+	var go := M3.button(st, label, Rect2(32, 1280 - 32 - 96 - 16 - 104, 656, 104), "main", 32)
 	go.pressed.connect(close)
-	var jr := M3.button(st, "Revoir le chapitre dans le journal", Rect2(32, 1280 - 32 - 96, 656, 96), "ghost", 30)
+	var jr := M3.button(st, "Revoir l'histoire dans le journal" if n == Story.last_chapter() else "Revoir le chapitre dans le journal", Rect2(32, 1280 - 32 - 96, 656, 96), "ghost", 30)
 	jr.pressed.connect(func():
 		journal_requested.emit()
 		close())
@@ -40,7 +43,8 @@ func _draw_body() -> void:
 	var ch := Story.chapter(_n)
 	for k in 12:
 		c.draw_circle(Vector2(360, 200), 320.0 - k * 24.0, Color(0.5, 0.86, 1.0, 0.016))
-	M3.text(c, Vector2(0, 104), "CHAPITRE %d TERMINÉ" % _n, 24, UI.ACCENT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+	var fin := _n == Story.last_chapter()
+	M3.text(c, Vector2(0, 104), "FIN DE L'HISTOIRE" if fin else "CHAPITRE %d TERMINÉ" % _n, 24, Color("ffd166") if fin else UI.ACCENT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(0, 168), String(ch.get("title", "")), 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	# dernière réplique du chapitre
 	var last: Dictionary = Story.end_line(_n)
@@ -51,15 +55,33 @@ func _draw_body() -> void:
 		M3.para(c, r.position + Vector2(144, 64), "« %s »" % String(last.text), 28, UI.TEXT, 480)
 	# récompenses
 	var x := 32.0
-	for it in [["coin", "+" + UI.num(float(_reward.get("credits", 0)))], ["shard", "+%d" % int(_reward.get("shards", 0))], ["token", "+%d" % int(_reward.get("tokens", 0))]]:
+	var cy := 416.0
+	var chips := [["coin", "+" + UI.num(float(_reward.get("credits", 0)))], ["shard", "+%d" % int(_reward.get("shards", 0))], ["token", "+%d" % int(_reward.get("tokens", 0))]]
+	if _reward.has("badge"):
+		chips.append(["badge", String(_reward.badge)])
+	for it in chips:
 		var w := M3.text_w(it[1], 26, true) + 40.0 + 34.0
-		c.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 32, 0), Rect2(x, 416, w, 64))
-		_icon(c, it[0], Vector2(x + 32, 448))
-		M3.text(c, Vector2(x + 54, 448 + M3.fs(26) * 0.36), it[1], 26, UI.TEXT, true)
+		if x + w > 688.0:
+			x = 32.0
+			cy += 76.0
+		c.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 32, 0), Rect2(x, cy, w, 64))
+		_icon(c, it[0], Vector2(x + 32, cy + 32))
+		M3.text(c, Vector2(x + 54, cy + 32 + M3.fs(26) * 0.36), it[1], 26, UI.TEXT, true)
 		x += w + 12.0
+	var ny := cy + 96.0
+	if fin:
+		# la Ceinture sans fin (maquette HG) : les secteurs générés prennent le relais de l'histoire
+		var green := Color("7dffb0")
+		var fr := Rect2(32, ny, 656, 300)
+		c.draw_style_box(UI.box(Color("0d1f1a"), Color(0, 0, 0, 0), 40, 0), fr)
+		_dashed(c, fr.grow(-2), green)
+		M3.text(c, fr.position + Vector2(32, 52), "DÉBLOQUÉ · LA CEINTURE SANS FIN", 24, green, true, 592)
+		M3.text(c, fr.position + Vector2(32, 100), "Le verre continue plus bas", 36, UI.TEXT, true, 592)
+		M3.para(c, fr.position + Vector2(32, 148), "À partir de l'étage %d : un nouveau secteur tous les 10 étages, une difficulté qui s'adapte, un butin qui monte avec elle. L'escouade continue même quand tu fermes le jeu." % Sector.GEN_START, 26, UI.MUTED, 592)
+		return
 	var nxt := Story.chapter(_n + 1)
 	if not nxt.is_empty():
-		var nr := Rect2(32, 512, 656, 200)
+		var nr := Rect2(32, ny, 656, 200)
 		c.draw_style_box(UI.box(Color("0d1530"), Color(0, 0, 0, 0), 40, 0), nr)
 		_dashed(c, nr.grow(-2), UI.ACCENT)
 		M3.text(c, nr.position + Vector2(32, 52), "DÉBLOQUÉ", 24, UI.ACCENT, true)
@@ -74,6 +96,11 @@ func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:
 			ci.draw_string(UI.bold_font(), c + Vector2(-12, 8), "¢", HORIZONTAL_ALIGNMENT_CENTER, 24, 20, Color("6b4a00"))
 		"shard":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -13), c + Vector2(13, -2), c + Vector2(8, 13), c + Vector2(-8, 13), c + Vector2(-13, -2)]), Color("7fdcff"))
+		"badge":
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -14), c + Vector2(-2, -14), c + Vector2(2, -4), c + Vector2(-4, -4)]), Color("4fa8ff"))
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(8, -14), c + Vector2(2, -14), c + Vector2(-2, -4), c + Vector2(4, -4)]), Color("ff6b6b"))
+			ci.draw_circle(c + Vector2(0, 4), 10, UI.GOLD)
+			ci.draw_circle(c + Vector2(0, 4), 5, Color("ffe08a"))
 		_:
 			ci.draw_style_box(UI.box(Color("b388ff"), Color(0, 0, 0, 0), 5, 0), Rect2(c + Vector2(-14, -10), Vector2(28, 20)))
 			ci.draw_circle(c, 4.5, Color("2a1450"))

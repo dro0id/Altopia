@@ -12,13 +12,18 @@ const Data = preload("res://scripts/data.gd")
 const CHAPTERS := [
 	{"n": 1, "title": "Le signal", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1000, "shards": 10, "tokens": 6}},
 	{"n": 2, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 2000, "shards": 20, "tokens": 6}},
-	{"n": 3, "title": "Le Retour", "from": 21, "to": 30, "color": Color("a9b6d6"), "head": Color("1c2640"), "teaser": "la suite arrive bientôt.", "reward": {"credits": 3000, "shards": 30, "tokens": 6}},
+	{"n": 3, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 3000, "shards": 30, "tokens": 6}},
+	{"n": 4, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 5000, "shards": 50, "tokens": 10, "badge": "Héros de la Ceinture"}},
 ]
 
-## Personnages qui parlent sans être des héros jouables : gros boss, avec leur dessin (« crystal » ou « prism »).
+## Personnages qui parlent sans être des héros jouables, avec leur dessin (« crystal », « prism », « moth », « voice », « gold »).
+## Un gros boss (`fight`) occupe le haut de l'écran avant son combat ; une voix (Holt) aussi, sans combat.
 const SPEAKERS := {
-	"gardien": {"name": "Gardien de verre", "role": "Gardien du premier seuil", "color": Color("ff9b9b"), "art": "crystal", "fight": "Combattre le Gardien"},
-	"phare": {"name": "Sentinelle prismatique · le Phare", "role": "Porteuse des voix", "color": Color("d6bfff"), "art": "prism", "fight": "Combattre la Sentinelle"},
+	"gardien": {"name": "Gardien de verre", "role": "Gardien du premier seuil", "color": Color("ff9b9b"), "art": "crystal", "short": "Gardien", "fight": "Combattre le Gardien"},
+	"phare": {"name": "Sentinelle prismatique · le Phare", "role": "Porteuse des voix", "color": Color("d6bfff"), "art": "prism", "short": "Sentinelle", "fight": "Combattre la Sentinelle"},
+	"reine": {"name": "Reine des mites", "role": "Gardienne des dormeurs", "color": Color("ffb142"), "art": "moth", "short": "Reine", "fight": "Combattre la Reine"},
+	"holt": {"name": "Commandant Holt", "role": "Voix enregistrée · l'Aube", "color": Color("ffd166"), "art": "voice", "short": "Holt"},
+	"seuil": {"name": "Gardien du dernier seuil", "role": "Le signal", "color": Color("ffd166"), "art": "gold", "short": "Gardien", "fight": "Combattre le Gardien"},
 }
 
 const PROLOGUE := [
@@ -79,6 +84,66 @@ const SCENES := [
 		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
 		{"who": "kai", "text": "Un peu tard."},
 	]},
+	{"id": "c3_sens", "chapter": 3, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
+		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},
+		{"who": "vance", "text": "Vers la Terre ?"},
+		{"who": "t9", "text": "Vers la Terre. Inquiétude : élevée."},
+	]},
+	{"id": "c3_unique", "chapter": 3, "title": "Sens unique", "sub": "Après l'étage 22 · Mara, Kaï", "when": "after", "stage": 22, "lines": [
+		{"who": "mara", "text": "Les parois se referment derrière nous."},
+		{"who": "kai", "text": "Super. J'adore les sens uniques."},
+	]},
+	{"id": "c3_dormeurs", "chapter": 3, "title": "Les dormeurs", "sub": "Après l'étage 24 · Oru", "when": "after", "stage": 24, "lines": [
+		{"who": "oru", "text": "Il y a des formes dans le verre. Des gens. Ils dorment.", "choice": ["On peut les réveiller ?", "Ne touchez à rien."],
+			"replies": [{"who": "oru", "text": "Pas sans réveiller tout le reste."}, {"who": "oru", "text": "Je ne touche jamais à rien. Presque jamais."}]},
+	]},
+	{"id": "c3_route", "chapter": 3, "title": "Une route", "sub": "Après le mini-boss · Kaï, Zyra", "when": "after", "stage": 25, "lines": [
+		{"who": "kai", "text": "Encore un Foreur. Ils creusent tous vers le haut."},
+		{"who": "zyra", "text": "Ils préparent une route. Pour le retour."},
+	]},
+	{"id": "c3_voix", "chapter": 3, "title": "Sa voix", "sub": "Avant l'étage 28 · Vance", "when": "before", "stage": 28, "lines": [
+		{"who": "vance", "text": "Cette voix sur le canal… c'est la sienne. Il dit mon nom.", "choice": ["On lui répond.", "On reste silencieux."],
+			"replies": [{"who": "vance", "text": "… Je n'y arrive pas. Il a dit de ne pas répondre."}, {"who": "vance", "text": "Merci, Capitaine. Il aurait voulu ça."}]},
+	]},
+	{"id": "c3_reine", "chapter": 3, "title": "Gardienne des dormeurs", "sub": "Avant l'étage 30", "when": "before", "stage": 30, "lines": [
+		{"who": "reine", "text": "Mes enfants gardent le verre propre pour ceux qui dorment. Vous faites du bruit."},
+		{"who": "mara", "text": "On fait surtout des trous."},
+	]},
+	{"id": "c3_fin", "chapter": 3, "title": "Chez lui", "sub": "Fin du chapitre 3 · T-9, Zyra", "when": "after", "stage": 30, "end": 3, "lines": [
+		{"who": "t9", "text": "La Reine gardait une porte. Elle est ouverte."},
+		{"who": "zyra", "text": "Le signal ne veut pas rentrer chez nous, Capitaine. Il veut nous emmener chez lui.", "key": true},
+	]},
+	{"id": "c4_coeur", "chapter": 4, "title": "Le cœur bat", "sub": "Avant l'étage 31 · Oru, Kaï", "when": "before", "stage": 31, "lines": [
+		{"who": "oru", "text": "Plus de mites. Plus de drones. Juste le cœur qui bat, très fort."},
+		{"who": "kai", "text": "Je préférais les drones."},
+	]},
+	{"id": "c4_holt", "chapter": 4, "title": "Si vous m'entendez", "sub": "Après l'étage 33 · Holt, Vance", "when": "after", "stage": 33, "lines": [
+		{"who": "holt", "text": "Si vous m'entendez, vous avez répondu. Alors écoutez : le verre apprend de ceux qu'il garde."},
+		{"who": "vance", "text": "Papa…"},
+	]},
+	{"id": "c4_energie", "chapter": 4, "title": "Toute l'énergie", "sub": "Après le mini-boss · Mara, T-9", "when": "after", "stage": 35, "lines": [
+		{"who": "mara", "text": "Le Foreur s'est arrêté net."},
+		{"who": "t9", "text": "Quelqu'un plus bas a besoin de toute l'énergie."},
+	]},
+	{"id": "c4_rendormir", "chapter": 4, "title": "Se rendormir", "sub": "Après l'étage 37 · Holt", "when": "after", "stage": 37, "lines": [
+		{"who": "holt", "text": "Le Gardien du dernier seuil porte le signal. Éteignez-le, et la Ceinture se rendort.", "choice": ["Et votre équipage ?", "Et vous ?"],
+			"replies": [{"who": "holt", "text": "Ils dorment bien. Laissez-les rêver."}, {"who": "holt", "text": "Moi, j'ai déjà répondu une fois. C'était assez."}]},
+	]},
+	{"id": "c4_discours", "chapter": 4, "title": "Pas de discours", "sub": "Avant l'étage 38 · Zyra, Kaï", "when": "before", "stage": 38, "lines": [
+		{"who": "zyra", "text": "Capitaine. Quoi qu'il arrive en bas… merci de nous avoir emmenés."},
+		{"who": "kai", "text": "Pas de discours avant le boss, ça porte malheur."},
+	]},
+	{"id": "c4_seuil", "chapter": 4, "title": "Le premier verre", "sub": "Avant l'étage 40", "when": "before", "stage": 40, "lines": [
+		{"who": "seuil", "text": "Je suis le premier verre et le dernier. Le signal, c'est moi. Répondez une dernière fois."},
+		{"who": "vance", "text": "On a une réponse. Elle va vous plaire moyennement."},
+	]},
+	{"id": "c4_fin", "chapter": 4, "title": "Le dernier seuil", "sub": "Fin de l'histoire · Oru, Holt, Vance, Zyra, Mara", "when": "after", "stage": 40, "end": 4, "lines": [
+		{"who": "oru", "text": "Le cœur s'est tu."},
+		{"who": "holt", "text": "Bon travail, Commandant."},
+		{"who": "vance", "text": "Merci, papa."},
+		{"who": "zyra", "text": "Le verre continue plus bas. Sans signal. Sans fin."},
+		{"who": "mara", "text": "Alors on continue. C'est notre métier.", "key": true},
+	]},
 ]
 
 
@@ -108,6 +173,17 @@ static func end_line(n: int) -> Dictionary:
 					return l
 			return s.lines[0]
 	return {}
+
+
+## Dernier chapitre de l'histoire : après lui, la Ceinture sans fin (secteurs générés).
+static func last_chapter() -> int:
+	return int(CHAPTERS[-1].n)
+
+
+## Nom court d'un personnage (aperçu de la réplique suivante).
+static func short_name(who: String) -> String:
+	var sp := speaker(who)
+	return String(sp.get("short", String(sp.name).split(" ")[0]))
 
 
 ## Chapitres qui ont des scènes (le journal n'affiche que ceux-là).

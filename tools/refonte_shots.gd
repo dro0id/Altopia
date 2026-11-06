@@ -89,6 +89,21 @@ func _initialize() -> void:
 		"gardien": func(): main._open_modal(DialogueScreen.new(Story.scene("c1_gardien"), true)),
 		"epave": func(): main._open_modal(DialogueScreen.new(Story.scene("c2_epave"))),
 		"phare": func(): main._open_modal(DialogueScreen.new(Story.scene("c2_porteuse"), true)),
+		"reine30": func(): main._open_modal(DialogueScreen.new(Story.scene("c3_reine"), true)),
+		"holt": func(): main._open_modal(DialogueScreen.new(Story.scene("c4_rendormir"))),
+		"seuil": func(): main._open_modal(DialogueScreen.new(Story.scene("c4_seuil"), true)),
+		"finhist": func(): main._open_modal(ChapterEndScreen.new(4, Story.chapter(4).reward)),
+		"journal4": func():
+			g.seen_scenes = ["prologue"]
+			for s0 in Story.SCENES:
+				if int(s0.stage) <= 35:
+					g.seen_scenes.append(String(s0.id))
+			g.chapters_done = [1, 2, 3]
+			main._open_journal()
+			var j = main._modal
+			j._ch = 4
+			j._chips.sel = 3
+			j._rebuild(),
 		"finchap2": func(): main._open_modal(ChapterEndScreen.new(2, Story.chapter(2).reward)),
 		"finchap": func(): main._open_modal(ChapterEndScreen.new(1, Story.chapter(1).reward)),
 		"journal": func():

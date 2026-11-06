@@ -14,9 +14,10 @@ func _init() -> void:
 	_st = use_stage(1.0)
 	M3.top_bar(_st, "Journal de bord", close)
 	var labels: Array = []
+	var fmt := "Ch. %d" if Story.written().size() > 2 else "Chapitre %d"
 	for c in Story.written():
 		var open := int(c.n) == 1 or Game.chapters_done.has(int(c.n) - 1)
-		labels.append(("" if open else "🔒 ") + "Chapitre %d" % int(c.n))
+		labels.append(("" if open else "🔒 ") + fmt % int(c.n))
 	_chips = M3Chips.new(labels, 0)
 	_chips.position = Vector2(32, 96)
 	_chips.changed.connect(func(i: int):

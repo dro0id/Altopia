@@ -118,6 +118,9 @@ const ENEMIES := {
 }
 const BOSS_KINDS := ["foreur", "titan", "sentinelle", "reine"]
 const BIG_BOSSES := ["titan", "sentinelle", "reine"]
+## Gros boss de l'histoire au nom propre (le dernier, à l'étage 40, est un Gardien doré : maquette HF).
+const STORY_BOSS_NAMES := {40: "Gardien du dernier seuil"}
+const LAST_STORY_BOSS := 40
 ## Réglage de difficulté des boss (attaque et points de vie, en plus de l'échelle des étages).
 const BIG_BOSS_ATK := 1.0
 const BIG_BOSS_HP := 1.0
@@ -180,6 +183,8 @@ static func boss_name(stage: int) -> String:
 		return ""
 	if boss_type(stage) == "big" and Sector.is_generated(stage):
 		return "%s · %s" % [ENEMIES[k].name, Sector.info(stage).boss_title]
+	if STORY_BOSS_NAMES.has(stage):
+		return STORY_BOSS_NAMES[stage]
 	return ENEMIES[k].name
 
 

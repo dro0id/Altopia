@@ -43,6 +43,8 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 		self_modulate = Color(1.25, 0.6, 1.1)
 	elif u.kind == "titan":
 		self_modulate = Color(0.72, 0.9, 1.25)       # le Gardien de verre est translucide et bleuté
+		if u.boss and Game.stage == Data.LAST_STORY_BOSS:
+			self_modulate = Color(1.35, 1.1, 0.5)    # le Gardien du dernier seuil est doré
 
 
 func play_attack(melee: bool) -> void:
