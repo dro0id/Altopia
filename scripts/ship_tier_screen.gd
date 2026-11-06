@@ -6,8 +6,8 @@ extends Overlay
 signal visit_requested
 
 const NEWS := {
-	2: ["4e module : le Labo s’ouvre (niveau 6)", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion, radiateurs, Hangar au niveau 10"],
-	3: ["5e module : la Serre s’ouvre au niveau 12", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
+	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion, radiateurs, Hangar au niveau 10"],
+	3: ["L’Antenne et le Labo s’ouvrent (niveau 11)", "5e module : la Serre au 12, l’Observatoire au 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
 	4: ["Anneau de gravité tournant", "Finitions et propulseur dorés", "6 panneaux radiateurs"],
 	5: ["Flèche de cristal et sphère armillaire", "Voiles de lumière, fusion prismatique", "Coque nacre et poussière d’or"],
 }
@@ -27,7 +27,7 @@ func _init(level: int) -> void:
 	view.size = Vector2(720, 640)
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	st.add_child(view)
-	view.setup(level, Game.ship.posts)
+	view.setup(level, Game.ship.posts, Game.ship.rooms)
 	view.yaw = -0.5
 	view.anims.append(func(t): view.yaw = -0.5 + t * 0.25)
 	_body = Control.new()

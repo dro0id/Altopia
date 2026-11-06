@@ -22,6 +22,7 @@ var cut_mode := true
 var tier := 2
 var level := 6
 var crew := {}                     # salle -> [héros]
+var opened := {}                   # salle -> niveau (0 = scellée) ; vide = tout ouvert
 var yaw := -0.35
 var pitch := 0.2
 var dist := 21.0
@@ -107,10 +108,11 @@ func _init() -> void:
 
 
 ## Construit (ou reconstruit) le vaisseau pour un niveau donné.
-func setup(p_level: int, p_crew: Dictionary = {}) -> void:
+func setup(p_level: int, p_crew: Dictionary = {}, p_rooms: Dictionary = {}) -> void:
 	level = clampi(p_level, 1, Ship.MAX_LEVEL)
 	tier = Ship.tier_of(level)
 	crew = p_crew
+	opened = p_rooms.duplicate()
 	if ship != null:
 		ship.queue_free()
 	ship = Node3D.new()
@@ -724,6 +726,13 @@ func _rooms() -> void:
 		_glow(c, 2.6 if side == 0 else 1.8, Vector3(0.0 if side == 0 else side * R * 0.5, y1 - 0.4, -R * 0.7), 0.22)
 		var w := 2 * R if side == 0 else R
 		var cx := 0.0 if side == 0 else side * R / 2.0
+		if not _open(r):
+			var hm := _mat(Color.WHITE, 0.0, 0.9)
+			hm.albedo_texture = _hatch_tex()
+			hm.uv1_scale = Vector3(w * 2.0, (y1 - y0) * 2.0, 1)
+			var q := QuadMesh.new()
+			q.size = Vector2(w - 0.1, y1 - y0 - 0.1)
+			cut_parts.append(_mi(q, hm, Vector3(cx, (y0 + y1) / 2.0, 0.04)))
 		boxes[r] = AABB(Vector3(cx - w / 2.0, y0, -R), Vector3(w, y1 - y0, R + 0.2))
 		anchors[r] = Vector3(-0.9 if r == "pont" else (0.3 if side > 0 else -R * 0.95), y1 - 0.24, -0.05)
 
@@ -845,7 +854,9 @@ func _props() -> void:
 	dm.material_override.cull_mode = BaseMaterial3D.CULL_DISABLED
 	dm.rotation.z = PI / 2.0
 	_sph(0.05, _emis(Color("ff7ad9"), 3.0), Vector3(-0.35, 0, 0), dish)
-	if tier == 2:
+	if not _open("antenne"):
+		dish.visible = false
+	elif tier == 2:
 		dish.position = Vector3(-1.25, TOP0 + 1.1, -0.55)
 		dish.rotation.z = -0.9
 	elif tier >= 3:
@@ -1103,8 +1114,26 @@ func _shuttle(kind: String) -> Node3D:
 	return g
 
 
+func _open(r: String) -> bool:
+	return opened.is_empty() or int(opened.get(r, 1)) > 0
+
+
+var _hatch: ImageTexture
+## Plaque rayée d'une salle encore scellée.
+func _hatch_tex() -> ImageTexture:
+	if _hatch == null:
+		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+		img.fill(Color("0d1328"))
+		for y in 32:
+			for x in 32:
+				if (x + y) % 16 < 6:
+					img.set_pixel(x, y, Color("3a3420"))
+		_hatch = ImageTexture.create_from_image(img)
+	return _hatch
+
+
 func _hub() -> void:
-	if tier < 2:
+	if tier < 2 or not _open("hangar"):
 		return
 	var hub := Node3D.new()
 	ship.add_child(hub)

@@ -34,7 +34,7 @@ func _init() -> void:
 	view.position = Vector2(0, 112)
 	view.size = Vector2(720, 1280 - 112 - NavBar.total())
 	_st.add_child(view)
-	view.setup(Game.ship.level, Game.ship.posts)
+	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
 	view.room_tapped.connect(_select)
 	_labels = Control.new()
 	_labels.position = view.position
@@ -99,8 +99,8 @@ func _exit_tree() -> void:
 
 func _refresh() -> void:
 	var s: ShipState = Game.ship
-	if view.level != s.level:
-		view.setup(s.level, s.posts)
+	if view.level != s.level or view.opened != s.rooms.duplicate():
+		view.setup(s.level, s.posts, s.rooms)
 	var ti := Ship.tier_info(s.level)
 	_sub.text = ("Niveau %d · Amiral de l’Aurore" % s.level) if Game.tips.has("prestige") else ("Niveau %d · %s" % [s.level, ti.name])
 	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))

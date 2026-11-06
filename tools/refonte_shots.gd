@@ -223,7 +223,7 @@ func _ship(lv: int) -> void:
 	sh.unlock()
 	sh.level = lv
 	sh.open_rooms()
-	var lvs := {"centrale": lv - 1, "raffinerie": lv - 1, "atelier": lv - 2, "antenne": maxi(1, lv - 4), "labo": maxi(1, lv - 4), "quartiers": maxi(1, lv - 5), "hangar": maxi(1, lv - 7), "serre": maxi(1, lv - 9), "observatoire": maxi(1, lv - 11)}
+	var lvs := {"centrale": lv - 1, "raffinerie": lv - 1, "atelier": lv - 2, "antenne": maxi(1, lv - 9), "labo": maxi(1, lv - 9), "quartiers": maxi(1, lv - 5), "hangar": maxi(1, lv - 7), "serre": maxi(1, lv - 9), "observatoire": maxi(1, lv - 11)}
 	for r in lvs:
 		if sh.room_level(r) > 0:
 			sh.rooms[r] = maxi(1, lvs[r])
