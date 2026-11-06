@@ -504,7 +504,31 @@ func test_story() -> void:
 				_check(l.choice.size() == 2 and l.replies.size() == 2, "deux réponses et deux répliques : %s" % sc.id)
 	_g.see_scene("c1_haut", 1)
 	var r1: Dictionary = _g.complete_chapter(1)
-	_check(int(r1.get("credits", 0)) == 2000 and _g.complete_chapter(1).is_empty(), "récompense de fin de chapitre versée une seule fois")
+	_check(int(r1.get("credits", 0)) == 1000 and _g.complete_chapter(1).is_empty(), "récompense de fin de chapitre versée une seule fois")
+	# un chapitre = 10 étages ; le chapitre 2 suit le Gardien et finit après la Sentinelle
+	for c in Story.CHAPTERS:
+		_check(int(c.to) - int(c.from) == 9, "chapitre %d sur 10 étages" % int(c.n))
+	_check(Story.chapter_scenes(2).size() == 7 and int(Story.scene("c1_fin").stage) == 10 and int(Story.scene("c2_fin").end) == 2, "chapitre 1 jusqu'à 10, chapitre 2 en 7 scènes")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
+	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
+	_check(Story.pending([], 20, 20).get("id", "") == "c1_soleil", "scène manquée jouée tant qu'on n'a pas rattrapé")
+	# partie déjà loin : les scènes passées vont au journal sans rafale, chapitres payés une fois
+	_g.best_stage = 22
+	_g.stage = 22
+	var credits0: float = _g.credits
+	_g.story_catch_up()
+	_check(_g.seen_scenes.has("c2_temple") and _g.seen_scenes.has("c2_fin") and _g.chapters_done.has(2), "scènes dépassées débloquées dans le journal")
+	_check(is_equal_approx(_g.credits - credits0, 2000.0), "chapitre 1 déjà payé, chapitre 2 payé une fois")
+	_check(Story.pending(_g.seen_scenes, 22, 22).is_empty(), "pas de rafale de scènes")
+	# chapitres 3 et 4 : l'histoire finit à l'étage 40, puis la Ceinture sans fin
+	_check(Story.chapter_scenes(3).size() == 7 and Story.chapter_scenes(4).size() == 7 and Story.last_chapter() == 4, "chapitres 3 et 4 en 7 scènes")
+	_check(int(Story.scene("c4_fin").end) == 4 and int(Story.chapter(4).to) == Sector.GEN_START - 1, "l'histoire finit juste avant les secteurs générés")
+	_check(Data.boss_name(40) == "Gardien du dernier seuil" and Data.boss_name(10) == "Gardien de verre", "le dernier Gardien a son nom")
+	_check(Story.short_name("holt") == "Holt" and Story.short_name("kai") == "Kaï", "noms courts")
+	_g.best_stage = 45
+	var credits1: float = _g.credits
+	_g.story_catch_up()
+	_check(_g.chapters_done.has(4) and is_equal_approx(_g.credits - credits1, 8000.0), "chapitres 3 et 4 payés une fois en rattrapage")
 	_g.save_game()
 	var g2: Node = load("res://scripts/game.gd").new()
 	g2.save_path = _g.save_path

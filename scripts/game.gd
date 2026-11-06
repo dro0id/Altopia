@@ -388,6 +388,15 @@ func complete_chapter(n: int) -> Dictionary:
 	return c.reward
 
 
+## Scènes d'étages déjà bien dépassés (nouveau chapitre écrit après coup) : débloquées dans le journal sans être jouées,
+## et la récompense d'un chapitre ainsi terminé est versée une seule fois.
+func story_catch_up() -> void:
+	for s0 in Story.behind(seen_scenes, best_stage):
+		seen_scenes.append(String(s0.id))
+		if s0.has("end"):
+			complete_chapter(int(s0.end))
+
+
 func inventory_count() -> int:
 	return inventory_items().size()
 
@@ -1006,9 +1015,8 @@ func load_game() -> bool:
 	# parties commencées avant l'histoire : on ne rejoue pas les scènes des étages déjà passés
 	if not parsed.has("seen_scenes") and intro_seen:
 		seen_scenes.append("prologue")
-		for s0 in Story.SCENES:
-			if (s0.when == "after" and best_stage > int(s0.stage)) or (s0.when == "before" and best_stage > int(s0.stage)):
-				seen_scenes.append(String(s0.id))
+	if seen_scenes.has("prologue"):
+		story_catch_up()
 	last_seen = int(parsed.get("last_seen", 0))
 	last_free_chest = int(parsed.get("free_chest", 0))
 	perseverance = clampi(int(parsed.get("perseverance", 0)), 0, Data.PERSEVERANCE_MAX)
