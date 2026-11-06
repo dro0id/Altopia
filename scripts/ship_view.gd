@@ -999,11 +999,22 @@ func _engines() -> void:
 	var mt := _mat(Color("c99a3a") if tier >= 4 else Color("3a4670"), 0.92, 0.22)
 	mt.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if tier == 1:
+		# plaque de poussée qui ferme le bas de la coque
+		_mi(_lathe([Vector2(2.06, 0.27), Vector2(1.95, 0.12), Vector2(1.6, 0.02), Vector2(0.01, -0.02)], 48, 0, TAU), m_navy)
+		_torus(1.62, 0.05, m_metal, Vector3(0, 0.02, 0), null, 64)
+		_cyl(0.75, 0.9, 0.22, m_metal, Vector3(0, -0.12, 0), 32)
 		var yt := _flame_tex([Color.WHITE, Color("fff4c4"), Color("ffd166")])
-		for q in [[-0.95, -0.45], [0.95, -0.45], [0.0, -1.2]]:
-			_mi(_lathe([Vector2(0.2, 0.28), Vector2(0.26, 0.1), Vector2(0.4, -0.2), Vector2(0.52, -0.45), Vector2(0.5, -0.46), Vector2(0.22, 0.26)], 24, 0, TAU), mt, Vector3(q[0], 0, q[1]))
-			_flame(0.42, 0.1, 1.4, Vector3(q[0], -1.15, q[1]), yt)
-			_glow(Color("ffb142"), 1.8, Vector3(q[0], -0.55, q[1]))
+		var throat := _emis(Color("ffcf7a"), 2.4)
+		# quatre tuyères en carré autour de l'axe : équilibrées sous tous les angles
+		for k in 4:
+			var a := PI / 4.0 + k * PI / 2.0
+			var p := Vector3(cos(a) * 0.9, -0.2, sin(a) * 0.9)
+			_cyl(0.2, 0.24, 0.24, m_metal, p + Vector3(0, -0.02, 0), 20)
+			_mi(_lathe([Vector2(0.2, -0.12), Vector2(0.13, -0.24), Vector2(0.21, -0.42), Vector2(0.33, -0.65), Vector2(0.43, -0.88), Vector2(0.4, -0.89), Vector2(0.3, -0.65), Vector2(0.19, -0.42), Vector2(0.11, -0.25)], 24, 0, TAU), mt, p)
+			_torus(0.42, 0.025, m_gold, p + Vector3(0, -0.88, 0), null, 32)
+			_cyl(0.13, 0.13, 0.01, throat, p + Vector3(0, -0.26, 0), 16)
+			_flame(0.38, 0.08, 1.3, p + Vector3(0, -1.53, 0), yt)
+			_glow(Color("ffb142"), 1.5, p + Vector3(0, -0.95, 0))
 		return
 	var tex := _flame_tex([Color.WHITE, Color("e6d6ff"), Color("b388ff")]) if tier == 5 else _flame_tex([Color.WHITE, Color("c9f6ff"), Color("4fd8ff")])
 	_mi(_lathe([Vector2(0.62, 0.3), Vector2(0.7, 0.1), Vector2(0.86, -0.2), Vector2(1.08, -0.55), Vector2(1.26, -0.82), Vector2(1.22, -0.84), Vector2(0.6, 0.28)], 40, 0, TAU), mt)
