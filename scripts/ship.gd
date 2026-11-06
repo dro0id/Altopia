@@ -19,7 +19,7 @@ const ROOMS := {
 	"labo": {"name": "Labo", "short": "Labo", "color": Color("b388ff"), "unlock": 11, "jobs": ["Scientifique"], "res": ""},
 	"quartiers": {"name": "Quartiers", "short": "Quartiers", "color": Color("7dffb0"), "unlock": 8, "jobs": ["Médecin", "Cheffe médecin"], "res": ""},
 	"hangar": {"name": "Hangar", "short": "Hangar", "color": Color("4fd8ff"), "unlock": 10, "jobs": ["Pilote", "Navigatrice"], "res": ""},
-	"serre": {"name": "Serre", "short": "Serre", "color": Color("9dff6b"), "unlock": 12, "jobs": ["Cheffe médecin", "Médecin", "Scientifique"], "res": "credits"},
+	"serre": {"name": "Serre", "short": "Serre", "color": Color("9dff6b"), "unlock": 5, "jobs": ["Cheffe médecin", "Médecin", "Scientifique"], "res": "credits"},
 	"observatoire": {"name": "Observatoire", "short": "Observatoire", "color": Color("e6d6ff"), "unlock": 14, "jobs": ["Navigatrice", "Scientifique", "Tireuse d'élite"], "res": ""},
 }
 const RES_NAMES := {"shards": "éclats", "item_tokens": "jetons d’objet", "tokens": "jetons de recrutement", "credits": "crédits"}

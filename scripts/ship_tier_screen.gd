@@ -7,7 +7,7 @@ signal visit_requested
 
 const NEWS := {
 	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion, radiateurs, Hangar au niveau 10"],
-	3: ["L’Antenne et le Labo s’ouvrent (niveau 11)", "5e module : la Serre au 12, l’Observatoire au 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
+	3: ["5e module : l’Antenne s’ouvre, avec le Labo (niveau 11)", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
 	4: ["Anneau de gravité tournant", "Finitions et propulseur dorés", "6 panneaux radiateurs"],
 	5: ["Flèche de cristal et sphère armillaire", "Voiles de lumière, fusion prismatique", "Coque nacre et poussière d’or"],
 }

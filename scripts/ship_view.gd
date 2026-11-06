@@ -700,14 +700,14 @@ func _decks() -> void:
 ## Salles présentes dans cette version : intervalle de hauteur, côté (-1 gauche, 0 plein, 1 droite).
 func room_layout() -> Dictionary:
 	var L := {
-		"centrale": [1.05, 2.35, 0], "raffinerie": [2.45, 3.75, 0], "antenne": [3.85, 5.15, -1], "atelier": [3.85, 5.15, 1],
+		"centrale": [1.05, 2.35, 0], "raffinerie": [2.45, 3.75, 0], "serre": [3.85, 5.15, -1], "atelier": [3.85, 5.15, 1],
 		"pont": [CROWN.x + 0.05, CROWN.x + 1.55, 0],
 	}
 	if tier >= 2:
 		L["labo"] = [5.25, 6.65, -1]
 		L["quartiers"] = [5.25, 6.65, 1]
 	if tier >= 3:
-		L["serre"] = [6.75, 8.05, 0]
+		L["antenne"] = [6.75, 8.05, 0]
 		L["observatoire"] = [TOP0 + 0.05, TOP0 + 1.2, 0]
 	return L
 
@@ -838,38 +838,55 @@ func _props() -> void:
 		elbow.rotation.z = 0.9 + sin(t * 1.3) * 0.3
 		torch.visible = randf() > 0.4)
 	_crewman(_who("atelier", 0, "pim"), Vector3(0.35, y + 0.05, -0.62), true)
-	# Antenne (gauche) : console, radar, parabole
-	_box(Vector3(1.0, 0.55, 0.32), m_navy, Vector3(-1.05, y + 0.28, -1.62))
-	var ring := _torus(0.21, 0.012, _emis(Color("ff7ad9"), 1.5), Vector3(-1.05, y + 0.8, -1.7))
-	ring.rotation.x = PI / 2.0
-	var sweep := _box(Vector3(0.2, 0.01, 0.01), _emis(Color("ff7ad9"), 2.0), Vector3(-1.05, y + 0.8, -1.69))
-	for i in 5:
-		_box(Vector3(0.09, 0.03, 0.05), _emis([Color("ff7ad9"), Color("7dffb0"), Color("ffd166"), Color("4fd8ff"), Color("ff7ad9")][i], 1.6), Vector3(-1.4 + i * 0.17, y + 0.57, -1.45))
-	var dish := Node3D.new()
-	var dmesh := SphereMesh.new()
-	dmesh.radius = 0.55
-	dmesh.height = 0.35
-	dmesh.is_hemisphere = true
-	var dm := _mi(dmesh, _mat(Color("e8eefc"), 0.5, 0.3), Vector3.ZERO, dish)
-	dm.material_override.cull_mode = BaseMaterial3D.CULL_DISABLED
-	dm.rotation.z = PI / 2.0
-	_sph(0.05, _emis(Color("ff7ad9"), 3.0), Vector3(-0.35, 0, 0), dish)
-	if not _open("antenne"):
-		dish.visible = false
-	elif tier == 2:
-		dish.position = Vector3(-1.25, TOP0 + 1.1, -0.55)
-		dish.rotation.z = -0.9
-	elif tier >= 3:
-		dish.position = Vector3(-3.3, CROWN.x + 0.7, -0.6)
-		_cyl(0.05, 0.05, 0.9, m_metal, Vector3(-2.85, CROWN.x + 0.7, -0.6), 8).rotation.z = PI / 2.0
-	else:
-		dish.position = Vector3(-3.3, y + 0.95, -0.7)
-		_cyl(0.05, 0.05, 0.9, m_metal, Vector3(-2.8, y + 0.95, -0.7), 8).rotation.z = PI / 2.0
-	ship.add_child(dish)
-	anims.append(func(t):
-		dish.rotation.y = sin(t * 0.5) * 0.6
-		sweep.rotation.z = -t * 2.2)
-	_crewman(_who("antenne", 0, "lumi"), Vector3(-1.62, y + 0.05, -0.6))
+	# Serre (gauche du module 3) : bacs de culture, lampes de croissance
+	for rr in 2:
+		for i in 2:
+			var x := -1.55 + i * 0.85
+			var z := -1.45 + rr * 0.55
+			_box(Vector3(0.74, 0.22, 0.4), m_paint, Vector3(x, y + 0.16 + rr * 0.04, z))
+			for p in 4:
+				var l := _sph(0.08, _mat(Color("4fbf7a") if p % 2 else Color("7ddf6b"), 0.0, 0.8), Vector3(x - 0.25 + p * 0.17, y + 0.36 + rr * 0.04, z), null, 6)
+				l.scale = Vector3(1, 1.5, 1)
+	for i in 2:
+		_box(Vector3(0.66, 0.03, 0.06), _emis(Color("ff7ad9"), 2.0), Vector3(-1.55 + i * 0.85, y + 1.1, -1.2))
+	_glow(Color("ff7ad9"), 1.6, Vector3(-1.1, y + 1.0, -1.2), 0.3)
+	_crewman(_who("serre", 0, "kai"), Vector3(-0.45, y + 0.05, -0.5), true)
+	if tier >= 3:
+		y = 6.75
+		_box(Vector3(1.0, 0.55, 0.32), m_navy, Vector3(-1.05, y + 0.28, -1.62))
+		var ring := _torus(0.21, 0.012, _emis(Color("ff7ad9"), 1.5), Vector3(-1.05, y + 0.8, -1.7))
+		ring.rotation.x = PI / 2.0
+		var sweep := _box(Vector3(0.2, 0.01, 0.01), _emis(Color("ff7ad9"), 2.0), Vector3(-1.05, y + 0.8, -1.69))
+		for i in 5:
+			_box(Vector3(0.09, 0.03, 0.05), _emis([Color("ff7ad9"), Color("7dffb0"), Color("ffd166"), Color("4fd8ff"), Color("ff7ad9")][i], 1.6), Vector3(-1.4 + i * 0.17, y + 0.57, -1.45))
+		var dish := Node3D.new()
+		var dmesh := SphereMesh.new()
+		dmesh.radius = 0.55
+		dmesh.height = 0.35
+		dmesh.is_hemisphere = true
+		var dm := _mi(dmesh, _mat(Color("e8eefc"), 0.5, 0.3), Vector3.ZERO, dish)
+		dm.material_override.cull_mode = BaseMaterial3D.CULL_DISABLED
+		dm.rotation.z = PI / 2.0
+		_sph(0.05, _emis(Color("ff7ad9"), 3.0), Vector3(-0.35, 0, 0), dish)
+		if not _open("antenne"):
+			dish.visible = false
+		elif tier == 2:
+			dish.position = Vector3(-1.25, TOP0 + 1.1, -0.55)
+			dish.rotation.z = -0.9
+		elif tier >= 3:
+			dish.position = Vector3(-3.3, CROWN.x + 0.7, -0.6)
+			_cyl(0.05, 0.05, 0.9, m_metal, Vector3(-2.85, CROWN.x + 0.7, -0.6), 8).rotation.z = PI / 2.0
+		else:
+			dish.position = Vector3(-3.3, y + 0.95, -0.7)
+			_cyl(0.05, 0.05, 0.9, m_metal, Vector3(-2.8, y + 0.95, -0.7), 8).rotation.z = PI / 2.0
+		ship.add_child(dish)
+		anims.append(func(t):
+			dish.rotation.y = sin(t * 0.5) * 0.6
+			sweep.rotation.z = -t * 2.2)
+		_crewman(_who("antenne", 0, "lumi"), Vector3(-1.62, y + 0.05, -0.6))
+		for i in 3:
+			_box(Vector3(0.5, 0.42, 0.3), m_navy, Vector3(0.6 + i * 0.6, y + 0.21, -1.5))
+			_box(Vector3(0.4, 0.22, 0.01), _emis(Color("ff7ad9") if i % 2 else Color("4fd8ff"), 0.9), Vector3(0.6 + i * 0.6, y + 0.6, -1.66))
 	if tier >= 2:
 		# Labo (gauche) : écrans, paillasse, molécule
 		y = 5.25
@@ -898,20 +915,6 @@ func _props() -> void:
 		_crewman(_who("quartiers", 0, "neelo"), Vector3(0.4, y + 0.05, -0.42))
 		_crewman(_who("quartiers", 1, "dax"), Vector3(1.55, y + 0.05, -0.55))
 	if tier >= 3:
-		# Serre : bacs, lampes de croissance
-		y = 6.75
-		for rr in 2:
-			for i in 4:
-				var x := -1.6 + i * 0.95
-				var z := -1.45 + rr * 0.55
-				_box(Vector3(0.8, 0.22, 0.4), m_paint, Vector3(x, y + 0.16 + rr * 0.04, z))
-				for p in 4:
-					var l := _sph(0.09, _mat(Color("4fbf7a") if p % 2 else Color("7ddf6b"), 0.0, 0.8), Vector3(x - 0.27 + p * 0.18, y + 0.38 + rr * 0.04, z), null, 6)
-					l.scale = Vector3(1, 1.5, 1)
-		for i in 4:
-			_box(Vector3(0.7, 0.03, 0.06), _emis(Color("ff7ad9"), 2.0), Vector3(-1.6 + i * 0.95, y + 1.12, -1.2))
-		_glow(Color("ff7ad9"), 2.2, Vector3(0, y + 1.0, -1.2), 0.35)
-		_crewman(_who("serre", 0, "kai"), Vector3(1.7, y + 0.05, -0.45), true)
 		# Observatoire : télescope, globe
 		y = TOP0 + 0.06
 		_cyl(0.18, 0.26, 0.3, m_navy, Vector3(0.2, y + 0.15, -0.7), 16)
