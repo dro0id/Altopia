@@ -216,6 +216,11 @@ func _initialize() -> void:
 			g.owned["brix"] = true
 			g.ship.posts["raffinerie"] = ["brix"]
 			main._open_mission(),
+		"voyage_pont": func():
+			g.chapters_done = []
+			g.ship.unlock()
+			main._open_ship()
+			main._open_room("pont"),
 		"scene_bord": func():
 			g.ship.unlock()
 			main._open_modal(DialogueScreen.new(Story.scene("b1_bord"), true)),

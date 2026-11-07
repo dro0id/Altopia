@@ -324,6 +324,17 @@ func _pont(c: Control, y: float) -> float:
 func _destinations(c: Control, y: float) -> float:
 	M3.section(c, Vector2(32, y + 32), "DESTINATION DE LA MISSION")
 	y += 52.0
+	if not Game.mission_open():
+		# pendant le voyage (chapitre 1) il n'y a pas encore de mission à piloter
+		var lr := Rect2(32, y, 656, 112)
+		var lsb := UI.box(M3.S2, M3.OUT, 32, 0)
+		lsb.set_border_width_all(2)
+		c.draw_style_box(lsb, lr)
+		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 20, 0), Rect2(56, y + 24, 64, 64))
+		M3.lock(c, Vector2(88, y + 56), UI.MUTED, 1.0)
+		M3.text(c, Vector2(144, y + 48), "Mission · en route", 28, UI.MUTED, true, 480)
+		M3.text(c, Vector2(144, y + 84), "Le Pont la pilotera à l’arrivée à Altopia", 22, UI.MUTED, false, 480)
+		return y + 144.0
 	var stg := int(Game.stage)
 	var best := int(Game.best_stage)
 	var sec := Sector.info(stg)
