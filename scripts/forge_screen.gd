@@ -28,12 +28,12 @@ func _init() -> void:
 		_refresh())
 	st.add_child(seg)
 	_tabs = seg
-	_body = canvas(Vector2(0, 0), Vector2(720, 1280), _draw_body)
+	_body = canvas(Vector2(0, 0), Vector2(720, UI.H), _draw_body)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.gui_input.connect(_body_input)
 	_grid_scroll = ScrollContainer.new()
 	_grid_scroll.position = Vector2(0, 288)
-	_grid_scroll.size = Vector2(720, 1280 - 288 - 32 - 104 - 120)
+	_grid_scroll.size = Vector2(720, UI.H - 288 - 32 - 104 - 120)
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_grid_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	st.add_child(_grid_scroll)
@@ -42,9 +42,9 @@ func _init() -> void:
 	_grid.draw.connect(_draw_grid)
 	_grid.gui_input.connect(_grid_input)
 	_grid_scroll.add_child(_grid)
-	_auto = button("Auto", "ghost", Vector2(32, 1280 - 32 - 104), Vector2(200, 104), 30)
+	_auto = button("Auto", "ghost", Vector2(32, UI.H - 32 - 104), Vector2(200, 104), 30)
 	_auto.pressed.connect(_auto_pick)
-	_go = button("Fusionner", "main", Vector2(248, 1280 - 32 - 104), Vector2(440, 104), 30)
+	_go = button("Fusionner", "main", Vector2(248, UI.H - 32 - 104), Vector2(440, 104), 30)
 	_go.pressed.connect(_do)
 	st.move_child(st.get_node("TopBar"), -1)
 	_refresh()
@@ -184,7 +184,7 @@ func _draw_body(c: Control) -> void:
 	if _tab == 1:
 		_draw_recycle(c)
 		return
-	M3.para(c, Vector2(32, 232), "Trois objets de même emplacement et rareté donnent un objet de rareté supérieure.", 26, UI.MUTED, 656)
+	M3.para(c, Vector2(32, 232), "3 objets de même emplacement et rareté → 1 objet de rareté supérieure.", 24, UI.MUTED, 656)
 	var first: Dictionary = Game.item_by_id(int(_sel[0])) if not _sel.is_empty() else {}
 	for i in 3:
 		var r := Rect2(360.0 - 236.0 + i * 164.0, 300, 144, 144)
@@ -242,7 +242,7 @@ func _recycle_totals() -> Dictionary:
 func _draw_recycle(c: Control) -> void:
 	M3.para(c, Vector2(32, 232), "Recycle les objets choisis en éclats et en crédits. Les objets verrouillés sont protégés.", 26, UI.MUTED, 656)
 	var t := _recycle_totals()
-	M3.text(c, Vector2(32, 1280 - 32 - 104 - 40), "%d objet%s choisi%s · +%s ¢" % [_sel.size(), "s" if _sel.size() > 1 else "", "s" if _sel.size() > 1 else "", UI.num(float(t.credits))], 24, UI.MUTED)
+	M3.text(c, Vector2(32, UI.H - 32 - 104 - 40), "%d objet%s choisi%s · +%s ¢" % [_sel.size(), "s" if _sel.size() > 1 else "", "s" if _sel.size() > 1 else "", UI.num(float(t.credits))], 24, UI.MUTED)
 
 
 func _cell(i: int) -> Rect2:

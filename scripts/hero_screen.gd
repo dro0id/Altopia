@@ -22,7 +22,7 @@ func _init(id: String, page: int = 0) -> void:
 	super._init(720.0)
 	_id = id
 	_page = page
-	panel.custom_minimum_size = Vector2(720, 1280)
+	panel.custom_minimum_size = Vector2(720, UI.H)
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	_rebuild()
@@ -32,7 +32,7 @@ func _rebuild() -> void:
 	if _stage != null:
 		_stage.queue_free()
 	_stage = Control.new()
-	_stage.custom_minimum_size = Vector2(720, 1280)
+	_stage.custom_minimum_size = Vector2(720, UI.H)
 	box.add_child(_stage)
 	var h: Dictionary = Data.HEROES[_id]
 	var have := Game.is_owned(_id)
@@ -133,7 +133,7 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 		return
 	var evo := Game.can_evolve(_id)
 	var cost_v: int = int(Game.evolve_cost(_id).credits) if evo else Game.level_cost(_id)
-	var up := M3.button(_stage, ("Évoluer · %s ¢" if evo else "Monter le niveau · %s ¢") % UI.num(cost_v), Rect2(32, 1144, 656, 104), "main")
+	var up := M3.button(_stage, ("Évoluer · %s ¢" if evo else "Monter le niveau · %s ¢") % UI.num(cost_v), Rect2(32, UI.H - 136.0, 656, 104), "main")
 	up.disabled = Game.credits < cost_v and not evo
 	level_button = up
 	up.pressed.connect(func():
@@ -169,12 +169,12 @@ func _open_picker() -> void:
 	if _picker != null:
 		_picker.queue_free()
 	_picker = Control.new()
-	_picker.size = Vector2(720, 1280)
+	_picker.size = Vector2(720, UI.H)
 	_picker.mouse_filter = Control.MOUSE_FILTER_STOP
 	_stage.add_child(_picker)
-	var y0 := 1280.0 - 800.0
+	var y0 := UI.H - 800.0
 	_picker.draw.connect(func():
-		_picker.draw_rect(Rect2(0, 0, 720, 1280), Color(0, 0, 0, 0.6))
+		_picker.draw_rect(Rect2(0, 0, 720, UI.H), Color(0, 0, 0, 0.6))
 		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
 		sb.corner_radius_bottom_left = 0
 		sb.corner_radius_bottom_right = 0
@@ -249,14 +249,14 @@ func _build_equipment(_h: Dictionary, have: bool) -> void:
 	_stage.add_child(grid)
 	if not have:
 		return
-	var hand := M3.button(_stage, "Choisir", Rect2(32, 1144, 248, 104), "ghost")
+	var hand := M3.button(_stage, "Choisir", Rect2(32, UI.H - 136.0, 248, 104), "ghost")
 	hand.pressed.connect(func():
 		for slot in Items.SLOTS:
 			if Game.slot_unlocked(_id, slot):
 				item_slot_requested.emit(slot)
 				close()
 				return)
-	var best := M3.button(_stage, "Équiper au mieux", Rect2(296, 1144, 392, 104), "main")
+	var best := M3.button(_stage, "Équiper au mieux", Rect2(296, UI.H - 136.0, 392, 104), "main")
 	best.pressed.connect(func():
 		var cnt: int = Game.equip_best(_id)
 		Game.save_game()

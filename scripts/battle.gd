@@ -308,7 +308,15 @@ func _shot_pos(s: Dictionary) -> Vector2:
 
 
 func _draw() -> void:
-	Art.draw_background(self, Rect2(Vector2.ZERO, SIZE), clock, stars, boss_wave, Sector.info(sim.stage).get("palette", []) if sim != null else [])
+	var pal: Array = Sector.info(sim.stage).get("palette", []) if sim != null else []
+	# écrans hauts (20:9) : le ciel continue au-dessus du terrain au lieu d'une bande vide
+	var sky := Color(pal[0]) if pal.size() >= 8 else Color(0.02, 0.03, 0.09)
+	draw_rect(Rect2(-400, -900, SIZE.x + 800, 902), sky)
+	for i in stars.size():
+		var st := stars[i]
+		var p := Vector2(fposmod(st.x * SIZE.x * 1.6 - clock * 4.0, SIZE.x + 200.0) - 100.0, -20.0 - st.y * 860.0)
+		draw_circle(p, 1.2 + (i % 3) * 0.6, Color(1, 1, 1, 0.25 + 0.35 * (0.5 + 0.5 * sin(clock * 1.5 + i))))
+	Art.draw_background(self, Rect2(Vector2.ZERO, SIZE), clock, stars, boss_wave, pal)
 	var order := fighters.values()
 	order.sort_custom(func(a, b): return a.home.y < b.home.y)
 	for f in order:
@@ -427,8 +435,13 @@ func _draw_overlay() -> void:
 	if banner_t > 0.0:
 		var a := minf(1.0, banner_t * 2.0)
 		var slide := (1.0 - minf(1.0, (1.6 - banner_t) * 6.0)) * 40.0 if banner_t > 1.0 else 0.0
-		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(0, 0, 0, a))
-		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 54, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
+		# le terrain est agrandi et rogné sur les écrans hauts : le titre tient dans la partie visible
+		var bfs := 54
+		var vis := 720.0 / maxf(1.0, scale.x) - 48.0
+		while bfs > 30 and ThemeDB.fallback_font.get_string_size(banner, HORIZONTAL_ALIGNMENT_LEFT, -1, bfs).x > vis:
+			bfs -= 2
+		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330) + Vector2(2, 2), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, bfs, Color(0, 0, 0, a))
+		_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 330), banner, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, bfs, Color(1.0, 0.85, 0.4, a) if not boss_wave else Color(1, 0.45, 0.4, a))
 		if banner_sub != "" and boss_wave and banner_t > 0.2:
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))

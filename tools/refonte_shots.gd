@@ -19,6 +19,7 @@ func _initialize() -> void:
 	g.best_stage = 19
 	g.tutorial_done = true
 	g.intro_seen = true
+	g.chapters_done = [1]                # le voyage (chapitre 1) est fait, sauf pour les captures du voyage
 	for id in g.levels.keys():
 		g.levels[id] = 14
 	g.levels["mara"] = 10
@@ -92,30 +93,34 @@ func _initialize() -> void:
 		"reine30": func(): main._open_modal(DialogueScreen.new(Story.scene("c3_reine"), true)),
 		"holt": func(): main._open_modal(DialogueScreen.new(Story.scene("c4_rendormir"))),
 		"seuil": func(): main._open_modal(DialogueScreen.new(Story.scene("c4_seuil"), true)),
-		"finhist": func(): main._open_modal(ChapterEndScreen.new(4, Story.chapter(4).reward)),
+		"finhist": func(): main._open_modal(ChapterEndScreen.new(5, Story.chapter(5).reward)),
 		"journal4": func():
 			g.seen_scenes = ["prologue"]
 			for s0 in Story.SCENES:
 				if int(s0.stage) <= 35:
 					g.seen_scenes.append(String(s0.id))
-			g.chapters_done = [1, 2, 3]
+			g.chapters_done = [1, 2, 3, 4]
 			main._open_journal()
 			var j = main._modal
-			j._ch = 4
-			j._chips.sel = 3
+			j._ch = 5
+			j._chips.sel = 4
 			j._rebuild(),
-		"finchap2": func(): main._open_modal(ChapterEndScreen.new(2, Story.chapter(2).reward)),
-		"finchap": func(): main._open_modal(ChapterEndScreen.new(1, Story.chapter(1).reward)),
+		"finchap2": func(): main._open_modal(ChapterEndScreen.new(3, Story.chapter(3).reward)),
+		"finchap": func(): main._open_modal(ChapterEndScreen.new(2, Story.chapter(2).reward)),
 		"journal": func():
-			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"]
-			main._open_journal(),
-		"journal2": func():
-			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin", "c2_voix", "c2_epave", "c2_holt"]
-			g.chapters_done = [1]
+			g.seen_scenes = ["prologue", "b1_bord", "b1_recolte", "b1_recrue", "b1_pont", "b1_signal", "b1_fin", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien"]
 			main._open_journal()
 			var j = main._modal
 			j._ch = 2
 			j._chips.sel = 1
+			j._rebuild(),
+		"journal2": func():
+			g.seen_scenes = ["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_gardien", "c1_fin", "c2_voix", "c2_epave", "c2_holt"]
+			g.chapters_done = [1, 2]
+			main._open_journal()
+			var j = main._modal
+			j._ch = 3
+			j._chips.sel = 2
 			j._rebuild(),
 		"secteur": func():
 			main._open_modal(SectorScreen.new(53)),
@@ -194,6 +199,36 @@ func _initialize() -> void:
 			_ship(20)
 			var ts := ShipTierScreen.new(20)
 			main._open_modal(ts),
+		"voyage": func():
+			g.chapters_done = []
+			g.tips.append("ship")
+			g.credits = 300.0
+			g.shards = 4
+			g.ship.unlock()
+			g.ship.harvests = 1
+			g.ship.stock["raffinerie"] = 1.5
+			main._open_ship(),
+		"voyage_mission": func():
+			g.chapters_done = []
+			g.ship.unlock()
+			g.ship.harvests = 1
+			g.pulls = 1
+			g.owned["brix"] = true
+			g.ship.posts["raffinerie"] = ["brix"]
+			main._open_mission(),
+		"scene_bord": func():
+			g.ship.unlock()
+			main._open_modal(DialogueScreen.new(Story.scene("b1_bord"), true)),
+		"fin_voyage": func(): main._open_modal(ChapterEndScreen.new(1, Story.chapter(1).reward)),
+		"bord": func():
+			_ship(5)
+			main._open_modal(AboardScreen.new()),
+		"mission": func():
+			_ship(12)
+			g.tips.append("ship")
+			g.ship.research["blindage"] = 4
+			g.ship.research["armement"] = 3
+			main._start_battle(),
 		"horsligne_vaisseau": func():
 			_ship(10)
 			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
@@ -250,6 +285,7 @@ func _ship(lv: int) -> void:
 	sh.stock["atelier"] = 3.4
 	sh.stock["antenne"] = 2.2
 	sh.builds = [{"room": "labo", "to": sh.room_level("labo") + 1, "end": ShipState.now() + 720}]
+
 	sh.research = {"blindage": 1, "armement": 2}
 	sh.research_job = {"id": "blindage", "end": ShipState.now() + 720}
 	if sh.room_level("hangar") > 0:

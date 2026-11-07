@@ -1,10 +1,13 @@
 class_name ShipScreen
 extends Overlay
-## Onglet Vaisseau (maquettes KB, JE, PA) : l'Aurore en coupe 3D, étiquettes des salles, fiche d'une salle touchée,
-## « Tout récolter ». Les écrans de salle, d'amélioration et du Hangar s'ouvrent par-dessus (signal room_requested).
+## Onglet Aurore, l'accueil du jeu dès l'étage 5 (maquettes KB, JE, PA, RC) : l'Aurore en coupe 3D, étiquettes des salles,
+## fiche d'une salle touchée, carte « Mission en cours » (le combat, qui continue pendant qu'on est à bord),
+## chantier conseillé et « Tout récolter ». Les écrans de salle s'ouvrent par-dessus (signal room_requested).
 
 signal room_requested(room: String)
 signal builds_requested
+signal mission_requested
+signal recruit_requested
 
 
 var view: ShipView
@@ -20,6 +23,12 @@ var _t := 0.0
 var _chips: Array = []
 var _sub: Label
 var _lab_rects := {}
+var _mission: Control
+var _advice: Control
+var _advice_btn: Button
+var _adv := {}
+var _join: Button
+static var mission_gain := 0.0      # crédits gagnés par la mission pendant qu'on est à bord (affichés sur la carte)
 
 
 func _init() -> void:
@@ -31,8 +40,8 @@ func _init() -> void:
 	_bg.draw.connect(_draw_bg)
 	_st.add_child(_bg)
 	view = ShipView.new()
-	view.position = Vector2(0, 112)
-	view.size = Vector2(720, 1280 - 112 - NavBar.total())
+	view.position = Vector2(0, 236)
+	view.size = Vector2(720, UI.H - 236 - NavBar.total() - 150)
 	_st.add_child(view)
 	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
 	view.room_tapped.connect(_select)
@@ -52,19 +61,44 @@ func _init() -> void:
 	_sub.position = Vector2(32, 66)
 	_sub.size = Vector2(340, 32)
 	_sub.clip_text = true
-	_cut = _round_button("◐", Vector2(720 - 32 - 88, 136))
+	_cut = _round_button("◐", Vector2(720 - 32 - 88, 300))
 	_cut.pressed.connect(func():
 		view.set_cut(not view.cut_mode)
 		_cut.text = "◐" if view.cut_mode else "●"
 		_close_sheet())
-	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 240))
+	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
-	_harvest = M3.button(_st, "Tout récolter", Rect2(32, 1280 - NavBar.total() - 32 - 96, 656, 96), "main", 30)
+	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "main", 30)
 	_harvest.pressed.connect(_harvest_all)
+	# carte « Mission en cours » (maquette RC)
+	_mission = Control.new()
+	_mission.position = Vector2(24, 112)
+	_mission.size = Vector2(672, 128)
+	_mission.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mission.draw.connect(_draw_mission)
+	_st.add_child(_mission)
+	_join = M3.button(_mission, "Rejoindre", Rect2(472, 24, 184, 80), "main", 26)
+	_join.pressed.connect(func():
+		if Game.mission_open():
+			mission_requested.emit()
+		else:
+			_objective_go())
+	# chantier conseillé
+	_advice = Control.new()
+	_advice.position = Vector2(24, UI.H - NavBar.total() - 32 - 96 - 16 - 124)
+	_advice.size = Vector2(672, 124)
+	_advice.draw.connect(_draw_advice)
+	_advice.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev) and not _adv.is_empty():
+			accept_event()
+			room_requested.emit(String(_adv.room)))
+	_st.add_child(_advice)
+	_advice_btn = M3.button(_advice, "Lancer", Rect2(500, 24, 156, 76), "main", 26)
+	_advice_btn.pressed.connect(_launch_advice)
 	_sheet = Control.new()
 	_sheet.size = Vector2(720, 420)
-	_sheet.position = Vector2(0, 1280 - NavBar.total() - 420)
+	_sheet.position = Vector2(0, UI.H - NavBar.total() - 420)
 	_sheet.visible = false
 	_sheet.draw.connect(_draw_sheet)
 	_sheet.gui_input.connect(func(ev: InputEvent):
@@ -102,17 +136,41 @@ func _refresh() -> void:
 	if view.level != s.level or view.opened != s.rooms.duplicate():
 		view.setup(s.level, s.posts, s.rooms)
 	var ti := Ship.tier_info(s.level)
-	_sub.text = ("Niveau %d · Amiral de l’Aurore" % s.level) if Game.tips.has("prestige") else ("Niveau %d · %s" % [s.level, ti.name])
+	# titres gagnés : Amiral de l'Aurore (niveau 20), sinon Héros de la Ceinture (fin de l'histoire)
+	if Game.tips.has("prestige"):
+		_sub.text = "Niveau %d · Amiral de l’Aurore" % s.level
+	elif Game.tips.has("badge:Héros de la Ceinture"):
+		_sub.text = "Niveau %d · Héros de la Ceinture" % s.level
+	else:
+		_sub.text = "Niveau %d · %s" % [s.level, ti.name]
 	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))
 	(_chips[1] as HudButton).set_texts(str(Game.shards))
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0
+	_adv = s.advice(Game) if Game.mission_open() else {}
+	_advice.visible = not _adv.is_empty() and not _sheet.visible
+	var voyage := not Game.mission_open()
+	_mission.size.y = 184.0 if voyage else 128.0
+	_join.text = "Y aller" if voyage else "Rejoindre"
+	_join.position.y = 40.0 if voyage else 24.0
+	var od := Game.voyage_done()
+	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
+	if not _adv.is_empty():
+		_advice_btn.disabled = not bool(_adv.ok)
+		_advice_btn.text = "Lancer" if bool(_adv.ok) else "Bientôt"
+	_advice.queue_redraw()
 	_sheet.queue_redraw()
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	# la mission continue pendant qu'on est à bord, au rythme du farm automatique
+	if is_visible_in_tree() and Game.intro_seen and Game.mission_open():
+		var g := Game.offline_rate_per_minute() / 60.0 * delta
+		Game.credits += g
+		mission_gain += g
+	_mission.queue_redraw()
 	_labels.queue_redraw()
 	if _sheet.visible:
 		_sheet.queue_redraw()
@@ -122,7 +180,7 @@ func _process(delta: float) -> void:
 
 func _draw_bg() -> void:
 	var c := _bg
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("070b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("070b1a"))
 	for k in 18:
 		c.draw_circle(Vector2(110, 1060), 520.0 - k * 28.0, Color(0.7, 0.53, 1.0, 0.012))
 	for k in 14:
@@ -130,7 +188,7 @@ func _draw_bg() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for i in 110:
-		var p := Vector2(rng.randf() * 720.0, rng.randf() * 1280.0)
+		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		var a := 0.25 + rng.randf() * 0.55 + sin(_t * 1.3 + i) * 0.1
 		c.draw_circle(p, 1.2 + (2.0 if i % 9 == 0 else 0.0) * 0.6, Color(1, 1, 1, a))
 
@@ -197,6 +255,7 @@ func _select(r: String) -> void:
 	Sfx.play("click", -6.0)
 	_sheet.visible = true
 	_harvest.visible = false
+	_advice.visible = false
 	var res := String(Ship.ROOMS[r].res)
 	var b: Button = _sheet_btns[0]
 	b.visible = res != ""
@@ -209,6 +268,7 @@ func _close_sheet() -> void:
 	_sel = ""
 	_sheet.visible = false
 	_harvest.visible = true
+	_advice.visible = not _adv.is_empty()
 
 
 func _unhandled_input(ev: InputEvent) -> void:
@@ -260,6 +320,127 @@ func _draw_sheet() -> void:
 			c.draw_style_box(UI.box(Color("0a1424"), M3.OUT, 22, 0), Rect2(x, y - 30, w, 44))
 			M3.text(c, Vector2(x + 20, y), nm + " au poste", 22, UI.TEXT)
 			x += w + 12.0
+
+
+## Carte « Mission en cours » : l'étage du combat, son rythme, ce qu'il a rapporté pendant qu'on était à bord.
+func _draw_mission() -> void:
+	if not Game.mission_open():
+		_draw_objective()
+		return
+	var c := _mission
+	var r := Rect2(Vector2.ZERO, c.size)
+	var sb := UI.box(Color("0d1733", 0.92), Color(UI.ACCENT, 0.4), 36, 0)
+	sb.set_border_width_all(2)
+	c.draw_style_box(sb, r)
+	# vignette : arène en perspective, trois héros qui sautillent, voyant rouge
+	var v := Rect2(16, 16, 96, 96)
+	c.draw_style_box(UI.box(Color("101a3a"), Color(0, 0, 0, 0), 20, 0), v)
+	for k in 4:
+		var yy := v.position.y + 44.0 + k * 14.0
+		c.draw_line(Vector2(v.position.x + 10 - k * 3, yy), Vector2(v.end.x - 10 + k * 3, yy), Color(UI.ACCENT, 0.25), 1.5)
+	var cols := [Color("4fa8ff"), Color("ffb142"), Color("b388ff")]
+	for k in 3:
+		var hx := v.position.x + 26.0 + k * 22.0
+		var hy := v.position.y + 62.0 - absf(sin(_t * 4.0 + k * 1.3)) * 6.0
+		c.draw_circle(Vector2(hx, hy), 8, cols[k])
+		c.draw_rect(Rect2(hx - 6, hy + 6, 12, 12), Color(cols[k], 0.8))
+	c.draw_circle(Vector2(v.position.x + 14, v.position.y + 14), 6, Color(UI.RED, 0.5 + 0.5 * absf(sin(_t * 3.0))))
+	var stg := int(Game.stage)
+	var sec := Sector.info(stg)
+	var boss := Data.boss_type(stg)
+	M3.text(c, Vector2(132, 40), "MISSION EN COURS", 20, UI.ACCENT, true)
+	var title := "Étage %d · %s" % [stg, "gros boss" if boss == "big" else ("mini-boss" if boss != "" else "combat auto")]
+	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
+	var where := String(sec.name) if not sec.is_empty() else "Trou de verre"
+	var line := "%s · +%s/min" % [where, UI.short(Game.offline_rate_per_minute())]
+	if mission_gain >= 1.0:
+		line = "%s · +%s à bord" % [where, UI.short(mission_gain)]
+	M3.text(c, Vector2(132, 108), line, 22, UI.MUTED, false, 330)
+
+
+## Chapitre 1 (maquette SC) : objectif de bord en cours et frise du voyage Terre → Altopia.
+func _draw_objective() -> void:
+	var c := _mission
+	var sb := UI.box(Color("0d1733", 0.92), Color(UI.GREEN, 0.45), 36, 0)
+	sb.set_border_width_all(2)
+	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size))
+	var done := Game.voyage_done()
+	var n := Story.OBJECTIVES.size()
+	if done >= n:
+		M3.text(c, Vector2(28, 40), "CHAPITRE 1 · ARRIVÉE", 20, UI.GREEN, true)
+		M3.text(c, Vector2(28, 80), "La Ceinture d’Altopia est en vue", 28, UI.TEXT, true, 600)
+	else:
+		var o: Dictionary = Story.OBJECTIVES[done]
+		M3.text(c, Vector2(28, 40), "CHAPITRE 1 · OBJECTIF %d / %d" % [done + 1, n], 20, UI.GREEN, true)
+		M3.text(c, Vector2(28, 78), String(o.title), 28, UI.TEXT, true, 430)
+		M3.text(c, Vector2(28, 108), String(o.sub), 22, UI.MUTED, false, 430)
+	draw_voyage(c, Rect2(28, 118, 616, 36), done)
+
+
+## Frise du voyage : Terre, objectifs remplis, Altopia, et le jour du trajet.
+static func draw_voyage(ci: CanvasItem, r: Rect2, done: int) -> void:
+	var n := Story.OBJECTIVES.size()
+	var y := r.position.y + 10.0
+	var x0 := r.position.x + 10.0
+	var x1 := r.end.x - 12.0
+	var k := float(done) / float(n)
+	ci.draw_line(Vector2(x0, y), Vector2(x1, y), M3.S3, 3.0)
+	ci.draw_line(Vector2(x0, y), Vector2(lerpf(x0, x1, k), y), UI.GREEN, 3.0)
+	for i in range(1, n):
+		ci.draw_circle(Vector2(lerpf(x0, x1, float(i) / n), y), 5, UI.GREEN if i <= done else M3.S3)
+	ci.draw_circle(Vector2(x0, y), 9, Color("4fa8ff"))
+	ci.draw_circle(Vector2(x1, y), 12, UI.GOLD)
+	var sx := lerpf(x0, x1, k)
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx + 12, y), Vector2(sx - 6, y - 8), Vector2(sx - 2, y), Vector2(sx - 6, y + 8)]), UI.TEXT)
+	var day := int(round(k * Story.VOYAGE_DAYS))
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Terre", 20, UI.MUTED)
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Jour %d / %d" % [day, Story.VOYAGE_DAYS], 20, UI.MUTED, false, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Altopia", 20, UI.GOLD, false, r.size.x, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+## « Y aller » : ouvre l'écran de l'objectif en cours.
+func _objective_go() -> void:
+	var done := Game.voyage_done()
+	if done >= Story.OBJECTIVES.size():
+		return
+	var go := String(Story.OBJECTIVES[done].go)
+	match go:
+		"recruit":
+			recruit_requested.emit()
+		"signal":
+			pass
+		_:
+			room_requested.emit(go)
+
+
+## Chantier conseillé (maquette RC) : le Pont d'abord, sinon la salle la moins chère.
+func _draw_advice() -> void:
+	if _adv.is_empty():
+		return
+	var c := _advice
+	var s: ShipState = Game.ship
+	var r := String(_adv.room)
+	var col: Color = Ship.ROOMS[r].color
+	var sb := UI.box(Color("0d1733", 0.92), Color(UI.GREEN, 0.4), 36, 0)
+	sb.set_border_width_all(2)
+	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size))
+	c.draw_style_box(UI.box(Color("0a1424"), col, 20, 0), Rect2(16, 18, 88, 88))
+	RoomScreen._room_glyph(c, r, Vector2(60, 62), col, 0.8)
+	var lv := s.room_level(r)
+	var cost := Ship.upgrade_cost(r, lv + 1, s.rank("logistique"))
+	M3.text(c, Vector2(124, 40), "PROCHAIN CHANTIER CONSEILLÉ", 20, UI.GREEN, true, 360)
+	M3.text(c, Vector2(124, 76), "%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1], 28, UI.TEXT, true, 360)
+	var line := "%s crédits · %d éclats · %s" % [UI.short(float(cost.credits)), int(cost.shards), UI.duration(float(cost.time))]
+	M3.text(c, Vector2(124, 108), line, 22, UI.MUTED if bool(_adv.ok) else UI.GOLD, false, 360)
+
+
+func _launch_advice() -> void:
+	if _adv.is_empty():
+		return
+	if Game.ship.start_upgrade(Game, String(_adv.room)):
+		Sfx.play("coin")
+		Game.save_game()
+		Game.changed.emit()
 
 
 func _n(v: float, res: String) -> String:

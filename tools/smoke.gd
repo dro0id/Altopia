@@ -23,6 +23,8 @@ func _initialize() -> void:
 	var ship_t := 0.0
 	var ups := 0
 	var last_stage := 1
+	var aboard := 0
+	var voyage_t := -1.0
 	var last_print := -1
 	var farm_t := 0.0
 	while t < secs:
@@ -31,6 +33,25 @@ func _initialize() -> void:
 		if int(t) % 60 == 0 and int(t) != last_print:
 			last_print = int(t)
 			print("t=%d étage=%d meilleur=%d modal=%s" % [int(t), g.stage, g.best_stage, str(main._modal)])
+		# chapitre 1 à bord : les objectifs du voyage, dans l'ordre
+		if not g.mission_open():
+			match g.voyage_done():
+				0:
+					g.ship.collect(g, "raffinerie")
+				1:
+					g.recruit(1)
+				2:
+					for id in g.owned:
+						if not g.squad.has(id) and g.ship.post_of(id) == "":
+							g.ship.assign(g, id, "raffinerie")
+							break
+				3:
+					g.ship.start_upgrade(g, "pont")
+				4:
+					g.ship.start_upgrade(g, "raffinerie")
+		elif voyage_t < 0.0:
+			voyage_t = t
+			print("SMOKE voyage : chapitre 1 terminé à t=%d (scènes vues %s)" % [int(t), str(g.seen_scenes.filter(func(x): return String(x).begins_with("b1_")))])
 		var m = main._modal
 		if m != null and is_instance_valid(m):
 			if m is ResultScreen:
@@ -51,7 +72,14 @@ func _initialize() -> void:
 			elif m is ShipTierScreen:
 				tiers += 1
 				m.close()
+			elif m is AboardScreen:
+				aboard += 1
+				m.board_requested.emit()
+				m.close()
 			elif m.get_script() == ShipScreen:
+				if g.mission_open():
+					m.mission_requested.emit()
+			elif m is MissionLockScreen:
 				m.close()
 			elif m is DefeatScreen:
 				defeats += 1
@@ -92,7 +120,7 @@ func _initialize() -> void:
 			g.equip_best_all()
 			g.recycle_items(g.inventory_items().filter(func(it): return Items.rarity_index(it.rarity) < 2).map(func(it): return int(it.id)))
 	print("SMOKE histoire : %d scènes, %d chapitre(s) terminé(s), vues : %s" % [scenes, chapters, str(g.seen_scenes)])
-	print("SMOKE vaisseau : niveau %d, salles %s, améliorations %d, nouvelles versions vues %d" % [g.ship.level, str(g.ship.rooms), ups, tiers])
+	print("SMOKE vaisseau : niveau %d, salles %s, améliorations %d, nouvelles versions vues %d, bienvenue à bord %d" % [g.ship.level, str(g.ship.rooms), ups, tiers, aboard])
 	print("SMOKE objets : %d, équipés : %d, éclats : %d" % [g.items.size(), g.items.filter(func(it): return it.on != "").size(), g.shards])
 	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0

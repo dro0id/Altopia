@@ -32,7 +32,32 @@ func _init(scene: Dictionary, replay := false) -> void:
 				break
 	var boss := _has_boss()
 	var voice := _speaker_art() != ""
-	_st = use_stage(1.0 if voice else 0.7)
+	var board := String(scene.get("when", "")) == "board"
+	_st = use_stage(1.0 if voice or board else 0.7)
+	if board:
+		# chapitre 1 à bord (maquette SD) : la scène se joue devant l'Aurore, pas sur le terrain de combat
+		var bg := ColorRect.new()
+		bg.color = Color("070b1a")
+		bg.size = Vector2(720, UI.H)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_st.add_child(bg)
+		var view := ShipView.new()
+		view.position = Vector2(140, 120)
+		view.size = Vector2(440, 520)
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_st.add_child(view)
+		view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
+		view.yaw = -0.4
+		view.anims.append(func(t): view.yaw = -0.4 + t * 0.15)
+		var chip := Control.new()
+		chip.size = Vector2(720, 120)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.draw.connect(func():
+			var sb := UI.box(Color("0b1226", 0.85), UI.GREEN, 30, 0)
+			sb.set_border_width_all(2)
+			chip.draw_style_box(sb, Rect2(32, 40, 300, 60))
+			M3.text(chip, Vector2(32, 78), "Chapitre 1 · À bord", 24, UI.GREEN, true, 300, HORIZONTAL_ALIGNMENT_CENTER))
+		_st.add_child(chip)
 	if voice:
 		var top := Control.new()
 		top.size = Vector2(720, 700)
@@ -46,9 +71,9 @@ func _init(scene: Dictionary, replay := false) -> void:
 			var bob := sin(_t * 2.2) * 8.0
 			_art(top, String(sp.art), Vector2(360, 330 + bob), 2.6, _t)
 			if not boss:
-				# une voix enregistrée (maquette HE) : pas de combat, juste le canal
+				# la voix de Holt, pris dans le verre (maquette HE) : pas de combat, juste le canal
 				M3.text(top, Vector2(24, 52), "Canal ouvert · fréquence de l'Aube", 24, sp.color, true, 480)
-				M3.text(top, Vector2(0, 478), "ENREGISTRÉ · IL Y A 40 ANS", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+				M3.text(top, Vector2(0, 478), "UNE VOIX DANS LE VERRE", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 				return
 			top.draw_style_box(UI.box(Color("3a1620"), Color(0, 0, 0, 0), 40, 0), Rect2(32, 32, 336, 80))
 			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Étage %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
@@ -62,7 +87,7 @@ func _init(scene: Dictionary, replay := false) -> void:
 		if M3.is_tap(ev) and _opts.is_empty():
 			_next())
 	_st.add_child(_sheet)
-	_btn = M3.button(_st, "Continuer", Rect2(32, 1280 - 40 - 104, 656, 104), "main", 32)
+	_btn = M3.button(_st, "Continuer", Rect2(32, UI.H - 40 - 104, 656, 104), "main", 32)
 	_btn.pressed.connect(_next)
 	for k in 2:
 		var o := M3.button(_st, "", Rect2(32, 0, 656, 112), "outline", 30)
@@ -122,7 +147,7 @@ func _layout() -> void:
 		if _peek() != {}:
 			h += _peek_height() + 16.0
 		h += 104.0 + 56.0
-	_sheet.position = Vector2(0, 1280.0 - h)
+	_sheet.position = Vector2(0, UI.H - h)
 	_sheet.size = Vector2(720, h)
 	_btn.visible = not has_choice
 	var last := _i >= _lines.size() - 1 and (not l.has("choice") or _choice >= 0)
@@ -236,8 +261,10 @@ func _peek_height() -> float:
 
 
 func _step_label() -> String:
-	if int(_scene.stage) > 0 and _lines.size() > 1:
+	if (int(_scene.stage) > 0 or String(_scene.get("when", "")) == "board") and _lines.size() > 1:
 		return "%d/%d" % [_i + 1, _lines.size()]
+	if String(_scene.get("when", "")) == "board":
+		return "À bord"
 	return "Étage %d" % int(_scene.stage)
 
 
@@ -288,7 +315,7 @@ static func _moth(ci: CanvasItem, c: Vector2, k: float) -> void:
 	wing.call([[25, 12], [27, 8], [30, 11], [33, 8], [35, 12]], Color("ffe08a"))
 
 
-## Une voix enregistrée (maquette HE) : un cercle et une onde qui vibre.
+## La voix de Holt (maquette HE) : un cercle et une onde qui vibre.
 static func _voice(ci: CanvasItem, c: Vector2, k: float, t: float) -> void:
 	var s := k * 1.6
 	var col := Color("ffd166")

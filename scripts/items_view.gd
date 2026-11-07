@@ -18,7 +18,7 @@ var _fab: Button
 
 
 func _init() -> void:
-	size = Vector2(720, 1120)
+	size = Vector2(720, (UI.H - 160.0))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chips = M3Chips.new(["Tous", "Arme", "Armure", "Module", "Relique"], 0)
 	_chips.position = Vector2(32, 260)
@@ -40,7 +40,7 @@ func _init() -> void:
 	# bouton flottant étendu (56 dp, rayon 16 dp)
 	_fab = UI.button(self, "✦  Équiper au mieux", M3.fs(30), "main")
 	var w := M3.text_w("✦  Équiper au mieux", 30, true) + 80.0
-	_fab.position = Vector2(688.0 - w, 1120.0 - 32.0 - 112.0)
+	_fab.position = Vector2(688.0 - w, (UI.H - 160.0) - 32.0 - 112.0)
 	_fab.size = Vector2(w, 112)
 	_fab.custom_minimum_size = Vector2(w, 112)
 	for st in ["normal", "hover", "pressed", "disabled"]:

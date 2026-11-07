@@ -40,7 +40,7 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 	_bt = Data.boss_type(stage)
 	_rcol = Data.CHEST_COLORS[_rarity]
 	_rays = Control.new()
-	_rays.size = Vector2(720, 1280)
+	_rays.size = Vector2(720, UI.H)
 	_rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rays.draw.connect(_draw_rays)
 	_st.add_child(_rays)
@@ -60,7 +60,7 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 		if not _cv.armed:
 			M3.text(lab, Vector2(0, 100), "Touche pour ouvrir", 28, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER))
 	_st.add_child(lab)
-	_open_btn = M3.button(_st, "Ouvrir", Rect2(32, 1280 - 32 - 112, 656, 112), "main", 32)
+	_open_btn = M3.button(_st, "Ouvrir", Rect2(32, UI.H - 32 - 112, 656, 112), "main", 32)
 	_open_btn.pressed.connect(func(): _cv.arm())
 	_cv.armed_changed.connect(func(): _open_btn.disabled = true)
 	_phase1 = [_cv, lab, _open_btn]
@@ -74,7 +74,7 @@ func _init(stage: int, star_count: int, chest: Dictionary, next_label: String, c
 
 
 func _layout() -> void:
-	var h := _st.size.y if _st.size.y > 0.0 else 1280.0
+	var h := _st.size.y if _st.size.y > 0.0 else UI.H
 	_open_btn.position.y = h - 32.0 - 112.0
 
 
@@ -112,7 +112,7 @@ func _show_victory() -> void:
 	_st.add_child(_victory)
 	_t = 0.0
 	_stars_shown = 0
-	var h := _st.size.y if _st.size.y > 0.0 else 1280.0
+	var h := _st.size.y if _st.size.y > 0.0 else UI.H
 	var nxt_txt := "Monter à l'étage %d" % (_stage + 1) if _next_label.begins_with("Monter") else _next_label
 	var can: bool = _best.get("hero", "") != "" and float(_best.get("gain", 0.0)) > 0.0
 	var main_txt := ("Équiper sur %s" % String(Data.HEROES[_best.hero].name).split(" ")[0]) if can else nxt_txt

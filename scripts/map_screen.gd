@@ -35,7 +35,9 @@ func _init() -> void:
 	var labels: Array = []
 	var top_sector := (Game.best_stage - 1) / PER_SECTOR
 	for k in top_sector + 2:
-		labels.append(("🔒 " if k > top_sector else "") + "Secteur %d" % (k + 1))
+		# secteurs de l'histoire nommés par leur chapitre (le chapitre 1 est le voyage, sans étages)
+		var lab := ("Ch. %d" % (k + 2)) if k < Story.CHAPTERS.size() - 1 else ("Secteur %d" % (k + 1))
+		labels.append(("🔒 " if k > top_sector else "") + lab)
 	_chips = M3Chips.new(labels, _sector)
 	_chips.position = Vector2(32, 96)
 	_chips.changed.connect(func(i: int):

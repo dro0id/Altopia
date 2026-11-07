@@ -74,6 +74,7 @@ signal ship_events(events: Dictionary)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	UI.H = maxf(1280.0, get_viewport().get_visible_rect().size.y)
 	rng.randomize()
 	reset()
 	load_game()
@@ -241,6 +242,15 @@ func recruit(count: int) -> Array:
 		var id: String = pool[rng.randi() % pool.size()]
 		if rarity == "epic" and rng.randf() < 0.5:
 			id = Data.featured_hero(_today())
+		if pulls == 0 and (is_owned(id) or id == "vance"):
+			# première recrue du voyage (chapitre 1) : toujours un nouveau visage
+			# Vance est déjà à bord dans l'histoire (il pilote l'Aurore) : la première recrue est quelqu'un d'autre
+			var fresh: Array = Data.ALL_HEROES.filter(func(h): return not is_owned(h) and h != "vance" and Data.HEROES[h].rarity == rarity)
+			if fresh.is_empty():
+				fresh = Data.ALL_HEROES.filter(func(h): return not is_owned(h) and h != "vance")
+			if not fresh.is_empty():
+				id = fresh[rng.randi() % fresh.size()]
+				rarity = String(Data.HEROES[id].rarity)
 		var is_new := not is_owned(id)
 		var frag := 0
 		if is_new:
@@ -382,6 +392,55 @@ func see_scene(id: String, choice := -1) -> void:
 	changed.emit()
 
 
+## Sauvegardes d'avant le chapitre 1 à bord : les chapitres prennent un numéro de plus, et une partie déjà
+## commencée dans le Trou de verre a fait le voyage (chapitre 1 marqué fait, scènes rangées dans le journal, sans récompense).
+func _migrate_story() -> void:
+	var shifted: Array = []
+	for n in chapters_done:
+		shifted.append(int(n) + 1)
+	chapters_done = shifted
+	if best_stage > 1 or seen_scenes.has("c1_entree") or ship.unlocked:
+		for sc in Story.chapter_scenes(1):
+			if not seen_scenes.has(String(sc.id)):
+				seen_scenes.append(String(sc.id))
+		if not chapters_done.has(1):
+			chapters_done.append(1)
+	if ship.unlocked:
+		vance_aboard()
+
+
+## Vance pilote l'Aurore depuis le prologue : il est à bord dès le départ, hors escouade, au poste du Pont.
+func vance_aboard() -> void:
+	if not is_owned("vance"):
+		owned["vance"] = true
+	if not squad.has("vance") and ship.post_of("vance") == "" and (ship.posts.get("pont", []) as Array).size() < ship.max_posts("pont"):
+		(ship.posts["pont"] as Array).append("vance")
+
+
+## La mission (le combat) s'ouvre à l'arrivée, à la fin du chapitre 1.
+func mission_open() -> bool:
+	return chapters_done.has(1)
+
+
+## Objectifs de bord du chapitre 1 remplis, dans l'ordre (0 à 6).
+func voyage_done() -> int:
+	var has_post := false
+	for r in ship.posts:
+		for h in ship.posts[r]:
+			if String(h) != "vance":
+				has_post = true
+	var conds := [ship.harvests > 0, pulls > 0, has_post,
+		ship.level >= 2 or not ship.building("pont").is_empty(),
+		ship.room_level("raffinerie") >= 2 or not ship.building("raffinerie").is_empty(),
+		seen_scenes.has("b1_signal")]
+	var n := 0
+	for c in conds:
+		if not c:
+			break
+		n += 1
+	return n
+
+
 ## Fin d'un chapitre : verse sa récompense une seule fois. Renvoie la récompense, ou {} si déjà versée.
 func complete_chapter(n: int) -> Dictionary:
 	if chapters_done.has(n):
@@ -390,6 +449,8 @@ func complete_chapter(n: int) -> Dictionary:
 	if c.is_empty():
 		return {}
 	chapters_done.append(n)
+	if c.reward.has("badge") and not tips.has("badge:" + String(c.reward.badge)):
+		tips.append("badge:" + String(c.reward.badge))
 	credits += float(c.reward.credits)
 	shards += int(c.reward.shards)
 	tokens += int(c.reward.tokens)
@@ -890,6 +951,10 @@ func ship_update() -> Dictionary:
 	if not ship.unlocked:
 		if best_stage > Ship.UNLOCK_STAGE:
 			ship.unlock()
+			# prime de départ de l'Amirauté et soute de la Raffinerie déjà pleine : de quoi lancer les objectifs du chapitre 1
+			credits += float(Ship.START_CREDITS)
+			ship.stock["raffinerie"] = maxf(float(ship.stock.get("raffinerie", 0.0)), 10.0)
+			vance_aboard()
 			changed.emit()
 		return {}
 	var ev := ship.tick(self)
@@ -934,7 +999,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
 	}))
 
 
@@ -1107,6 +1172,8 @@ func load_game() -> bool:
 	if pending_load.has("credits"):
 		_pay(pending_load)                    # un coffre non ouvert avant la fermeture est versé au rechargement
 	ship = ShipState.from_dict(parsed.get("ship", {}))
+	if int(parsed.get("story_v", 1)) < 2:
+		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)
 	if last_seen > 0 and away > 60:
 		offline_report = compute_offline(float(away))

@@ -36,9 +36,9 @@ func _init(item_id: int, title := "Nouvel objet") -> void:
 	sec.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_list = canvas(Vector2(32, 344), Vector2(656, 680), _draw_list)
 	_list.gui_input.connect(_list_input)
-	_go = button("", "main", Vector2(32, 1280 - 32 - 96 - 16 - 104), Vector2(656, 104), 32)
+	_go = button("", "main", Vector2(32, UI.H - 32 - 96 - 16 - 104), Vector2(656, 104), 32)
 	_go.pressed.connect(_equip)
-	var keep := button("Garder dans l'inventaire", "ghost", Vector2(32, 1280 - 32 - 96), Vector2(656, 96), 30)
+	var keep := button("Garder dans l'inventaire", "ghost", Vector2(32, UI.H - 32 - 96), Vector2(656, 96), 30)
 	keep.pressed.connect(close)
 	_refresh()
 

@@ -6,7 +6,8 @@ extends RefCounted
 const Data = preload("res://scripts/data.gd")
 
 const MAX_LEVEL := 20
-const UNLOCK_STAGE := 5                 # le vaisseau s'ouvre une fois le mini-boss de l'étage 5 vaincu
+const UNLOCK_STAGE := 0                 # le vaisseau est ouvert dès le départ (chapitre 1 à bord)
+const START_CREDITS := 300              # prime de départ : Pont et Raffinerie niveau 2 pendant le voyage
 const ORDER := ["pont", "centrale", "raffinerie", "atelier", "antenne", "labo", "quartiers", "hangar", "serre", "observatoire"]
 
 ## Salles : nom, couleur, niveau du vaisseau qui l'ouvre, métiers idéaux, ressource produite.
@@ -26,7 +27,7 @@ const RES_NAMES := {"shards": "éclats", "item_tokens": "jetons d’objet", "tok
 
 ## Étage à atteindre pour monter le Pont (= le vaisseau) à chaque niveau.
 ## Niveaux 1 à 10 pendant l'histoire (niveau 10 dès l’étage 32) ; 11 à 20 dans les secteurs générés (boucle AFK).
-const PONT_STAGE := [0, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 45, 52, 60, 68, 76, 85, 95, 105, 115, 130]
+const PONT_STAGE := [0, 5, 1, 11, 14, 17, 20, 23, 26, 29, 32, 45, 52, 60, 68, 76, 85, 95, 105, 115, 130]
 ## Durée d'un chantier pour atteindre chaque niveau (secondes) : courte jusqu'au niveau 10 (le vaisseau suit l'histoire),
 ## puis de 30 min à 12 h pour les niveaux 11 à 20 (accélérables contre des cristaux).
 const BUILD_TIME := [0, 0, 15, 20, 25, 30, 35, 40, 45, 50, 60, 1800, 3600, 5400, 7200, 10800, 14400, 18000, 21600, 28800, 43200]

@@ -38,11 +38,11 @@ var _gdown := false
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1120)
+	panel.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	_stage = Control.new()
-	_stage.custom_minimum_size = Vector2(720, 1120)
+	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	box.add_child(_stage)
 	_bar = M3.top_bar(_stage, "Héros", Callable(), [["⌕", _toggle_search], ["⋮", _open_menu]])
 	_search = LineEdit.new()
@@ -222,13 +222,13 @@ func _open_sheet() -> void:
 	if _sheet != null:
 		return
 	_sheet = Control.new()
-	_sheet.size = Vector2(720, 1120)
+	_sheet.size = Vector2(720, (UI.H - 160.0))
 	_sheet.z_index = 40
 	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	_stage.add_child(_sheet)
-	var y0 := 1120.0 - 640.0
+	var y0 := (UI.H - 160.0) - 640.0
 	_sheet.draw.connect(func():
-		_sheet.draw_rect(Rect2(0, 0, 720, 1120), Color(0, 0, 0, 0.6))
+		_sheet.draw_rect(Rect2(0, 0, 720, (UI.H - 160.0)), Color(0, 0, 0, 0.6))
 		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
 		sb.corner_radius_bottom_left = 0
 		sb.corner_radius_bottom_right = 0

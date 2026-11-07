@@ -6,6 +6,9 @@ extends Control
 
 const Data = preload("res://scripts/data.gd")
 
+signal mission_requested              # Pont : rejoindre la mission (le combat)
+signal map_requested                  # Pont : choisir un étage
+
 var room := ""
 var _scroll: ScrollContainer
 var _content: Control
@@ -22,7 +25,7 @@ func _init(r: String) -> void:
 	room = r
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	position = Vector2.ZERO
-	size = Vector2(720, 1280 - NavBar.total())
+	size = Vector2(720, UI.H - NavBar.total())
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 10
 	var bg := ColorRect.new()
@@ -137,7 +140,7 @@ func _draw_content() -> void:
 	if not b.is_empty():
 		var br := Rect2(32, y, 656, 120)
 		M3.card(c, br, M3.S2, 32, Color(UI.GOLD, 0.5))
-		M3.text(c, Vector2(64, y + 50), "Amélioration → niveau %d" % int(b.to), 28, UI.TEXT, true)
+		M3.text(c, Vector2(64, y + 50), "Amélioration → niveau %d" % int(b.to), 28, UI.TEXT, true, 380)
 		var tot := float(Ship.upgrade_cost(room, int(b.to), st.rank("logistique")).time)
 		var rem := float(st.remaining(int(b.end)))
 		M3.text(c, Vector2(64, y + 50), "⏱ " + UI.duration(rem), 26, UI.GOLD, true, 592, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -283,6 +286,7 @@ func _empty_slot(c: Control, r: Rect2, label: String) -> void:
 
 func _pont(c: Control, y: float) -> float:
 	var st := s()
+	y = _destinations(c, y)
 	M3.section(c, Vector2(32, y + 32), "PROCHAINS NIVEAUX")
 	y += 48.0
 	var unl := {}
@@ -316,6 +320,63 @@ func _pont(c: Control, y: float) -> float:
 	return y + 16.0
 
 
+## Le Pont pilote la mission (maquette RE) : étage en cours, choix d'un étage, Ceinture sans fin.
+func _destinations(c: Control, y: float) -> float:
+	M3.section(c, Vector2(32, y + 32), "DESTINATION DE LA MISSION")
+	y += 52.0
+	var stg := int(Game.stage)
+	var best := int(Game.best_stage)
+	var sec := Sector.info(stg)
+	var belt := best >= Sector.GEN_START
+	var go_belt := func():
+		Game.go_to(best)
+		mission_requested.emit()
+	var rows := [
+		["Étage %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur étage %d" % best, "run", func(): mission_requested.emit()],
+		["Choisir un étage", "Monter, ou farmer un étage déjà vaincu", "map", func(): map_requested.emit()],
+		["Ceinture sans fin", ("Secteurs générés · front à l’étage %d" % best) if belt else "Secteurs générés · après l’étage %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
+	]
+	for row in rows:
+		var r := Rect2(32, y, 656, 112)
+		var on: bool = row[2] == "run"
+		var lock: bool = row[2] == "lock"
+		var sb := UI.box(Color("12305a") if on else M3.S2, UI.ACCENT if on else M3.OUT, 32, 0)
+		sb.set_border_width_all(3 if on else 2)
+		c.draw_style_box(sb, r)
+		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 20, 0), Rect2(56, y + 24, 64, 64))
+		var ic := Vector2(88, y + 56)
+		if lock:
+			M3.lock(c, ic, UI.MUTED, 1.0)
+		else:
+			c.draw_arc(ic, 18, 0, TAU, 32, UI.ACCENT if on else UI.MUTED, 3.0, true)
+			if on:
+				c.draw_circle(ic, 9, UI.ACCENT)
+		var tc := UI.MUTED if lock else UI.TEXT
+		M3.text(c, Vector2(144, y + 48), String(row[0]), 28, tc, true, 330 if on else 480)
+		M3.text(c, Vector2(144, y + 84), String(row[1]), 22, UI.MUTED, false, 330 if on else 480)
+		if on:
+			M3.text(c, Vector2(0, y + 66), "REJOINDRE", 22, UI.ACCENT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
+		elif not lock:
+			M3.text(c, Vector2(0, y + 68), "›", 36, UI.MUTED, true, 648, HORIZONTAL_ALIGNMENT_RIGHT)
+		if not lock:
+			_hit(r, row[3])
+		y += 128.0
+	# ce que l'Aurore apporte à la mission
+	M3.text(c, Vector2(32, y + 24), main_aurora_line(), 24, UI.GREEN, true, 656)
+	return y + 48.0
+
+
+static func main_aurora_line() -> String:
+	var b: Dictionary = Game.ship_combat()
+	var parts: Array = []
+	for k in [["hp", "PV"], ["atk", "ATQ"], ["cdr", "recharge"], ["boss", "dégâts aux boss"]]:
+		var v := float(b.get(k[0], 0.0))
+		if v > 0.0:
+			parts.append(("−%d %% %s" if k[0] == "cdr" else "+%d %% %s") % [int(round(v * 100.0)), k[1]])
+	parts.append("autonomie %d h" % int(round(Game.offline_cap_hours())))
+	return "Apport à la mission : " + ", ".join(parts)
+
+
 # ---------------------------------------------------------------- Labo (maquette IG)
 
 func _labo(c: Control, y: float) -> float:
@@ -346,7 +407,7 @@ func _labo(c: Control, y: float) -> float:
 		var rk := st.rank(id)
 		M3.text(c, r.position + Vector2(32, 48), String(info.name), 28, UI.TEXT, true)
 		M3.text(c, r.position + Vector2(32 + M3.text_w(String(info.name), 28, true) + 14, 48), "rang %d / %d" % [rk, Ship.RESEARCH_MAX], 22, UI.MUTED)
-		M3.text(c, r.position + Vector2(32, 92), "%s · actuel +%d %%" % [info.desc, int(round(st.research_bonus(id) * 100.0))], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else 420)
+		M3.text(c, r.position + Vector2(32, 92), "%s · actuel +%d %%" % [info.desc, int(round(st.research_bonus(id) * 100.0))], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else (360 if running else 420))
 		var block := st.research_block(Game, id)
 		if running:
 			var rem := st.remaining(int(st.research_job.end))
@@ -491,7 +552,7 @@ func _open_dialog() -> Control:
 func _upgrade_dialog() -> void:
 	var st := s()
 	var lv := st.room_level(room)
-	var c := Ship.upgrade_cost(room, lv + 1, st.rank("logistique"))
+	var c := st.cost_of(Game, room)
 	var d := _open_dialog()
 	var box := Control.new()
 	box.position = Vector2(40, 180)
@@ -512,14 +573,14 @@ func _upgrade_dialog() -> void:
 			box.draw_line(Vector2(40, yy + 20), Vector2(600, yy + 20), M3.S3, 2)
 			yy += 60.0
 		var x := 40.0
-		for it in [["coin", UI.num(float(c.credits)), Game.credits >= float(c.credits)], ["shard", str(int(c.shards)), Game.shards >= int(c.shards)], ["", "⏱ " + UI.duration(float(c.time)), true]]:
+		for it in [["coin", UI.num(float(c.credits)) if float(c.credits) > 0.0 else "offert", Game.credits >= float(c.credits)], ["shard", str(int(c.shards)), Game.shards >= int(c.shards)], ["", "⏱ " + UI.duration(float(c.time)), true]]:
 			var w := M3.text_w(String(it[1]), 24, true) + (64.0 if it[0] != "" else 32.0)
 			box.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 30, 0), Rect2(x, yy, w, 60))
 			if it[0] != "":
 				box.draw_texture(UI.icon(String(it[0]), 28), Vector2(x + 14, yy + 16))
 			M3.text(box, Vector2(x + (52.0 if it[0] != "" else 16.0), yy + 40), String(it[1]), 24, UI.TEXT if it[2] else UI.RED, true)
 			x += w + 12.0
-		var note := "Un chantier à la fois. Le vaisseau continue de produire pendant les travaux." if st.max_builds() == 1 else "Deux chantiers en parallèle. Le vaisseau continue de produire."
+		var note := "Pendant le voyage, l’Amirauté paie les crédits des chantiers." if not Game.mission_open() else "Un chantier à la fois. Le vaisseau continue de produire pendant les travaux." if st.max_builds() == 1 else "Deux chantiers en parallèle. Le vaisseau continue de produire."
 		M3.para(box, Vector2(40, yy + 108), block if block != "" else note, 22, UI.RED if block != "" else UI.MUTED, 560))
 	var cancel := M3.button(box, "Annuler", Rect2(40, 520, 250, 96), "tonal", 28)
 	cancel.pressed.connect(func(): d.queue_free())

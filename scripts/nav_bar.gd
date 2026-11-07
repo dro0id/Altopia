@@ -1,7 +1,8 @@
 class_name NavBar
 extends Control
-## Barre de navigation du bas : Combat, Héros, Vaisseau (au centre), Recruter, Boutique, avec pastilles de notification.
-## Le Vaisseau apparaît une fois débloqué (étage 5) ; avant, quatre onglets.
+## Barre de navigation du bas, avec pastilles de notification. Avant l'Aurore (étage 5) : Combat, Héros, Recruter, Boutique.
+## Ensuite le vaisseau passe en premier (maquette RB) : Aurore, Mission (le combat), Héros, Recruter, Boutique.
+## Les indices restent ceux de ALL : 0 combat, 1 héros, 2 vaisseau, 3 recruter, 4 boutique.
 
 signal tab_pressed(index: int)
 
@@ -16,11 +17,29 @@ static func total() -> float:
 var active := 0
 var badges: Array = [0, 0, 0, 0, 0]
 var ship_on := true            # onglet Vaisseau visible
+var mission_locked := false    # chapitre 1 : la mission attend l'arrivée (cadenas)
 
 
 ## Onglets affichés (indices de ALL).
 func tabs() -> Array:
-	return [0, 1, 2, 3, 4] if ship_on else [0, 1, 3, 4]
+	return [2, 0, 1, 3, 4] if ship_on else [0, 1, 3, 4]
+
+
+## Nom affiché d'un onglet.
+func label_of(i: int) -> String:
+	if ship_on and i == 0:
+		return "Mission"
+	if i == 2:
+		return "Aurore"
+	return ALL[i]
+
+
+## Rectangle (local) de l'onglet d'indice `i` de ALL.
+func tab_rect(i: int) -> Rect2:
+	var tb := tabs()
+	var j := tb.find(i)
+	var w := (size.x - 16.0) / tb.size()
+	return Rect2(8.0 + w * maxi(j, 0), 8.0, w, 136.0)
 var t := 0.0
 
 
@@ -32,6 +51,7 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
+	mission_locked = not Game.mission_open()
 	queue_redraw()
 
 
@@ -64,8 +84,11 @@ func _draw() -> void:
 		# pastille d'indicateur (64 × 32 dp) derrière l'icône de l'onglet actif
 		if on:
 			UI.draw_gradient_box(self, Rect2(cx - minf(64.0, w * 0.42), 24.0, minf(128.0, w * 0.84), 64.0), 32.0, UI.TONAL, UI.TONAL, UI.TONAL, 1.0)
-		_icon(i, Vector2(cx, 56), col)
-		var lab: String = ALL[i]
+		if i == 0 and mission_locked:
+			M3.lock(self, Vector2(cx, 56), col if on else Color(UI.MUTED, 0.6), 1.2)
+		else:
+			_icon(i, Vector2(cx, 56), col)
+		var lab := label_of(i)
 		draw_string(UI.bold_font() if on else f, Vector2(x0, 128), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED)
 		var n: int = badges[i]
 		if n > 0:

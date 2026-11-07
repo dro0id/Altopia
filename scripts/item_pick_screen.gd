@@ -34,7 +34,7 @@ func _init(hero_id: String, slot: String) -> void:
 	st.add_child(chips)
 	_scroll = ScrollContainer.new()
 	_scroll.position = Vector2(0, 192)
-	_scroll.size = Vector2(720, 1280 - 192 - 32 - 104 - 96)
+	_scroll.size = Vector2(720, UI.H - 192 - 32 - 104 - 96)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	st.add_child(_scroll)
@@ -43,8 +43,8 @@ func _init(hero_id: String, slot: String) -> void:
 	_list.draw.connect(func(): _draw_list(_list))
 	_list.gui_input.connect(_list_input)
 	_scroll.add_child(_list)
-	_cmp = canvas(Vector2(0, 1280 - 32 - 104 - 88), Vector2(720, 80), _draw_cmp)
-	_go = button("", "main", Vector2(32, 1280 - 32 - 104), Vector2(656, 104), 32)
+	_cmp = canvas(Vector2(0, UI.H - 32 - 104 - 88), Vector2(720, 80), _draw_cmp)
+	_go = button("", "main", Vector2(32, UI.H - 32 - 104), Vector2(656, 104), 32)
 	_go.pressed.connect(_equip)
 	_build_candidates()
 	_refresh()

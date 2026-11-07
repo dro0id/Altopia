@@ -24,7 +24,7 @@ func _init(stage_n: int, timed_out := false) -> void:
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.draw.connect(_draw_body)
 	_st.add_child(_body)
-	var h := 1280.0
+	var h := UI.H
 	var b1 := M3.button(_st, "Réessayer l'étage %d" % stage_n, Rect2(32, h - 32 - 96 - 16 - 96 - 16 - 104, 656, 104), "main", 32)
 	b1.pressed.connect(func():
 		retry_pressed.emit()
@@ -84,7 +84,7 @@ func _draw_body() -> void:
 
 
 func _draw_perseverance(c: Control) -> void:
-	M3.text(c, Vector2(32, 222), "Ta persévérance monte : +%d %% de puissance" % Game.perseverance_pct(), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(c, Vector2(32, 222), "Persévérance : +%d %% de puissance" % Game.perseverance_pct(), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(32, 260), "au prochain essai (max +%d %%)." % int(round(Data.PERSEVERANCE_STEP * Data.PERSEVERANCE_MAX * 100.0)), 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 
 

@@ -13,7 +13,7 @@ func _init(p_offer: Array, next_boss: int) -> void:
 	super._init(720.0)
 	offer = p_offer
 	var st := use_stage(0.62)
-	var h := 1280.0
+	var h := UI.H
 	var sh := 152.0 + offer.size() * 144.0 + 104.0 + 48.0
 	var y0 := h - sh
 	var sheet := Control.new()

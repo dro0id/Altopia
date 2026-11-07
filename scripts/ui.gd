@@ -35,6 +35,7 @@ static func label(parent: Node, text: String, size: int, col: Color = Color.WHIT
 	if bold:
 		l.add_theme_font_override("font", bold_font())
 	l.text = text
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	parent.add_child(l)
@@ -146,6 +147,7 @@ static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: 
 
 static var _icons := {}
 static var text_scale := 1.0     # réglage « Taille du texte » : 1, 1,1 ou 1,2
+static var H := 1280.0          # hauteur réelle de l'écran dans le jeu (1280 en 16:9, ~1600 sur un téléphone 20:9)
 static var _bold: FontVariation
 
 

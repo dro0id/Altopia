@@ -16,7 +16,7 @@ const STEPS := [
 	{"title": "Monte son niveau", "text": "Chaque niveau augmente PV, attaque et défense. Au niveau 10, le héros devra évoluer.", "action": "Touche « Monter le niveau »"},
 	{"title": "Monte les étages", "text": "Le jeu passe seul à l'étage suivant. Touche l'étage pour voir la carte, farmer un étage ou revoir le journal.", "btn": "Terminer"},
 ]
-const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec l’étage atteint.", "action": "Touche « Vaisseau »"}
+const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec l’étage atteint.", "action": "Touche « Aurore »"}
 const TIP := {"eyebrow": "ASTUCE · PREMIER OBJET", "title": "Équipe ton butin", "text": "Les coffres donnent des objets. Un seul bouton les place sur les héros qui en profitent le plus.", "action": "Touche « Équiper au mieux »"}
 
 var main: Control
@@ -116,9 +116,9 @@ func _find_target() -> Rect2:
 		2:
 			if has_modal:
 				return Rect2()
-			var nav: Control = main._nav
-			var w := (nav.size.x - 16.0) / float(nav.tabs().size())
-			return Rect2(nav.global_position + Vector2(8.0 + w + 12.0, 8.0), Vector2(w - 24.0, 136.0))
+			var nav: NavBar = main._nav
+			var tr := nav.tab_rect(1)
+			return Rect2(nav.global_position + tr.position + Vector2(12.0, 0.0), Vector2(tr.size.x - 24.0, 136.0))
 		3:
 			if not (has_modal and m is CollectionScreen):
 				if not has_modal:
@@ -140,9 +140,9 @@ func _find_target() -> Rect2:
 		11:
 			if has_modal:
 				return Rect2()
-			var nav: Control = main._nav
-			var w := (nav.size.x - 16.0) / float(nav.tabs().size())
-			return Rect2(nav.global_position + Vector2(8.0 + w * 2 + 8.0, 8.0), Vector2(w - 16.0, 136.0))
+			var nav: NavBar = main._nav
+			var tr := nav.tab_rect(2)
+			return Rect2(nav.global_position + tr.position + Vector2(8.0, 0.0), Vector2(tr.size.x - 16.0, 136.0))
 		10:
 			if not (has_modal and m is CollectionScreen) or not m._items_view.is_visible_in_tree():
 				return Rect2()

@@ -503,12 +503,13 @@ func test_story() -> void:
 			if l.has("choice"):
 				_check(l.choice.size() == 2 and l.replies.size() == 2, "deux réponses et deux répliques : %s" % sc.id)
 	_g.see_scene("c1_haut", 1)
-	var r1: Dictionary = _g.complete_chapter(1)
-	_check(int(r1.get("credits", 0)) == 1000 and _g.complete_chapter(1).is_empty(), "récompense de fin de chapitre versée une seule fois")
+	var r1: Dictionary = _g.complete_chapter(2)
+	_check(int(r1.get("credits", 0)) == 1700 and _g.complete_chapter(2).is_empty(), "récompense de fin de chapitre versée une seule fois")
 	# un chapitre = 10 étages ; le chapitre 2 suit le Gardien et finit après la Sentinelle
 	for c in Story.CHAPTERS:
-		_check(int(c.to) - int(c.from) == 9, "chapitre %d sur 10 étages" % int(c.n))
-	_check(Story.chapter_scenes(2).size() == 7 and int(Story.scene("c1_fin").stage) == 10 and int(Story.scene("c2_fin").end) == 2, "chapitre 1 jusqu'à 10, chapitre 2 en 7 scènes")
+		if not c.get("board", false):
+			_check(int(c.to) - int(c.from) == 9, "chapitre %d sur 10 étages" % int(c.n))
+	_check(Story.chapter_scenes(3).size() == 7 and int(Story.scene("c1_fin").stage) == 10 and int(Story.scene("c1_fin").end) == 2 and int(Story.scene("c2_fin").end) == 3, "chapitre 2 jusqu'à 10, chapitre 3 en 7 scènes")
 	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien"], 11, 11).get("id", "") == "c1_fin", "fin du chapitre 1 après le Gardien")
 	_check(Story.pending(["prologue", "c1_entree", "c1_soleil", "c1_haut", "c1_aurore", "c1_gardien", "c1_fin"], 11, 11).get("id", "") == "c2_voix", "scène avant l'étage 11")
 	_check(Story.pending([], 20, 20).get("id", "") == "c1_soleil", "scène manquée jouée tant qu'on n'a pas rattrapé")
@@ -517,24 +518,71 @@ func test_story() -> void:
 	_g.stage = 22
 	var credits0: float = _g.credits
 	_g.story_catch_up()
-	_check(_g.seen_scenes.has("c2_temple") and _g.seen_scenes.has("c2_fin") and _g.chapters_done.has(2), "scènes dépassées débloquées dans le journal")
-	_check(is_equal_approx(_g.credits - credits0, 2000.0), "chapitre 1 déjà payé, chapitre 2 payé une fois")
+	_check(_g.seen_scenes.has("c2_temple") and _g.seen_scenes.has("c2_fin") and _g.chapters_done.has(3), "scènes dépassées débloquées dans le journal")
+	_check(is_equal_approx(_g.credits - credits0, 5700.0), "chapitre 2 déjà payé, chapitre 3 payé une fois")
 	_check(Story.pending(_g.seen_scenes, 22, 22).is_empty(), "pas de rafale de scènes")
 	# chapitres 3 et 4 : l'histoire finit à l'étage 40, puis la Ceinture sans fin
-	_check(Story.chapter_scenes(3).size() == 7 and Story.chapter_scenes(4).size() == 7 and Story.last_chapter() == 4, "chapitres 3 et 4 en 7 scènes")
-	_check(int(Story.scene("c4_fin").end) == 4 and int(Story.chapter(4).to) == Sector.GEN_START - 1, "l'histoire finit juste avant les secteurs générés")
+	_check(Story.chapter_scenes(4).size() == 7 and Story.chapter_scenes(5).size() == 7 and Story.last_chapter() == 5, "chapitres 4 et 5 en 7 scènes")
+	_check(int(Story.scene("c4_fin").end) == 5 and int(Story.chapter(5).to) == Sector.GEN_START - 1, "l'histoire finit juste avant les secteurs générés")
+	var prev := 0.0
+	var grows := true
+	for n in range(2, 6):
+		var ch: Dictionary = Story.chapter(n)
+		var loot: float = float(Data.chest_rewards(int(ch.to), "normal").credits)
+		grows = grows and float(ch.reward.credits) > prev and float(ch.reward.credits) >= 5.0 * float(loot)
+		prev = float(ch.reward.credits)
+	_check(grows, "récompenses de chapitre croissantes, au moins 5 coffres du dernier étage")
 	_check(Data.boss_name(40) == "Gardien du dernier seuil" and Data.boss_name(10) == "Gardien de verre", "le dernier Gardien a son nom")
 	_check(Story.short_name("holt") == "Holt" and Story.short_name("kai") == "Kaï", "noms courts")
 	_g.best_stage = 45
 	var credits1: float = _g.credits
 	_g.story_catch_up()
-	_check(_g.chapters_done.has(4) and is_equal_approx(_g.credits - credits1, 8000.0), "chapitres 3 et 4 payés une fois en rattrapage")
+	_check(_g.chapters_done.has(5) and is_equal_approx(_g.credits - credits1, 84000.0) and _g.tips.has("badge:Héros de la Ceinture"), "chapitres 4 et 5 payés une fois en rattrapage")
 	_g.save_game()
 	var g2: Node = load("res://scripts/game.gd").new()
 	g2.save_path = _g.save_path
 	g2.load_game()
-	_check(g2.seen_scenes.has("c1_haut") and int(g2.story_choices.get("c1_haut", -1)) == 1 and g2.chapters_done.has(1), "scènes, choix et chapitres sauvegardés")
+	_check(g2.seen_scenes.has("c1_haut") and int(g2.story_choices.get("c1_haut", -1)) == 1 and g2.chapters_done.has(2), "scènes, choix et chapitres sauvegardés")
 	g2.free()
+	_check(not _g.seen_scenes.has("b1_bord") and not _g.chapters_done.has(1), "le rattrapage ne touche pas au chapitre 1 à bord")
+
+
+## Chapitre 1 « Cap sur Altopia » (maquettes SA à SH) : objectifs de bord, scènes entre les objectifs, mission à l'arrivée.
+func test_board_chapter() -> void:
+	_g.reset()
+	ShipState.clock_offset = 0
+	_check(Story.chapter(1).get("board", false) and Story.chapter(2).title == "Le signal" and Story.chapter(5).title == "Le dernier seuil", "chapitre 1 à bord, puis Le signal (2) à Le dernier seuil (5)")
+	_check(Story.pending([], 1, 1).get("id", "") == "c1_entree" and Story.pending(["c1_entree"], 6, 6).get("id", "") == "c1_soleil", "les scènes à bord ne passent pas par les étages")
+	_g.ship_update()
+	var s: ShipState = _g.ship
+	_check(s.unlocked and not _g.mission_open() and _g.credits >= 250.0, "Aurore ouverte dès le départ, prime de départ, mission fermée")
+	_check(_g.is_owned("vance") and s.post_of("vance") == "pont" and not _g.squad.has("vance") and _g.voyage_done() == 0, "Vance à bord dès le départ, au Pont, hors escouade")
+	_check(_g.voyage_done() == 0 and Story.board_pending([], 0).get("id", "") == "b1_bord", "scène « À bord » d'abord")
+	var seen: Array = ["b1_bord"]
+	_check(Story.board_pending(seen, 0).is_empty(), "rien avant le premier objectif")
+	s.collect(_g, "raffinerie")
+	_check(_g.voyage_done() == 1 and Story.board_pending(seen, 1).get("id", "") == "b1_recolte", "objectif 1 : récolte, puis T-9")
+	var got: Array = _g.recruit(1)
+	_check(got.size() == 1 and bool(got[0].new) and _g.voyage_done() == 2, "objectif 2 : première recrue, toujours nouvelle")
+	_check(s.assign(_g, String(got[0].id), "raffinerie") and _g.voyage_done() == 3, "objectif 3 : la recrue au poste")
+	_g.credits = 0.0
+	_check(s.start_upgrade(_g, "pont") and _g.voyage_done() == 4, "objectif 4 : chantier du Pont lancé, crédits payés par l'Amirauté")
+	ShipState.clock_offset += 60
+	_g.ship_update()
+	_check(s.level == 2 and s.start_upgrade(_g, "raffinerie") and _g.voyage_done() == 5, "objectif 5 : Raffinerie niveau 2")
+	_check(Story.board_pending(["b1_bord", "b1_recolte", "b1_recrue", "b1_pont"], 5).get("id", "") == "b1_signal", "Zyra entend le signal")
+	_g.see_scene("b1_signal", 0)
+	_check(_g.voyage_done() == 6 and Story.board_pending(_g.seen_scenes + ["b1_bord", "b1_recolte", "b1_recrue", "b1_pont"], 6).get("id", "") == "b1_fin", "arrivée : fin du chapitre 1")
+	var rw: Dictionary = _g.complete_chapter(1)
+	_check(int(rw.get("credits", 0)) == 500 and _g.mission_open(), "fin du chapitre 1 payée, la mission s'ouvre")
+	# sauvegarde d'avant le chapitre 1 : chapitres décalés, voyage déjà fait
+	_g.reset()
+	_g.best_stage = 14
+	_g.chapters_done = [1]
+	_g.seen_scenes = ["prologue", "c1_entree", "c1_fin"]
+	_g._migrate_story()
+	_check(_g.chapters_done.has(2) and _g.chapters_done.has(1) and _g.mission_open() and _g.seen_scenes.has("b1_fin"), "ancienne sauvegarde : chapitres décalés, voyage fait")
+	_g.reset()
 
 
 func test_generated_sectors() -> void:
@@ -757,7 +805,28 @@ func test_ship() -> void:
 	_check(not s.unlocked, "vaisseau fermé au départ")
 	_g.best_stage = 6
 	_g.ship_update()
-	_check(s.unlocked and s.room_level("pont") == 1 and s.room_level("raffinerie") == 1 and s.room_level("atelier") == 0, "vaisseau ouvert après l'étage 5, salles du niveau 1")
+	_check(s.unlocked and s.room_level("pont") == 1 and s.room_level("raffinerie") == 1 and s.room_level("atelier") == 0, "vaisseau ouvert, salles du niveau 1")
+	_check(is_equal_approx(float(s.stock.raffinerie), 10.0), "soute de la Raffinerie pleine au départ")
+	s.stock["raffinerie"] = 0.0
+	# chantier conseillé sur l'accueil : le Pont d'abord, lançable s'il y a de quoi payer
+	_g.best_stage = 20
+	_g.credits = 0.0
+	_g.shards = 0
+	var adv: Dictionary = s.advice(_g)
+	_check(adv.get("room", "") == "pont" and not bool(adv.ok), "chantier conseillé : le Pont, en attente de ressources (%s)" % str(adv))
+	_g.credits = 1e6
+	_g.shards = 1000
+	adv = s.advice(_g)
+	_check(adv.get("room", "") == "pont" and bool(adv.ok), "chantier conseillé : le Pont, lançable")
+	_g.best_stage = 6
+	_g.credits = 0.0
+	_g.shards = 0
+	var nb = load("res://scripts/nav_bar.gd").new()
+	nb.ship_on = true
+	_check(nb.tabs()[0] == 2 and nb.label_of(2) == "Aurore" and nb.label_of(0) == "Mission", "barre du bas : l'Aurore en premier, le combat devient Mission")
+	nb.ship_on = false
+	_check(nb.tabs() == [0, 1, 3, 4] and nb.label_of(0) == "Combat", "avant l'Aurore : quatre onglets, Combat en premier")
+	nb.free()
 	# production en temps réel, plafonnée par l'autonomie
 	ShipState.clock_offset += 3600
 	_g.ship_update()
@@ -774,13 +843,14 @@ func test_ship() -> void:
 	_g.shards = 100000
 	_check(s.upgrade_block(_g, "raffinerie") != "", "une salle ne dépasse pas le niveau du Pont")
 	_g.best_stage = 6
-	_check(s.upgrade_block(_g, "pont").begins_with("Étage"), "le Pont exige l'étage suivant")
+	_check(Ship.PONT_STAGE[2] <= 1 and s.upgrade_block(_g, "pont") == "", "Pont niveau 2 dès le voyage")
 	_g.best_stage = 9
 	_check(s.start_upgrade(_g, "pont") and s.builds.size() == 1, "chantier du Pont lancé")
 	_check(not s.start_upgrade(_g, "raffinerie"), "un seul chantier à la fois au début")
 	ShipState.clock_offset += 3600
 	_g.ship_update()
 	_check(s.level == 2 and s.room_level("pont") == 2 and s.builds.is_empty(), "chantier terminé en temps réel")
+	_check(s.upgrade_block(_g, "pont").begins_with("Étage"), "le Pont exige ensuite l'étage suivant")
 	_check(s.start_upgrade(_g, "raffinerie"), "chantier de salle")
 	_g.crystals = 0
 	_check(not s.rush_build(_g, "raffinerie"), "accélérer demande des cristaux")

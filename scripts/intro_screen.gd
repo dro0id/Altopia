@@ -20,7 +20,7 @@ func _init() -> void:
 	rng.seed = 9
 	for i in 80:
 		_stars.append(Vector2(rng.randf(), rng.randf()))
-	var h := 1280.0
+	var h := UI.H
 	var go := M3.button(self, "Commencer", Rect2(32, h - 32 - 40 - 112, 656, 112), "main", 32)
 	go.pressed.connect(func():
 		finished.emit()

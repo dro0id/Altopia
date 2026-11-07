@@ -14,7 +14,7 @@ func _init() -> void:
 	_st = use_stage(1.0)
 	M3.top_bar(_st, "Journal de bord", close)
 	var labels: Array = []
-	var fmt := "Ch. %d" if Story.written().size() > 2 else "Chapitre %d"
+	var fmt := ("%d" if Story.written().size() > 4 else "Ch. %d") if Story.written().size() > 2 else "Chapitre %d"
 	for c in Story.written():
 		var open := int(c.n) == 1 or Game.chapters_done.has(int(c.n) - 1)
 		labels.append(("" if open else "🔒 ") + fmt % int(c.n))
@@ -32,7 +32,7 @@ func _init() -> void:
 	_st.add_child(_chips)
 	var sc := ScrollContainer.new()
 	sc.position = Vector2(0, 192)
-	sc.size = Vector2(720, 1280 - 192 - NavBar.total())
+	sc.size = Vector2(720, UI.H - 192 - NavBar.total())
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_st.add_child(sc)
@@ -67,7 +67,7 @@ func _draw_list() -> void:
 	var head := Rect2(32, 0, 656, 200)
 	var col: Color = ch.get("color", UI.ACCENT)
 	UI.draw_gradient_box(c, head, 32.0, ch.get("head", Color("16305e")), M3.S2, Color(0, 0, 0, 0), 0.0)
-	M3.text(c, Vector2(64, 52), "CHAPITRE %d · ÉTAGES %d À %d" % [_ch, int(ch.from), int(ch.to)], 24, col, true)
+	M3.text(c, Vector2(64, 52), ("CHAPITRE %d · À BORD DE L’AURORE" % _ch) if ch.get("board", false) else ("CHAPITRE %d · ÉTAGES %d À %d" % [_ch, int(ch.from), int(ch.to)]), 24, col, true)
 	M3.text(c, Vector2(64, 100), String(ch.title), 36, UI.TEXT, true)
 	M3.bar(c, Rect2(64, 124, 592, 12), float(seen) / float(maxi(1, _rows.size())), col)
 	M3.text(c, Vector2(64, 172), "%d scène%s sur %d vue%s" % [seen, "s" if seen > 1 else "", _rows.size(), "s" if seen > 1 else ""], 24, UI.MUTED)
