@@ -172,6 +172,8 @@ func _draw_victory() -> void:
 		chips.append(["itoken", "+%d" % int(_chest.item_tokens)])
 	if int(_chest.get("crystals", 0)) > 0:
 		chips.append(["crystal", "+%d" % int(_chest.crystals)])
+	if int(_chest.get("copies", 0)) > 0:
+		chips.append(["copies", "+%d doublons" % int(_chest.copies)])
 	var x := 32.0
 	for ch in chips:
 		var w := M3.text_w(ch[1], 26, true) + 40.0 + 34.0
@@ -188,6 +190,12 @@ func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:
 			ci.draw_string(UI.bold_font(), c + Vector2(-12, 8), "¢", HORIZONTAL_ALIGNMENT_CENTER, 24, 20, Color("6b4a00"))
 		"shard":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -13), c + Vector2(13, -2), c + Vector2(8, 13), c + Vector2(-8, 13), c + Vector2(-13, -2)]), Color("7fdcff"))
+		"copies":
+			var pts := PackedVector2Array()
+			for i in 10:
+				var a := -PI / 2.0 + i * PI / 5.0
+				pts.append(c + Vector2(cos(a), sin(a)) * (15.0 if i % 2 == 0 else 6.5))
+			ci.draw_colored_polygon(pts, UI.GOLD)
 		"token":
 			ci.draw_style_box(UI.box(Color("b388ff"), Color(0, 0, 0, 0), 5, 0), Rect2(c + Vector2(-14, -10), Vector2(28, 20)))
 			ci.draw_circle(c, 4.5, Color("2a1450"))

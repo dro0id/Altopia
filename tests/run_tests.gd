@@ -266,14 +266,14 @@ func test_boosts() -> void:
 
 func test_evolution_gate() -> void:
 	_g.levels["mara"] = 10
-	_check(_g.at_cap("mara") and _g.can_evolve("mara") and not _g.level_up("mara"), "au niveau 10 il faut évoluer")
 	_g.credits = 1.0e6
-	_g.shards = 0
-	_check(not _g.evolve("mara"), "pas d'évolution sans éclats")
-	_g.shards = 3
-	var c: Dictionary = _g.evolve_cost("mara")
-	_check(c.shards == 3 and _g.evolve("mara") and _g.tier("mara") == 1 and _g.shards == 0, "évolution payée en crédits et éclats")
-	_check(not _g.at_cap("mara") and _g.level_up("mara"), "après l'évolution on peut monter jusqu'au niveau 20")
+	_check(_g.at_cap("mara") and _g.needs_star("mara") and not _g.level_up("mara"), "à 1★ le niveau 10 est la limite")
+	_check(not _g.star_up("mara"), "pas d'étoile sans doublons")
+	_g.fragments["mara"] = 5
+	_check(_g.star_up("mara") and _g.hero_stars["mara"] == 2 and _g.tier("mara") == 1 and _g.fragments["mara"] == 0, "5 doublons : 2★")
+	_check(not _g.at_cap("mara") and _g.level_up("mara"), "à 2★ on monte jusqu'au niveau 20")
+	_g.levels["mara"] = 20
+	_check(_g.at_cap("mara") and not _g.level_up("mara"), "à 2★ le niveau 20 est la limite")
 	var evo := BattleSim.new(_g.team(), 3, 1)
 	var plain := BattleSim.new(_team(11), 3, 1)
 	var m1: BattleSim.Unit = evo.allies()[0]
@@ -302,11 +302,12 @@ func test_combo() -> void:
 func test_save_v3() -> void:
 	_g.perseverance = 3
 	_g.boosts = ["tir", "butin"]
-	_g.evolved["kai"] = 2
+	_g.hero_stars["kai"] = 3
+	_g.wild = 7
 	_g.save_game()
 	_g.reset()
 	_check(_g.load_game(), "rechargement v3")
-	_check(_g.perseverance == 3 and _g.boosts == ["tir", "butin"] and _g.tier("kai") == 2, "persévérance, renforts et paliers conservés")
+	_check(_g.perseverance == 3 and _g.boosts == ["tir", "butin"] and _g.tier("kai") == 2 and _g.wild == 7, "persévérance, renforts, étoiles et doublons au choix conservés")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_save.json"))
 
 
@@ -364,7 +365,7 @@ func test_collection_and_recruit() -> void:
 		var any := 0
 		for id in Data.ALL_HEROES:
 			any += int(_g.fragments[id])
-		_check(any == frags, "les doublons donnent des fragments")
+		_check(any == frags and frags % Data.DUP_COPIES == 0, "un tirage en double donne 5 doublons")
 
 
 func test_recruit_rates_and_pity() -> void:
@@ -391,9 +392,19 @@ func test_recruit_rates_and_pity() -> void:
 
 
 func test_stars_and_squad() -> void:
-	_g.fragments["mara"] = 10
-	_check(_g.can_star_up("mara") and _g.star_up("mara") and _g.hero_stars["mara"] == 2 and _g.fragments["mara"] == 0, "10 fragments : deuxième étoile")
-	_check(not _g.can_star_up("mara"), "il en faut 20 pour la troisième")
+	_g.fragments["mara"] = 5
+	_check(_g.can_star_up("mara") and _g.star_up("mara") and _g.hero_stars["mara"] == 2 and _g.fragments["mara"] == 0, "5 doublons : deuxième étoile")
+	_check(not _g.can_star_up("mara") and _g.star_cost("mara") == 10, "il en faut 10 pour la troisième")
+	# doublons au choix : dépensés après ceux du héros
+	_g.fragments["mara"] = 4
+	_g.wild = 8
+	_check(_g.can_star_up("mara") and _g.star_up("mara") and _g.hero_stars["mara"] == 3 and _g.fragments["mara"] == 0 and _g.wild == 2, "10 doublons dont 6 au choix : 3★")
+	_check(Data.STAR_COSTS == [5, 10, 20, 40, 100] and Data.level_cap(1) == 10 and Data.level_cap(3) == 30 and Data.level_cap(5) == 50, "5, 10, 20, 40, 100 doublons ; 10 niveaux par étoile")
+	_g.hero_stars["mara"] = 5
+	_g.wild = 100
+	_check(_g.star_up("mara") and _g.hero_stars["mara"] == 6 and Data.level_cap(6) == 50 and not _g.can_star_up("mara"), "« 5★ max » à 100 doublons, limite de niveau inchangée")
+	_g.wild = 0
+	_g.hero_stars["mara"] = 3
 	_check(Data.star_mult(3) > Data.star_mult(2) and is_equal_approx(Data.star_mult(1), 1.0), "chaque étoile renforce")
 	var a: BattleSim.Unit = BattleSim.new(_g.team(), 3, 1).allies()[0]
 	_g.hero_stars["mara"] = 1
@@ -573,8 +584,24 @@ func test_board_chapter() -> void:
 	_check(Story.board_pending(["b1_bord", "b1_recolte", "b1_recrue", "b1_pont"], 5).get("id", "") == "b1_signal", "Zyra entend le signal")
 	_g.see_scene("b1_signal", 0)
 	_check(_g.voyage_done() == 6 and Story.board_pending(_g.seen_scenes + ["b1_bord", "b1_recolte", "b1_recrue", "b1_pont"], 6).get("id", "") == "b1_fin", "arrivée : fin du chapitre 1")
+	_g.wild = 0
 	var rw: Dictionary = _g.complete_chapter(1)
 	_check(int(rw.get("credits", 0)) == 500 and _g.mission_open(), "fin du chapitre 1 payée, la mission s'ouvre")
+	_check(_g.wild == 10 and _g.complete_chapter(1).is_empty() and _g.wild == 10, "le chapitre 1 donne 10 doublons au choix, une seule fois")
+	_g.wild = 0
+	_g.crystals = 100
+	_check(_g.buy("copies10") != "" and _g.wild == 10 and _g.crystals == 88, "la boutique vend 10 doublons au choix")
+	_g.wild = 0
+	var sh: ShipState = _g.ship
+	sh.shuttles["colibri"] = {"dest": "asteroides", "end": 0, "pilot": ""}
+	_g.rng.seed = 5
+	var found := 0
+	for i in 200:
+		sh.shuttles["colibri"] = {"dest": "asteroides", "end": 0, "pilot": ""}
+		var out: Dictionary = sh.claim(_g, "colibri")
+		found += int(out.get("copies", 0))
+	_check(found > 0 and _g.wild == found, "une trouvaille rare en expédition donne 3 doublons au choix (%d)" % found)
+	_g.wild = 0
 	# sauvegarde d'avant le chapitre 1 : chapitres décalés, voyage déjà fait
 	_g.reset()
 	_g.best_stage = 14

@@ -111,8 +111,8 @@ func _initialize() -> void:
 					ship_need = cc if ship_need == 0.0 else minf(ship_need, cc)
 		# on évolue dès que possible, puis on dépense les crédits comme un joueur
 		for id in g.squad_ids():
-			if g.can_afford_evolve(id):
-				g.evolve(id)
+			if g.at_cap(id) and g.can_star_up(id):
+				g.star_up(id)
 		for id in g.squad_ids():
 			if g.can_level(id) and (ship_need == 0.0 or g.credits - float(g.level_cost(id)) > ship_need * 0.5 or int(t) % 5 == 0):
 				g.level_up(id)

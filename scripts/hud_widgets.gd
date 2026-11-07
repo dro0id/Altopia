@@ -11,7 +11,7 @@ var text_color := UI.TEXT
 var sub_color := UI.MUTED
 var border := UI.LINE
 var radius := 24.0
-var icon := ""          # "coin", "shard" ou ""
+var icon := ""          # "coin", "shard", "crystal", "token", "itoken", "copies" ou ""
 var tappable := true
 var bold := false
 var fill := UI.HUD
@@ -59,6 +59,12 @@ func _draw() -> void:
 			draw_string(f, c + Vector2(-12, 8), "¢", HORIZONTAL_ALIGNMENT_CENTER, 24, 20, Color("6b4a00"))
 		elif icon == "crystal":
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -14), c + Vector2(12, 0), c + Vector2(0, 14), c + Vector2(-12, 0)]), Color("ff7ad9"))
+		elif icon == "copies":
+			var pts := PackedVector2Array()
+			for i in 10:
+				var a := -PI / 2.0 + i * PI / 5.0
+				pts.append(c + Vector2(cos(a), sin(a)) * (14.0 if i % 2 == 0 else 6.0))
+			draw_colored_polygon(pts, UI.GOLD)
 		elif icon == "token":
 			draw_style_box(UI.box(Color("b388ff"), Color(0, 0, 0, 0), 5, 0), Rect2(c + Vector2(-14, -10), Vector2(28, 20)))
 			draw_circle(c, 4.5, Color("2a1450"))

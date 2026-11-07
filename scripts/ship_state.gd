@@ -455,10 +455,8 @@ func claim(game: Node, s: String) -> Dictionary:
 			game.set(k, int(game.get(k)) + n)
 			out[k] = n
 	if game.rng.randf() < Ship.RARE_FIND * float(info.rare):
-		var owned: Array = game.owned.keys()
-		var hid := String(owned[game.rng.randi() % owned.size()])
-		game.fragments[hid] = int(game.fragments.get(hid, 0)) + 2
-		out["fragments"] = {"hero": hid, "n": 2}
+		game.wild += Data.EXPEDITION_COPIES
+		out["copies"] = Data.EXPEDITION_COPIES
 	shuttles.erase(s)
 	return out
 

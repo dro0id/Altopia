@@ -54,8 +54,8 @@ func _advice() -> String:
 		var gain := int(round((Data.hero_mult(lv + 1) / Data.hero_mult(lv) - 1.0) * 100.0))
 		return "%s peut passer au niveau %d : +%d %% de puissance pour %s ¢." % [String(Data.HEROES[id].name).split(" ")[0], lv + 1, gain, UI.num(Game.level_cost(id))]
 	for hid in Game.squad_ids():
-		if Game.can_evolve(hid):
-			return "%s doit évoluer pour continuer à monter de niveau." % String(Data.HEROES[hid].name).split(" ")[0]
+		if Game.needs_star(hid):
+			return "%s a besoin d'une étoile (des doublons) pour continuer à monter." % String(Data.HEROES[hid].name).split(" ")[0]
 	if Game.tokens >= Data.RECRUIT_COST:
 		return "Tu as %d jetons : recrute un nouveau héros." % Game.tokens
 	return "Farme l'étage précédent pour gagner des crédits."

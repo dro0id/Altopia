@@ -46,6 +46,16 @@ func _initialize() -> void:
 		"heros": func(): main._open_collection(0),
 		"objets": func(): main._open_collection(1),
 		"ensembles": func(): main._open_collection(2),
+		"etoile": func():
+			g.levels["mara"] = 10
+			g.fragments["mara"] = 3
+			g.wild = 4
+			main._open_modal(EvolveScreen.new("mara")),
+		"fiche_etoiles": func():
+			g.levels["mara"] = 10
+			g.fragments["mara"] = 3
+			g.wild = 4
+			main._open_modal(HeroScreen.new("mara", 0)),
 		"fiche": func(): main._open_modal(HeroScreen.new("mara", 1)),
 		"fiche_stats": func(): main._open_modal(HeroScreen.new("mara", 0)),
 		"recrutement": func(): main._open_recruit(),
@@ -130,7 +140,9 @@ func _initialize() -> void:
 			g.sectors_seen = [6]
 			for id in g.levels.keys():
 				g.levels[id] = 60
-			g.evolved = {"mara": 2, "kai": 2, "zyra": 2, "t9": 2, "oru": 2}
+			g.hero_stars = {"mara": 3, "kai": 3, "zyra": 3, "t9": 3, "oru": 3}
+			g.fragments["mara"] = 7
+			g.wild = 6
 			main._start_battle(),
 		"vaisseau": func():
 			_ship(10)

@@ -237,20 +237,25 @@ const ITEM_PITY_LEG := 40                      # un objet légendaire au plus ta
 const RECRUIT_RATES := {"common": 0.70, "rare": 0.25, "epic": 0.05}
 const PITY_RARE := 10                          # un héros rare ou mieux garanti au plus tard au 10e tirage
 const PITY_EPIC := 30                          # un héros épique garanti au plus tard au 30e tirage
-const DUP_FRAGMENTS := {"common": 10, "rare": 6, "epic": 4}   # fragments gagnés quand on tire un héros déjà possédé
-const STAR_COSTS := [10, 20, 40, 80]           # fragments pour passer de 1 à 2 étoiles, puis 3, 4, 5
-const MAX_STARS := 5
-const STAR_STAT := 0.12                        # +12 % de statistiques et de puissance de pouvoir par étoile
+## Étoiles : chaque étoile débloque 10 niveaux (1★ = 1 à 10, 2★ = 11 à 20 … 5★ = 41 à 50). Il faut des doublons du héros.
+const DUP_COPIES := 5                          # doublons gagnés quand un tirage tombe sur un héros déjà possédé
+const STAR_COSTS := [5, 10, 20, 40, 100]       # doublons pour passer à 2★, 3★, 4★, 5★, puis « 5★ max » (limite de niveau inchangée)
+const MAX_STARS := 6                           # rang 6 = « 5★ max »
+const LEVELS_PER_STAR := 10
+const STAR_STAT := 0.12                        # +12 % de statistiques par étoile (et pour « 5★ max »)
+const BIG_BOSS_COPIES := {1: 3, 2: 4, 3: 5}    # doublons au choix gagnés sur un gros boss (selon les étoiles du combat)
+const EXPEDITION_COPIES := 3                   # doublons au choix d'une trouvaille rare en expédition
 const CHEST_TOKENS := {"commun": 0, "normal": 1, "rare": 3, "epique": 5, "legendaire": 10, "ultime": 25}
 const BIG_BOSS_CRYSTALS := {1: 5, 2: 5, 3: 10}  # cristaux gagnés en battant un gros boss (selon les étoiles)
 
 # boutique : prix en cristaux d'Altopia (monnaie premium ; l'achat de cristaux contre argent réel viendra avec la publication)
 const SHOP_ITEMS := [
 	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats", "cost": 6, "chest": "rare", "tab": "chests"},
-	{"id": "chest_epic", "name": "Coffre épique", "desc": "Héros plus fréquents", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
+	{"id": "chest_epic", "name": "Coffre épique", "desc": "Plus de héros", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
 	{"id": "tokens6", "name": "Jetons ×6", "desc": "Deux appels", "cost": 8, "tokens": 6, "tab": "tokens"},
 	{"id": "boost2", "name": "Boost ×2", "desc": "Crédits ×2 · 1 h", "cost": 10, "boost": 1.0, "tab": "boosts"},
 	{"id": "itokens6", "name": "Jetons d'objet ×6", "desc": "Trois caisses", "cost": 8, "item_tokens": 6, "tab": "tokens"},
+	{"id": "copies10", "name": "Doublons ×10", "desc": "Pour le héros de ton choix", "cost": 12, "copies": 10, "tab": "tokens"},
 ]
 ## Offre du jour (renouvelée chaque jour) : un coffre légendaire et 3 jetons à -30 %.
 const DAILY_OFFER := {"id": "daily", "name": "Pack légendaire", "desc": "Coffre + 3 jetons + 2 d'objet", "cost": 20, "base": 28, "chest": "legendaire", "tokens": 3, "item_tokens": 2}
@@ -259,6 +264,11 @@ const BOOST_MULT := 2.0
 
 static func star_mult(star_count: int) -> float:
 	return 1.0 + STAR_STAT * float(maxi(0, star_count - 1))
+
+
+## Étoiles affichées (1 à 5) pour un rang (1 à 6, le 6 étant « 5★ max »).
+static func shown_stars(rank: int) -> int:
+	return clampi(rank, 1, 5)
 
 
 static func star_cost(star_count: int) -> int:
@@ -339,20 +349,14 @@ const BOOSTS := {
 const BOOST_IDS := ["tir", "bouclier", "pouvoirs", "vitalite", "butin"]
 const PERSEVERANCE_STEP := 0.05          # +5 % de statistiques par défaite
 const PERSEVERANCE_MAX := 6              # jusqu'à +30 %
-const EVO_LEVELS := [10, 20]             # niveaux où il faut évoluer pour continuer
-const EVO_SKILL_MULT := [1.0, 1.4, 1.8]  # puissance du pouvoir selon le palier
-const EVO_STAT_MULT := [1.0, 1.1, 1.2]   # statistiques selon le palier
-const EVO_SHARDS := [3, 8]               # éclats de verre demandés pour chaque palier
+const EVO_SKILL_MULT := [1.0, 1.4, 1.8]  # puissance du pouvoir à 1★, 2★, 3★ et plus
+const EVO_STAT_MULT := [1.0, 1.1, 1.2]   # statistiques à 1★, 2★, 3★ et plus
 const COMBO_WINDOW := 3.0                # deux pouvoirs à moins de 3 s forment un combo
 
 
-## Niveau maximal d'un héros selon son palier d'évolution (le dernier palier lève la limite).
-static func level_cap(tier: int) -> int:
-	return EVO_LEVELS[tier] if tier < EVO_LEVELS.size() else 999
-
-
-static func evolve_cost(level: int, tier: int) -> Dictionary:
-	return {"credits": 4 * level_cost(level), "shards": EVO_SHARDS[mini(tier, EVO_SHARDS.size() - 1)]}
+## Niveau maximal d'un héros selon son rang d'étoiles : 10 niveaux par étoile, 50 au plus (même à « 5★ max »).
+static func level_cap(rank: int) -> int:
+	return shown_stars(rank) * LEVELS_PER_STAR
 
 
 ## Bonus de dégâts d'un enchaînement de `n` pouvoirs rapprochés : +10 % par pouvoir au-delà du premier, plafonné à +50 %.

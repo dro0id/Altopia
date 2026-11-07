@@ -964,7 +964,7 @@ func _refresh() -> void:
 	_buffs.size.x = 656.0 - (_aurora.size.x + 16.0 if _aurora.visible else 0.0)
 	var affordable := 0
 	for id in Game.squad_ids():
-		if (Game.credits >= Game.level_cost(id) and not Game.can_evolve(id)) or Game.can_afford_evolve(id):
+		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):
 			affordable += 1
 	var ready_items := 0
 	for it in Game.inventory_items():

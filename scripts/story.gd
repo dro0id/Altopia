@@ -12,11 +12,11 @@ const Data = preload("res://scripts/data.gd")
 ## Ensuite un chapitre = un secteur = 10 étages (maquettes GA à GF) : chapitres 2 à 5, étages 1 à 40 ;
 ## à partir de l'étage 41, secteurs générés sans histoire.
 const CHAPTERS := [
-	{"n": 1, "title": "Cap sur Altopia", "board": true, "from": 0, "to": 0, "color": Color("7dffb0"), "head": Color("103a2a"), "reward": {"credits": 500, "shards": 5, "tokens": 3}},
-	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1700, "shards": 10, "tokens": 6}},
-	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 5700, "shards": 20, "tokens": 6}},
-	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 19000, "shards": 30, "tokens": 6}},
-	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 65000, "shards": 50, "tokens": 10, "badge": "Héros de la Ceinture"}},
+	{"n": 1, "title": "Cap sur Altopia", "board": true, "from": 0, "to": 0, "color": Color("7dffb0"), "head": Color("103a2a"), "reward": {"credits": 500, "shards": 5, "tokens": 3, "copies": 10}},
+	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1700, "shards": 10, "tokens": 6, "copies": 15}},
+	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 5700, "shards": 20, "tokens": 6, "copies": 20}},
+	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 19000, "shards": 30, "tokens": 6, "copies": 30}},
+	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 65000, "shards": 50, "tokens": 10, "copies": 40, "badge": "Héros de la Ceinture"}},
 ]
 
 ## Personnages qui parlent sans être des héros jouables, avec leur dessin (« crystal », « prism », « moth », « voice », « gold »).
