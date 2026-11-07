@@ -74,6 +74,7 @@ signal ship_events(events: Dictionary)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	UI.H = maxf(1280.0, get_viewport().get_visible_rect().size.y)
 	rng.randomize()
 	reset()
 	load_game()

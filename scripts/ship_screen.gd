@@ -41,7 +41,7 @@ func _init() -> void:
 	_st.add_child(_bg)
 	view = ShipView.new()
 	view.position = Vector2(0, 236)
-	view.size = Vector2(720, 1280 - 236 - NavBar.total() - 150)
+	view.size = Vector2(720, UI.H - 236 - NavBar.total() - 150)
 	_st.add_child(view)
 	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
 	view.room_tapped.connect(_select)
@@ -69,7 +69,7 @@ func _init() -> void:
 	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
-	_harvest = M3.button(_st, "Tout récolter", Rect2(32, 1280 - NavBar.total() - 32 - 96, 656, 96), "main", 30)
+	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "main", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
 	_mission = Control.new()
@@ -86,7 +86,7 @@ func _init() -> void:
 			_objective_go())
 	# chantier conseillé
 	_advice = Control.new()
-	_advice.position = Vector2(24, 1280 - NavBar.total() - 32 - 96 - 16 - 124)
+	_advice.position = Vector2(24, UI.H - NavBar.total() - 32 - 96 - 16 - 124)
 	_advice.size = Vector2(672, 124)
 	_advice.draw.connect(_draw_advice)
 	_advice.gui_input.connect(func(ev: InputEvent):
@@ -98,7 +98,7 @@ func _init() -> void:
 	_advice_btn.pressed.connect(_launch_advice)
 	_sheet = Control.new()
 	_sheet.size = Vector2(720, 420)
-	_sheet.position = Vector2(0, 1280 - NavBar.total() - 420)
+	_sheet.position = Vector2(0, UI.H - NavBar.total() - 420)
 	_sheet.visible = false
 	_sheet.draw.connect(_draw_sheet)
 	_sheet.gui_input.connect(func(ev: InputEvent):
@@ -174,7 +174,7 @@ func _process(delta: float) -> void:
 
 func _draw_bg() -> void:
 	var c := _bg
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("070b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("070b1a"))
 	for k in 18:
 		c.draw_circle(Vector2(110, 1060), 520.0 - k * 28.0, Color(0.7, 0.53, 1.0, 0.012))
 	for k in 14:
@@ -182,7 +182,7 @@ func _draw_bg() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for i in 110:
-		var p := Vector2(rng.randf() * 720.0, rng.randf() * 1280.0)
+		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		var a := 0.25 + rng.randf() * 0.55 + sin(_t * 1.3 + i) * 0.1
 		c.draw_circle(p, 1.2 + (2.0 if i % 9 == 0 else 0.0) * 0.6, Color(1, 1, 1, a))
 

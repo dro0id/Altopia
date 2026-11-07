@@ -50,7 +50,7 @@ func _init(report: Dictionary) -> void:
 			M3.card(body, Rect2(32, yy, 656, 96))
 			M3.text(body, Vector2(64, yy + 58), "Un coffre gratuit est prêt à ouvrir.", 26, UI.GREEN))
 	st.add_child(body)
-	var h := 1280.0
+	var h := UI.H
 	var ok := M3.button(st, "Tout récupérer", Rect2(32, h - 32 - (96 + 16 if ready else 0) - 104, 656, 104), "main", 32)
 	ok.pressed.connect(func():
 		Game.ship.collect_all(Game)

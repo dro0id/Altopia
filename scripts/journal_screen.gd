@@ -32,7 +32,7 @@ func _init() -> void:
 	_st.add_child(_chips)
 	var sc := ScrollContainer.new()
 	sc.position = Vector2(0, 192)
-	sc.size = Vector2(720, 1280 - 192 - NavBar.total())
+	sc.size = Vector2(720, UI.H - 192 - NavBar.total())
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_st.add_child(sc)

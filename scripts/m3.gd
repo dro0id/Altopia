@@ -56,6 +56,8 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 			ib.pressed.connect(a[1])
 			ib.position = Vector2(rx - 96.0, 8)
 			rx -= 96.0
+	# le titre s'arrête avant les actions (coupé par « … » s'il est trop long)
+	t.size.x = minf(t.size.x, rx - x - 8.0)
 	return bar
 
 
@@ -125,6 +127,12 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, col: Color 
 		var lo := int(n * 0.7)
 		while n > lo and f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, n).x > width:
 			n -= 1
+		# toujours trop long à 70 % : on coupe proprement avec « … » plutôt que de déborder sur le voisin
+		if f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, n).x > width:
+			var t := s
+			while t.length() > 1 and f.get_string_size(t + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, n).x > width:
+				t = t.substr(0, t.length() - 1)
+			s = t.strip_edges() + "…"
 	ci.draw_string(f, pos, s, align, width, n, col)
 
 
@@ -171,7 +179,21 @@ static func button(parent: Node, text: String, rect: Rect2, kind := "main", size
 		var sb: StyleBoxFlat = b.get_theme_stylebox(st).duplicate()
 		sb.set_corner_radius_all(int(rect.size.y * 0.5))
 		b.add_theme_stylebox_override(st, sb)
+	fit_button(b, fs(size))
 	return b
+
+
+## Le libellé d'un bouton rétrécit (jusqu'à 70 %) s'il ne tient pas dans le bouton, même quand le texte change ensuite.
+static func fit_button(b: Button, base: int) -> void:
+	var fit := func():
+		var f: Font = b.get_theme_font("font")
+		var n := base
+		var room := b.size.x - 40.0
+		while n > int(base * 0.7) and f.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, n).x > room:
+			n -= 1
+		if b.get_theme_font_size("font_size") != n:
+			b.add_theme_font_size_override("font_size", n)
+	b.draw.connect(fit)
 
 
 ## Menu déroulant (⋮) : liste d'actions de 48 dp ; un appui ailleurs le ferme.

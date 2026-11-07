@@ -3,7 +3,7 @@ extends Control
 ## Onglet Ensembles (maquette BV) : une carte par ensemble, pièces portées sur un même héros, bonus à 2 et 4 pièces.
 
 func _init() -> void:
-	size = Vector2(720, 1120)
+	size = Vector2(720, (UI.H - 160.0))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 

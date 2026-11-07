@@ -29,13 +29,13 @@ func _process(delta: float) -> void:
 
 func _draw_body() -> void:
 	var c := _body
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("070b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("070b1a"))
 	for k in 14:
 		c.draw_circle(Vector2(360, 360), 380.0 - k * 26.0, Color(1.0, 0.82, 0.4, 0.012))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9
 	for i in 80:
-		var p := Vector2(rng.randf() * 720.0, rng.randf() * 1280.0)
+		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		c.draw_circle(p, 1.3, Color(1, 1, 1, 0.3 + 0.25 * sin(_t * 1.4 + i)))
 	c.draw_circle(Vector2(360, 330), 96, M3.S2)
 	M3.lock(c, Vector2(360, 340), UI.GOLD, 3.0)

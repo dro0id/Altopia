@@ -24,11 +24,11 @@ var _live: Array = []          # éléments qui changent avec le temps : [Contro
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1120)
+	panel.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	_stage = Control.new()
-	_stage.custom_minimum_size = Vector2(720, 1120)
+	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	box.add_child(_stage)
 	_chip = M3.cur_chip("crystal", str(Game.crystals))
 	M3.top_bar(_stage, "Boutique", Callable(), [_chip])

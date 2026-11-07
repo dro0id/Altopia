@@ -36,18 +36,18 @@ func _init(item_id: int) -> void:
 	_lock.add_child(lk)
 	_body = canvas(Vector2(0, 0), Vector2(720, 1100), _draw_body)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_up = button("", "main", Vector2(32, 1280 - 32 - 96 - 16 - 104), Vector2(656, 104), 32)
+	_up = button("", "main", Vector2(32, UI.H - 32 - 96 - 16 - 104), Vector2(656, 104), 32)
 	_up.pressed.connect(func():
 		if Game.upgrade_item(_id):
 			Game.save_game()
 			Sfx.play("chest", -4.0)
 			changed.emit()
 		_refresh())
-	_swap = button("", "ghost", Vector2(32, 1280 - 32 - 96), Vector2(320, 96), 26)
+	_swap = button("", "ghost", Vector2(32, UI.H - 32 - 96), Vector2(320, 96), 26)
 	_swap.pressed.connect(func():
 		who_requested.emit(_id)
 		close())
-	_rec = button("", "outline", Vector2(368, 1280 - 32 - 96), Vector2(320, 96), 26)
+	_rec = button("", "outline", Vector2(368, UI.H - 32 - 96), Vector2(320, 96), 26)
 	_rec.pressed.connect(func():
 		Game.recycle_items([_id])
 		Game.save_game()

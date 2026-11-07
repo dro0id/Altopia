@@ -17,13 +17,13 @@ func _init(replay := false) -> void:
 	_replay = replay
 	_st = use_stage(1.0)
 	_art = Control.new()
-	_art.size = Vector2(720, 1280)
+	_art.size = Vector2(720, UI.H)
 	_art.draw.connect(_draw_art)
 	_art.gui_input.connect(func(ev: InputEvent):
 		if M3.is_tap(ev):
 			_next())
 	_st.add_child(_art)
-	_btn = M3.button(_st, "Suivant", Rect2(32, 1280 - 96 - 104, 656, 104), "main", 32)
+	_btn = M3.button(_st, "Suivant", Rect2(32, UI.H - 96 - 104, 656, 104), "main", 32)
 	_btn.pressed.connect(_next)
 	_refresh()
 
@@ -53,7 +53,7 @@ func _process(delta: float) -> void:
 func _draw_art() -> void:
 	var c := _art
 	var p: Dictionary = Story.PROLOGUE[_i]
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("060b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("060b1a"))
 	for k in 60:
 		var sx := fposmod(sin(k * 12.9898) * 43758.5, 1.0)
 		var sy := fposmod(sin(k * 78.233) * 12345.6, 1.0)
@@ -88,11 +88,11 @@ func _draw_art() -> void:
 			c.draw_colored_polygon(PackedVector2Array([Vector2(360, sy2 - 44), Vector2(388, sy2 + 44), Vector2(360, sy2 + 28), Vector2(332, sy2 + 44)]), UI.TEXT)
 	if p.has("who"):
 		# réplique de Vance dans une feuille du bas
-		var y0 := 1280.0 - 96.0 - 104.0 - 32.0 - 420.0
+		var y0 := UI.H - 96.0 - 104.0 - 32.0 - 420.0
 		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
 		sb.corner_radius_bottom_left = 0
 		sb.corner_radius_bottom_right = 0
-		c.draw_style_box(sb, Rect2(0, y0, 720, 1280 - y0))
+		c.draw_style_box(sb, Rect2(0, y0, 720, UI.H - y0))
 		c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
 		var sp := Story.speaker(String(p.who))
 		M3.avatar(c, Data.HEROES[p.who], Vector2(104, y0 + 136), 72.0, sp.color, _t)
@@ -101,7 +101,7 @@ func _draw_art() -> void:
 		M3.text(c, Vector2(0, y0 + 124), "Prologue %d/%d" % [_i + 1, Story.PROLOGUE.size()], 24, UI.MUTED, false, 688, HORIZONTAL_ALIGNMENT_RIGHT)
 		M3.para(c, Vector2(32, y0 + 260), String(p.text), 32, UI.TEXT, 656)
 	else:
-		var yb := 1280.0 - 96.0 - 104.0 - 80.0 - 340.0
+		var yb := UI.H - 96.0 - 104.0 - 80.0 - 340.0
 		M3.section(c, Vector2(48, yb), String(p.eyebrow))
 		var h := M3.para(c, Vector2(48, yb + 64), String(p.title), 44, UI.TEXT, 624, 1.3, true)
 		M3.para(c, Vector2(48, yb + 64 + h + 8), String(p.text), 30, UI.MUTED, 624)
@@ -109,7 +109,7 @@ func _draw_art() -> void:
 		var x := 360.0 - (Story.PROLOGUE.size() * 16.0 + 32.0) * 0.5
 		for k in Story.PROLOGUE.size():
 			var w := 48.0 if k == _i else 16.0
-			c.draw_style_box(UI.box(UI.ACCENT if k == _i else M3.OUT, Color(0, 0, 0, 0), 8, 0), Rect2(x, 1280 - 96 - 104 - 48, w, 16))
+			c.draw_style_box(UI.box(UI.ACCENT if k == _i else M3.OUT, Color(0, 0, 0, 0), 8, 0), Rect2(x, UI.H - 96 - 104 - 48, w, 16))
 			x += w + 16.0
 		if _i == 0:
-			M3.text(c, Vector2(0, 1280 - 40), "Toucher n'importe où pour avancer", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
+			M3.text(c, Vector2(0, UI.H - 40), "Toucher n'importe où pour avancer", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)

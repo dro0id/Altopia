@@ -25,7 +25,7 @@ func _init(r: String) -> void:
 	room = r
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	position = Vector2.ZERO
-	size = Vector2(720, 1280 - NavBar.total())
+	size = Vector2(720, UI.H - NavBar.total())
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 10
 	var bg := ColorRect.new()

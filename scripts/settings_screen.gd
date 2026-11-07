@@ -29,7 +29,7 @@ func _init() -> void:
 		[958.0, "Économie auto sous 20 %", func(): return "" if Game.battery_level() >= 0 else "Niveau de batterie illisible sur ce téléphone", "battery_auto", ""],
 	]
 	_body = Control.new()
-	_body.size = Vector2(720, 1280)
+	_body.size = Vector2(720, UI.H)
 	_body.draw.connect(_draw_body)
 	_body.gui_input.connect(_input_body)
 	_st.add_child(_body)

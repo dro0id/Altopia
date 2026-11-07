@@ -247,9 +247,9 @@ const BIG_BOSS_CRYSTALS := {1: 5, 2: 5, 3: 10}  # cristaux gagnés en battant un
 # boutique : prix en cristaux d'Altopia (monnaie premium ; l'achat de cristaux contre argent réel viendra avec la publication)
 const SHOP_ITEMS := [
 	{"id": "chest_rare", "name": "Coffre rare", "desc": "Crédits et éclats", "cost": 6, "chest": "rare", "tab": "chests"},
-	{"id": "chest_epic", "name": "Coffre épique", "desc": "10 % d'héros en plus", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
+	{"id": "chest_epic", "name": "Coffre épique", "desc": "Héros plus fréquents", "cost": 14, "chest": "epique", "tab": "chests", "badge": "POPULAIRE"},
 	{"id": "tokens6", "name": "Jetons ×6", "desc": "Deux appels", "cost": 8, "tokens": 6, "tab": "tokens"},
-	{"id": "boost2", "name": "Boost ×2", "desc": "1 h de crédits doublés", "cost": 10, "boost": 1.0, "tab": "boosts"},
+	{"id": "boost2", "name": "Boost ×2", "desc": "Crédits ×2 · 1 h", "cost": 10, "boost": 1.0, "tab": "boosts"},
 	{"id": "itokens6", "name": "Jetons d'objet ×6", "desc": "Trois caisses", "cost": 8, "item_tokens": 6, "tab": "tokens"},
 ]
 ## Offre du jour (renouvelée chaque jour) : un coffre légendaire et 3 jetons à -30 %.

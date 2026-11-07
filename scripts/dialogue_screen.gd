@@ -38,7 +38,7 @@ func _init(scene: Dictionary, replay := false) -> void:
 		# chapitre 1 à bord (maquette SD) : la scène se joue devant l'Aurore, pas sur le terrain de combat
 		var bg := ColorRect.new()
 		bg.color = Color("070b1a")
-		bg.size = Vector2(720, 1280)
+		bg.size = Vector2(720, UI.H)
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_st.add_child(bg)
 		var view := ShipView.new()
@@ -87,7 +87,7 @@ func _init(scene: Dictionary, replay := false) -> void:
 		if M3.is_tap(ev) and _opts.is_empty():
 			_next())
 	_st.add_child(_sheet)
-	_btn = M3.button(_st, "Continuer", Rect2(32, 1280 - 40 - 104, 656, 104), "main", 32)
+	_btn = M3.button(_st, "Continuer", Rect2(32, UI.H - 40 - 104, 656, 104), "main", 32)
 	_btn.pressed.connect(_next)
 	for k in 2:
 		var o := M3.button(_st, "", Rect2(32, 0, 656, 112), "outline", 30)
@@ -147,7 +147,7 @@ func _layout() -> void:
 		if _peek() != {}:
 			h += _peek_height() + 16.0
 		h += 104.0 + 56.0
-	_sheet.position = Vector2(0, 1280.0 - h)
+	_sheet.position = Vector2(0, UI.H - h)
 	_sheet.size = Vector2(720, h)
 	_btn.visible = not has_choice
 	var last := _i >= _lines.size() - 1 and (not l.has("choice") or _choice >= 0)

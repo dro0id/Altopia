@@ -56,7 +56,7 @@ func _init(id: String) -> void:
 	sc.position = Vector2(32 + cc.size.x + 16, 808)
 	sc.text_color = UI.TEXT if Game.shards >= cost.shards else UI.RED
 	st.add_child(sc)
-	var go := M3.button(st, "Évoluer", Rect2(32, 1280 - 32 - 104, 656, 104), "main", 32)
+	var go := M3.button(st, "Évoluer", Rect2(32, UI.H - 32 - 104, 656, 104), "main", 32)
 	go.disabled = not (Game.credits >= cost.credits and Game.shards >= cost.shards)
 	if go.disabled:
 		go.text = "Pas assez de ressources"

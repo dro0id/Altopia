@@ -31,7 +31,7 @@ func _init() -> void:
 	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
 	view.yaw = -0.4
 	view.anims.append(func(t): view.yaw = -0.4 + t * 0.2)
-	var b := M3.button(st, "Monter à bord", Rect2(64, 1280 - 64 - 104, 592, 104), "main", 32)
+	var b := M3.button(st, "Monter à bord", Rect2(64, UI.H - 64 - 104, 592, 104), "main", 32)
 	b.pressed.connect(func():
 		board_requested.emit()
 		close())
@@ -45,13 +45,13 @@ func _process(delta: float) -> void:
 
 func _draw_body() -> void:
 	var c := _body
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("070b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("070b1a"))
 	for k in 16:
 		c.draw_circle(Vector2(360, 460), 420.0 - k * 25.0, Color(0.31, 0.85, 1.0, 0.012))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	for i in 90:
-		var p := Vector2(rng.randf() * 720.0, rng.randf() * 1280.0)
+		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		c.draw_circle(p, 1.4, Color(1, 1, 1, 0.3 + 0.3 * sin(_t * 1.5 + i)))
 	M3.text(c, Vector2(0, 84), "TON PORT D’ATTACHE", 24, UI.ACCENT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(0, 140), "Bienvenue à bord", 48, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)

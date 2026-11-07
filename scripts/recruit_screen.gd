@@ -20,11 +20,11 @@ var _t := 0.0
 
 func _init() -> void:
 	super._init(720.0)
-	panel.custom_minimum_size = Vector2(720, 1120)
+	panel.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
 	box.add_theme_constant_override("separation", 0)
 	_stage = Control.new()
-	_stage.custom_minimum_size = Vector2(720, 1120)
+	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	box.add_child(_stage)
 	_chip = M3.cur_chip("token", str(Game.tokens))
 	M3.top_bar(_stage, "Recruter", Callable(), [_chip])
@@ -44,9 +44,9 @@ func _init() -> void:
 	_items.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_items.draw.connect(_draw_items)
 	_stage.add_child(_items)
-	_ten = M3.button(_stage, "", Rect2(32, 872, 656, 112), "main", 30)
+	_ten = M3.button(_stage, "", Rect2(32, UI.H - 160.0 - 248.0, 656, 112), "main", 30)
 	_ten.pressed.connect(func(): _pull(10))
-	_one = M3.button(_stage, "", Rect2(32, 1000, 656, 96), "ghost", 30)
+	_one = M3.button(_stage, "", Rect2(32, UI.H - 160.0 - 120.0, 656, 96), "ghost", 30)
 	_one.pressed.connect(func(): _pull(1))
 	_set_mode(0)
 
@@ -90,7 +90,7 @@ func _draw_hero() -> void:
 	var r := Rect2(32, 0, 656, 420)
 	UI.draw_gradient_box(c, r, 48.0, Color("3d2185"), Color("1f1040"), Color(0, 0, 0, 0), 0.0)
 	var fh: String = Data.featured_hero(int(Time.get_unix_time_from_system() / 86400.0))
-	M3.avatar(c, Data.HEROES[fh], Vector2(578, 296), 110.0, Color("b388ff"), _t)
+	M3.avatar(c, Data.HEROES[fh], Vector2(588, 250), 92.0, Color("b388ff"), _t)
 	M3.text(c, Vector2(64, 56), "BANNIÈRE EN COURS", 24, Color("b388ff"), true)
 	M3.text(c, Vector2(64, 118), "Signal de", 48, UI.TEXT, true)
 	M3.text(c, Vector2(64, 172), "recrutement", 48, UI.TEXT, true)

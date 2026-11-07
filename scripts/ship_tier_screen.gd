@@ -37,7 +37,7 @@ func _init(level: int) -> void:
 	st.add_child(_body)
 	st.move_child(_body, 0)
 	var label := "Admirer l’Aurore" if _tier == 5 else "Voir l’Aurore"
-	var b := M3.button(st, label, Rect2(32, 1280 - 40 - 104, 656, 104), "gold" if _tier == 5 else "main", 32)
+	var b := M3.button(st, label, Rect2(32, UI.H - 40 - 104, 656, 104), "gold" if _tier == 5 else "main", 32)
 	b.pressed.connect(func():
 		visit_requested.emit()
 		close())
@@ -58,19 +58,19 @@ func _draw_body() -> void:
 	var ti: Dictionary = Ship.TIERS[_tier - 1]
 	var prem := _tier == 5
 	var accent: Color = UI.GOLD if prem else ti.color
-	c.draw_rect(Rect2(0, 0, 720, 1280), Color("05060f") if prem else Color("070b1a"))
+	c.draw_rect(Rect2(0, 0, 720, UI.H), Color("05060f") if prem else Color("070b1a"))
 	for k in 16:
 		c.draw_circle(Vector2(360, 470), 440.0 - k * 26.0, Color(accent, 0.012))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	for i in 90:
-		var p := Vector2(rng.randf() * 720.0, rng.randf() * 1280.0)
+		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		c.draw_circle(p, 1.4, Color(1, 1, 1, 0.3 + 0.3 * sin(_t * 1.5 + i)))
 	if prem:
 		for i in 26:
-			var p := Vector2(fmod(i * 97.0, 700.0) + 10.0, 1280.0 - fmod(_t * (30.0 + i * 3.0) + i * 130.0, 1280.0))
+			var p := Vector2(fmod(i * 97.0, 700.0) + 10.0, UI.H - fmod(_t * (30.0 + i * 3.0) + i * 130.0, UI.H))
 			c.draw_circle(p, 3.0 + i % 3, Color(UI.GOLD, 0.7))
-		c.draw_style_box(_frame(), Rect2(20, 20, 680, 1240))
+		c.draw_style_box(_frame(), Rect2(20, 20, 680, UI.H - 40.0))
 	var eyebrow := "NIVEAU MAXIMUM" if prem else "L’AURORE PASSE AU NIVEAU %d" % int(ti.from)
 	M3.text(c, Vector2(0, 76), eyebrow, 24, accent, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(0, 132), "L’Aurore est éternelle" if prem else "%s · %s" % [ti.name, ti.sub], 44, UI.GOLD if prem else UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)

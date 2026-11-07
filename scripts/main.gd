@@ -314,6 +314,7 @@ func _build_nav() -> void:
 ## La barre est accrochée au bas de l'écran ; le reste suit la maquette depuis le haut (terrain de 600 px, 660 px contre un boss).
 func _layout() -> void:
 	var h := size.y if size.y > 0.0 else 1280.0
+	UI.H = maxf(1280.0, h)
 	var ins := UI.safe_insets(get_window())
 	_dy = ins.x
 	NavBar.inset_bottom = ins.y
