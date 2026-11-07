@@ -13,6 +13,7 @@ var rooms := {}                       # salle -> niveau (0 = pas encore ouverte)
 var stock := {}                       # salle -> réserve produite (non récoltée)
 var builds: Array = []                # chantiers {room, to, end}
 var posts := {}                       # salle -> [héros]
+var harvests := 0                     # récoltes faites (objectif du chapitre 1)
 var research := {}                    # recherche -> rang
 var research_job := {}                # {id, end}
 var training := {}                    # héros -> secondes d'entraînement accumulées
@@ -189,6 +190,7 @@ func collect(game: Node, r: String) -> Dictionary:
 	if amount <= 0.0:
 		return {}
 	stock[r] = s - amount
+	harvests += 1
 	match res:
 		"shards":
 			game.shards += int(amount)
@@ -248,10 +250,19 @@ func upgrade_block(game: Node, r: String) -> String:
 	var room_builds := builds.filter(func(b): return String(b.room) != "pont").size()
 	if r != "pont" and room_builds >= max_builds():
 		return "Un chantier à la fois" if max_builds() == 1 else "Deux chantiers à la fois"
-	var c := Ship.upgrade_cost(r, lv + 1, rank("logistique"))
+	var c := cost_of(game, r)
 	if float(game.credits) < float(c.credits) or int(game.shards) < int(c.shards):
 		return "Pas assez de ressources"
 	return ""
+
+
+## Coût d'une amélioration pour cette partie : pendant le voyage (chapitre 1), l'Amirauté paie les crédits
+## (il n'y a pas encore de combat pour en gagner) ; seuls les éclats de la Raffinerie sont demandés.
+func cost_of(game: Node, r: String) -> Dictionary:
+	var c := Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique"))
+	if game.has_method("mission_open") and not game.mission_open():
+		c.credits = 0
+	return c
 
 
 ## Chantier conseillé sur l'accueil (maquette RC) : le Pont d'abord, sinon la salle la moins chère.
@@ -280,7 +291,7 @@ func start_upgrade(game: Node, r: String) -> bool:
 	if upgrade_block(game, r) != "":
 		return false
 	var lv := room_level(r)
-	var c := Ship.upgrade_cost(r, lv + 1, rank("logistique"))
+	var c := cost_of(game, r)
 	game.credits -= float(c.credits)
 	game.shards -= int(c.shards)
 	builds.append({"room": r, "to": lv + 1, "end": now() + int(c.time)})
@@ -468,12 +479,13 @@ func rush_shuttle(game: Node, s: String) -> bool:
 
 func to_dict() -> Dictionary:
 	return {"unlocked": unlocked, "level": level, "rooms": rooms, "stock": stock, "builds": builds, "posts": posts, "research": research,
-		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier}
+		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier, "harvests": harvests}
 
 
 static func from_dict(d: Dictionary) -> ShipState:
 	var s := ShipState.new()
 	s.unlocked = bool(d.get("unlocked", false))
+	s.harvests = int(d.get("harvests", 0))
 	s.level = clampi(int(d.get("level", 1)), 1, Ship.MAX_LEVEL)
 	for r in Ship.ORDER:
 		s.rooms[r] = clampi(int(d.get("rooms", {}).get(r, 0)), 0, Ship.MAX_LEVEL)

@@ -552,7 +552,7 @@ func _open_dialog() -> Control:
 func _upgrade_dialog() -> void:
 	var st := s()
 	var lv := st.room_level(room)
-	var c := Ship.upgrade_cost(room, lv + 1, st.rank("logistique"))
+	var c := st.cost_of(Game, room)
 	var d := _open_dialog()
 	var box := Control.new()
 	box.position = Vector2(40, 180)
@@ -573,14 +573,14 @@ func _upgrade_dialog() -> void:
 			box.draw_line(Vector2(40, yy + 20), Vector2(600, yy + 20), M3.S3, 2)
 			yy += 60.0
 		var x := 40.0
-		for it in [["coin", UI.num(float(c.credits)), Game.credits >= float(c.credits)], ["shard", str(int(c.shards)), Game.shards >= int(c.shards)], ["", "⏱ " + UI.duration(float(c.time)), true]]:
+		for it in [["coin", UI.num(float(c.credits)) if float(c.credits) > 0.0 else "offert", Game.credits >= float(c.credits)], ["shard", str(int(c.shards)), Game.shards >= int(c.shards)], ["", "⏱ " + UI.duration(float(c.time)), true]]:
 			var w := M3.text_w(String(it[1]), 24, true) + (64.0 if it[0] != "" else 32.0)
 			box.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 30, 0), Rect2(x, yy, w, 60))
 			if it[0] != "":
 				box.draw_texture(UI.icon(String(it[0]), 28), Vector2(x + 14, yy + 16))
 			M3.text(box, Vector2(x + (52.0 if it[0] != "" else 16.0), yy + 40), String(it[1]), 24, UI.TEXT if it[2] else UI.RED, true)
 			x += w + 12.0
-		var note := "Un chantier à la fois. Le vaisseau continue de produire pendant les travaux." if st.max_builds() == 1 else "Deux chantiers en parallèle. Le vaisseau continue de produire."
+		var note := "Pendant le voyage, l’Amirauté paie les crédits des chantiers." if not Game.mission_open() else "Un chantier à la fois. Le vaisseau continue de produire pendant les travaux." if st.max_builds() == 1 else "Deux chantiers en parallèle. Le vaisseau continue de produire."
 		M3.para(box, Vector2(40, yy + 108), block if block != "" else note, 22, UI.RED if block != "" else UI.MUTED, 560))
 	var cancel := M3.button(box, "Annuler", Rect2(40, 520, 250, 96), "tonal", 28)
 	cancel.pressed.connect(func(): d.queue_free())

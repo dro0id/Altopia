@@ -32,7 +32,32 @@ func _init(scene: Dictionary, replay := false) -> void:
 				break
 	var boss := _has_boss()
 	var voice := _speaker_art() != ""
-	_st = use_stage(1.0 if voice else 0.7)
+	var board := String(scene.get("when", "")) == "board"
+	_st = use_stage(1.0 if voice or board else 0.7)
+	if board:
+		# chapitre 1 à bord (maquette SD) : la scène se joue devant l'Aurore, pas sur le terrain de combat
+		var bg := ColorRect.new()
+		bg.color = Color("070b1a")
+		bg.size = Vector2(720, 1280)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_st.add_child(bg)
+		var view := ShipView.new()
+		view.position = Vector2(140, 120)
+		view.size = Vector2(440, 520)
+		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_st.add_child(view)
+		view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
+		view.yaw = -0.4
+		view.anims.append(func(t): view.yaw = -0.4 + t * 0.15)
+		var chip := Control.new()
+		chip.size = Vector2(720, 120)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.draw.connect(func():
+			var sb := UI.box(Color("0b1226", 0.85), UI.GREEN, 30, 0)
+			sb.set_border_width_all(2)
+			chip.draw_style_box(sb, Rect2(32, 40, 300, 60))
+			M3.text(chip, Vector2(32, 78), "Chapitre 1 · À bord", 24, UI.GREEN, true, 300, HORIZONTAL_ALIGNMENT_CENTER))
+		_st.add_child(chip)
 	if voice:
 		var top := Control.new()
 		top.size = Vector2(720, 700)
@@ -236,8 +261,10 @@ func _peek_height() -> float:
 
 
 func _step_label() -> String:
-	if int(_scene.stage) > 0 and _lines.size() > 1:
+	if (int(_scene.stage) > 0 or String(_scene.get("when", "")) == "board") and _lines.size() > 1:
 		return "%d/%d" % [_i + 1, _lines.size()]
+	if String(_scene.get("when", "")) == "board":
+		return "À bord"
 	return "Étage %d" % int(_scene.stage)
 
 

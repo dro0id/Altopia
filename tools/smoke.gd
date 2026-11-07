@@ -24,6 +24,7 @@ func _initialize() -> void:
 	var ups := 0
 	var last_stage := 1
 	var aboard := 0
+	var voyage_t := -1.0
 	var last_print := -1
 	var farm_t := 0.0
 	while t < secs:
@@ -32,6 +33,25 @@ func _initialize() -> void:
 		if int(t) % 60 == 0 and int(t) != last_print:
 			last_print = int(t)
 			print("t=%d étage=%d meilleur=%d modal=%s" % [int(t), g.stage, g.best_stage, str(main._modal)])
+		# chapitre 1 à bord : les objectifs du voyage, dans l'ordre
+		if not g.mission_open():
+			match g.voyage_done():
+				0:
+					g.ship.collect(g, "raffinerie")
+				1:
+					g.recruit(1)
+				2:
+					for id in g.owned:
+						if not g.squad.has(id) and g.ship.post_of(id) == "":
+							g.ship.assign(g, id, "raffinerie")
+							break
+				3:
+					g.ship.start_upgrade(g, "pont")
+				4:
+					g.ship.start_upgrade(g, "raffinerie")
+		elif voyage_t < 0.0:
+			voyage_t = t
+			print("SMOKE voyage : chapitre 1 terminé à t=%d (scènes vues %s)" % [int(t), str(g.seen_scenes.filter(func(x): return String(x).begins_with("b1_")))])
 		var m = main._modal
 		if m != null and is_instance_valid(m):
 			if m is ResultScreen:
@@ -57,7 +77,10 @@ func _initialize() -> void:
 				m.board_requested.emit()
 				m.close()
 			elif m.get_script() == ShipScreen:
-				m.mission_requested.emit()
+				if g.mission_open():
+					m.mission_requested.emit()
+			elif m is MissionLockScreen:
+				m.close()
 			elif m is DefeatScreen:
 				defeats += 1
 				m.farm_pressed.emit()

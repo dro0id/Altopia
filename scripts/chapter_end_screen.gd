@@ -24,6 +24,8 @@ func _init(n: int, reward: Dictionary) -> void:
 	var label := "Continuer vers le chapitre %d" % (n + 1) if not nxt.is_empty() else "Continuer"
 	if n == Story.last_chapter():
 		label = "Continuer l'exploration"
+	elif Story.chapter(n).get("board", false):
+		label = "Commencer la mission"
 	var go := M3.button(st, label, Rect2(32, 1280 - 32 - 96 - 16 - 104, 656, 104), "main", 32)
 	go.pressed.connect(close)
 	var jr := M3.button(st, "Revoir l'histoire dans le journal" if n == Story.last_chapter() else "Revoir le chapitre dans le journal", Rect2(32, 1280 - 32 - 96, 656, 96), "ghost", 30)

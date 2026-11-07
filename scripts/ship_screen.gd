@@ -7,6 +7,7 @@ extends Overlay
 signal room_requested(room: String)
 signal builds_requested
 signal mission_requested
+signal recruit_requested
 
 
 var view: ShipView
@@ -60,12 +61,12 @@ func _init() -> void:
 	_sub.position = Vector2(32, 66)
 	_sub.size = Vector2(340, 32)
 	_sub.clip_text = true
-	_cut = _round_button("◐", Vector2(720 - 32 - 88, 264))
+	_cut = _round_button("◐", Vector2(720 - 32 - 88, 300))
 	_cut.pressed.connect(func():
 		view.set_cut(not view.cut_mode)
 		_cut.text = "◐" if view.cut_mode else "●"
 		_close_sheet())
-	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 368))
+	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
 	_harvest = M3.button(_st, "Tout récolter", Rect2(32, 1280 - NavBar.total() - 32 - 96, 656, 96), "main", 30)
@@ -78,7 +79,11 @@ func _init() -> void:
 	_mission.draw.connect(_draw_mission)
 	_st.add_child(_mission)
 	_join = M3.button(_mission, "Rejoindre", Rect2(472, 24, 184, 80), "main", 26)
-	_join.pressed.connect(func(): mission_requested.emit())
+	_join.pressed.connect(func():
+		if Game.mission_open():
+			mission_requested.emit()
+		else:
+			_objective_go())
 	# chantier conseillé
 	_advice = Control.new()
 	_advice.position = Vector2(24, 1280 - NavBar.total() - 32 - 96 - 16 - 124)
@@ -137,8 +142,14 @@ func _refresh() -> void:
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0
-	_adv = s.advice(Game)
+	_adv = s.advice(Game) if Game.mission_open() else {}
 	_advice.visible = not _adv.is_empty() and not _sheet.visible
+	var voyage := not Game.mission_open()
+	_mission.size.y = 184.0 if voyage else 128.0
+	_join.text = "Y aller" if voyage else "Rejoindre"
+	_join.position.y = 40.0 if voyage else 24.0
+	var od := Game.voyage_done()
+	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
 	if not _adv.is_empty():
 		_advice_btn.disabled = not bool(_adv.ok)
 		_advice_btn.text = "Lancer" if bool(_adv.ok) else "Bientôt"
@@ -149,7 +160,7 @@ func _refresh() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	# la mission continue pendant qu'on est à bord, au rythme du farm automatique
-	if is_visible_in_tree() and Game.intro_seen:
+	if is_visible_in_tree() and Game.intro_seen and Game.mission_open():
 		var g := Game.offline_rate_per_minute() / 60.0 * delta
 		Game.credits += g
 		mission_gain += g
@@ -307,6 +318,9 @@ func _draw_sheet() -> void:
 
 ## Carte « Mission en cours » : l'étage du combat, son rythme, ce qu'il a rapporté pendant qu'on était à bord.
 func _draw_mission() -> void:
+	if not Game.mission_open():
+		_draw_objective()
+		return
 	var c := _mission
 	var r := Rect2(Vector2.ZERO, c.size)
 	var sb := UI.box(Color("0d1733", 0.92), Color(UI.ACCENT, 0.4), 36, 0)
@@ -336,6 +350,61 @@ func _draw_mission() -> void:
 	if mission_gain >= 1.0:
 		line = "%s · +%s à bord" % [where, UI.short(mission_gain)]
 	M3.text(c, Vector2(132, 108), line, 22, UI.MUTED, false, 330)
+
+
+## Chapitre 1 (maquette SC) : objectif de bord en cours et frise du voyage Terre → Altopia.
+func _draw_objective() -> void:
+	var c := _mission
+	var sb := UI.box(Color("0d1733", 0.92), Color(UI.GREEN, 0.45), 36, 0)
+	sb.set_border_width_all(2)
+	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size))
+	var done := Game.voyage_done()
+	var n := Story.OBJECTIVES.size()
+	if done >= n:
+		M3.text(c, Vector2(28, 40), "CHAPITRE 1 · ARRIVÉE", 20, UI.GREEN, true)
+		M3.text(c, Vector2(28, 80), "La Ceinture d’Altopia est en vue", 28, UI.TEXT, true, 600)
+	else:
+		var o: Dictionary = Story.OBJECTIVES[done]
+		M3.text(c, Vector2(28, 40), "CHAPITRE 1 · OBJECTIF %d / %d" % [done + 1, n], 20, UI.GREEN, true)
+		M3.text(c, Vector2(28, 78), String(o.title), 28, UI.TEXT, true, 430)
+		M3.text(c, Vector2(28, 108), String(o.sub), 22, UI.MUTED, false, 430)
+	draw_voyage(c, Rect2(28, 118, 616, 36), done)
+
+
+## Frise du voyage : Terre, objectifs remplis, Altopia, et le jour du trajet.
+static func draw_voyage(ci: CanvasItem, r: Rect2, done: int) -> void:
+	var n := Story.OBJECTIVES.size()
+	var y := r.position.y + 10.0
+	var x0 := r.position.x + 10.0
+	var x1 := r.end.x - 12.0
+	var k := float(done) / float(n)
+	ci.draw_line(Vector2(x0, y), Vector2(x1, y), M3.S3, 3.0)
+	ci.draw_line(Vector2(x0, y), Vector2(lerpf(x0, x1, k), y), UI.GREEN, 3.0)
+	for i in range(1, n):
+		ci.draw_circle(Vector2(lerpf(x0, x1, float(i) / n), y), 5, UI.GREEN if i <= done else M3.S3)
+	ci.draw_circle(Vector2(x0, y), 9, Color("4fa8ff"))
+	ci.draw_circle(Vector2(x1, y), 12, UI.GOLD)
+	var sx := lerpf(x0, x1, k)
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(sx + 12, y), Vector2(sx - 6, y - 8), Vector2(sx - 2, y), Vector2(sx - 6, y + 8)]), UI.TEXT)
+	var day := int(round(k * Story.VOYAGE_DAYS))
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Terre", 20, UI.MUTED)
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Jour %d / %d" % [day, Story.VOYAGE_DAYS], 20, UI.MUTED, false, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+	M3.text(ci, Vector2(r.position.x, r.end.y), "Altopia", 20, UI.GOLD, false, r.size.x, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+## « Y aller » : ouvre l'écran de l'objectif en cours.
+func _objective_go() -> void:
+	var done := Game.voyage_done()
+	if done >= Story.OBJECTIVES.size():
+		return
+	var go := String(Story.OBJECTIVES[done].go)
+	match go:
+		"recruit":
+			recruit_requested.emit()
+		"signal":
+			pass
+		_:
+			room_requested.emit(go)
 
 
 ## Chantier conseillé (maquette RC) : le Pont d'abord, sinon la salle la moins chère.

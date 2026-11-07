@@ -25,7 +25,7 @@ Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : ti
 - **Maquette** : 14 écrans (voir le canvas).
 - **À valider** : ton du texte d'entrée, noms des boss, chiffres d'économie après test sur téléphone.
 
-## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine (FAIT dans le code, à tester sur téléphone)
+## Branche 2 · `feat/histoire-capitaine` (M) : le signal et le Capitaine (FAIT dans le code, à tester sur téléphone ; chapitres renumérotés 2 à 5 depuis le chapitre 1 à bord, voir branche 5)
 - **Objectif** : l'histoire space opera est portée par le jeu, pas par un texte à part.
 - **Contenu** : introduction courte (Terre, signal, décollage), dialogues entre combats (Capitaine, Vance, héros), un héros ou un ennemi marquant par chapitre, fin du chapitre 1 qui ouvre le suivant.
 - **Livrable** : le chapitre 1 se joue avec son histoire de bout en bout.
@@ -53,6 +53,7 @@ Choix d'un renfort parmi trois (actif jusqu'au prochain boss, cinq renforts : ti
 - **Règles** : améliorations en temps réel, accélérables contre des cristaux (achat en argent réel à la publication) ; seuls les héros hors escouade occupent les postes ; le Pont monte avec l'étage atteint et a son propre chantier.
 - **Rythme** : niveau 10 à la fin des 40 étages de l'histoire (chantiers courts) ; niveaux 11 à 20 dans les secteurs générés (étage 45 à 130, chantiers de 30 min à 12 h). Vérifié par `tools/progress.gd` et les tests.
 - **Le vaisseau d'abord (maquettes RA à RG)** : la boucle AFK est la mission de l'Aurore. Dès l'étage 5 (après « Bienvenue à bord »), le jeu s'ouvre sur l'Aurore ; la barre du bas devient Aurore · Mission · Héros · Recruter · Boutique. L'accueil montre la mission en cours (qui continue au rythme du farm automatique pendant qu'on est à bord) et le chantier conseillé ; le Pont choisit la destination (étage, autre étage, Ceinture sans fin) ; la mission affiche l'apport de l'Aurore ; le retour hors ligne commence par ce qui s'est passé à bord. Plus tard, la Base entoure le tout.
+- **Chapitre 1 « Cap sur Altopia » (maquettes SA à SH)** : le vaisseau est le hub dès la première minute. Après le prologue, « Bienvenue à bord », puis le voyage Terre → Ceinture (42 jours) en 6 objectifs de bord (récolte, première recrue garantie nouvelle, poste, Pont 2, Raffinerie 2, le signal) et 6 scènes, sans combat ; la Mission est verrouillée jusqu'à l'arrivée. Chantiers du voyage payés en crédits par l'Amirauté. Les chapitres de combat deviennent 2 à 5 (étages 1 à 40 inchangés) ; les anciennes sauvegardes sont décalées et ont le voyage marqué fait.
 - **Reporté** : la Base sur une planète. Plus tard : cadre doré des portraits au niveau 20.
 
 ## Branche 6 · `feat/modes-de-jeu` (M) : varier le rythme

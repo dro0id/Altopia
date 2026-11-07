@@ -17,6 +17,7 @@ static func total() -> float:
 var active := 0
 var badges: Array = [0, 0, 0, 0, 0]
 var ship_on := true            # onglet Vaisseau visible
+var mission_locked := false    # chapitre 1 : la mission attend l'arrivée (cadenas)
 
 
 ## Onglets affichés (indices de ALL).
@@ -50,6 +51,7 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
+	mission_locked = not Game.mission_open()
 	queue_redraw()
 
 
@@ -82,7 +84,10 @@ func _draw() -> void:
 		# pastille d'indicateur (64 × 32 dp) derrière l'icône de l'onglet actif
 		if on:
 			UI.draw_gradient_box(self, Rect2(cx - minf(64.0, w * 0.42), 24.0, minf(128.0, w * 0.84), 64.0), 32.0, UI.TONAL, UI.TONAL, UI.TONAL, 1.0)
-		_icon(i, Vector2(cx, 56), col)
+		if i == 0 and mission_locked:
+			M3.lock(self, Vector2(cx, 56), col if on else Color(UI.MUTED, 0.6), 1.2)
+		else:
+			_icon(i, Vector2(cx, 56), col)
 		var lab := label_of(i)
 		draw_string(UI.bold_font() if on else f, Vector2(x0, 128), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED)
 		var n: int = badges[i]

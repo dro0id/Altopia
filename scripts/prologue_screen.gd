@@ -1,6 +1,6 @@
 class_name PrologueScreen
 extends Overlay
-## Prologue (maquettes CB à CD) : Terre et le signal, Vance sur le pont de l'Aurore, le décollage vers le Trou de verre.
+## Prologue (maquettes CB à CD) : Terre et le signal, Vance sur le pont de l'Aurore, le décollage vers la Ceinture d'Altopia.
 
 signal finished
 
@@ -29,7 +29,7 @@ func _init(replay := false) -> void:
 
 
 func _refresh() -> void:
-	_btn.text = "Entrer dans le Trou de verre" if _i == Story.PROLOGUE.size() - 1 else "Suivant"
+	_btn.text = "Monter à bord" if _i == Story.PROLOGUE.size() - 1 else "Suivant"
 
 
 func _next() -> void:

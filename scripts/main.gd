@@ -384,7 +384,7 @@ func _open_modal(ov: Control, tab: int = -1) -> void:
 	if _modal != null and is_instance_valid(_modal):
 		_modal.queue_free()
 	_modal = ov
-	_tab_modal = tab > 0
+	_tab_modal = tab >= 0
 	if _tab_modal:
 		(ov as Overlay).reserve_bottom(NavBar.total())
 		_nav.active = tab
@@ -400,7 +400,9 @@ func _open_modal(ov: Control, tab: int = -1) -> void:
 			_tab_modal = false
 			_nav.active = 0
 			_nav.visible = true
-			tr.paused = false)
+			tr.paused = false
+			if not Game.mission_open():
+				_go_home.call_deferred())
 
 
 func _open_map() -> void:
@@ -535,11 +537,18 @@ func _open_ship() -> void:
 	sc.room_requested.connect(func(r: String): _open_room.call_deferred(r))
 	sc.builds_requested.connect(func(): _open_room.call_deferred("pont"))
 	sc.mission_requested.connect(_open_mission)
+	sc.recruit_requested.connect(func(): _open_recruit.call_deferred())
 	_open_modal(sc, 2)
 
 
 ## Retour à la mission (le combat) depuis l'Aurore.
 func _open_mission() -> void:
+	if not Game.mission_open():
+		# pendant le voyage (chapitre 1), la mission attend l'arrivée (maquette SF)
+		var ml := MissionLockScreen.new()
+		ml.home_requested.connect(func(): _open_ship.call_deferred())
+		_open_modal(ml, 0)
+		return
 	if _modal != null and is_instance_valid(_modal) and _tab_modal:
 		(_modal as Overlay).close()
 
@@ -639,9 +648,11 @@ func _open_prologue() -> void:
 
 ## Ouvre la scène en attente s'il y en a une (et rien d'autre à l'écran) ; renvoie vrai si le combat doit attendre.
 func _story_check() -> bool:
-	if not Game.intro_seen or (_modal != null and is_instance_valid(_modal)):
+	if not Game.intro_seen or not Game.seen_scenes.has("prologue"):
 		return false
-	if not Game.seen_scenes.has("prologue"):
+	if not Game.mission_open():
+		return _board_check()
+	if _modal != null and is_instance_valid(_modal):
 		return false
 	var sec := Sector.info(Game.stage)
 	if not sec.is_empty() and Game.is_frontier() and not Game.sectors_seen.has(int(sec.index)):
@@ -664,6 +675,29 @@ func _story_check() -> bool:
 	d.finished.connect(func(_id: String):
 		if sc.has("end"):
 			_open_chapter_end.call_deferred(int(sc.end)))
+	_open_modal(d)
+	return true
+
+
+## Chapitre 1 à bord (maquettes SA à SH) : les scènes se jouent depuis l'accueil de l'Aurore, entre deux objectifs.
+func _board_check() -> bool:
+	if not Game.tips.has("ship"):
+		return false
+	if _modal != null and is_instance_valid(_modal):
+		if not (_modal is ShipScreen):
+			return false
+		for ch in _modal.get_children():
+			if ch is RoomScreen:
+				return false
+	var sc: Dictionary = Story.board_pending(Game.seen_scenes, Game.voyage_done())
+	if sc.is_empty():
+		return false
+	var d := DialogueScreen.new(sc)
+	d.finished.connect(func(_id: String):
+		if sc.has("end"):
+			_open_chapter_end.call_deferred(int(sc.end))
+		else:
+			_go_home.call_deferred())
 	_open_modal(d)
 	return true
 
@@ -801,11 +835,11 @@ func _coach_update() -> void:
 	if coach.step >= 0:
 		return
 	var free_screen: bool = _modal == null or not is_instance_valid(_modal)
-	if not Game.tutorial_done and Game.intro_seen and Game.seen_scenes.has("prologue") and free_screen:
+	if Game.ship.unlocked and not Game.tips.has("ship") and free_screen and Game.intro_seen and Game.seen_scenes.has("prologue"):
+		_open_aboard()
+	elif not Game.tutorial_done and Game.mission_open() and Game.intro_seen and Game.seen_scenes.has("prologue") and free_screen:
 		if Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
 			coach.start()
-	elif Game.tutorial_done and Game.ship.unlocked and not Game.tips.has("ship") and free_screen and Game.seen_scenes.has("c1_aurore") and Story.pending(Game.seen_scenes, Game.stage, Game.best_stage).is_empty():
-		_open_aboard()
 	elif Game.tutorial_done and not Game.tips.has("items") and not free_screen and _modal is CollectionScreen:
 		if _modal._items_view.is_visible_in_tree() and not Game.inventory_items().is_empty():
 			coach.tip()
@@ -928,6 +962,7 @@ func _refresh() -> void:
 		if bh.hero != "" and float(bh.gain) > 0.0 and (it.bound == "" or it.bound == bh.hero):
 			ready_items += 1
 	_nav.ship_on = Game.ship.unlocked
+	_nav.mission_locked = not Game.mission_open()
 	var back := 0
 	for sh in Game.ship.shuttles:
 		if bool(Game.ship.shuttles[sh].get("back", false)):
