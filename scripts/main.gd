@@ -85,6 +85,15 @@ func _ready() -> void:
 	_build_buffs()
 	resized.connect(_layout)
 	_layout()
+	# chapitre 1 à bord : l'accueil de l'Aurore met le combat en pause, les scènes du voyage se vérifient quand même
+	var board_timer := Timer.new()
+	board_timer.wait_time = 0.25
+	board_timer.autostart = true
+	board_timer.process_mode = Node.PROCESS_MODE_ALWAYS
+	board_timer.timeout.connect(func():
+		if Game.intro_seen and not Game.mission_open():
+			_story_check())
+	add_child(board_timer)
 	_start_battle()
 	if not Game.intro_seen:
 		var intro := IntroScreen.new()
