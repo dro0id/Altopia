@@ -77,7 +77,7 @@ func _ship_lines(ev: Dictionary) -> Array:
 		if res != "" and v >= 1.0:
 			out.append([Ship.ROOMS[r].short, "+%s %s" % [UI.num(v) if res == "credits" else str(int(v)), Ship.RES_NAMES[res]]])
 	for d in ev.get("done", []):
-		out.append([Ship.ROOMS[d.room].short, "niveau %d terminé" % int(d.to)])
+		out.append([Ship.ROOMS[d.room].short, "construit" if int(d.to) == 1 else "niveau %d terminé" % int(d.to)])
 	if String(ev.get("research", "")) != "":
 		out.append(["Labo", "%s terminée" % Ship.RESEARCH[ev.research].name])
 	for h in ev.get("trained", {}):

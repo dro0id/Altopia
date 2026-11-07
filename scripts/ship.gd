@@ -105,6 +105,12 @@ static func upgrade_cost(room: String, to_level: int, logistique := 0) -> Dictio
 	return {"credits": credits, "shards": shards, "time": int(t)}
 
 
+## Coût de construction d'une salle (niveau 1) : celui d'une amélioration au niveau du vaisseau auquel elle s'ouvre,
+## donc de plus en plus cher pour les salles tardives.
+static func build_cost(room: String, logistique := 0) -> Dictionary:
+	return upgrade_cost(room, maxi(2, int(ROOMS[room].unlock)), logistique)
+
+
 ## Production de base par heure d'une salle au niveau `lv` (ressource : RES de la salle).
 static func base_rate(room: String, lv: int, best_stage: int = 1) -> float:
 	if lv <= 0:

@@ -92,7 +92,8 @@ func _ready() -> void:
 	board_timer.process_mode = Node.PROCESS_MODE_ALWAYS
 	board_timer.timeout.connect(func():
 		if Game.intro_seen and not Game.mission_open():
-			_story_check())
+			_story_check()
+		_build_tip_check())
 	add_child(board_timer)
 	_start_battle()
 	if not Game.intro_seen:
@@ -522,7 +523,7 @@ func _open_shop() -> void:
 func _on_ship_events(ev: Dictionary) -> void:
 	var parts: Array = []
 	for d in ev.get("done", []):
-		parts.append("%s niveau %d terminé" % [Ship.ROOMS[d.room].short, int(d.to)])
+		parts.append(("%s construit" % Ship.ROOMS[d.room].short) if int(d.to) == 1 else ("%s niveau %d terminé" % [Ship.ROOMS[d.room].short, int(d.to)]))
 	if String(ev.get("research", "")) != "":
 		parts.append("Recherche %s rang %d terminée" % [Ship.RESEARCH[ev.research].name, Game.ship.rank(ev.research)])
 	for sh in ev.get("shuttles", []):
@@ -687,6 +688,22 @@ func _story_check() -> bool:
 			_open_chapter_end.call_deferred(int(sc.end)))
 	_open_modal(d)
 	return true
+
+
+## Astuce « construire une salle » : la première fois qu'une salle s'ouvre, sur l'accueil de l'Aurore, on la montre du doigt.
+func _build_tip_check() -> void:
+	if coach.step >= 0 or Game.tips.has("build") or not Game.tutorial_done or not Game.tips.has("ship"):
+		return
+	var m := _modal
+	if m == null or not is_instance_valid(m) or not (m is ShipScreen) or m._sheet.visible:
+		return
+	for ch in m.get_children():
+		if ch is RoomScreen:
+			return
+	for r in Game.ship.buildable():
+		if m._lab_rects.has(r):
+			coach.build_tip(r)
+			return
 
 
 ## Chapitre 1 à bord (maquettes SA à SH) : les scènes se jouent depuis l'accueil de l'Aurore, entre deux objectifs.
@@ -977,4 +994,4 @@ func _refresh() -> void:
 	for sh in Game.ship.shuttles:
 		if bool(Game.ship.shuttles[sh].get("back", false)):
 			back += 1
-	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back, Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]
+	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back + Game.ship.buildable().size(), Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]

@@ -17,9 +17,11 @@ const STEPS := [
 	{"title": "Monte les étages", "text": "Le jeu passe seul à l'étage suivant. Touche l'étage pour voir la carte, farmer un étage ou revoir le journal.", "btn": "Terminer"},
 ]
 const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec l’étage atteint.", "action": "Touche « Aurore »"}
+const TIP_BUILD := {"eyebrow": "NOUVEAU · SALLE À CONSTRUIRE", "title": "Construis ta nouvelle salle", "text": "Une salle vient de s’ouvrir sur l’Aurore, mais elle ne se construit pas toute seule : touche-la, puis « Construire ».", "action": "Touche la salle"}
 const TIP := {"eyebrow": "ASTUCE · PREMIER OBJET", "title": "Équipe ton butin", "text": "Les coffres donnent des objets. Un seul bouton les place sur les héros qui en profitent le plus.", "action": "Touche « Équiper au mieux »"}
 
 var main: Control
+var build_room := ""           # astuce « construire une salle » (étape 12) : la salle à montrer
 var step := -1                 # -1 : inactif ; 0 à 5 : étapes ; 10 : astuce du premier objet
 var _wait := 0.0               # courte reprise du combat après le pouvoir
 var _t := 0.0
@@ -51,7 +53,15 @@ func ship_tip() -> void:
 	step = 11
 
 
+## Astuce de la première salle à construire, une seule fois.
+func build_tip(room: String) -> void:
+	build_room = room
+	step = 12
+
+
 func _info() -> Dictionary:
+	if step == 12:
+		return TIP_BUILD
 	if step == 11:
 		return TIP_SHIP
 	return TIP if step == 10 else STEPS[step]
@@ -137,6 +147,10 @@ func _find_target() -> Rect2:
 			if has_modal:
 				return Rect2()
 			return main._stage_btn.get_global_rect().grow(6)
+		12:
+			if not (has_modal and m is ShipScreen) or not m._lab_rects.has(build_room):
+				return Rect2()
+			return (m._lab_rects[build_room] as Rect2).grow(10.0)
 		11:
 			if has_modal:
 				return Rect2()
@@ -199,12 +213,21 @@ func _gui_input(ev: InputEvent) -> void:
 			get_tree().paused = false
 			main._open_ship()
 			_finish()
+		12:
+			var sc: ShipScreen = main._modal
+			var room := build_room
+			_finish()
+			if sc != null and is_instance_valid(sc):
+				sc._select(room)
 
 
 func _finish() -> void:
 	if step == 10:
 		if not Game.tips.has("items"):
 			Game.tips.append("items")
+	elif step == 12:
+		if not Game.tips.has("build"):
+			Game.tips.append("build")
 	elif step == 11:
 		if not Game.tips.has("ship"):
 			Game.tips.append("ship")
@@ -253,9 +276,11 @@ func _draw() -> void:
 		draw_rect(Rect2(pr.position + Vector2(28, 20), Vector2(7, 24)), UI.TEXT)
 		draw_rect(Rect2(pr.position + Vector2(41, 20), Vector2(7, 24)), UI.TEXT)
 		M3.text(self, pr.position + Vector2(64, 32 + M3.fs(24) * 0.36), "Jeu en pause", 24, UI.TEXT, true)
-	var skip_txt := "Plus tard" if step == 10 else "Passer le tutoriel"
+	var skip_txt := "Plus tard" if step >= 10 else "Passer le tutoriel"
 	var sw := M3.text_w(skip_txt, 26, true) + 48.0
 	_skip_rect = Rect2(vw - 24.0 - sw, top if paused_ui else 24.0 + float(main._dy), sw, 64)
+	if step == 12:
+		_skip_rect.position.y = _bubble.end.y + 28.0      # sous la bulle, pas sur les crédits
 	if step != 0 and (_skip_rect.intersects(r) or _skip_rect.intersects(_bubble)):
 		_skip_rect.position.y = vh - 260.0 if r.position.y < vh * 0.5 and _bubble.end.y < vh - 280.0 else top
 	M3.text(self, _skip_rect.position + Vector2(0, 32 + M3.fs(26) * 0.36), skip_txt, 26, UI.ACCENT, true, sw, HORIZONTAL_ALIGNMENT_CENTER)

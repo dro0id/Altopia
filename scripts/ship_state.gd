@@ -35,11 +35,23 @@ func _init() -> void:
 	last_tick = now()
 
 
+## Les trois salles de départ (Pont, Centrale, Raffinerie) sont construites d'office ; les autres s'ouvrent à un
+## niveau du vaisseau mais c'est au joueur de les construire (voir buildable et start_upgrade).
 func open_rooms() -> void:
 	for r in Ship.ORDER:
-		if int(rooms[r]) == 0 and level >= int(Ship.ROOMS[r].unlock):
+		if int(rooms[r]) == 0 and int(Ship.ROOMS[r].unlock) <= 1:
 			rooms[r] = 1
 	rooms["pont"] = level
+
+
+## Salle ouverte par le niveau du vaisseau, pas encore construite.
+func is_buildable(r: String) -> bool:
+	return unlocked and room_level(r) == 0 and level >= int(Ship.ROOMS[r].unlock)
+
+
+## Salles qu'on peut construire maintenant (sans chantier déjà lancé dessus).
+func buildable() -> Array:
+	return Ship.ORDER.filter(func(r): return is_buildable(r) and building(r).is_empty())
 
 
 func unlock() -> void:
@@ -236,13 +248,13 @@ func max_room_level(r: String) -> int:
 ## Peut-on améliorer cette salle ? "" si oui, sinon la raison (texte pour le joueur).
 func upgrade_block(game: Node, r: String) -> String:
 	var lv := room_level(r)
-	if lv <= 0:
+	if lv <= 0 and level < int(Ship.ROOMS[r].unlock):
 		return "S’ouvre au niveau %d du vaisseau" % int(Ship.ROOMS[r].unlock)
 	if lv >= Ship.MAX_LEVEL:
 		return "Niveau maximum"
 	if not building(r).is_empty():
 		return "Chantier en cours"
-	if r != "pont" and lv >= level:
+	if r != "pont" and lv > 0 and lv >= level:
 		return "Monte d’abord le Pont (niveau %d)" % (level + 1)
 	if r == "pont" and int(game.best_stage) <= int(Ship.PONT_STAGE[lv + 1]) - 1:
 		return "Étage %d requis" % int(Ship.PONT_STAGE[lv + 1])
@@ -259,7 +271,7 @@ func upgrade_block(game: Node, r: String) -> String:
 ## Coût d'une amélioration pour cette partie : pendant le voyage (chapitre 1), l'Amirauté paie les crédits
 ## (il n'y a pas encore de combat pour en gagner) ; seuls les éclats de la Raffinerie sont demandés.
 func cost_of(game: Node, r: String) -> Dictionary:
-	var c := Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique"))
+	var c := Ship.build_cost(r, rank("logistique")) if room_level(r) == 0 else Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique"))
 	if game.has_method("mission_open") and not game.mission_open():
 		c.credits = 0
 	return c
@@ -276,7 +288,7 @@ func advice(game: Node) -> Dictionary:
 			ready.append(r)
 		elif b == "Pas assez de ressources":
 			waiting.append(r)
-	var cost := func(r: String) -> float: return float(Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique")).credits)
+	var cost := func(r: String) -> float: return float(cost_of(game, r).credits)
 	for lst in [ready, waiting]:
 		if lst.is_empty():
 			continue

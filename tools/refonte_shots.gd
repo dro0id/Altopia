@@ -249,6 +249,22 @@ func _initialize() -> void:
 		"horsligne_vaisseau": func():
 			_ship(10)
 			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
+		"construire": func():
+			_ship(5)
+			g.ship.rooms["serre"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			main._open_ship()
+			await create_timer(1.0).timeout,
+		"construire_fiche": func():
+			_ship(5)
+			g.ship.rooms["serre"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			g.tips.append("build")
+			main._open_ship()
+			await process_frame
+			main._modal._select("serre"),
 		"fiche_salle": func():
 			_ship(10)
 			main._open_ship()
@@ -286,7 +302,7 @@ func _ship(lv: int) -> void:
 	sh.open_rooms()
 	var lvs := {"centrale": lv - 1, "raffinerie": lv - 1, "atelier": lv - 2, "antenne": maxi(1, lv - 9), "labo": maxi(1, lv - 9), "quartiers": maxi(1, lv - 5), "hangar": maxi(1, lv - 7), "serre": maxi(1, lv - 4), "observatoire": maxi(1, lv - 11)}
 	for r in lvs:
-		if sh.room_level(r) > 0:
+		if lv >= int(Ship.ROOMS[r].unlock):
 			sh.rooms[r] = maxi(1, lvs[r])
 	for id in ["dax", "pim", "neelo", "sora", "lumi", "gorn", "omega", "vance", "t9", "brix"]:
 		g.owned[id] = true

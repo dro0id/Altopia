@@ -891,6 +891,20 @@ func test_ship() -> void:
 	_check(s.production_mult("raffinerie") > 1.2, "le poste augmente la production")
 	_g.set_slot(0, "dax")
 	_check(s.post_of("dax") == "", "entré dans l'escouade, il quitte son poste")
+	# salles à construire : les trois salles de départ le sont d'office, les autres s'ouvrent mais attendent le joueur
+	s.level = 3
+	s.open_rooms()
+	_check(s.room_level("centrale") == 1 and s.room_level("raffinerie") >= 1 and s.room_level("atelier") == 0, "l'Atelier s'ouvre au niveau 3 sans être construit")
+	_check(s.is_buildable("atelier") and s.buildable() == ["atelier"] and not s.is_buildable("serre"), "seule l'Atelier est à construire (la Serre attend le niveau 5)")
+	_check(s.max_posts("atelier") == 0 and not s.producers().has("atelier"), "une salle non construite ne produit rien")
+	_check(is_equal_approx(float(Ship.build_cost("atelier").credits), float(Ship.upgrade_cost("atelier", 3).credits)), "la construction coûte comme une amélioration au niveau d'ouverture")
+	_g.credits = 1.0e9
+	_g.shards = 100000
+	_check(s.upgrade_block(_g, "serre") != "" and s.start_upgrade(_g, "atelier") and s.building("atelier").to == 1, "construction lancée par le joueur")
+	_check(s.buildable().is_empty(), "pas deux constructions de la même salle")
+	ShipState.clock_offset += 3600
+	_g.ship_update()
+	_check(s.room_level("atelier") == 1 and s.producers().has("atelier") and s.max_posts("atelier") > 0, "Atelier construite : elle produit et accueille un poste")
 	# recherche : bonus de combat
 	s.level = 10
 	s.open_rooms()

@@ -115,7 +115,10 @@ func _ship(g) -> bool:
 		g.ship.start_upgrade(g, "pont")
 	elif blk == "Pas assez de ressources":
 		return false
-	for r in Ship.ORDER:
+	# les salles qui viennent de s'ouvrir se construisent d'abord (c'est au joueur de le faire), puis on améliore
+	var order: Array = Ship.ORDER.duplicate()
+	order.sort_custom(func(a, b): return int(g.ship.room_level(a) == 0) > int(g.ship.room_level(b) == 0))
+	for r in order:
 		if r == "pont" or g.ship.upgrade_block(g, r) != "":
 			continue
 		var c: Dictionary = Ship.upgrade_cost(r, g.ship.room_level(r) + 1)
