@@ -25,7 +25,7 @@ const SPEAKERS := {
 	"gardien": {"name": "Gardien de verre", "role": "Gardien du premier seuil", "color": Color("ff9b9b"), "art": "crystal", "short": "Gardien", "fight": "Combattre le Gardien"},
 	"phare": {"name": "Sentinelle prismatique · le Phare", "role": "Porteuse des voix", "color": Color("d6bfff"), "art": "prism", "short": "Sentinelle", "fight": "Combattre la Sentinelle"},
 	"reine": {"name": "Reine des mites", "role": "Gardienne des dormeurs", "color": Color("ffb142"), "art": "moth", "short": "Reine", "fight": "Combattre la Reine"},
-	"holt": {"name": "Commandant Holt", "role": "Voix enregistrée · l'Aube", "color": Color("ffd166"), "art": "voice", "short": "Holt"},
+	"holt": {"name": "Commandant Holt", "role": "Commandant de l'Aube · pris dans le verre", "color": Color("ffd166"), "art": "voice", "short": "Holt"},
 	"seuil": {"name": "Gardien du dernier seuil", "role": "Le signal", "color": Color("ffd166"), "art": "gold", "short": "Gardien", "fight": "Combattre le Gardien"},
 }
 
@@ -46,12 +46,12 @@ const SCENES := [
 		{"who": "t9", "text": "Premiers éclats. Rendement : modeste. Moral : en hausse."},
 	]},
 	{"id": "b1_recrue", "chapter": 1, "title": "Une recrue", "sub": "Après le recrutement · Kaï, Mara", "when": "board", "after": 2, "stage": 0, "lines": [
-		{"who": "kai", "text": "Un nouveau à bord. Il dort où ?"},
-		{"who": "mara", "text": "À la Raffinerie. Il dormira plus tard."},
+		{"who": "kai", "text": "Une recrue sortie des caissons de cryo. On l’installe où ?"},
+		{"who": "mara", "text": "À la Raffinerie. Elle dormira à l’arrivée, comme tout le monde."},
 	]},
-	{"id": "b1_pont", "chapter": 1, "title": "Trois jours de gagnés", "sub": "Après le chantier du Pont · Vance, T-9", "when": "board", "after": 4, "stage": 0, "lines": [
-		{"who": "vance", "text": "Le Pont répond mieux. On gagne trois jours sur le trajet."},
-		{"who": "t9", "text": "Je recalcule. Nous gagnons deux jours. Vance arrondit."},
+	{"id": "b1_pont", "chapter": 1, "title": "Trois jours de gagnés", "sub": "Chantier du Pont lancé · Vance, T-9", "when": "board", "after": 4, "stage": 0, "lines": [
+		{"who": "vance", "text": "Avec un Pont neuf, on gagnera trois jours sur le trajet."},
+		{"who": "t9", "text": "Je recalcule. Deux jours. Vance arrondit."},
 	]},
 	{"id": "b1_signal", "chapter": 1, "title": "Le signal compte", "sub": "Objectif 6 · Zyra", "when": "board", "after": 5, "stage": 0, "lines": [
 		{"who": "zyra", "text": "Je l’entends, Capitaine. Le signal. Il compte… à rebours.", "choice": ["Jusqu’à quoi ?", "On arrive à temps ?"],
@@ -85,16 +85,16 @@ const SCENES := [
 		{"who": "vance", "text": "Le signal a changé. Ce n'est plus un appel… c'est une réponse.", "key": true},
 		{"who": "zyra", "text": "Il nous a reconnus."},
 	]},
-	{"id": "c2_voix", "chapter": 3, "title": "Des voix connues", "sub": "Avant l'étage 11 · Vance, Zyra", "when": "before", "stage": 11, "lines": [
-		{"who": "vance", "text": "Le signal répond… avec des voix humaines. Enregistrées il y a quarante ans."},
+	{"id": "c2_voix", "chapter": 3, "title": "Des voix humaines", "sub": "Avant l'étage 11 · T-9, Zyra", "when": "before", "stage": 11, "lines": [
+		{"who": "t9", "text": "Le signal répond… avec des voix humaines. Datation des enregistrements : quarante ans."},
 		{"who": "zyra", "text": "Ce ne sont pas des échos. Ce sont des souvenirs."},
 	]},
 	{"id": "c2_epave", "chapter": 3, "title": "L'épave de l'Aube", "sub": "Après l'étage 12 · Kaï", "when": "after", "stage": 12, "lines": [
 		{"who": "kai", "text": "Une épave terrienne. Classe Aurore. Comme nous.", "choice": ["On fouille l'épave.", "On la laisse en paix."],
-			"replies": [{"who": "kai", "text": "Je prends la soute. Si quelque chose bouge, je hurle."}, {"who": "kai", "text": "Reçu. Je note juste son nom sur la coque : l'Aube."}]},
+			"replies": [{"who": "kai", "text": "Je prends la soute. Le nom sur la coque : l'Aube. Si quelque chose bouge, je hurle."}, {"who": "kai", "text": "Reçu. Je note juste son nom sur la coque : l'Aube."}]},
 	]},
 	{"id": "c2_holt", "chapter": 3, "title": "Commandant Holt", "sub": "Après l'étage 14 · T-9, Vance", "when": "after", "stage": 14, "lines": [
-		{"who": "t9", "text": "Journal de bord récupéré. Commandant : Holt."},
+		{"who": "t9", "text": "L'Aube émet son journal de bord en boucle. Commandant : Holt."},
 		{"who": "vance", "text": "… Mon père commandait l'Aube."},
 	]},
 	{"id": "c2_temple", "chapter": 3, "title": "Le temple", "sub": "Après l'étage 15 · Oru", "when": "after", "stage": 15, "lines": [
@@ -111,7 +111,7 @@ const SCENES := [
 	{"id": "c2_fin", "chapter": 3, "title": "Ne répondez pas", "sub": "Fin du chapitre 3 · Vance, Kaï", "when": "after", "stage": 20, "end": 3, "lines": [
 		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
 		{"who": "kai", "text": "Un peu tard."},
-		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Encore un chantier et elle passe en version II."},
+		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque étage."},
 	]},
 	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
 		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},

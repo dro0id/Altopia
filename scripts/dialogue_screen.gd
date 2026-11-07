@@ -71,9 +71,9 @@ func _init(scene: Dictionary, replay := false) -> void:
 			var bob := sin(_t * 2.2) * 8.0
 			_art(top, String(sp.art), Vector2(360, 330 + bob), 2.6, _t)
 			if not boss:
-				# une voix enregistrée (maquette HE) : pas de combat, juste le canal
+				# la voix de Holt, pris dans le verre (maquette HE) : pas de combat, juste le canal
 				M3.text(top, Vector2(24, 52), "Canal ouvert · fréquence de l'Aube", 24, sp.color, true, 480)
-				M3.text(top, Vector2(0, 478), "ENREGISTRÉ · IL Y A 40 ANS", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+				M3.text(top, Vector2(0, 478), "UNE VOIX DANS LE VERRE", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 				return
 			top.draw_style_box(UI.box(Color("3a1620"), Color(0, 0, 0, 0), 40, 0), Rect2(32, 32, 336, 80))
 			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Étage %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
@@ -315,7 +315,7 @@ static func _moth(ci: CanvasItem, c: Vector2, k: float) -> void:
 	wing.call([[25, 12], [27, 8], [30, 11], [33, 8], [35, 12]], Color("ffe08a"))
 
 
-## Une voix enregistrée (maquette HE) : un cercle et une onde qui vibre.
+## La voix de Holt (maquette HE) : un cercle et une onde qui vibre.
 static func _voice(ci: CanvasItem, c: Vector2, k: float, t: float) -> void:
 	var s := k * 1.6
 	var col := Color("ffd166")
