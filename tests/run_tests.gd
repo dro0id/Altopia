@@ -504,7 +504,7 @@ func test_story() -> void:
 				_check(l.choice.size() == 2 and l.replies.size() == 2, "deux réponses et deux répliques : %s" % sc.id)
 	_g.see_scene("c1_haut", 1)
 	var r1: Dictionary = _g.complete_chapter(2)
-	_check(int(r1.get("credits", 0)) == 1000 and _g.complete_chapter(2).is_empty(), "récompense de fin de chapitre versée une seule fois")
+	_check(int(r1.get("credits", 0)) == 1700 and _g.complete_chapter(2).is_empty(), "récompense de fin de chapitre versée une seule fois")
 	# un chapitre = 10 étages ; le chapitre 2 suit le Gardien et finit après la Sentinelle
 	for c in Story.CHAPTERS:
 		if not c.get("board", false):
@@ -519,17 +519,25 @@ func test_story() -> void:
 	var credits0: float = _g.credits
 	_g.story_catch_up()
 	_check(_g.seen_scenes.has("c2_temple") and _g.seen_scenes.has("c2_fin") and _g.chapters_done.has(3), "scènes dépassées débloquées dans le journal")
-	_check(is_equal_approx(_g.credits - credits0, 2000.0), "chapitre 2 déjà payé, chapitre 3 payé une fois")
+	_check(is_equal_approx(_g.credits - credits0, 5700.0), "chapitre 2 déjà payé, chapitre 3 payé une fois")
 	_check(Story.pending(_g.seen_scenes, 22, 22).is_empty(), "pas de rafale de scènes")
 	# chapitres 3 et 4 : l'histoire finit à l'étage 40, puis la Ceinture sans fin
 	_check(Story.chapter_scenes(4).size() == 7 and Story.chapter_scenes(5).size() == 7 and Story.last_chapter() == 5, "chapitres 4 et 5 en 7 scènes")
 	_check(int(Story.scene("c4_fin").end) == 5 and int(Story.chapter(5).to) == Sector.GEN_START - 1, "l'histoire finit juste avant les secteurs générés")
+	var prev := 0.0
+	var grows := true
+	for n in range(2, 6):
+		var ch: Dictionary = Story.chapter(n)
+		var loot: float = float(Data.chest_rewards(int(ch.to), "normal").credits)
+		grows = grows and float(ch.reward.credits) > prev and float(ch.reward.credits) >= 5.0 * float(loot)
+		prev = float(ch.reward.credits)
+	_check(grows, "récompenses de chapitre croissantes, au moins 5 coffres du dernier étage")
 	_check(Data.boss_name(40) == "Gardien du dernier seuil" and Data.boss_name(10) == "Gardien de verre", "le dernier Gardien a son nom")
 	_check(Story.short_name("holt") == "Holt" and Story.short_name("kai") == "Kaï", "noms courts")
 	_g.best_stage = 45
 	var credits1: float = _g.credits
 	_g.story_catch_up()
-	_check(_g.chapters_done.has(5) and is_equal_approx(_g.credits - credits1, 8000.0), "chapitres 4 et 5 payés une fois en rattrapage")
+	_check(_g.chapters_done.has(5) and is_equal_approx(_g.credits - credits1, 84000.0) and _g.tips.has("badge:Héros de la Ceinture"), "chapitres 4 et 5 payés une fois en rattrapage")
 	_g.save_game()
 	var g2: Node = load("res://scripts/game.gd").new()
 	g2.save_path = _g.save_path
@@ -548,6 +556,7 @@ func test_board_chapter() -> void:
 	_g.ship_update()
 	var s: ShipState = _g.ship
 	_check(s.unlocked and not _g.mission_open() and _g.credits >= 250.0, "Aurore ouverte dès le départ, prime de départ, mission fermée")
+	_check(_g.is_owned("vance") and s.post_of("vance") == "pont" and not _g.squad.has("vance") and _g.voyage_done() == 0, "Vance à bord dès le départ, au Pont, hors escouade")
 	_check(_g.voyage_done() == 0 and Story.board_pending([], 0).get("id", "") == "b1_bord", "scène « À bord » d'abord")
 	var seen: Array = ["b1_bord"]
 	_check(Story.board_pending(seen, 0).is_empty(), "rien avant le premier objectif")

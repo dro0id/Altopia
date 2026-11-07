@@ -7,15 +7,16 @@ const Data = preload("res://scripts/data.gd")
 ## Une scène : {id, chapter, title, sub, when ("before" ou "after"), stage, lines}. Une réplique : {who, text} ;
 ## une réplique avec `choice` propose deux réponses au Capitaine, et `replies` donne la réplique qui suit chacune.
 
+## Récompenses de chapitre : environ 10 étages de butin du dernier étage du chapitre, pour garder leur poids jusqu'au bout.
 ## Chapitre 1 « Cap sur Altopia » (maquettes SA à SH) : le voyage à bord de l'Aurore, sans combat, en objectifs de bord.
 ## Ensuite un chapitre = un secteur = 10 étages (maquettes GA à GF) : chapitres 2 à 5, étages 1 à 40 ;
 ## à partir de l'étage 41, secteurs générés sans histoire.
 const CHAPTERS := [
 	{"n": 1, "title": "Cap sur Altopia", "board": true, "from": 0, "to": 0, "color": Color("7dffb0"), "head": Color("103a2a"), "reward": {"credits": 500, "shards": 5, "tokens": 3}},
-	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1000, "shards": 10, "tokens": 6}},
-	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 2000, "shards": 20, "tokens": 6}},
-	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 3000, "shards": 30, "tokens": 6}},
-	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 5000, "shards": 50, "tokens": 10, "badge": "Héros de la Ceinture"}},
+	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1700, "shards": 10, "tokens": 6}},
+	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 5700, "shards": 20, "tokens": 6}},
+	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 19000, "shards": 30, "tokens": 6}},
+	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 65000, "shards": 50, "tokens": 10, "badge": "Héros de la Ceinture"}},
 ]
 
 ## Personnages qui parlent sans être des héros jouables, avec leur dessin (« crystal », « prism », « moth », « voice », « gold »).
@@ -37,7 +38,7 @@ const PROLOGUE := [
 const SCENES := [
 	# chapitre 1 · à bord (when « board ») : jouées après l'objectif de bord `after` (nombre d'objectifs remplis)
 	{"id": "b1_bord", "chapter": 1, "title": "À bord", "sub": "Après le prologue · Vance, Mara", "when": "board", "after": 0, "stage": 0, "lines": [
-		{"who": "vance", "text": "Bienvenue sur l’Aurore, Capitaine. Six semaines jusqu’à Altopia."},
+		{"who": "vance", "text": "Cap tenu, Capitaine. Six semaines jusqu’à Altopia, et un vaisseau à remplir."},
 		{"who": "mara", "text": "Elle tourne à vide. Donnez-moi des bras et je vous rends des éclats.", "choice": ["Au travail.", "On a six semaines."],
 			"replies": [{"who": "mara", "text": "Voilà un Capitaine qui me plaît."}, {"who": "mara", "text": "Six semaines, c’est court pour un vaisseau vide."}]},
 	]},
@@ -110,6 +111,7 @@ const SCENES := [
 	{"id": "c2_fin", "chapter": 3, "title": "Ne répondez pas", "sub": "Fin du chapitre 3 · Vance, Kaï", "when": "after", "stage": 20, "end": 3, "lines": [
 		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
 		{"who": "kai", "text": "Un peu tard."},
+		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Encore un chantier et elle passe en version II."},
 	]},
 	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
 		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},
@@ -170,6 +172,7 @@ const SCENES := [
 		{"who": "vance", "text": "Merci, papa."},
 		{"who": "zyra", "text": "Le verre continue plus bas. Sans signal. Sans fin."},
 		{"who": "mara", "text": "Alors on continue. C'est notre métier.", "key": true},
+		{"who": "vance", "text": "Et un jour, il faudra une vraie base. Sur une planète, avec un ciel."},
 	]},
 ]
 

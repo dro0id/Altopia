@@ -6,6 +6,12 @@ extends Overlay
 signal board_requested
 
 const POINTS := [
+	["ship", "L’Aurore est ton port d’attache", "le jeu s’ouvre toujours sur elle"],
+	["up", "Prépare-la pendant le voyage", "6 objectifs de bord jusqu’à la Ceinture"],
+	["swords", "À l’arrivée, la mission commence", "le combat tourne seul, même jeu fermé"],
+]
+## Partie déjà arrivée (sauvegarde d'avant le chapitre 1 à bord) : l'Aurore devient l'accueil, le combat sa mission.
+const POINTS_HOME := [
 	["ship", "Le jeu s’ouvre sur l’Aurore", "ton vaisseau devient l’écran d’accueil"],
 	["swords", "Le combat devient ta mission", "il continue seul, même jeu fermé"],
 	["up", "Les gains remplissent les soutes", "récolte, puis fais grandir l’Aurore"],
@@ -57,13 +63,14 @@ func _draw_body() -> void:
 	M3.text(c, Vector2(0, 140), "Bienvenue à bord", 48, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	var r := Rect2(36, 770, 648, 296)
 	M3.card(c, r, M3.S2, 40)
-	for i in POINTS.size():
+	var pts: Array = POINTS_HOME if Game.mission_open() else POINTS
+	for i in pts.size():
 		var y := r.position.y + 32.0 + i * 88.0
 		var ib := Rect2(r.position.x + 28, y, 64, 64)
 		c.draw_style_box(UI.box(Color("1a1530"), Color(UI.GOLD, 0.4), 20, 0), ib)
-		_glyph(c, String(POINTS[i][0]), ib.get_center())
-		M3.text(c, Vector2(r.position.x + 116, y + 28), String(POINTS[i][1]), 28, UI.TEXT, true, 500)
-		M3.text(c, Vector2(r.position.x + 116, y + 60), String(POINTS[i][2]), 22, UI.MUTED, false, 500)
+		_glyph(c, String(pts[i][0]), ib.get_center())
+		M3.text(c, Vector2(r.position.x + 116, y + 28), String(pts[i][1]), 28, UI.TEXT, true, 500)
+		M3.text(c, Vector2(r.position.x + 116, y + 60), String(pts[i][2]), 22, UI.MUTED, false, 500)
 
 
 func _glyph(c: Control, kind: String, p: Vector2) -> void:

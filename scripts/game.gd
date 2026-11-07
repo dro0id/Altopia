@@ -405,6 +405,16 @@ func _migrate_story() -> void:
 				seen_scenes.append(String(sc.id))
 		if not chapters_done.has(1):
 			chapters_done.append(1)
+	if ship.unlocked:
+		vance_aboard()
+
+
+## Vance pilote l'Aurore depuis le prologue : il est à bord dès le départ, hors escouade, au poste du Pont.
+func vance_aboard() -> void:
+	if not is_owned("vance"):
+		owned["vance"] = true
+	if not squad.has("vance") and ship.post_of("vance") == "" and (ship.posts.get("pont", []) as Array).size() < ship.max_posts("pont"):
+		(ship.posts["pont"] as Array).append("vance")
 
 
 ## La mission (le combat) s'ouvre à l'arrivée, à la fin du chapitre 1.
@@ -416,8 +426,9 @@ func mission_open() -> bool:
 func voyage_done() -> int:
 	var has_post := false
 	for r in ship.posts:
-		if not (ship.posts[r] as Array).is_empty():
-			has_post = true
+		for h in ship.posts[r]:
+			if String(h) != "vance":
+				has_post = true
 	var conds := [ship.harvests > 0, pulls > 0, has_post,
 		ship.level >= 2 or not ship.building("pont").is_empty(),
 		ship.room_level("raffinerie") >= 2 or not ship.building("raffinerie").is_empty(),
@@ -438,6 +449,8 @@ func complete_chapter(n: int) -> Dictionary:
 	if c.is_empty():
 		return {}
 	chapters_done.append(n)
+	if c.reward.has("badge") and not tips.has("badge:" + String(c.reward.badge)):
+		tips.append("badge:" + String(c.reward.badge))
 	credits += float(c.reward.credits)
 	shards += int(c.reward.shards)
 	tokens += int(c.reward.tokens)
@@ -941,6 +954,7 @@ func ship_update() -> Dictionary:
 			# prime de départ de l'Amirauté et soute de la Raffinerie déjà pleine : de quoi lancer les objectifs du chapitre 1
 			credits += float(Ship.START_CREDITS)
 			ship.stock["raffinerie"] = maxf(float(ship.stock.get("raffinerie", 0.0)), 10.0)
+			vance_aboard()
 			changed.emit()
 		return {}
 	var ev := ship.tick(self)

@@ -136,7 +136,13 @@ func _refresh() -> void:
 	if view.level != s.level or view.opened != s.rooms.duplicate():
 		view.setup(s.level, s.posts, s.rooms)
 	var ti := Ship.tier_info(s.level)
-	_sub.text = ("Niveau %d · Amiral de l’Aurore" % s.level) if Game.tips.has("prestige") else ("Niveau %d · %s" % [s.level, ti.name])
+	# titres gagnés : Amiral de l'Aurore (niveau 20), sinon Héros de la Ceinture (fin de l'histoire)
+	if Game.tips.has("prestige"):
+		_sub.text = "Niveau %d · Amiral de l’Aurore" % s.level
+	elif Game.tips.has("badge:Héros de la Ceinture"):
+		_sub.text = "Niveau %d · Héros de la Ceinture" % s.level
+	else:
+		_sub.text = "Niveau %d · %s" % [s.level, ti.name]
 	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))
 	(_chips[1] as HudButton).set_texts(str(Game.shards))
 	var n := s.ready_rooms().size()
