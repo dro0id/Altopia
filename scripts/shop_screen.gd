@@ -128,6 +128,7 @@ func _card(it: Dictionary, pos: Vector2, sz: Vector2) -> void:
 	d.position = Vector2(32, 122)
 	d.size = Vector2(256, 34)
 	d.clip_text = true
+	d.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var b := _price_button(c, Rect2(32, 160, 256, 96), int(it.cost), "ghost", func(): _buy(it.id))
 	_live.append([c, func():
 		b.disabled = Game.crystals < int(it.cost)

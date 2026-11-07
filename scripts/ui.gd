@@ -35,7 +35,6 @@ static func label(parent: Node, text: String, size: int, col: Color = Color.WHIT
 	if bold:
 		l.add_theme_font_override("font", bold_font())
 	l.text = text
-	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	parent.add_child(l)

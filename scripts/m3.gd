@@ -40,6 +40,7 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 	t.name = "Title"
 	t.position = Vector2(x, 56 - (fs(40) + 14) * 0.5)
 	t.clip_text = true
+	t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS     # titre trop long : coupé par « … »
 	t.size = Vector2(600 - x, fs(40) + 14)
 	var rx := 712.0
 	var acts := actions.duplicate()

@@ -338,7 +338,7 @@ func _layout() -> void:
 	_boss_bar.visible = _boss != ""
 	_info.position = Vector2(32, top + (96.0 if _boss != "" else 16.0))
 	_buffs.position = Vector2(32, _strip.position.y - 64.0)
-	_toast_box.position = Vector2(32, _strip.position.y - 120.0)
+	_toast_box.position = Vector2(32, _strip.position.y - 184.0)      # au-dessus des renforts actifs
 
 
 func _on_tab(i: int) -> void:
