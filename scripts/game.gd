@@ -242,11 +242,12 @@ func recruit(count: int) -> Array:
 		var id: String = pool[rng.randi() % pool.size()]
 		if rarity == "epic" and rng.randf() < 0.5:
 			id = Data.featured_hero(_today())
-		if pulls == 0 and is_owned(id):
+		if pulls == 0 and (is_owned(id) or id == "vance"):
 			# première recrue du voyage (chapitre 1) : toujours un nouveau visage
-			var fresh: Array = Data.ALL_HEROES.filter(func(h): return not is_owned(h) and Data.HEROES[h].rarity == rarity)
+			# Vance est déjà à bord dans l'histoire (il pilote l'Aurore) : la première recrue est quelqu'un d'autre
+			var fresh: Array = Data.ALL_HEROES.filter(func(h): return not is_owned(h) and h != "vance" and Data.HEROES[h].rarity == rarity)
 			if fresh.is_empty():
-				fresh = Data.ALL_HEROES.filter(func(h): return not is_owned(h))
+				fresh = Data.ALL_HEROES.filter(func(h): return not is_owned(h) and h != "vance")
 			if not fresh.is_empty():
 				id = fresh[rng.randi() % fresh.size()]
 				rarity = String(Data.HEROES[id].rarity)
