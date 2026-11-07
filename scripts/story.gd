@@ -59,10 +59,10 @@ const SCENES := [
 	]},
 	{"id": "b1_fin", "chapter": 1, "title": "La Ceinture d’Altopia", "sub": "Arrivée · Oru, Vance", "when": "board", "after": 6, "stage": 0, "end": 1, "lines": [
 		{"who": "oru", "text": "La Ceinture… Le verre a un trou au milieu. Un trou qui respire.", "key": true},
-		{"who": "vance", "text": "Le signal vient de l’intérieur. Préparez l’escouade, on descend étage par étage."},
+		{"who": "vance", "text": "Le signal vient de l’intérieur. Préparez l’escouade, on descend secteur par secteur."},
 	]},
 	{"id": "c1_entree", "chapter": 2, "title": "L'entrée", "sub": "Avant l'étage 1 · Vance, Mara", "when": "before", "stage": 1, "lines": [
-		{"who": "vance", "text": "Premier étage du Trou de verre, Capitaine. Le signal est juste en dessous."},
+		{"who": "vance", "text": "Premier secteur du Trou de verre, Capitaine. Le signal est juste en dessous."},
 		{"who": "mara", "text": "Des drones à l'entrée. Pas vraiment un comité d'accueil.", "choice": ["On passe en force.", "Restez prudents."],
 			"replies": [{"who": "vance", "text": "Bien reçu. En force, donc."}, {"who": "vance", "text": "Prudents. C'est noté, Capitaine."}]},
 	]},
@@ -111,7 +111,7 @@ const SCENES := [
 	{"id": "c2_fin", "chapter": 3, "title": "Ne répondez pas", "sub": "Fin du chapitre 3 · Vance, Kaï", "when": "after", "stage": 20, "end": 3, "lines": [
 		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
 		{"who": "kai", "text": "Un peu tard."},
-		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque étage."},
+		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque secteur franchi."},
 	]},
 	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
 		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},

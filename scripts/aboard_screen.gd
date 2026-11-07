@@ -35,6 +35,7 @@ func _init() -> void:
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	st.add_child(view)
 	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
+	view.set_cut(false)                   # cinématique : le vaisseau entier, pas la coupe
 	view.yaw = -0.4
 	view.anims.append(func(t): view.yaw = -0.4 + t * 0.2)
 	var b := M3.button(st, "Monter à bord", Rect2(64, UI.H - 64 - 104, 592, 104), "main", 32)
