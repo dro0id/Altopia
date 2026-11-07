@@ -140,7 +140,7 @@ func _draw_content() -> void:
 	if not b.is_empty():
 		var br := Rect2(32, y, 656, 120)
 		M3.card(c, br, M3.S2, 32, Color(UI.GOLD, 0.5))
-		M3.text(c, Vector2(64, y + 50), "Amélioration → niveau %d" % int(b.to), 28, UI.TEXT, true)
+		M3.text(c, Vector2(64, y + 50), "Amélioration → niveau %d" % int(b.to), 28, UI.TEXT, true, 380)
 		var tot := float(Ship.upgrade_cost(room, int(b.to), st.rank("logistique")).time)
 		var rem := float(st.remaining(int(b.end)))
 		M3.text(c, Vector2(64, y + 50), "⏱ " + UI.duration(rem), 26, UI.GOLD, true, 592, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -352,8 +352,8 @@ func _destinations(c: Control, y: float) -> float:
 			if on:
 				c.draw_circle(ic, 9, UI.ACCENT)
 		var tc := UI.MUTED if lock else UI.TEXT
-		M3.text(c, Vector2(144, y + 48), String(row[0]), 28, tc, true, 400)
-		M3.text(c, Vector2(144, y + 84), String(row[1]), 22, UI.MUTED, false, 400)
+		M3.text(c, Vector2(144, y + 48), String(row[0]), 28, tc, true, 330 if on else 480)
+		M3.text(c, Vector2(144, y + 84), String(row[1]), 22, UI.MUTED, false, 330 if on else 480)
 		if on:
 			M3.text(c, Vector2(0, y + 66), "REJOINDRE", 22, UI.ACCENT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
 		elif not lock:
@@ -407,7 +407,7 @@ func _labo(c: Control, y: float) -> float:
 		var rk := st.rank(id)
 		M3.text(c, r.position + Vector2(32, 48), String(info.name), 28, UI.TEXT, true)
 		M3.text(c, r.position + Vector2(32 + M3.text_w(String(info.name), 28, true) + 14, 48), "rang %d / %d" % [rk, Ship.RESEARCH_MAX], 22, UI.MUTED)
-		M3.text(c, r.position + Vector2(32, 92), "%s · actuel +%d %%" % [info.desc, int(round(st.research_bonus(id) * 100.0))], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else 420)
+		M3.text(c, r.position + Vector2(32, 92), "%s · actuel +%d %%" % [info.desc, int(round(st.research_bonus(id) * 100.0))], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else (360 if running else 420))
 		var block := st.research_block(Game, id)
 		if running:
 			var rem := st.remaining(int(st.research_job.end))
