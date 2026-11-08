@@ -256,6 +256,15 @@ func _initialize() -> void:
 			g.tips.append("ship")
 			main._open_ship()
 			await create_timer(1.0).timeout,
+		"hangar_construire": func():
+			_ship(11)
+			g.ship.rooms["hangar"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			g.tips.append("build")
+			main._open_ship()
+			await process_frame
+			main._modal._select("hangar"),
 		"construire_fiche": func():
 			_ship(5)
 			g.ship.rooms["serre"] = 0

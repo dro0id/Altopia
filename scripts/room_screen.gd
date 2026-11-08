@@ -291,7 +291,8 @@ func _pont(c: Control, y: float) -> float:
 	y += 48.0
 	var unl := {}
 	for r in Ship.ORDER:
-		unl[int(Ship.ROOMS[r].unlock)] = String(Ship.ROOMS[r].name)
+		var k := int(Ship.ROOMS[r].unlock)
+		unl[k] = (String(unl[k]) + ", " if unl.has(k) else "") + String(Ship.ROOMS[r].name)
 	var shown := 0
 	for lv in range(st.level, Ship.MAX_LEVEL + 1):
 		if shown >= 6:

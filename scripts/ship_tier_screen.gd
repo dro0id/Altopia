@@ -6,8 +6,8 @@ extends Overlay
 signal visit_requested
 
 const NEWS := {
-	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion, radiateurs, Hangar au niveau 10"],
-	3: ["5e module : l’Antenne s’ouvre, avec le Labo (niveau 11)", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
+	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion et radiateurs"],
+	3: ["5e module : l’Antenne, le Labo et le Hangar s’ouvrent (niveau 11)", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
 	4: ["Anneau de gravité tournant", "Finitions et propulseur dorés", "6 panneaux radiateurs"],
 	5: ["Flèche de cristal et sphère armillaire", "Voiles de lumière, fusion prismatique", "Coque nacre et poussière d’or"],
 }
