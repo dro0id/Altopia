@@ -167,7 +167,9 @@ func _draw_victory() -> void:
 	else:
 		M3.text(c, Vector2(32, r.position.y + 200), "+ %s crédits" % UI.num(_chest.credits), 40, UI.GOLD, true, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	# butin
-	var chips := [["coin", "+" + UI.short(_chest.credits)], ["shard", "+%d" % int(_chest.shards)], ["token", "+%d" % int(_chest.get("tokens", 0))]]
+	var chips := [["coin", "+" + UI.short(_chest.credits)], ["shard", "+%d" % int(_chest.shards)]]
+	if int(_chest.get("tokens", 0)) > 0:
+		chips.append(["token", "+%d" % int(_chest.tokens)])
 	if int(_chest.get("item_tokens", 0)) > 0:
 		chips.append(["itoken", "+%d" % int(_chest.item_tokens)])
 	if int(_chest.get("crystals", 0)) > 0:

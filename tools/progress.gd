@@ -89,7 +89,7 @@ func _initialize() -> void:
 	var hs: Array = []
 	for id in g.squad_ids():
 		hs.append("%s %d★ niv %d (+%d)" % [id, int(g.hero_stars[id]), int(g.levels[id]), int(g.fragments[id])])
-	print("HÉROS ", hs, " · doublons au choix restants : ", g.wild, " · héros possédés : ", g.owned.size())
+	print("HÉROS ", hs, " · doublons au choix restants : ", g.wild, " · héros possédés : ", g.owned.size(), " · tirages : ", g.pulls, " · jetons restants : ", g.tokens)
 	print("TOTAL %.1f min de combat jusqu'à l'étage %d" % [t_total / 60.0, g.best_stage - 1])
 	if g.gen_tries > 0:
 		print("GÉNÉRÉ échecs : %d défaites, %d combats trop longs (> 240 s)" % [real_defeats, timeouts])

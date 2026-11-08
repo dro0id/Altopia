@@ -245,7 +245,7 @@ const LEVELS_PER_STAR := 10
 const STAR_STAT := 0.12                        # +12 % de statistiques par étoile (et pour « 5★ max »)
 const BIG_BOSS_COPIES := {1: 3, 2: 4, 3: 5}    # doublons au choix gagnés sur un gros boss (selon les étoiles du combat)
 const EXPEDITION_COPIES := 3                   # doublons au choix d'une trouvaille rare en expédition
-const CHEST_TOKENS := {"commun": 0, "normal": 1, "rare": 3, "epique": 5, "legendaire": 10, "ultime": 25}
+const CHEST_TOKENS := {"commun": 0, "normal": 0, "rare": 2, "epique": 3, "legendaire": 5, "ultime": 10}   # jetons de recrutement par coffre
 const BIG_BOSS_CRYSTALS := {1: 5, 2: 5, 3: 10}  # cristaux gagnés en battant un gros boss (selon les étoiles)
 
 # boutique : prix en cristaux d'Altopia (monnaie premium ; l'achat de cristaux contre argent réel viendra avec la publication)

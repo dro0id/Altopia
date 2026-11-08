@@ -709,7 +709,7 @@ func test_shop_and_tokens() -> void:
 	_check(_g.crystals >= 100 and c.crystals == 10, "un gros boss en 3 étoiles rapporte 10 cristaux")
 	var before: int = _g.tokens
 	_g.open_chest("rare", 3)
-	_check(_g.tokens == before + 3, "un coffre rare donne 3 jetons")
+	_check(_g.tokens == before + 2, "un coffre rare donne 2 jetons")
 
 
 func test_save_v4_and_migration() -> void:
