@@ -372,13 +372,13 @@ func _draw_mission() -> void:
 	var stg := int(Game.stage)
 	var sec := Sector.info(stg)
 	var boss := Data.boss_type(stg)
-	M3.text(c, Vector2(132, 40), "MISSION EN COURS", 20, UI.ACCENT, true)
-	var title := "Étage %d · %s" % [stg, "gros boss" if boss == "big" else ("mini-boss" if boss != "" else "combat auto")]
-	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
 	var where := String(sec.name) if not sec.is_empty() else "Trou de verre"
-	var line := "%s · +%s/min" % [where, UI.short(Game.offline_rate_per_minute())]
+	M3.text(c, Vector2(132, 40), where.to_upper() + " · EN COURS", 20, UI.ACCENT, true, 330)
+	var title := "Étage %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
+	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
+	var line := "Combat auto · +%s/min" % UI.short(Game.offline_rate_per_minute())
 	if mission_gain >= 1.0:
-		line = "%s · +%s à bord" % [where, UI.short(mission_gain)]
+		line = "Combat auto · +%s à bord" % UI.short(mission_gain)
 	M3.text(c, Vector2(132, 108), line, 22, UI.MUTED, false, 330)
 
 

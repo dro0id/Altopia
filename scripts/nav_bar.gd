@@ -28,7 +28,7 @@ func tabs() -> Array:
 ## Nom affiché d'un onglet.
 func label_of(i: int) -> String:
 	if ship_on and i == 0:
-		return "Mission"
+		return "Trou de verre"
 	if i == 2:
 		return "Aurore"
 	return ALL[i]
@@ -89,7 +89,7 @@ func _draw() -> void:
 		else:
 			_icon(i, Vector2(cx, 56), col)
 		var lab := label_of(i)
-		draw_string(UI.bold_font() if on else f, Vector2(x0, 128), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED)
+		M3.text(self, Vector2(x0, 128), lab, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED, on, w - 4.0, HORIZONTAL_ALIGNMENT_CENTER)
 		var n: int = badges[i]
 		if n > 0:
 			var bc := Vector2(cx + 34.0, 28.0)

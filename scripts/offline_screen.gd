@@ -35,7 +35,7 @@ func _init(report: Dictionary) -> void:
 				M3.text(body, Vector2(64, yy + 100 + i * 46), String(ship_lines[i][0]), 26, UI.TEXT)
 				M3.text(body, Vector2(64, yy + 100 + i * 46), String(ship_lines[i][1]), 26, UI.GREEN, true, 592, HORIZONTAL_ALIGNMENT_RIGHT)
 			yy += h + 24.0
-			M3.text(body, Vector2(32, yy + 20), "MISSION · ÉTAGE %d" % int(Game.stage), 22, Color("ffb142"), true)
+			M3.text(body, Vector2(32, yy + 20), ("%s · ÉTAGE %d" % [String(Sector.info(int(Game.stage)).get("name", "Trou de verre")).to_upper(), int(Game.stage)]), 22, Color("ffb142"), true)
 			yy += 40.0
 		var rows := [["coin", "Crédits", "Farm automatique", "+" + UI.num(report.credits), UI.GOLD], ["shard", "Éclats de verre", "Collectés", "+%d" % int(report.get("shards", 0)), Color("7fdcff")]]
 		for i in 2:

@@ -850,7 +850,7 @@ func test_ship() -> void:
 	_g.shards = 0
 	var nb = load("res://scripts/nav_bar.gd").new()
 	nb.ship_on = true
-	_check(nb.tabs()[0] == 2 and nb.label_of(2) == "Aurore" and nb.label_of(0) == "Mission", "barre du bas : l'Aurore en premier, le combat devient Mission")
+	_check(nb.tabs()[0] == 2 and nb.label_of(2) == "Aurore" and nb.label_of(0) == "Trou de verre", "barre du bas : l'Aurore en premier, le combat devient Trou de verre")
 	nb.ship_on = false
 	_check(nb.tabs() == [0, 1, 3, 4] and nb.label_of(0) == "Combat", "avant l'Aurore : quatre onglets, Combat en premier")
 	nb.free()

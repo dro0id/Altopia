@@ -333,7 +333,7 @@ func _destinations(c: Control, y: float) -> float:
 		c.draw_style_box(lsb, lr)
 		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 20, 0), Rect2(56, y + 24, 64, 64))
 		M3.lock(c, Vector2(88, y + 56), UI.MUTED, 1.0)
-		M3.text(c, Vector2(144, y + 48), "Mission · en route", 28, UI.MUTED, true, 480)
+		M3.text(c, Vector2(144, y + 48), "Trou de verre · en route", 28, UI.MUTED, true, 480)
 		M3.text(c, Vector2(144, y + 84), "Le Pont la pilotera à l’arrivée à Altopia", 22, UI.MUTED, false, 480)
 		return y + 144.0
 	var stg := int(Game.stage)
