@@ -12,11 +12,11 @@ const Data = preload("res://scripts/data.gd")
 ## Ensuite un chapitre = un secteur = 10 étages (maquettes GA à GF) : chapitres 2 à 5, étages 1 à 40 ;
 ## à partir de l'étage 41, secteurs générés sans histoire.
 const CHAPTERS := [
-	{"n": 1, "title": "Cap sur Altopia", "board": true, "from": 0, "to": 0, "color": Color("7dffb0"), "head": Color("103a2a"), "reward": {"credits": 500, "shards": 5, "tokens": 3}},
-	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1700, "shards": 10, "tokens": 6}},
-	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 5700, "shards": 20, "tokens": 6}},
-	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 19000, "shards": 30, "tokens": 6}},
-	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 65000, "shards": 50, "tokens": 10, "badge": "Héros de la Ceinture"}},
+	{"n": 1, "title": "Cap sur Altopia", "board": true, "from": 0, "to": 0, "color": Color("7dffb0"), "head": Color("103a2a"), "reward": {"credits": 500, "shards": 5, "tokens": 3, "copies": 10}},
+	{"n": 2, "title": "Le signal", "teaser": "au cœur de la Ceinture, un trou de verre.", "from": 1, "to": 10, "color": Color("4fd8ff"), "head": Color("16305e"), "reward": {"credits": 1700, "shards": 10, "tokens": 3, "copies": 15}},
+	{"n": 3, "title": "Les Échos", "from": 11, "to": 20, "color": Color("b388ff"), "head": Color("2c1866"), "teaser": "le signal répond avec des voix humaines.", "reward": {"credits": 5700, "shards": 20, "tokens": 4, "copies": 20}},
+	{"n": 4, "title": "Le Retour", "from": 21, "to": 30, "color": Color("ffb142"), "head": Color("4a2c10"), "teaser": "le signal remonte vers la Terre.", "reward": {"credits": 19000, "shards": 30, "tokens": 4, "copies": 30}},
+	{"n": 5, "title": "Le dernier seuil", "from": 31, "to": 40, "color": Color("ffd166"), "head": Color("4a3a10"), "teaser": "le cœur de la Ceinture bat, très fort.", "reward": {"credits": 65000, "shards": 50, "tokens": 6, "copies": 40, "badge": "Héros de la Ceinture"}},
 ]
 
 ## Personnages qui parlent sans être des héros jouables, avec leur dessin (« crystal », « prism », « moth », « voice », « gold »).
@@ -59,10 +59,10 @@ const SCENES := [
 	]},
 	{"id": "b1_fin", "chapter": 1, "title": "La Ceinture d’Altopia", "sub": "Arrivée · Oru, Vance", "when": "board", "after": 6, "stage": 0, "end": 1, "lines": [
 		{"who": "oru", "text": "La Ceinture… Le verre a un trou au milieu. Un trou qui respire.", "key": true},
-		{"who": "vance", "text": "Le signal vient de l’intérieur. Préparez l’escouade, on descend étage par étage."},
+		{"who": "vance", "text": "Le signal vient de l’intérieur. Préparez l’escouade, on descend secteur par secteur."},
 	]},
 	{"id": "c1_entree", "chapter": 2, "title": "L'entrée", "sub": "Avant l'étage 1 · Vance, Mara", "when": "before", "stage": 1, "lines": [
-		{"who": "vance", "text": "Premier étage du Trou de verre, Capitaine. Le signal est juste en dessous."},
+		{"who": "vance", "text": "Premier secteur du Trou de verre, Capitaine. Le signal est juste en dessous."},
 		{"who": "mara", "text": "Des drones à l'entrée. Pas vraiment un comité d'accueil.", "choice": ["On passe en force.", "Restez prudents."],
 			"replies": [{"who": "vance", "text": "Bien reçu. En force, donc."}, {"who": "vance", "text": "Prudents. C'est noté, Capitaine."}]},
 	]},
@@ -111,7 +111,7 @@ const SCENES := [
 	{"id": "c2_fin", "chapter": 3, "title": "Ne répondez pas", "sub": "Fin du chapitre 3 · Vance, Kaï", "when": "after", "stage": 20, "end": 3, "lines": [
 		{"who": "vance", "text": "Dernier message de mon père : “Si quelqu'un nous trouve, ne répondez pas.”", "key": true},
 		{"who": "kai", "text": "Un peu tard."},
-		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque étage."},
+		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque secteur franchi."},
 	]},
 	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
 		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},

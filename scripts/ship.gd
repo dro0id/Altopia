@@ -19,7 +19,7 @@ const ROOMS := {
 	"antenne": {"name": "Antenne", "short": "Antenne", "color": Color("ff7ad9"), "unlock": 11, "jobs": ["Navigatrice", "Pilote", "Tireuse d'élite"], "res": "tokens"},
 	"labo": {"name": "Labo", "short": "Labo", "color": Color("b388ff"), "unlock": 11, "jobs": ["Scientifique"], "res": ""},
 	"quartiers": {"name": "Quartiers", "short": "Quartiers", "color": Color("7dffb0"), "unlock": 8, "jobs": ["Médecin", "Cheffe médecin"], "res": ""},
-	"hangar": {"name": "Hangar", "short": "Hangar", "color": Color("4fd8ff"), "unlock": 10, "jobs": ["Pilote", "Navigatrice"], "res": ""},
+	"hangar": {"name": "Hangar", "short": "Hangar", "color": Color("4fd8ff"), "unlock": 11, "jobs": ["Pilote", "Navigatrice"], "res": ""},
 	"serre": {"name": "Serre", "short": "Serre", "color": Color("9dff6b"), "unlock": 5, "jobs": ["Cheffe médecin", "Médecin", "Scientifique"], "res": "credits"},
 	"observatoire": {"name": "Observatoire", "short": "Observatoire", "color": Color("e6d6ff"), "unlock": 14, "jobs": ["Navigatrice", "Scientifique", "Tireuse d'élite"], "res": ""},
 }
@@ -103,6 +103,12 @@ static func upgrade_cost(room: String, to_level: int, logistique := 0) -> Dictio
 		shards = int(round(float(lv) * (1.0 if room == "pont" else 1.5)))
 	var t := float(BUILD_TIME[lv]) * maxf(0.5, 1.0 - 0.05 * logistique)
 	return {"credits": credits, "shards": shards, "time": int(t)}
+
+
+## Coût de construction d'une salle (niveau 1) : celui d'une amélioration au niveau du vaisseau auquel elle s'ouvre,
+## donc de plus en plus cher pour les salles tardives.
+static func build_cost(room: String, logistique := 0) -> Dictionary:
+	return upgrade_cost(room, maxi(2, int(ROOMS[room].unlock)), logistique)
 
 
 ## Production de base par heure d'une salle au niveau `lv` (ressource : RES de la salle).

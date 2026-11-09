@@ -18,11 +18,11 @@ var stars := {}                 # étage -> meilleures étoiles (1 à 3)
 var pity := {"leg": 0, "ult": 0}
 var perseverance := 0          # défaites d'affilée : +5 % de statistiques chacune, remis à zéro à la victoire
 var boosts: Array = []         # renforts actifs jusqu'au prochain boss
-var evolved := {}              # héros -> palier d'évolution (0 à 2)
+var wild := 0                   # doublons « au choix » : à répartir sur n'importe quel héros
 var pending_chest := {}        # coffre gagné mais pas encore ouvert à l'écran
 var owned := {}                # héros possédés (id -> true)
-var hero_stars := {}           # héros -> étoiles (1 à 5)
-var fragments := {}            # héros -> fragments pour la prochaine étoile
+var hero_stars := {}           # héros -> rang d'étoiles (1 à 5, 6 = « 5★ max »)
+var fragments := {}            # héros -> doublons pour la prochaine étoile
 var squad: Array = []          # les 5 héros au combat, un par emplacement (0 = première ligne au centre)
 var seen_scenes: Array = []      # scènes d'histoire déjà vues (branche 2)
 var story_choices := {}          # réponse choisie par le Capitaine, par scène
@@ -134,7 +134,7 @@ func reset() -> void:
 	pity = {"leg": 0, "ult": 0}
 	perseverance = 0
 	boosts = []
-	evolved = {}
+	wild = 0
 	pending_chest = {}
 	auto_cast = true
 	speed = 1.0
@@ -216,14 +216,23 @@ func star_cost(id: String) -> int:
 	return Data.star_cost(int(hero_stars[id]))
 
 
+## Doublons disponibles pour ce héros : les siens, plus les doublons au choix.
+func copies_for(id: String) -> int:
+	return int(fragments[id]) + wild
+
+
 func can_star_up(id: String) -> bool:
-	return is_owned(id) and int(hero_stars[id]) < Data.MAX_STARS and int(fragments[id]) >= star_cost(id)
+	return is_owned(id) and int(hero_stars[id]) < Data.MAX_STARS and copies_for(id) >= star_cost(id)
 
 
+## Monte d'une étoile : on dépense d'abord les doublons du héros, puis les doublons au choix.
 func star_up(id: String) -> bool:
 	if not can_star_up(id):
 		return false
-	fragments[id] = int(fragments[id]) - star_cost(id)
+	var cost := star_cost(id)
+	var own := mini(int(fragments[id]), cost)
+	fragments[id] = int(fragments[id]) - own
+	wild -= cost - own
 	hero_stars[id] = int(hero_stars[id]) + 1
 	changed.emit()
 	return true
@@ -256,7 +265,7 @@ func recruit(count: int) -> Array:
 		if is_new:
 			owned[id] = true
 		else:
-			frag = int(Data.DUP_FRAGMENTS[rarity])
+			frag = Data.DUP_COPIES
 			fragments[id] = int(fragments[id]) + frag
 		pulls += 1
 		last_pulls.push_front({"id": id, "rarity": rarity})
@@ -314,6 +323,9 @@ func buy(item_id: String) -> String:
 		if it.has("tokens"):
 			tokens += int(it.tokens)
 			msg.append("+ %d jetons" % int(it.tokens))
+		if it.has("copies"):
+			wild += int(it.copies)
+			msg.append("+ %d doublons au choix" % int(it.copies))
 		if it.has("item_tokens"):
 			item_tokens += int(it.item_tokens)
 			msg.append("+ %d jetons d'objet" % int(it.item_tokens))
@@ -449,6 +461,7 @@ func complete_chapter(n: int) -> Dictionary:
 	if c.is_empty():
 		return {}
 	chapters_done.append(n)
+	wild += int(c.reward.get("copies", 0))
 	if c.reward.has("badge") and not tips.has("badge:" + String(c.reward.badge)):
 		tips.append("badge:" + String(c.reward.badge))
 	credits += float(c.reward.credits)
@@ -736,41 +749,23 @@ func level_cost(id: String) -> int:
 	return Data.level_cost(int(levels[id]))
 
 
+## Palier de puissance du combat (0 à 2) : le pouvoir et les statistiques gagnent à 2★ et 3★.
 func tier(id: String) -> int:
-	return int(evolved.get(id, 0))
+	return clampi(int(hero_stars[id]) - 1, 0, 2)
 
 
+## Niveau maximal atteint pour l'étoile actuelle : il faut une étoile de plus pour continuer.
 func at_cap(id: String) -> bool:
-	return int(levels[id]) >= Data.level_cap(tier(id))
+	return int(levels[id]) >= Data.level_cap(int(hero_stars[id]))
 
 
 func can_level(id: String) -> bool:
 	return not at_cap(id) and credits >= level_cost(id)
 
 
-## Un héros au niveau maximal de son palier doit évoluer pour continuer.
-func can_evolve(id: String) -> bool:
-	return at_cap(id) and tier(id) < Data.EVO_LEVELS.size()
-
-
-func evolve_cost(id: String) -> Dictionary:
-	return Data.evolve_cost(int(levels[id]), tier(id))
-
-
-func can_afford_evolve(id: String) -> bool:
-	var c := evolve_cost(id)
-	return can_evolve(id) and credits >= c.credits and shards >= c.shards
-
-
-func evolve(id: String) -> bool:
-	if not can_afford_evolve(id):
-		return false
-	var c := evolve_cost(id)
-	credits -= c.credits
-	shards -= int(c.shards)
-	evolved[id] = tier(id) + 1
-	changed.emit()
-	return true
+## Un héros au niveau maximal de son étoile a besoin d'une étoile de plus (donc de doublons) pour continuer.
+func needs_star(id: String) -> bool:
+	return is_owned(id) and at_cap(id) and int(hero_stars[id]) < 5
 
 
 func level_up(id: String) -> bool:
@@ -816,10 +811,12 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 	var chest := open_chest(Data.roll_chest(stage, star_count, rng, pity), stage, loot, defer, Data.boss_type(stage) == "big")
 	if Data.boss_type(stage) == "big":
 		chest["crystals"] = int(Data.BIG_BOSS_CRYSTALS[clampi(star_count, 1, 3)])
+		chest["copies"] = int(Data.BIG_BOSS_COPIES[clampi(star_count, 1, 3)])
 		if defer:
 			pending_chest = chest
 		else:
 			crystals += int(chest.crystals)
+			wild += int(chest.copies)
 	if Data.is_boss_stage(stage):
 		boosts = []
 	if stage >= best_stage:
@@ -870,6 +867,7 @@ func _pay(chest: Dictionary) -> void:
 	tokens += int(chest.get("tokens", 0))
 	item_tokens += int(chest.get("item_tokens", 0))
 	crystals += int(chest.get("crystals", 0))
+	wild += int(chest.get("copies", 0))
 
 
 ## Verse le coffre en attente (à l'ouverture, ou à la fermeture de l'écran si on le quitte avant).
@@ -997,7 +995,7 @@ func save_game() -> void:
 		"version": SAVE_VERSION, "credits": credits, "shards": shards, "levels": levels, "stage": stage, "best": best_stage,
 		"stars": star_save, "pity": pity, "auto": auto_cast, "speed": speed, "sfx": sfx_on, "music": music_on, "music_vol": music_vol, "sfx_vol": sfx_vol, "haptics": haptics, "dmg_numbers": dmg_numbers, "battery_saver": battery_saver, "reduce_shake": reduce_shake, "text_size": text_size, "battery_auto": battery_auto,
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
-		"perseverance": perseverance, "boosts": boosts, "evolved": evolved, "pending": pending_chest,
+		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
 		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
 	}))
@@ -1128,13 +1126,10 @@ func load_game() -> bool:
 	for b in parsed.get("boosts", []):
 		if Data.BOOSTS.has(String(b)):
 			boosts.append(String(b))
-	evolved = {}
+	wild = maxi(0, int(parsed.get("wild", 0)))
 	pending_chest = {}
 	var pc: Dictionary = parsed.get("pending", {})
 	var pending_load := pc
-	var ev: Dictionary = parsed.get("evolved", {})
-	for id in Data.ALL_HEROES:
-		evolved[id] = clampi(int(ev.get(id, 0)), 0, 2)
 	# collection : les anciennes sauvegardes (avant la branche 3) n'ont que les cinq héros de départ
 	if parsed.has("owned"):
 		owned = {}

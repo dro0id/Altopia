@@ -42,11 +42,12 @@ func _init(scene: Dictionary, replay := false) -> void:
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_st.add_child(bg)
 		var view := ShipView.new()
-		view.position = Vector2(140, 120)
-		view.size = Vector2(440, 520)
+		view.position = Vector2(60, 110)
+		view.size = Vector2(600, maxf(520.0, UI.H - 110.0 - 700.0))
 		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_st.add_child(view)
 		view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
+		view.set_cut(false)               # cinématique : le vaisseau entier, pas la coupe
 		view.yaw = -0.4
 		view.anims.append(func(t): view.yaw = -0.4 + t * 0.15)
 		var chip := Control.new()

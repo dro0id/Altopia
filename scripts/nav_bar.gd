@@ -17,18 +17,17 @@ static func total() -> float:
 var active := 0
 var badges: Array = [0, 0, 0, 0, 0]
 var ship_on := true            # onglet Vaisseau visible
-var mission_locked := false    # chapitre 1 : la mission attend l'arrivée (cadenas)
 
 
 ## Onglets affichés (indices de ALL).
 func tabs() -> Array:
-	return [2, 0, 1, 3, 4] if ship_on else [0, 1, 3, 4]
+	return [2, 1, 3, 4] if ship_on else [0, 1, 3, 4]      # avec l'Aurore, le combat n'est plus un onglet : on y entre depuis l'accueil
 
 
 ## Nom affiché d'un onglet.
 func label_of(i: int) -> String:
 	if ship_on and i == 0:
-		return "Mission"
+		return "Trou de verre"
 	if i == 2:
 		return "Aurore"
 	return ALL[i]
@@ -51,7 +50,6 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	mission_locked = not Game.mission_open()
 	queue_redraw()
 
 
@@ -84,18 +82,24 @@ func _draw() -> void:
 		# pastille d'indicateur (64 × 32 dp) derrière l'icône de l'onglet actif
 		if on:
 			UI.draw_gradient_box(self, Rect2(cx - minf(64.0, w * 0.42), 24.0, minf(128.0, w * 0.84), 64.0), 32.0, UI.TONAL, UI.TONAL, UI.TONAL, 1.0)
-		if i == 0 and mission_locked:
-			M3.lock(self, Vector2(cx, 56), col if on else Color(UI.MUTED, 0.6), 1.2)
-		else:
-			_icon(i, Vector2(cx, 56), col)
+		_icon(i, Vector2(cx, 56), col)
 		var lab := label_of(i)
-		draw_string(UI.bold_font() if on else f, Vector2(x0, 128), lab, HORIZONTAL_ALIGNMENT_CENTER, w, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED)
+		M3.text(self, Vector2(x0, 128), lab, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED, on, w - 4.0, HORIZONTAL_ALIGNMENT_CENTER)
 		var n: int = badges[i]
 		if n > 0:
 			var bc := Vector2(cx + 34.0, 28.0)
 			draw_circle(bc, 20, UI.BAR)
 			draw_circle(bc, 16, UI.RED)
 			draw_string(UI.bold_font(), bc + Vector2(-16, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 22, Color.WHITE)
+
+
+## Fusée de l'Aurore (onglet de la barre du bas, bouton « retour à l'Aurore » du combat).
+static func draw_ship_icon(ci: CanvasItem, c: Vector2, col: Color) -> void:
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -20), c + Vector2(9, -6), c + Vector2(9, 10), c + Vector2(-9, 10), c + Vector2(-9, -6)]), col)
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 2), c + Vector2(-16, 14), c + Vector2(-9, 12)]), col)
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(9, 2), c + Vector2(16, 14), c + Vector2(9, 12)]), col)
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-5, 12), c + Vector2(5, 12), c + Vector2(0, 20)]), UI.GOLD if col == UI.ACCENT else col)
+	ci.draw_circle(c + Vector2(0, -4), 3.5, UI.BAR)
 
 
 func _icon(i: int, c: Vector2, col: Color) -> void:
@@ -109,11 +113,7 @@ func _icon(i: int, c: Vector2, col: Color) -> void:
 			var pts := PackedVector2Array([c + Vector2(-16, -16), c + Vector2(16, -16), c + Vector2(16, 2), c + Vector2(0, 19), c + Vector2(-16, 2), c + Vector2(-16, -16)])
 			draw_polyline(pts, col, 3.0, true)
 		2:    # vaisseau (fusée vue de face)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -20), c + Vector2(9, -6), c + Vector2(9, 10), c + Vector2(-9, 10), c + Vector2(-9, -6)]), col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 2), c + Vector2(-16, 14), c + Vector2(-9, 12)]), col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(9, 2), c + Vector2(16, 14), c + Vector2(9, 12)]), col)
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-5, 12), c + Vector2(5, 12), c + Vector2(0, 20)]), UI.GOLD if col == UI.ACCENT else col)
-			draw_circle(c + Vector2(0, -4), 3.5, UI.BAR)
+			draw_ship_icon(self, c, col)
 		3:    # ✦ étoile à quatre branches
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -16), c + Vector2(4, -4), c + Vector2(16, 0), c + Vector2(4, 4), c + Vector2(0, 16), c + Vector2(-4, 4), c + Vector2(-16, 0), c + Vector2(-4, -4)]), col)
 		4:    # ◆ losange plein

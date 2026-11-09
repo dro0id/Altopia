@@ -1147,7 +1147,8 @@ func _hatch_tex() -> ImageTexture:
 
 
 func _hub() -> void:
-	if tier < 2 or not _open("hangar"):
+	# le hub est visible dès que le Hangar s'ouvre (pour toucher « Construire »), pas seulement une fois construit
+	if tier < 2 or not (_open("hangar") or level >= int(Ship.ROOMS["hangar"].unlock)):
 		return
 	var hub := Node3D.new()
 	ship.add_child(hub)

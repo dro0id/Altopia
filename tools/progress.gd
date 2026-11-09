@@ -25,6 +25,7 @@ func _initialize() -> void:
 	var facs: Array = []
 	var real_defeats := 0
 	var t0 := int(Time.get_unix_time_from_system())
+	g.complete_chapter(1)                       # le voyage à bord (chapitre 1) précède le premier combat
 	while g.best_stage <= max_stage and t_total < 3600.0 * 4.0:
 		# le vaisseau suit le temps de jeu : production, chantiers, puis on investit comme un joueur
 		ShipState.clock_offset = int(t_total) - (int(Time.get_unix_time_from_system()) - t0)
@@ -50,6 +51,7 @@ func _initialize() -> void:
 				g.record_generated(st, true)
 			g.stage_cleared(sim.stars, sim.max_combo, false)
 			g.equip_best_all()
+			_story(g)
 			if frontier:
 				if st % 10 == 0 and Sector.is_generated(st):
 					facs.append("%d:%.2f" % [st, g.inf_diff])
@@ -84,11 +86,24 @@ func _initialize() -> void:
 	for r in rows:
 		print("%d ; %s ; %.0f ; %d ; %.1f ; %.1f ; %d" % [r.stage, r.type, r.time, r.fails, r.lvl, r.total / 60.0, r.ship])
 	print("VAISSEAU niveau %d, salles %s, Pont : %s, crédits %d, éclats %d, coût %s" % [g.ship.level, str(g.ship.rooms), g.ship.upgrade_block(g, "pont"), g.credits, g.shards, str(Ship.upgrade_cost("pont", g.ship.level + 1))])
+	var hs: Array = []
+	for id in g.squad_ids():
+		hs.append("%s %d★ niv %d (+%d)" % [id, int(g.hero_stars[id]), int(g.levels[id]), int(g.fragments[id])])
+	print("HÉROS ", hs, " · doublons au choix restants : ", g.wild, " · héros possédés : ", g.owned.size(), " · tirages : ", g.pulls, " · jetons restants : ", g.tokens)
 	print("TOTAL %.1f min de combat jusqu'à l'étage %d" % [t_total / 60.0, g.best_stage - 1])
 	if g.gen_tries > 0:
 		print("GÉNÉRÉ échecs : %d défaites, %d combats trop longs (> 240 s)" % [real_defeats, timeouts])
 		print("GÉNÉRÉ tentatives %d · victoires %.0f %% · difficulté ×%.2f" % [g.gen_tries, 100.0 * g.gen_wins / g.gen_tries, g.inf_diff])
 	quit()
+
+
+## Récompenses de chapitre à la fin des étages 10, 20, 30, 40, et recrutement avec tous les jetons.
+func _story(g) -> void:
+	for c in Story.CHAPTERS:
+		if int(c.n) > 1 and g.best_stage > int(c.to) and not g.chapters_done.has(int(c.n)):
+			g.complete_chapter(int(c.n))
+	while g.tokens >= Data.RECRUIT_COST:
+		g.recruit(1)
 
 
 ## Joueur type : le Pont dès que possible, une salle quand il reste de quoi faire monter les héros.
@@ -100,7 +115,10 @@ func _ship(g) -> bool:
 		g.ship.start_upgrade(g, "pont")
 	elif blk == "Pas assez de ressources":
 		return false
-	for r in Ship.ORDER:
+	# les salles qui viennent de s'ouvrir se construisent d'abord (c'est au joueur de le faire), puis on améliore
+	var order: Array = Ship.ORDER.duplicate()
+	order.sort_custom(func(a, b): return int(g.ship.room_level(a) == 0) > int(g.ship.room_level(b) == 0))
+	for r in order:
 		if r == "pont" or g.ship.upgrade_block(g, r) != "":
 			continue
 		var c: Dictionary = Ship.upgrade_cost(r, g.ship.room_level(r) + 1)
@@ -112,7 +130,7 @@ func _ship(g) -> bool:
 
 func _affordable(g) -> bool:
 	for id in g.squad_ids():
-		if g.can_afford_evolve(id) or g.can_level(id):
+		if g.can_star_up(id) or g.can_level(id):
 			return true
 	return false
 
@@ -123,8 +141,8 @@ func _spend(g) -> void:
 		guard += 1
 		var did := false
 		for id in g.squad_ids():
-			if g.can_afford_evolve(id):
-				g.evolve(id)
+			if g.at_cap(id) and g.can_star_up(id):
+				g.star_up(id)
 				did = true
 		var b: String = g.best_buy()
 		if b != "" and g.can_level(b):

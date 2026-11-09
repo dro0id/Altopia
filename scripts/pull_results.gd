@@ -119,7 +119,7 @@ func _draw_body() -> void:
 		if bg.hero != "" and bg.gain > 0.0:
 			M3.text(_body, Vector2(32, y + 92), "▲ +%s" % UI.num(bg.gain), 28, UI.GREEN, true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
 	else:
-		M3.text(_body, Vector2(192, y + 124), "Nouveau héros !" if best.new else "+ %d fragments" % int(best.fragments), 24, UI.GREEN if best.new else UI.GOLD)
+		M3.text(_body, Vector2(192, y + 124), "Nouveau héros !" if best.new else "+ %d doublons" % int(best.fragments), 24, UI.GREEN if best.new else UI.GOLD)
 	y += 168.0
 	# bilan par rareté (puces)
 	var counts := {}
@@ -152,4 +152,4 @@ func _draw_body() -> void:
 		for r in res:
 			news += 1 if r.new else 0
 			frags += int(r.fragments)
-		M3.para(_body, Vector2(32, y), "%d nouveau%s héros · %d fragments" % [news, "x" if news > 1 else "", frags], 26, UI.MUTED, 656)
+		M3.para(_body, Vector2(32, y), "%d nouveau%s héros · %d doublons" % [news, "x" if news > 1 else "", frags], 26, UI.MUTED, 656)

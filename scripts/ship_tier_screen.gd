@@ -6,8 +6,8 @@ extends Overlay
 signal visit_requested
 
 const NEWS := {
-	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion, radiateurs, Hangar au niveau 10"],
-	3: ["5e module : l’Antenne s’ouvre, avec le Labo (niveau 11)", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
+	2: ["4e module : les Quartiers s’ouvrent au niveau 8", "Couronne vitrée et dôme d’antennes", "Propulseur à fusion et radiateurs"],
+	3: ["5e module : l’Antenne, le Labo et le Hangar s’ouvrent (niveau 11)", "Dôme vitré : l’Observatoire au niveau 14", "Double anneau de fusion, 4 propulseurs d’appoint"],
 	4: ["Anneau de gravité tournant", "Finitions et propulseur dorés", "6 panneaux radiateurs"],
 	5: ["Flèche de cristal et sphère armillaire", "Voiles de lumière, fusion prismatique", "Coque nacre et poussière d’or"],
 }
@@ -28,6 +28,7 @@ func _init(level: int) -> void:
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	st.add_child(view)
 	view.setup(level, Game.ship.posts, Game.ship.rooms)
+	view.set_cut(false)                   # cinématique : le vaisseau entier, pas la coupe
 	view.yaw = -0.5
 	view.anims.append(func(t): view.yaw = -0.5 + t * 0.25)
 	_body = Control.new()
@@ -81,7 +82,7 @@ func _draw_body() -> void:
 	if prem:
 		lines = ["Titre « Amiral de l’Aurore »", "+%d cristaux" % PRESTIGE_CRYSTALS, "Design unique : " + String(NEWS[5][0]).to_lower()]
 	for i in lines.size():
-		M3.text(c, r.position + Vector2(32, 112 + i * 60), "✦  " + String(lines[i]), 28, UI.TEXT, false, 600)
+		M3.text(c, r.position + Vector2(32, 112 + i * 60), "✦  " + String(lines[i]), 24, UI.TEXT, false, 600)
 
 
 func _frame() -> StyleBoxFlat:

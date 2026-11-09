@@ -59,6 +59,8 @@ func _draw_body() -> void:
 	var x := 32.0
 	var cy := 416.0
 	var chips := [["coin", "+" + UI.num(float(_reward.get("credits", 0)))], ["shard", "+%d" % int(_reward.get("shards", 0))], ["token", "+%d" % int(_reward.get("tokens", 0))]]
+	if int(_reward.get("copies", 0)) > 0:
+		chips.append(["copies", "+%d doublons" % int(_reward.copies)])
 	if _reward.has("badge"):
 		chips.append(["badge", String(_reward.badge)])
 	for it in chips:
@@ -98,6 +100,12 @@ func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:
 			ci.draw_string(UI.bold_font(), c + Vector2(-12, 8), "¢", HORIZONTAL_ALIGNMENT_CENTER, 24, 20, Color("6b4a00"))
 		"shard":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -13), c + Vector2(13, -2), c + Vector2(8, 13), c + Vector2(-8, 13), c + Vector2(-13, -2)]), Color("7fdcff"))
+		"copies":
+			var pts := PackedVector2Array()
+			for i in 10:
+				var a := -PI / 2.0 + i * PI / 5.0
+				pts.append(c + Vector2(cos(a), sin(a)) * (15.0 if i % 2 == 0 else 6.5))
+			ci.draw_colored_polygon(pts, UI.GOLD)
 		"badge":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -14), c + Vector2(-2, -14), c + Vector2(2, -4), c + Vector2(-4, -4)]), Color("4fa8ff"))
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(8, -14), c + Vector2(2, -14), c + Vector2(-2, -4), c + Vector2(4, -4)]), Color("ff6b6b"))

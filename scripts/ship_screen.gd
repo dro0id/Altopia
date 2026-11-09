@@ -92,7 +92,10 @@ func _init() -> void:
 	_advice.gui_input.connect(func(ev: InputEvent):
 		if M3.is_tap(ev) and not _adv.is_empty():
 			accept_event()
-			room_requested.emit(String(_adv.room)))
+			if Game.ship.room_level(String(_adv.room)) <= 0:
+				_select(String(_adv.room))
+			else:
+				room_requested.emit(String(_adv.room)))
 	_st.add_child(_advice)
 	_advice_btn = M3.button(_advice, "Lancer", Rect2(500, 24, 156, 76), "main", 26)
 	_advice_btn.pressed.connect(_launch_advice)
@@ -109,7 +112,9 @@ func _init() -> void:
 	b_open.pressed.connect(func(): room_requested.emit(_sel))
 	var b_col := M3.button(_sheet, "Récolter", Rect2(32, 300, 320, 96), "main", 28)
 	b_col.pressed.connect(_harvest_one)
-	_sheet_btns = [b_col, b_open]
+	var b_build := M3.button(_sheet, "Construire", Rect2(32, 300, 656, 96), "main", 28)
+	b_build.pressed.connect(_build_selected)
+	_sheet_btns = [b_col, b_open, b_build]
 	_labels.gui_input.connect(func(_e): pass)
 	move_child(_st, get_child_count() - 1)
 	Game.changed.connect(_refresh)
@@ -198,20 +203,29 @@ func _draw_labels() -> void:
 	var c := _labels
 	_lab_rects = {}
 	var s: ShipState = Game.ship
-	for r in view.anchors:
+	# les salles à construire passent en dernier, au-dessus des pastilles voisines
+	var order: Array = view.anchors.keys()
+	order.sort_custom(func(a, b): return int(s.is_buildable(a)) < int(s.is_buildable(b)))
+	for r in order:
 		var lp := view.label_pos(r)
 		if lp.is_empty() or not lp.visible:
 			continue
 		var col: Color = Ship.ROOMS[r].color
 		var lv := s.room_level(r)
-		var sealed := lv <= 0
+		var to_build := s.is_buildable(r)
+		var sealed := lv <= 0 and not to_build
 		var name := String(Ship.ROOMS[r].short)
 		var txt := name
 		var w := M3.text_w(txt, 22, true) + 32.0 + (30.0 if sealed else 0.0)
-		var lvtxt := "" if sealed else str(lv)
+		var lvtxt := "" if lv <= 0 else str(lv)
+		var csz := 20
 		w += M3.text_w(lvtxt, 22, true) + (10.0 if lvtxt != "" else 0.0)
 		var ready := floorf(float(s.stock.get(r, 0.0)))
 		var rtxt := ""
+		if to_build:
+			rtxt = "Construire" if s.building(r).is_empty() else "En chantier"
+			csz = 18
+			w += M3.text_w(rtxt, csz, true) + 20.0
 		if ready >= 1.0:
 			rtxt = "+" + (UI.num(ready) if String(Ship.ROOMS[r].res) == "credits" else str(int(ready)))
 			w += M3.text_w(rtxt, 20, true) + 28.0
@@ -219,6 +233,8 @@ func _draw_labels() -> void:
 		var rect := Rect2(p.x, p.y - 22.0, w, 44.0)
 		rect.position.x = clampf(rect.position.x, 8.0, 712.0 - w)
 		var sb := UI.box(Color(0.04, 0.07, 0.15, 0.85), col if not sealed else UI.MUTED, 22, 0)
+		if to_build:
+			sb.border_color = Color(col, 0.55 + 0.45 * absf(sin(_t * 3.0)))
 		sb.set_border_width_all(2)
 		c.draw_style_box(sb, rect)
 		var x := rect.position.x + 16.0
@@ -231,9 +247,9 @@ func _draw_labels() -> void:
 			M3.text(c, Vector2(x, rect.position.y + 30), lvtxt, 22, col, true)
 			x += M3.text_w(lvtxt, 22, true) + 10.0
 		if rtxt != "":
-			var rr := Rect2(x, rect.position.y + 6, M3.text_w(rtxt, 20, true) + 20.0, 32)
+			var rr := Rect2(x, rect.position.y + 6, M3.text_w(rtxt, csz, true) + 20.0, 32)
 			c.draw_style_box(UI.box(col, Color(0, 0, 0, 0), 16, 0), rr)
-			M3.text(c, Vector2(rr.position.x + 10, rr.position.y + 23), rtxt, 20, Color("06101f"), true)
+			M3.text(c, Vector2(rr.position.x + 10, rr.position.y + 23), rtxt, csz, Color("06101f"), true)
 		_lab_rects[r] = Rect2(rect.position + c.position, rect.size)
 
 
@@ -293,9 +309,17 @@ func _draw_sheet() -> void:
 	var lv := s.room_level(r)
 	c.draw_style_box(UI.box(Color("0a1424"), col, 24, 0), Rect2(32, 48, 88, 88))
 	RoomScreen._room_glyph(c, r, Vector2(76, 92), col, 0.9)
-	M3.text(c, Vector2(144, 88), "%s · niv. %d" % [info.name, lv] if lv > 0 else "%s · scellée" % info.name, 32, UI.TEXT, true, 540)
-	M3.text(c, Vector2(144, 126), room_line(r), 24, UI.MUTED, false, 540)
 	var res := String(info.res)
+	if lv <= 0:
+		_draw_build_sheet(c, r)
+		return
+	_sheet_btns[2].visible = false
+	_sheet_btns[0].visible = res != ""
+	_sheet_btns[1].visible = true
+	_sheet_btns[1].position.x = 368.0 if res != "" else 32.0
+	_sheet_btns[1].size.x = 320.0 if res != "" else 656.0
+	M3.text(c, Vector2(144, 88), "%s · niv. %d" % [info.name, lv], 32, UI.TEXT, true, 540)
+	M3.text(c, Vector2(144, 126), room_line(r), 24, UI.MUTED, false, 540)
 	if res != "":
 		var cap := s.capacity(r, Game.best_stage)
 		var st := float(s.stock.get(r, 0.0))
@@ -348,13 +372,13 @@ func _draw_mission() -> void:
 	var stg := int(Game.stage)
 	var sec := Sector.info(stg)
 	var boss := Data.boss_type(stg)
-	M3.text(c, Vector2(132, 40), "MISSION EN COURS", 20, UI.ACCENT, true)
-	var title := "Étage %d · %s" % [stg, "gros boss" if boss == "big" else ("mini-boss" if boss != "" else "combat auto")]
-	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
 	var where := String(sec.name) if not sec.is_empty() else "Trou de verre"
-	var line := "%s · +%s/min" % [where, UI.short(Game.offline_rate_per_minute())]
+	M3.text(c, Vector2(132, 40), where.to_upper() + " · EN COURS", 20, UI.ACCENT, true, 330)
+	var title := "Étage %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
+	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
+	var line := "Combat auto · +%s/min" % UI.short(Game.offline_rate_per_minute())
 	if mission_gain >= 1.0:
-		line = "%s · +%s à bord" % [where, UI.short(mission_gain)]
+		line = "Combat auto · +%s à bord" % UI.short(mission_gain)
 	M3.text(c, Vector2(132, 108), line, 22, UI.MUTED, false, 330)
 
 
@@ -427,11 +451,67 @@ func _draw_advice() -> void:
 	c.draw_style_box(UI.box(Color("0a1424"), col, 20, 0), Rect2(16, 18, 88, 88))
 	RoomScreen._room_glyph(c, r, Vector2(60, 62), col, 0.8)
 	var lv := s.room_level(r)
-	var cost := Ship.upgrade_cost(r, lv + 1, s.rank("logistique"))
+	var cost := s.cost_of(Game, r)
 	M3.text(c, Vector2(124, 40), "PROCHAIN CHANTIER CONSEILLÉ", 20, UI.GREEN, true, 360)
-	M3.text(c, Vector2(124, 76), "%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1], 28, UI.TEXT, true, 360)
+	M3.text(c, Vector2(124, 76), ("Construire : %s" % Ship.ROOMS[r].short) if lv <= 0 else ("%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1]), 28, UI.TEXT, true, 360)
 	var line := "%s crédits · %d éclats · %s" % [UI.short(float(cost.credits)), int(cost.shards), UI.duration(float(cost.time))]
 	M3.text(c, Vector2(124, 108), line, 22, UI.MUTED if bool(_adv.ok) else UI.GOLD, false, 360)
+
+
+## Ce que fait chaque salle, pour la proposer à la construction.
+const BLURB := {
+	"atelier": "Fabrique des jetons d’objet",
+	"serre": "Produit des crédits en continu",
+	"quartiers": "Les héros au repos y gagnent des niveaux",
+	"hangar": "Navettes et expéditions",
+	"antenne": "Capte des jetons de recrutement",
+	"labo": "Recherches permanentes pour l’escouade",
+	"observatoire": "Plus de butin dans les secteurs générés",
+}
+
+
+## Fiche d'une salle pas encore construite : ce qu'elle fait, le coût, le bouton Construire.
+func _draw_build_sheet(c: Control, r: String) -> void:
+	var s: ShipState = Game.ship
+	var info: Dictionary = Ship.ROOMS[r]
+	_sheet_btns[0].visible = false
+	_sheet_btns[1].visible = false
+	var b: Button = _sheet_btns[2]
+	var to_build := s.is_buildable(r)
+	b.visible = to_build
+	M3.text(c, Vector2(144, 88), "%s · %s" % [info.name, "à construire" if to_build else "scellée"], 32, UI.TEXT, true, 540)
+	if not to_build:
+		M3.text(c, Vector2(144, 126), "S’ouvre au niveau %d du vaisseau" % int(info.unlock), 24, UI.MUTED, false, 540)
+		return
+	M3.text(c, Vector2(144, 126), String(BLURB.get(r, "")), 24, UI.MUTED, false, 540)
+	var run := s.building(r)
+	if not run.is_empty():
+		M3.text(c, Vector2(32, 200), "⏱ Construction · %s" % UI.duration(s.remaining(int(run.end))), 26, UI.GOLD, true, 656)
+		b.text = "Chantier en cours"
+		b.disabled = true
+		return
+	var cost := s.cost_of(Game, r)
+	var x := 32.0
+	for it in [["coin", UI.num(float(cost.credits)) if float(cost.credits) > 0.0 else "offert", Game.credits >= float(cost.credits)], ["shard", str(int(cost.shards)), Game.shards >= int(cost.shards)], ["", "⏱ " + UI.duration(float(cost.time)), true]]:
+		var w := M3.text_w(String(it[1]), 24, true) + (64.0 if it[0] != "" else 32.0)
+		c.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 30, 0), Rect2(x, 180, w, 60))
+		if it[0] != "":
+			c.draw_texture(UI.icon(String(it[0]), 28), Vector2(x + 14, 196))
+		M3.text(c, Vector2(x + (52.0 if it[0] != "" else 16.0), 220), String(it[1]), 24, UI.TEXT if it[2] else UI.RED, true)
+		x += w + 12.0
+	var block := s.upgrade_block(Game, r)
+	b.disabled = block != ""
+	b.text = "Construire" if block == "" else block
+
+
+func _build_selected() -> void:
+	if _sel == "" or not Game.ship.is_buildable(_sel):
+		return
+	if Game.ship.start_upgrade(Game, _sel):
+		Sfx.play("coin")
+		Game.save_game()
+		Game.changed.emit()
+		_sheet.queue_redraw()
 
 
 func _launch_advice() -> void:

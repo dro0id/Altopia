@@ -291,7 +291,8 @@ func _pont(c: Control, y: float) -> float:
 	y += 48.0
 	var unl := {}
 	for r in Ship.ORDER:
-		unl[int(Ship.ROOMS[r].unlock)] = String(Ship.ROOMS[r].name)
+		var k := int(Ship.ROOMS[r].unlock)
+		unl[k] = (String(unl[k]) + ", " if unl.has(k) else "") + String(Ship.ROOMS[r].name)
 	var shown := 0
 	for lv in range(st.level, Ship.MAX_LEVEL + 1):
 		if shown >= 6:
@@ -324,6 +325,17 @@ func _pont(c: Control, y: float) -> float:
 func _destinations(c: Control, y: float) -> float:
 	M3.section(c, Vector2(32, y + 32), "DESTINATION DE LA MISSION")
 	y += 52.0
+	if not Game.mission_open():
+		# pendant le voyage (chapitre 1) il n'y a pas encore de mission à piloter
+		var lr := Rect2(32, y, 656, 112)
+		var lsb := UI.box(M3.S2, M3.OUT, 32, 0)
+		lsb.set_border_width_all(2)
+		c.draw_style_box(lsb, lr)
+		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 20, 0), Rect2(56, y + 24, 64, 64))
+		M3.lock(c, Vector2(88, y + 56), UI.MUTED, 1.0)
+		M3.text(c, Vector2(144, y + 48), "Trou de verre · en route", 28, UI.MUTED, true, 480)
+		M3.text(c, Vector2(144, y + 84), "Le Pont la pilotera à l’arrivée à Altopia", 22, UI.MUTED, false, 480)
+		return y + 144.0
 	var stg := int(Game.stage)
 	var best := int(Game.best_stage)
 	var sec := Sector.info(stg)
@@ -871,10 +883,9 @@ func _show_return(sh: String, out: Dictionary) -> void:
 		if out.has("chest"):
 			parts.append("coffre %s" % String(Data.RARITY_NAMES[out.chest.rarity]).to_lower())
 		M3.para(box, Vector2(40, 300), " · ".join(parts), 28, UI.TEXT, 560)
-		if out.has("fragments"):
-			var fr: Dictionary = out.fragments
+		if out.has("copies"):
 			box.draw_style_box(UI.box(Color("10331f"), Color(0, 0, 0, 0), 24, 0), Rect2(40, 360, 560, 64))
-			M3.text(box, Vector2(64, 402), "Trouvaille rare : fragments de %s ×%d" % [String(Data.HEROES[fr.hero].name).split(" ")[0], int(fr.n)], 24, Color("7dffb0"), true, 520))
+			M3.text(box, Vector2(64, 402), "Trouvaille rare : %d doublons au choix" % int(out.copies), 24, Color("7dffb0"), true, 520))
 	var ok := M3.button(box, "Récupérer", Rect2(40, 444, 560, 96), "main", 28)
 	ok.pressed.connect(func(): d.queue_free())
 

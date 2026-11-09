@@ -77,16 +77,22 @@ func _draw_head() -> void:
 	var rc: Color = Data.RARITY_COLORS[h.rarity]
 	M3.avatar(_head, h, Vector2(104, 80), 72.0, rc, _t)
 	var stars: int = int(Game.hero_stars[_id]) if have else 0
-	M3.text(_head, Vector2(208, 44), "%s · %s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role], "★".repeat(maxi(stars, 0))], 24, UI.MUTED)
+	M3.text(_head, Vector2(208, 44), "%s · %s · %s" % [Data.SPECIES_NAMES[h.species], Data.ROLE_NAMES[h.role], star_text(stars)], 24, UI.MUTED)
 	if not have:
 		M3.text(_head, Vector2(208, 92), "Non recruté", 30, UI.RED, true)
 		return
 	var lv: int = int(Game.levels[_id])
-	M3.text(_head, Vector2(208, 92), "Niveau %d · Palier %d" % [lv, Game.tier(_id) + 1], 30, UI.TEXT, true)
-	var cap: int = Data.level_cap(Game.tier(_id))
-	var lo: int = 1 if Game.tier(_id) == 0 else int(Data.EVO_LEVELS[Game.tier(_id) - 1])
-	var ratio := 1.0 if cap >= 999 else float(lv - lo) / float(maxi(1, cap - lo))
-	M3.bar(_head, Rect2(208, 112, 480, 12), ratio)
+	var cap: int = Data.level_cap(stars)
+	M3.text(_head, Vector2(208, 92), "Niveau %d / %d" % [lv, cap], 30, UI.TEXT, true)
+	var lo: int = cap - Data.LEVELS_PER_STAR
+	M3.bar(_head, Rect2(208, 112, 480, 12), clampf(float(lv - lo) / float(Data.LEVELS_PER_STAR), 0.0, 1.0))
+
+
+## « ★★ » pour 2 étoiles ; « ★★★★★ MAX » au dernier rang.
+static func star_text(rank: int) -> String:
+	if rank <= 0:
+		return ""
+	return "★".repeat(Data.shown_stars(rank)) + (" MAX" if rank >= Data.MAX_STARS else "")
 
 
 # ---------------------------------------------------------------- Stats
@@ -95,13 +101,15 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 	var lv: int = int(Game.levels[_id])
 	var stars: int = int(Game.hero_stars[_id]) if have else 0
 	var m: float = Data.hero_mult(lv) * Data.star_mult(maxi(1, stars)) * Data.EVO_STAT_MULT[Game.tier(_id)]
+	var own_copies := int(Game.fragments[_id]) if have else 0
+	var wild_copies: int = Game.wild if have else 0
 	var eq: Dictionary = Items.totals(Game.hero_items(_id))
 	var vals := [
 		["PV", (h.hp * m + float(eq.hp)) * (1.0 + float(eq.hp_pct)), UI.GREEN],
 		["ATQ", (h.atk * m + float(eq.atk)) * (1.0 + float(eq.atk_pct)), UI.RED],
 		["DÉF", (h.def * m + float(eq.def)) * (1.0 + float(eq.def_pct)), UI.ACCENT]]
 	var cost := Game.star_cost(_id) if have and stars < Data.MAX_STARS else 0
-	var fr := int(Game.fragments[_id]) if have else 0
+	var fr := own_copies + wild_copies
 	var body := Control.new()
 	body.position = Vector2(0, 384)
 	body.size = Vector2(720, 600)
@@ -113,31 +121,34 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 			M3.text(body, r.position + Vector2(0, 78), UI.num(float(vals[i][1])), 36, vals[i][2], true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
 		var r2 := Rect2(32, 432, 656, 152)
 		M3.card(body, r2)
-		M3.text(body, r2.position + Vector2(32, 52), "Prochaine étoile" if cost > 0 else "Étoiles", 28, UI.TEXT, true)
+		M3.text(body, r2.position + Vector2(32, 52), ("Vers %s" % star_text(stars + 1)) if cost > 0 else "Étoiles", 28, UI.TEXT, true, 400)
 		if cost > 0:
-			M3.text(body, r2.position + Vector2(0, 52), "%d / %d" % [fr, cost], 28, UI.GOLD, true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
-			M3.bar(body, Rect2(r2.position + Vector2(32, 76), Vector2(592, 12)), float(fr) / float(cost), UI.GOLD)
-			M3.text(body, r2.position + Vector2(32, 128), "Touche pour monter d'une étoile" if fr >= cost else "%d fragments avant la %dᵉ étoile" % [maxi(0, cost - fr), stars + 1], 24, UI.GOLD if fr >= cost else UI.MUTED)
+			M3.text(body, r2.position + Vector2(0, 52), "%d / %d doublons" % [mini(fr, cost), cost], 28, UI.GOLD, true, 624, HORIZONTAL_ALIGNMENT_RIGHT)
+			M3.bar(body, Rect2(r2.position + Vector2(32, 76), Vector2(592, 12)), minf(1.0, float(fr) / float(cost)), UI.GOLD)
+			var note := "Touche pour monter d'une étoile" if fr >= cost else "Encore %d doublon%s" % [cost - fr, "s" if cost - fr > 1 else ""]
+			if wild_copies > 0 and fr < cost:
+				note += " · dont %d au choix" % wild_copies
+			M3.text(body, r2.position + Vector2(32, 128), note, 24, UI.GOLD if fr >= cost else UI.MUTED, false, 592)
 		elif have:
 			M3.text(body, r2.position + Vector2(32, 104), "Étoiles au maximum", 26, UI.GOLD)
 		else:
 			M3.text(body, r2.position + Vector2(32, 104), "Obtiens ce héros au recrutement.", 26, UI.MUTED))
 	body.gui_input.connect(func(ev: InputEvent):
-		if M3.is_tap(ev) and ev.position.y > 432 and Game.can_star_up(_id) and Game.star_up(_id):
-			Sfx.play("chest")
-			Game.save_game()
-			changed.emit()
-			_rebuild())
+		if M3.is_tap(ev) and ev.position.y > 432 and have and stars < Data.MAX_STARS:
+			evolve_requested.emit(_id))
 	_stage.add_child(body)
 	if not have:
 		return
-	var evo := Game.can_evolve(_id)
-	var cost_v: int = int(Game.evolve_cost(_id).credits) if evo else Game.level_cost(_id)
-	var up := M3.button(_stage, ("Évoluer · %s ¢" if evo else "Monter le niveau · %s ¢") % UI.num(cost_v), Rect2(32, UI.H - 136.0, 656, 104), "main")
-	up.disabled = Game.credits < cost_v and not evo
+	var capped := Game.at_cap(_id)
+	var cost_v: int = Game.level_cost(_id)
+	var label := "Monter le niveau · %s ¢" % UI.num(cost_v)
+	if capped:
+		label = "Niveau maximum" if stars >= 5 else ("Monter à %s" % star_text(stars + 1))
+	var up := M3.button(_stage, label, Rect2(32, UI.H - 136.0, 656, 104), "main")
+	up.disabled = (not capped and Game.credits < cost_v) or (capped and stars >= 5)
 	level_button = up
 	up.pressed.connect(func():
-		if Game.can_evolve(_id):
+		if capped:
 			evolve_requested.emit(_id)
 			return
 		if Game.level_up(_id):

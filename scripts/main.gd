@@ -8,6 +8,7 @@ var skill_buttons: Array = []
 var _credits_chip: HudButton
 var _shards_chip: HudButton
 var _stage_btn: HudButton
+var _home_btn: Control             # bouton vaisseau : retour à l'Aurore depuis le combat
 var _top: Control
 var _info: Label
 var _strip: Control
@@ -92,7 +93,8 @@ func _ready() -> void:
 	board_timer.process_mode = Node.PROCESS_MODE_ALWAYS
 	board_timer.timeout.connect(func():
 		if Game.intro_seen and not Game.mission_open():
-			_story_check())
+			_story_check()
+		_build_tip_check())
 	add_child(board_timer)
 	_start_battle()
 	if not Game.intro_seen:
@@ -133,9 +135,21 @@ func _build_top() -> void:
 	_stage_btn.radius = 40.0
 	_stage_btn.fill = M3.S3
 	_stage_btn.border = M3.S3
-	_stage_btn.position = Vector2(24, 16)
+	_stage_btn.position = Vector2(116, 16)
 	_stage_btn.pressed.connect(_open_map)
 	_top.add_child(_stage_btn)
+	# retour à l'Aurore : le combat n'est plus un onglet de la barre du bas
+	_home_btn = Control.new()
+	_home_btn.position = Vector2(24, 16)
+	_home_btn.size = Vector2(80, 80)
+	_home_btn.draw.connect(func():
+		_home_btn.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 40, 0), Rect2(Vector2.ZERO, _home_btn.size))
+		NavBar.draw_ship_icon(_home_btn, Vector2(40, 40), UI.ACCENT))
+	_home_btn.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev):
+			Sfx.play("click", -6.0)
+			_open_ship())
+	_top.add_child(_home_btn)
 	_credits_chip = M3.cur_chip("coin", "0")
 	_top.add_child(_credits_chip)
 	_shards_chip = M3.cur_chip("shard", "0")
@@ -338,7 +352,7 @@ func _layout() -> void:
 	_boss_bar.visible = _boss != ""
 	_info.position = Vector2(32, top + (96.0 if _boss != "" else 16.0))
 	_buffs.position = Vector2(32, _strip.position.y - 64.0)
-	_toast_box.position = Vector2(32, _strip.position.y - 120.0)
+	_toast_box.position = Vector2(32, _strip.position.y - 184.0)      # au-dessus des renforts actifs
 
 
 func _on_tab(i: int) -> void:
@@ -522,7 +536,7 @@ func _open_shop() -> void:
 func _on_ship_events(ev: Dictionary) -> void:
 	var parts: Array = []
 	for d in ev.get("done", []):
-		parts.append("%s niveau %d terminé" % [Ship.ROOMS[d.room].short, int(d.to)])
+		parts.append(("%s construit" % Ship.ROOMS[d.room].short) if int(d.to) == 1 else ("%s niveau %d terminé" % [Ship.ROOMS[d.room].short, int(d.to)]))
 	if String(ev.get("research", "")) != "":
 		parts.append("Recherche %s rang %d terminée" % [Ship.RESEARCH[ev.research].name, Game.ship.rank(ev.research)])
 	for sh in ev.get("shuttles", []):
@@ -687,6 +701,22 @@ func _story_check() -> bool:
 			_open_chapter_end.call_deferred(int(sc.end)))
 	_open_modal(d)
 	return true
+
+
+## Astuce « construire une salle » : la première fois qu'une salle s'ouvre, sur l'accueil de l'Aurore, on la montre du doigt.
+func _build_tip_check() -> void:
+	if coach.step >= 0 or Game.tips.has("build") or not Game.tutorial_done or not Game.tips.has("ship"):
+		return
+	var m := _modal
+	if m == null or not is_instance_valid(m) or not (m is ShipScreen) or m._sheet.visible:
+		return
+	for ch in m.get_children():
+		if ch is RoomScreen:
+			return
+	for r in Game.ship.buildable():
+		if m._lab_rects.has(r):
+			coach.build_tip(r)
+			return
 
 
 ## Chapitre 1 à bord (maquettes SA à SH) : les scènes se jouent depuis l'accueil de l'Aurore, entre deux objectifs.
@@ -964,7 +994,7 @@ func _refresh() -> void:
 	_buffs.size.x = 656.0 - (_aurora.size.x + 16.0 if _aurora.visible else 0.0)
 	var affordable := 0
 	for id in Game.squad_ids():
-		if (Game.credits >= Game.level_cost(id) and not Game.can_evolve(id)) or Game.can_afford_evolve(id):
+		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):
 			affordable += 1
 	var ready_items := 0
 	for it in Game.inventory_items():
@@ -972,9 +1002,8 @@ func _refresh() -> void:
 		if bh.hero != "" and float(bh.gain) > 0.0 and (it.bound == "" or it.bound == bh.hero):
 			ready_items += 1
 	_nav.ship_on = Game.ship.unlocked
-	_nav.mission_locked = not Game.mission_open()
 	var back := 0
 	for sh in Game.ship.shuttles:
 		if bool(Game.ship.shuttles[sh].get("back", false)):
 			back += 1
-	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back, Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]
+	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back + Game.ship.buildable().size(), Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]

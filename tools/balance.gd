@@ -94,18 +94,14 @@ func _initialize() -> void:
 var _spent := {}
 
 
-## Dépense : évolue dès que possible, sinon achète le meilleur niveau.
+## Dépense : les étoiles sont supposées offertes dès que la limite est atteinte (borne haute ; voir progress.gd pour les doublons réels).
 func _spend(levels: Dictionary, evo: Dictionary, credits: float, shards: int) -> void:
 	while true:
 		var did := false
 		for id in Data.STARTER:
-			if int(levels[id]) >= Data.level_cap(int(evo[id])) and int(evo[id]) < 2:
-				var c: Dictionary = Data.evolve_cost(int(levels[id]), int(evo[id]))
-				if credits >= c.credits and shards >= c.shards:
-					credits -= c.credits
-					shards -= int(c.shards)
-					evo[id] = int(evo[id]) + 1
-					did = true
+			if int(levels[id]) >= Data.level_cap(int(evo[id]) + 1) and int(evo[id]) < 2:
+				evo[id] = int(evo[id]) + 1
+				did = true
 		var pick := _best_buy(levels, evo)
 		if pick != "" and credits >= Data.level_cost(int(levels[pick])):
 			credits -= Data.level_cost(int(levels[pick]))
@@ -120,7 +116,7 @@ func _best_buy(levels: Dictionary, evo: Dictionary = {}) -> String:
 	var best := ""
 	var best_ratio := -1.0
 	for id in Data.STARTER:
-		if not evo.is_empty() and int(levels[id]) >= Data.level_cap(int(evo[id])):
+		if not evo.is_empty() and int(levels[id]) >= Data.level_cap(int(evo[id]) + 1) and int(evo[id]) >= 2:
 			continue
 		var h: Dictionary = Data.HEROES[id]
 		var lv := int(levels[id])

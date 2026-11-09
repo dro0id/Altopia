@@ -46,6 +46,16 @@ func _initialize() -> void:
 		"heros": func(): main._open_collection(0),
 		"objets": func(): main._open_collection(1),
 		"ensembles": func(): main._open_collection(2),
+		"etoile": func():
+			g.levels["mara"] = 10
+			g.fragments["mara"] = 3
+			g.wild = 4
+			main._open_modal(EvolveScreen.new("mara")),
+		"fiche_etoiles": func():
+			g.levels["mara"] = 10
+			g.fragments["mara"] = 3
+			g.wild = 4
+			main._open_modal(HeroScreen.new("mara", 0)),
 		"fiche": func(): main._open_modal(HeroScreen.new("mara", 1)),
 		"fiche_stats": func(): main._open_modal(HeroScreen.new("mara", 0)),
 		"recrutement": func(): main._open_recruit(),
@@ -130,7 +140,9 @@ func _initialize() -> void:
 			g.sectors_seen = [6]
 			for id in g.levels.keys():
 				g.levels[id] = 60
-			g.evolved = {"mara": 2, "kai": 2, "zyra": 2, "t9": 2, "oru": 2}
+			g.hero_stars = {"mara": 3, "kai": 3, "zyra": 3, "t9": 3, "oru": 3}
+			g.fragments["mara"] = 7
+			g.wild = 6
 			main._start_battle(),
 		"vaisseau": func():
 			_ship(10)
@@ -216,6 +228,11 @@ func _initialize() -> void:
 			g.owned["brix"] = true
 			g.ship.posts["raffinerie"] = ["brix"]
 			main._open_mission(),
+		"voyage_pont": func():
+			g.chapters_done = []
+			g.ship.unlock()
+			main._open_ship()
+			main._open_room("pont"),
 		"scene_bord": func():
 			g.ship.unlock()
 			main._open_modal(DialogueScreen.new(Story.scene("b1_bord"), true)),
@@ -232,6 +249,31 @@ func _initialize() -> void:
 		"horsligne_vaisseau": func():
 			_ship(10)
 			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "raffinerie", "to": 9}], "research": "blindage", "trained": {"neelo": 2}, "shuttles": ["colibri"]}})),
+		"construire": func():
+			_ship(5)
+			g.ship.rooms["serre"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			main._open_ship()
+			await create_timer(1.0).timeout,
+		"hangar_construire": func():
+			_ship(11)
+			g.ship.rooms["hangar"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			g.tips.append("build")
+			main._open_ship()
+			await process_frame
+			main._modal._select("hangar"),
+		"construire_fiche": func():
+			_ship(5)
+			g.ship.rooms["serre"] = 0
+			g.ship.builds = []
+			g.tips.append("ship")
+			g.tips.append("build")
+			main._open_ship()
+			await process_frame
+			main._modal._select("serre"),
 		"fiche_salle": func():
 			_ship(10)
 			main._open_ship()
@@ -269,7 +311,7 @@ func _ship(lv: int) -> void:
 	sh.open_rooms()
 	var lvs := {"centrale": lv - 1, "raffinerie": lv - 1, "atelier": lv - 2, "antenne": maxi(1, lv - 9), "labo": maxi(1, lv - 9), "quartiers": maxi(1, lv - 5), "hangar": maxi(1, lv - 7), "serre": maxi(1, lv - 4), "observatoire": maxi(1, lv - 11)}
 	for r in lvs:
-		if sh.room_level(r) > 0:
+		if lv >= int(Ship.ROOMS[r].unlock):
 			sh.rooms[r] = maxi(1, lvs[r])
 	for id in ["dax", "pim", "neelo", "sora", "lumi", "gorn", "omega", "vance", "t9", "brix"]:
 		g.owned[id] = true

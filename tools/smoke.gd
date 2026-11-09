@@ -111,8 +111,8 @@ func _initialize() -> void:
 					ship_need = cc if ship_need == 0.0 else minf(ship_need, cc)
 		# on évolue dès que possible, puis on dépense les crédits comme un joueur
 		for id in g.squad_ids():
-			if g.can_afford_evolve(id):
-				g.evolve(id)
+			if g.at_cap(id) and g.can_star_up(id):
+				g.star_up(id)
 		for id in g.squad_ids():
 			if g.can_level(id) and (ship_need == 0.0 or g.credits - float(g.level_cost(id)) > ship_need * 0.5 or int(t) % 5 == 0):
 				g.level_up(id)
@@ -122,6 +122,6 @@ func _initialize() -> void:
 	print("SMOKE histoire : %d scènes, %d chapitre(s) terminé(s), vues : %s" % [scenes, chapters, str(g.seen_scenes)])
 	print("SMOKE vaisseau : niveau %d, salles %s, améliorations %d, nouvelles versions vues %d, bienvenue à bord %d" % [g.ship.level, str(g.ship.rooms), ups, tiers, aboard])
 	print("SMOKE objets : %d, équipés : %d, éclats : %d" % [g.items.size(), g.items.filter(func(it): return it.on != "").size(), g.shards])
-	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, paliers : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.evolved.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
+	print("SMOKE étage atteint : %d, meilleur : %d, résultats : %d, défaites : %d, niveaux : %s, étoiles : %s, renforts : %s, persévérance : %d, crédits : %d, éclats : %d" % [g.stage, g.best_stage, results, defeats, str(g.levels.values()), str(g.hero_stars.values()), str(g.boosts), g.perseverance, g.credits, g.shards])
 	Engine.time_scale = 1.0
 	quit()

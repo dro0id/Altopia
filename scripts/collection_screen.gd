@@ -197,8 +197,10 @@ func _draw_grid() -> void:
 		var sub := "À recruter"
 		if have:
 			sub = "Niv. %d" % int(Game.levels[id])
-			if Game.can_evolve(id):
-				sub += " · ▲ palier"
+			if Game.can_star_up(id):
+				sub += " · ▲ étoile"
+			elif Game.needs_star(id):
+				sub += " · ★ requise"
 		M3.text(_grid, r.position + Vector2(8, 224), sub, 24, UI.MUTED, false, r.size.x - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
 
 
