@@ -168,14 +168,9 @@ func _layout() -> void:
 		_opts_hide()
 
 
-func _restyle(b: Button, fill: Color, fg: Color) -> void:
-	for st in ["normal", "hover", "pressed"]:
-		var sb: StyleBoxFlat = b.get_theme_stylebox(st).duplicate()
-		sb.bg_color = fill
-		sb.border_color = fill
-		b.add_theme_stylebox_override(st, sb)
-	for k in ["font_color", "font_hover_color", "font_pressed_color"]:
-		b.add_theme_color_override(k, fg)
+## Bouton d'alerte (combat de boss) : le rôle « alert » rouge de la charte de verre.
+func _restyle(b: Button, _fill: Color, _fg: Color) -> void:
+	UI.glassify(b, "alert")
 
 
 func _opts_hide() -> void:

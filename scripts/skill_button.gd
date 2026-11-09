@@ -1,6 +1,7 @@
 class_name SkillButton
 extends Control
-## Bouton de pouvoir : rond de 92 px, bordure de couleur, glyphe, anneau de recharge. Un appui déclenche le pouvoir.
+## Bouton de pouvoir : hexagone de verre de 96 px, portrait, anneau de recharge qui se remplit le long du contour.
+## Un appui déclenche le pouvoir.
 
 signal pressed(slot: int)
 
@@ -47,26 +48,62 @@ func _draw() -> void:
 	var c := Vector2(56, 52)
 	var alive := unit != null and unit.alive
 	var ready := alive and unit.skill_cd <= 0.0 and unit.stun_t <= 0.0
-	draw_circle(c, 48, Color("0a1424"))
-	Art.draw_portrait(self, hero, c, 42.0, t)
 	var frac := 1.0
 	if alive:
 		frac = 1.0 - clampf(unit.skill_cd / unit.skill_max, 0.0, 1.0)
-	draw_arc(c, 46, 0, TAU, 56, Color(col, 0.3), 5.0, true)
-	draw_arc(c, 46, -PI * 0.5, -PI * 0.5 + TAU * frac, 56, col, 5.0, true)
 	if ready:
-		draw_arc(c, 52 + sin(t * 6.0) * 1.5, 0, TAU, 56, Color(col, 0.45), 3.0, true)
-		draw_circle(c + Vector2(34, -34), 15, col)
-		draw_glyph(self, int(look.glyph), c + Vector2(34, -34), Color("06101f"), 0.32)
+		# lueur d'un pouvoir prêt
+		var gl := 0.5 + 0.5 * sin(t * 6.0)
+		draw_colored_polygon(_hex(c, 56.0 + gl * 2.0), Color(col, 0.16 + 0.1 * gl))
+	draw_colored_polygon(_hex(c, 50.0), Color("0f1a36"))
+	draw_colored_polygon(_hex(c, 43.0), Color("0a1424"))
+	Art.draw_portrait(self, hero, c, 38.0, t)
+	draw_polyline(_closed_hex(c, 46.0), Color(col, 0.28), 5.0, true)
+	if frac >= 1.0:
+		draw_polyline(_closed_hex(c, 46.0), col, 5.0, true)
+	elif frac > 0.0:
+		draw_polyline(_hex_progress(c, 46.0, frac), col, 5.0, true)
+	if ready:
+		draw_circle(c + Vector2(36, -34), 15, col)
+		draw_arc(c + Vector2(36, -34), 15, 0, TAU, 20, Color("070b1a"), 2.0, true)
+		draw_glyph(self, int(look.glyph), c + Vector2(36, -34), Color("06101f"), 0.32)
 	if not alive:
-		draw_circle(c, 46, Color(0, 0, 0, 0.6))
+		draw_colored_polygon(_hex(c, 47.0), Color(0, 0, 0, 0.6))
 	if flash > 0.0:
-		draw_circle(c, 46, Color(1, 1, 1, flash * 0.5))
+		draw_colored_polygon(_hex(c, 47.0), Color(1, 1, 1, flash * 0.5))
 	# barre de vie
 	var hp := unit.hp_frac() if alive else 0.0
 	draw_style_box(UI.box(Color("1d2a52"), Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, 112, 12))
 	if hp > 0.0:
 		draw_style_box(UI.box(UI.GREEN if hp > 0.35 else UI.RED, Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, maxf(12.0, 112.0 * hp), 12))
+
+
+## Hexagone à pointe en haut, de rayon `r`.
+static func _hex(c: Vector2, r: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in 6:
+		pts.append(c + Vector2.from_angle(-PI * 0.5 + TAU * i / 6.0) * r)
+	return pts
+
+
+static func _closed_hex(c: Vector2, r: float) -> PackedVector2Array:
+	var pts := _hex(c, r)
+	pts.append(pts[0])
+	return pts
+
+
+## Partie du contour de l'hexagone parcourue depuis la pointe du haut, dans le sens des aiguilles d'une montre.
+static func _hex_progress(c: Vector2, r: float, frac: float) -> PackedVector2Array:
+	var pts := _closed_hex(c, r)
+	var out := PackedVector2Array([pts[0]])
+	var left := clampf(frac, 0.0, 1.0) * 6.0
+	for i in 6:
+		if left <= 0.0:
+			break
+		var k := minf(left, 1.0)
+		out.append(pts[i].lerp(pts[i + 1], k))
+		left -= 1.0
+	return out
 
 
 func _glyph(g: int, c: Vector2, col: Color) -> void:

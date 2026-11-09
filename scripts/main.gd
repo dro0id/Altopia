@@ -186,8 +186,7 @@ func _build_top() -> void:
 	_aurora.pressed.connect(_open_ship)
 	add_child(_aurora)
 	_warn = HudButton.new()
-	_warn.fill = Color("3a1620ee")
-	_warn.border = UI.RED
+	_warn.role = "danger"
 	_warn.text_color = Color("ff9b9b")
 	_warn.bold = true
 	_warn.font_size = 28
@@ -244,7 +243,7 @@ func _build_squad() -> void:
 			_manual_cast = true
 		else:
 			Sfx.play("click", -10.0))
-	_fab_speed = _fab(_controls, "⚡", Rect2(576, 0, 112, 112))
+	_fab_speed = _fab(_controls, "⚡", Rect2(576, 0, 112, 112), "secondary")
 	_fab_speed.pressed.connect(func():
 		Game.speed = 1.0 if Game.speed >= 3.0 else Game.speed + 1.0
 		battle.speed = Game.speed
@@ -253,21 +252,19 @@ func _build_squad() -> void:
 
 
 ## Bouton flottant carré arrondi (56 dp, rayon 16 dp) avec un glyphe dessiné.
-func _fab(parent: Control, glyph: String, r: Rect2) -> Button:
+func _fab(parent: Control, glyph: String, r: Rect2, role := "premium") -> Button:
 	var b := M3.button(parent, "", r, "main", 30)
-	for st in ["normal", "hover", "pressed", "disabled"]:
-		var sb: StyleBoxFlat = b.get_theme_stylebox(st).duplicate()
-		sb.set_corner_radius_all(32)
-		b.add_theme_stylebox_override(st, sb)
+	UI.glassify(b, role, 0.26, 2.0, true)           # hexagone de verre : doré pour « tout lancer », gris-bleu pour la vitesse
+	var dark := role == "premium"
 	var g := Control.new()
 	g.size = r.size
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	g.draw.connect(func():
 		var c := r.size * 0.5
 		if glyph == "✦":
-			g.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -24), c + Vector2(6, -6), c + Vector2(24, 0), c + Vector2(6, 6), c + Vector2(0, 24), c + Vector2(-6, 6), c + Vector2(-24, 0), c + Vector2(-6, -6)]), UI.DARK)
+			g.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -24), c + Vector2(6, -6), c + Vector2(24, 0), c + Vector2(6, 6), c + Vector2(0, 24), c + Vector2(-6, 6), c + Vector2(-24, 0), c + Vector2(-6, -6)]), UI.DARK if dark else UI.TEXT)
 		else:
-			g.draw_colored_polygon(PackedVector2Array([c + Vector2(6, -26), c + Vector2(-14, 4), c + Vector2(0, 4), c + Vector2(-6, 26), c + Vector2(14, -4), c + Vector2(0, -4)]), UI.DARK))
+			g.draw_colored_polygon(PackedVector2Array([c + Vector2(6, -26), c + Vector2(-14, 4), c + Vector2(0, 4), c + Vector2(-6, 26), c + Vector2(14, -4), c + Vector2(0, -4)]), UI.DARK if dark else UI.TEXT))
 	b.add_child(g)
 	return b
 
@@ -941,8 +938,8 @@ func _refresh() -> void:
 	var big := _boss == "big"
 	_stage_btn.set_texts(("☠ Étage %d" if big else "Étage %d ▾") % Game.stage)
 	_stage_btn.text_color = Color("ff9b9b") if big else UI.TEXT
-	_stage_btn.fill = Color("3a1620") if big else M3.S3
-	_stage_btn.border = _stage_btn.fill
+	_stage_btn.role = "danger" if big else ""
+	_stage_btn.queue_redraw()
 	_stage_btn.size = Vector2(M3.text_w(_stage_btn.text, 28, true) + 56.0, 80)
 	_credits_chip.set_texts(UI.short(Game.credits))
 	_credits_chip.fit_chip()

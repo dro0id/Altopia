@@ -8,8 +8,8 @@ func _initialize() -> void:
 	bg.color = Color("0b1226")
 	bg.size = Vector2(720, 1280)
 	root.add_child(bg)
-	var kinds := ["main", "ghost", "tonal", "outline", "gold", "danger", "text"]
-	var names := ["Principal", "Secondaire", "Tonal", "Contour", "Premium", "Danger", "Texte"]
+	var kinds := ["main", "success", "gold", "ghost", "danger", "alert", "text"]
+	var names := ["Principal", "Récolte", "Premium", "Secondaire", "Danger", "Alerte", "Texte"]
 	for i in kinds.size():
 		var y := 24.0 + i * 120.0
 		var b = m3.button(bg, names[i], Rect2(24, y, 330, 96), kinds[i], 30)
@@ -19,6 +19,8 @@ func _initialize() -> void:
 	ib.position = Vector2(24, 880)
 	var ib2 = m3.icon_button(bg, "←", 44)
 	ib2.position = Vector2(140, 880)
+	var ib3 = m3.icon_button(bg, "⋮", 44)
+	ib3.position = Vector2(256, 880)
 	for i in 5:
 		await process_frame
 	root.get_texture().get_image().save_png(out)

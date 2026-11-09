@@ -62,18 +62,18 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 	return bar
 
 
-## Bouton icône rond de 48 dp, sans fond (léger voile à l'appui).
+## Bouton icône : octogone de verre de 44 dp (la plaque est en retrait dans la zone d'appui de 48 dp).
 static func icon_button(parent: Node, glyph: String, size: int = 36) -> Button:
 	var b := Button.new()
 	b.text = glyph
 	b.size = Vector2(96, 96)
 	b.custom_minimum_size = Vector2(96, 96)
 	b.add_theme_font_size_override("font_size", size)
-	b.add_theme_color_override("font_color", UI.TEXT)
-	b.add_theme_color_override("font_hover_color", UI.TEXT)
-	b.add_theme_color_override("font_pressed_color", UI.TEXT)
-	for st in ["normal", "hover", "pressed", "focus"]:
-		b.add_theme_stylebox_override(st, UI.box(Color(1, 1, 1, 0.0 if st == "normal" or st == "focus" else 0.1), Color(0, 0, 0, 0), 48, 0))
+	UI.glassify(b, "secondary", 0.3, 6.0)
+	b.add_theme_stylebox_override("focus", GlassBox.make("secondary", "normal", 0.3))
+	(b.get_theme_stylebox("focus") as GlassBox).inset = 6.0
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(k, UI.TEXT)
 	b.pressed.connect(func(): Sfx.play("click", -6.0))
 	parent.add_child(b)
 	return b
@@ -176,10 +176,6 @@ static func button(parent: Node, text: String, rect: Rect2, kind := "main", size
 	b.position = rect.position
 	b.size = rect.size
 	b.custom_minimum_size = Vector2(0, rect.size.y)
-	for st in ["normal", "hover", "pressed", "disabled"]:
-		var sb: StyleBoxFlat = b.get_theme_stylebox(st).duplicate()
-		sb.set_corner_radius_all(int(rect.size.y * 0.5))
-		b.add_theme_stylebox_override(st, sb)
 	fit_button(b, fs(size))
 	return b
 

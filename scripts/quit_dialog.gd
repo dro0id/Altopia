@@ -22,8 +22,4 @@ func _init(title := "Quitter Altopia ?", body := "Ta progression est sauvegardé
 	q.pressed.connect(func(): quit_pressed.emit())
 	var r := UI.button(row, cancel, M3.fs(30), "main")
 	r.custom_minimum_size = Vector2(220, 96)
-	for st in ["normal", "hover", "pressed"]:
-		var sb: StyleBoxFlat = r.get_theme_stylebox(st).duplicate()
-		sb.set_corner_radius_all(48)
-		r.add_theme_stylebox_override(st, sb)
 	r.pressed.connect(close)

@@ -15,6 +15,8 @@ var icon := ""          # "coin", "shard", "crystal", "token", "itoken", "copies
 var tappable := true
 var bold := false
 var fill := UI.HUD
+var role := ""          # rôle de verre (GlassBox) ; vide : secondaire si on peut appuyer, plaquette sinon
+var _glass := {}
 
 
 func _init() -> void:
@@ -49,8 +51,11 @@ func _gui_input(ev: InputEvent) -> void:
 
 
 func _draw() -> void:
-	var sb := UI.box(fill, border, int(minf(radius, size.y * 0.5)), 0)
-	draw_style_box(sb, Rect2(Vector2.ZERO, size))
+	var r := role if role != "" else ("secondary" if tappable else "chip")
+	if not _glass.has(r):
+		_glass[r] = GlassBox.make(r, "normal", 0.3)
+		(_glass[r] as GlassBox).glow_on = false
+	draw_style_box(_glass[r], Rect2(Vector2.ZERO, size))
 	var f: Font = UI.bold_font() if (bold or icon != "" or sub != "") else ThemeDB.fallback_font
 	if icon != "":
 		var c := Vector2(32, size.y * 0.5)
