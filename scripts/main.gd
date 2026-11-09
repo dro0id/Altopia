@@ -8,6 +8,7 @@ var skill_buttons: Array = []
 var _credits_chip: HudButton
 var _shards_chip: HudButton
 var _stage_btn: HudButton
+var _home_btn: Control             # bouton vaisseau : retour à l'Aurore depuis le combat
 var _top: Control
 var _info: Label
 var _strip: Control
@@ -134,9 +135,21 @@ func _build_top() -> void:
 	_stage_btn.radius = 40.0
 	_stage_btn.fill = M3.S3
 	_stage_btn.border = M3.S3
-	_stage_btn.position = Vector2(24, 16)
+	_stage_btn.position = Vector2(116, 16)
 	_stage_btn.pressed.connect(_open_map)
 	_top.add_child(_stage_btn)
+	# retour à l'Aurore : le combat n'est plus un onglet de la barre du bas
+	_home_btn = Control.new()
+	_home_btn.position = Vector2(24, 16)
+	_home_btn.size = Vector2(80, 80)
+	_home_btn.draw.connect(func():
+		_home_btn.draw_style_box(UI.box(M3.S3, Color(0, 0, 0, 0), 40, 0), Rect2(Vector2.ZERO, _home_btn.size))
+		NavBar.draw_ship_icon(_home_btn, Vector2(40, 40), UI.ACCENT))
+	_home_btn.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev):
+			Sfx.play("click", -6.0)
+			_open_ship())
+	_top.add_child(_home_btn)
 	_credits_chip = M3.cur_chip("coin", "0")
 	_top.add_child(_credits_chip)
 	_shards_chip = M3.cur_chip("shard", "0")
@@ -989,7 +1002,6 @@ func _refresh() -> void:
 		if bh.hero != "" and float(bh.gain) > 0.0 and (it.bound == "" or it.bound == bh.hero):
 			ready_items += 1
 	_nav.ship_on = Game.ship.unlocked
-	_nav.mission_locked = not Game.mission_open()
 	var back := 0
 	for sh in Game.ship.shuttles:
 		if bool(Game.ship.shuttles[sh].get("back", false)):
