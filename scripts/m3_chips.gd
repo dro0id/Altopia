@@ -29,10 +29,9 @@ func _draw() -> void:
 		var w := M3.text_w(txt, 26, true) + 48.0 + (32.0 if locked else 0.0)
 		var r := Rect2(x, 16, w, 64)
 		_rects.append(r)
-		if on:
-			draw_style_box(UI.box(M3.TONAL, Color(0, 0, 0, 0), 16, 0), r)
-		else:
-			draw_style_box(UI.box(Color(0, 0, 0, 0), M3.OUT, 16, 0), r)
+		var plate := GlassBox.make("tab" if on else "chip", "normal", 0.3)
+		plate.glow_on = false
+		draw_style_box(plate, r)
 		if locked:
 			M3.lock(self, Vector2(x + 34, 48), UI.MUTED, 1.0)
 			M3.text(self, Vector2(x + 56.0, 48 + M3.fs(26) * 0.36), txt, 26, UI.MUTED, true)

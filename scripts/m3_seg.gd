@@ -18,23 +18,18 @@ func _init(lbls: Array = [], selected := 0) -> void:
 func _draw() -> void:
 	var n := labels.size()
 	var w := size.x / n
-	var sb := UI.box(Color(0, 0, 0, 0), M3.OUT, int(size.y * 0.5), 0)
+	# fond : plaque sombre ; segment choisi : plaque biseautée cyan
+	var back := GlassBox.make("chip", "normal", 0.3)
+	back.glow_on = false
+	draw_style_box(back, Rect2(Vector2.ZERO, size))
+	var tab := GlassBox.make("tab", "normal", 0.3)
+	tab.glow_on = false
 	for i in n:
 		if i == sel:
-			var r := Rect2(i * w, 0, w, size.y)
-			var s2 := StyleBoxFlat.new()
-			s2.bg_color = M3.TONAL
-			var rad := int(size.y * 0.5)
-			s2.corner_radius_top_left = rad if i == 0 else 0
-			s2.corner_radius_bottom_left = rad if i == 0 else 0
-			s2.corner_radius_top_right = rad if i == n - 1 else 0
-			s2.corner_radius_bottom_right = rad if i == n - 1 else 0
-			draw_style_box(s2, r)
-		if i > 0:
-			draw_line(Vector2(i * w, 0), Vector2(i * w, size.y), M3.OUT, 2.0)
+			tab.inset = 6.0
+			draw_style_box(tab, Rect2(i * w, 0, w, size.y))
 		var txt: String = ("✓ " if i == sel else "") + String(labels[i])
 		M3.text(self, Vector2(i * w + 8.0, size.y * 0.5 + M3.fs(28) * 0.36), txt, 28, UI.TEXT if i == sel else UI.MUTED, true, w - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
-	draw_style_box(sb, Rect2(Vector2.ZERO, size))
 
 
 func _gui_input(ev: InputEvent) -> void:

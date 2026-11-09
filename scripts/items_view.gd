@@ -43,13 +43,6 @@ func _init() -> void:
 	_fab.position = Vector2(688.0 - w, (UI.H - 160.0) - 32.0 - 112.0)
 	_fab.size = Vector2(w, 112)
 	_fab.custom_minimum_size = Vector2(w, 112)
-	for st in ["normal", "hover", "pressed", "disabled"]:
-		var sb: StyleBoxFlat = _fab.get_theme_stylebox(st).duplicate()
-		sb.set_corner_radius_all(32)
-		sb.shadow_color = Color(0, 0, 0, 0.5)
-		sb.shadow_size = 16
-		sb.shadow_offset = Vector2(0, 8)
-		_fab.add_theme_stylebox_override(st, sb)
 	_fab.pressed.connect(func():
 		var n: int = Game.equip_best_all()
 		Game.save_game()

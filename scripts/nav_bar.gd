@@ -40,9 +40,12 @@ func tab_rect(i: int) -> Rect2:
 	var w := (size.x - 16.0) / tb.size()
 	return Rect2(8.0 + w * maxi(j, 0), 8.0, w, 136.0)
 var t := 0.0
+var _tab_plate: GlassBox
 
 
 func _init() -> void:
+	_tab_plate = GlassBox.make("tab", "normal", 0.3)
+	_tab_plate.glow_on = false
 	custom_minimum_size = Vector2(720, HEIGHT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -81,7 +84,11 @@ func _draw() -> void:
 		var cx := x0 + w * 0.5
 		# pastille d'indicateur (64 × 32 dp) derrière l'icône de l'onglet actif
 		if on:
-			UI.draw_gradient_box(self, Rect2(cx - minf(64.0, w * 0.42), 24.0, minf(128.0, w * 0.84), 64.0), 32.0, UI.TONAL, UI.TONAL, UI.TONAL, 1.0)
+			# plaque biseautée cyan + liseré lumineux sous l'icône
+			var pw := minf(128.0, w * 0.84)
+			draw_style_box(_tab_plate, Rect2(cx - pw * 0.5, 24.0, pw, 64.0))
+			draw_rect(Rect2(cx - 28.0, 92.0, 56.0, 4.0), Color(UI.ACCENT, 0.9))
+			draw_rect(Rect2(cx - 34.0, 90.0, 68.0, 8.0), Color(UI.ACCENT, 0.18))
 		_icon(i, Vector2(cx, 56), col)
 		var lab := label_of(i)
 		M3.text(self, Vector2(x0, 128), lab, 23 if tb.size() > 4 else 24, UI.TEXT if on else UI.MUTED, on, w - 4.0, HORIZONTAL_ALIGNMENT_CENTER)

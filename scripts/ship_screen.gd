@@ -69,7 +69,7 @@ func _init() -> void:
 	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
-	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "main", 30)
+	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "success", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
 	_mission = Control.new()
@@ -97,7 +97,7 @@ func _init() -> void:
 			else:
 				room_requested.emit(String(_adv.room)))
 	_st.add_child(_advice)
-	_advice_btn = M3.button(_advice, "Lancer", Rect2(500, 24, 156, 76), "main", 26)
+	_advice_btn = M3.button(_advice, "Lancer", Rect2(500, 24, 156, 76), "success", 26)
 	_advice_btn.pressed.connect(_launch_advice)
 	_sheet = Control.new()
 	_sheet.size = Vector2(720, 420)
@@ -108,9 +108,9 @@ func _init() -> void:
 		if M3.is_tap(ev):
 			accept_event())
 	_st.add_child(_sheet)
-	var b_open := M3.button(_sheet, "Ouvrir la salle", Rect2(368, 300, 320, 96), "tonal", 28)
+	var b_open := M3.button(_sheet, "Ouvrir la salle", Rect2(368, 300, 320, 96), "secondary", 28)
 	b_open.pressed.connect(func(): room_requested.emit(_sel))
-	var b_col := M3.button(_sheet, "Récolter", Rect2(32, 300, 320, 96), "main", 28)
+	var b_col := M3.button(_sheet, "Récolter", Rect2(32, 300, 320, 96), "success", 28)
 	b_col.pressed.connect(_harvest_one)
 	var b_build := M3.button(_sheet, "Construire", Rect2(32, 300, 656, 96), "main", 28)
 	b_build.pressed.connect(_build_selected)
@@ -126,8 +126,6 @@ func _round_button(glyph: String, p: Vector2) -> Button:
 	b.size = Vector2(88, 88)
 	b.custom_minimum_size = Vector2(88, 88)
 	b.position = p
-	for s in ["normal", "hover", "pressed", "focus"]:
-		b.add_theme_stylebox_override(s, UI.box(Color(M3.S3, 0.85), Color(0, 0, 0, 0), 44, 0))
 	return b
 
 

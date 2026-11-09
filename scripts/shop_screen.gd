@@ -169,7 +169,7 @@ func _free_row(y: float) -> float:
 		M3.text(c, Vector2(136, 64), "Coffre gratuit", 30, UI.TEXT, true)
 		M3.text(c, Vector2(136, 104), "Prêt à ouvrir" if Game.free_chest_ready() else "Prochain dans %s" % UI.duration(Game.free_chest_remaining()), 24, UI.GREEN if Game.free_chest_ready() else UI.MUTED))
 	_content.add_child(c)
-	var b := M3.button(c, "Ouvrir", Rect2(456, 24, 176, 96), "main", 28)
+	var b := M3.button(c, "Ouvrir", Rect2(456, 24, 176, 96), "success", 28)
 	b.pressed.connect(func():
 		var ch: Dictionary = Game.claim_free_chest()
 		if not ch.is_empty():

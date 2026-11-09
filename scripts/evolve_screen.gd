@@ -74,7 +74,7 @@ func _init(id: String) -> void:
 	wc.position = Vector2(32 + cc.size.x + 16, yy)
 	wc.text_color = UI.TEXT if from_wild > 0 else UI.MUTED
 	st.add_child(wc)
-	var go := M3.button(st, "Monter à %s" % HeroScreen.star_text(nxt), Rect2(32, UI.H - 32 - 104, 656, 104), "gold" if nxt >= Data.MAX_STARS else "main", 32)
+	var go := M3.button(st, "Monter à %s" % HeroScreen.star_text(nxt), Rect2(32, UI.H - 32 - 104, 656, 104), "premium", 32)
 	go.disabled = not Game.can_star_up(id)
 	if go.disabled:
 		go.text = "Il manque %d doublon%s" % [cost - Game.copies_for(id), "s" if cost - Game.copies_for(id) > 1 else ""]

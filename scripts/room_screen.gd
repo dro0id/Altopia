@@ -45,7 +45,7 @@ func _init(r: String) -> void:
 	_content.draw.connect(_draw_content)
 	_content.gui_input.connect(_on_content_input)
 	_scroll.add_child(_content)
-	_b_left = M3.button(self, "", Rect2(32, size.y - 128, 300, 104), "tonal", 28)
+	_b_left = M3.button(self, "", Rect2(32, size.y - 128, 300, 104), "secondary", 28)
 	_b_right = M3.button(self, "", Rect2(348, size.y - 128, 340, 104), "main", 28)
 	_b_left.pressed.connect(_on_left)
 	_b_right.pressed.connect(_on_right)
@@ -81,9 +81,11 @@ func _refresh() -> void:
 		var v := floorf(float(st.stock.get(room, 0.0)))
 		_b_left.text = "Récolter %s" % (UI.num(v) if res == "credits" else str(int(v)))
 		_b_left.disabled = v < 1.0
+		UI.set_role(_b_left, "success")
 	elif room == "hangar":
 		_b_left.text = "Expédition"
 		_b_left.disabled = _free_shuttle() == ""
+		UI.set_role(_b_left, "secondary")
 	else:
 		_b_left.visible = false
 	var full := not _b_left.visible
@@ -92,6 +94,10 @@ func _refresh() -> void:
 	if not b.is_empty():
 		_b_right.text = "Accélérer · %d ◆" % Ship.rush_cost(st.remaining(int(b.end)))
 		_b_right.disabled = false
+		# pendant un chantier, le bouton se remplit d'or comme une jauge
+		UI.set_role(_b_right, "secondary")
+		var tot := float(Ship.build_cost(room, st.rank("logistique")).time) if int(b.to) == 1 else float(Ship.upgrade_cost(room, int(b.to), st.rank("logistique")).time)
+		_set_gauge(_b_right, 1.0 - float(st.remaining(int(b.end))) / maxf(1.0, tot))
 	else:
 		var lv := st.room_level(room)
 		var block := st.upgrade_block(Game, room)
@@ -99,12 +105,23 @@ func _refresh() -> void:
 			_b_right.text = "Niveau maximum"
 			_b_right.disabled = true
 		else:
+			_set_gauge(_b_right, 0.0)
+			UI.set_role(_b_right, "main")
 			_b_right.text = ("Améliorer → niv. %d" % (lv + 1)) if (block == "" or block == "Pas assez de ressources") else block
 			_b_right.disabled = block != "" and block != "Pas assez de ressources"
 	_content.queue_redraw()
 
 
 # ---------------------------------------------------------------- contenu
+
+## Jauge dorée dans un bouton (0 = aucune).
+func _set_gauge(b: Button, ratio: float) -> void:
+	for st in ["normal", "hover", "pressed"]:
+		var g := b.get_theme_stylebox(st) as GlassBox
+		if g != null:
+			g.progress = ratio
+	b.queue_redraw()
+
 
 func _hit(r: Rect2, f: Callable) -> void:
 	_hits.append([r, f])
@@ -886,7 +903,7 @@ func _show_return(sh: String, out: Dictionary) -> void:
 		if out.has("copies"):
 			box.draw_style_box(UI.box(Color("10331f"), Color(0, 0, 0, 0), 24, 0), Rect2(40, 360, 560, 64))
 			M3.text(box, Vector2(64, 402), "Trouvaille rare : %d doublons au choix" % int(out.copies), 24, Color("7dffb0"), true, 520))
-	var ok := M3.button(box, "Récupérer", Rect2(40, 444, 560, 96), "main", 28)
+	var ok := M3.button(box, "Récupérer", Rect2(40, 444, 560, 96), "success", 28)
 	ok.pressed.connect(func(): d.queue_free())
 
 

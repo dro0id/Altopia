@@ -168,14 +168,9 @@ func _layout() -> void:
 		_opts_hide()
 
 
-func _restyle(b: Button, fill: Color, fg: Color) -> void:
-	for st in ["normal", "hover", "pressed"]:
-		var sb: StyleBoxFlat = b.get_theme_stylebox(st).duplicate()
-		sb.bg_color = fill
-		sb.border_color = fill
-		b.add_theme_stylebox_override(st, sb)
-	for k in ["font_color", "font_hover_color", "font_pressed_color"]:
-		b.add_theme_color_override(k, fg)
+## Bouton d'alerte (combat de boss) : le rôle « alert » rouge de la charte de verre.
+func _restyle(b: Button, _fill: Color, _fg: Color) -> void:
+	UI.glassify(b, "alert")
 
 
 func _opts_hide() -> void:
@@ -280,40 +275,27 @@ func _face(ci: CanvasItem, who: String, c: Vector2, r: float, ring: Color) -> vo
 
 
 static func _art(ci: CanvasItem, art: String, c: Vector2, k: float, t := 0.0) -> void:
+	# les gardiens sont les créatures de verre du combat (EnemyArt), à la teinte de leur chapitre
 	match art:
-		"prism":
-			_prism(ci, c, k)
-		"moth":
-			_moth(ci, c, k)
 		"voice":
 			_voice(ci, c, k, t)
+		"prism":
+			_boss_art(ci, "sentinelle", 3, c, k, t, 105.0)
+		"moth":
+			_boss_art(ci, "reine", 4, c, k, t, 55.0)
 		"gold":
-			_crystal(ci, c, k, true)
+			_boss_art(ci, "titan", 5, c, k, t, 78.0, true)
 		_:
-			_crystal(ci, c, k)
+			_boss_art(ci, "titan", 2, c, k, t, 75.0)
 
 
-## La Reine des mites (maquette HD) : ailes ambrées, corps brun, couronne et yeux rouges.
-static func _moth(ci: CanvasItem, c: Vector2, k: float) -> void:
-	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x - 30.0, y - 30.0) * k * 1.6
-	var wing := func(pts: Array, col: Color) -> void:
-		var arr := PackedVector2Array()
-		for q in pts:
-			arr.append(P.call(q[0], q[1]))
-		ci.draw_colored_polygon(arr, col)
-	wing.call([[30, 26], [22, 14], [12, 9], [5, 16], [6, 28], [14, 36], [24, 34], [30, 30]], Color(1.0, 0.69, 0.26, 0.85))
-	wing.call([[30, 26], [38, 14], [48, 9], [55, 16], [54, 28], [46, 36], [36, 34], [30, 30]], Color(1.0, 0.69, 0.26, 0.85))
-	wing.call([[30, 30], [22, 40], [16, 50], [22, 52], [28, 46], [30, 36]], Color("c9792a"))
-	wing.call([[30, 30], [38, 40], [44, 50], [38, 52], [32, 46], [30, 36]], Color("c9792a"))
-	var body := PackedVector2Array()
-	for i in 20:
-		var a := TAU * i / 20.0
-		body.append(P.call(30 + cos(a) * 5.0, 34 + sin(a) * 16.0))
-	ci.draw_colored_polygon(body, Color("5a3a20"))
-	ci.draw_circle(P.call(30, 18), 5.0 * k * 1.6, Color("5a3a20"))
-	ci.draw_circle(P.call(28, 17), 1.3 * k * 1.6, Color("ff6b6b"))
-	ci.draw_circle(P.call(32, 17), 1.3 * k * 1.6, Color("ff6b6b"))
-	wing.call([[25, 12], [27, 8], [30, 11], [33, 8], [35, 12]], Color("ffe08a"))
+## Dessine un gardien du combat centré sur `c` : `half` est sa demi-hauteur (le dessin part du sol vers le haut).
+static func _boss_art(ci: CanvasItem, kind: String, chapter: int, c: Vector2, k: float, t: float, half: float, gold := false) -> void:
+	var sc := k * 0.8
+	EnemyArt.draw(ci, kind, {"t": t, "pal": EnemyArt.PALS[chapter], "gold": gold, "origin": c + Vector2(0, half * sc), "scale": sc})
+
+
+
 
 
 ## La voix de Holt (maquette HE) : un cercle et une onde qui vibre.
@@ -328,27 +310,6 @@ static func _voice(ci: CanvasItem, c: Vector2, k: float, t: float) -> void:
 		var amp := 1.0 + 0.25 * sin(t * 9.0 + i)
 		pts.append(c + Vector2(xs[i], ys[i] * amp) * s)
 	ci.draw_polyline(pts, col, 2.4 * s, true)
-
-
-## La Sentinelle prismatique, « le Phare » (maquette GE) : un prisme violet, un cœur de lumière et deux faisceaux.
-static func _prism(ci: CanvasItem, c: Vector2, k: float) -> void:
-	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x - 30.0, y - 30.0) * k * 1.6
-	ci.draw_line(P.call(30, 30), P.call(60, 10), Color(1.0, 0.96, 0.77, 0.6), 1.5 * k * 1.6, true)
-	ci.draw_line(P.call(30, 30), P.call(0, 10), Color(1.0, 0.96, 0.77, 0.6), 1.5 * k * 1.6, true)
-	ci.draw_colored_polygon(PackedVector2Array([P.call(30, 4), P.call(44, 22), P.call(38, 56), P.call(22, 56), P.call(16, 22)]), Color(0.7, 0.53, 1.0, 0.85))
-	ci.draw_colored_polygon(PackedVector2Array([P.call(30, 4), P.call(44, 22), P.call(30, 28), P.call(16, 22)]), Color("e6d6ff"))
-	ci.draw_circle(P.call(30, 30), 6.0 * k * 1.6, Color("fff4c4"))
-
-
-## Le Gardien de verre : un cristal à facettes avec un cœur rouge.
-static func _crystal(ci: CanvasItem, c: Vector2, k: float, gold := false) -> void:
-	var P := func(x: float, y: float) -> Vector2: return c + Vector2(x - 24.0, y - 24.0) * k * 2.0
-	ci.draw_colored_polygon(PackedVector2Array([P.call(24, 2), P.call(38, 14), P.call(34, 42), P.call(14, 42), P.call(10, 14)]), Color(1.0, 0.82, 0.4, 0.9) if gold else Color(0.5, 0.86, 1.0, 0.9))
-	ci.draw_colored_polygon(PackedVector2Array([P.call(24, 2), P.call(38, 14), P.call(24, 20), P.call(10, 14)]), Color("fff1c4") if gold else Color("c9f2ff"))
-	ci.draw_circle(P.call(24, 24), 5.0 * k * 2.0, Color.WHITE if gold else Color("ff6b6b"))
-	if gold:
-		ci.draw_arc(P.call(24, 24), 8.0 * k * 2.0, 0, TAU, 40, Color(1, 1, 1, 0.6), 1.0 * k * 2.0, true)
-	ci.draw_polyline(PackedVector2Array([P.call(14, 42), P.call(24, 20), P.call(34, 42)]), Color(0.04, 0.07, 0.15, 0.5), 1.5 * k * 2.0, true)
 
 
 func _pick(k: int) -> void:

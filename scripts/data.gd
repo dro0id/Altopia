@@ -108,7 +108,7 @@ const RARITIES_HERO := ["common", "rare", "epic"]
 
 ## Ennemis : multiplicateurs appliqués aux statistiques de base de l'étage.
 const ENEMIES := {
-	"mite": {"name": "Mite de roche", "hp": 0.6, "atk": 0.9, "def": 0.5, "interval": 1.0, "ranged": false, "gold": 1.0},
+	"mite": {"name": "Mite de verre", "hp": 0.6, "atk": 0.9, "def": 0.5, "interval": 1.0, "ranged": false, "gold": 1.0},
 	"drone": {"name": "Drone foreur", "hp": 1.0, "atk": 1.0, "def": 1.0, "interval": 1.5, "ranged": true, "gold": 1.5},
 	"gunner": {"name": "Canonnier", "hp": 0.8, "atk": 1.7, "def": 0.8, "interval": 2.0, "ranged": true, "gold": 2.0},
 	"foreur": {"name": "Foreur éclaté", "hp": 16.0, "atk": 2.0, "def": 1.5, "interval": 1.6, "ranged": false, "gold": 12.0},

@@ -144,7 +144,7 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 	var label := "Monter le niveau · %s ¢" % UI.num(cost_v)
 	if capped:
 		label = "Niveau maximum" if stars >= 5 else ("Monter à %s" % star_text(stars + 1))
-	var up := M3.button(_stage, label, Rect2(32, UI.H - 136.0, 656, 104), "main")
+	var up := M3.button(_stage, label, Rect2(32, UI.H - 136.0, 656, 104), "premium" if capped else "main")
 	up.disabled = (not capped and Game.credits < cost_v) or (capped and stars >= 5)
 	level_button = up
 	up.pressed.connect(func():

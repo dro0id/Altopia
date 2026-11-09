@@ -41,49 +41,86 @@ static func label(parent: Node, text: String, size: int, col: Color = Color.WHIT
 	return l
 
 
-## Bouton de la charte : `kind` = "main" (action, bleu), "gold" (premium), "ghost" (secondaire) ou "danger". Hauteur mini 96 px (48 dp).
+## Rôle visuel d'un bouton (voir GlassBox) : main, success, premium, secondary, danger, alert ; « text » reste un lien.
+## Les anciens noms sont conservés : ghost, tonal et outline deviennent secondary, gold devient premium.
+static func role_of(kind: String) -> String:
+	match kind:
+		"gold", "premium":
+			return "premium"
+		"ghost", "tonal", "outline", "secondary":
+			return "secondary"
+		"success", "collect":
+			return "success"
+		"danger":
+			return "danger"
+		"alert":
+			return "alert"
+	return "main"
+
+
+## Donne à un bouton le style de verre facetté d'un rôle (états normal, survol, appuyé, inactif).
+static func glassify(b: Button, role: String, chamfer := 0.26, inset := 0.0, hexagon := false) -> void:
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var g := GlassBox.make(role, st, chamfer)
+		g.inset = inset
+		g.hexagon = hexagon
+		b.add_theme_stylebox_override(st, g)
+	var fg := GlassBox.text_color(role)
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(k, fg)
+	b.add_theme_color_override("font_disabled_color", GlassBox.text_color(role, "disabled"))
+
+
+## Change le rôle d'un bouton déjà créé (sans refaire ses styles s'il a déjà ce rôle).
+static func set_role(b: Button, role: String, chamfer := 0.26) -> void:
+	if String(b.get_meta("role", "")) == role:
+		return
+	b.set_meta("role", role)
+	glassify(b, role, chamfer)
+
+
+## Bouton de la charte. `kind` : voir role_of ; « text » est un lien sans plaque. Hauteur mini 96 px (48 dp).
 static func button(parent: Node, text: String, size: int, kind: String = "main") -> Button:
 	var b := Button.new()
 	b.text = text
 	b.add_theme_font_size_override("font_size", size)
-	var fill := ACCENT
-	var line := ACCENT
-	var fg := DARK
-	match kind:
-		"text":
-			fill = Color(0, 0, 0, 0)
-			line = Color(0, 0, 0, 0)
-			fg = ACCENT
-		"outline":
-			fill = Color(0, 0, 0, 0)
-			line = LINE
-			fg = ACCENT
-		"gold":
-			fill = GOLD
-			line = GOLD
-			fg = Color("1a1004")
-		"ghost":
-			fill = TONAL
-			line = TONAL
-			fg = TEXT
-		"danger":
-			fill = Color("2a1626")
-			line = RED
-			fg = Color("ffb3b3")
-	# boutons en pilule (rayon = moitié de la hauteur minimale de 96 px)
-	var tr := kind == "text"
-	b.add_theme_stylebox_override("normal", box(fill, line, 48, 14))
-	b.add_theme_stylebox_override("hover", box(fill.lightened(0.1) if not tr else Color(ACCENT, 0.1), line, 48, 14))
-	b.add_theme_stylebox_override("pressed", box(fill.darkened(0.15) if not tr else Color(ACCENT, 0.2), line, 48, 14))
-	b.add_theme_stylebox_override("disabled", box(fill.darkened(0.45) if (kind != "ghost" and not tr and kind != "outline") else Color(0.08, 0.12, 0.24, 0.0 if tr or kind == "outline" else 1.0), line.darkened(0.5), 48, 14))
-	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		b.add_theme_color_override(k, fg)
-	b.add_theme_color_override("font_disabled_color", fg.darkened(0.3) if kind != "ghost" else MUTED.darkened(0.3))
+	if kind == "text":
+		b.add_theme_stylebox_override("normal", box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 24, 14))
+		b.add_theme_stylebox_override("hover", box(Color(ACCENT, 0.1), Color(0, 0, 0, 0), 24, 14))
+		b.add_theme_stylebox_override("pressed", box(Color(ACCENT, 0.2), Color(0, 0, 0, 0), 24, 14))
+		b.add_theme_stylebox_override("disabled", box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 24, 14))
+		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			b.add_theme_color_override(k, ACCENT)
+		b.add_theme_color_override("font_disabled_color", ACCENT.darkened(0.5))
+	else:
+		glassify(b, role_of(kind))
 	b.add_theme_font_override("font", bold_font())
 	b.custom_minimum_size.y = 96.0
-	b.pressed.connect(func(): Sfx.play("click", -6.0))
+	b.pressed.connect(func():
+		Sfx.play("click", -6.0)
+		_wave(b))
 	parent.add_child(b)
 	return b
+
+
+## Onde claire qui part du bouton au relâchement (désactivée avec « Réduire les tremblements »).
+static func _wave(b: Button) -> void:
+	if Game.reduce_shake or not b.is_inside_tree() or b.size.x < 24.0:
+		return
+	var w := Control.new()
+	w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	w.size = b.size
+	w.set_meta("k", 0.0)
+	w.draw.connect(func():
+		var k: float = w.get_meta("k")
+		var c := b.size.y * 0.26 + k * 6.0
+		var r := Rect2(Vector2(-1, -1) * (k * 10.0), b.size + Vector2(2, 2) * (k * 10.0))
+		var pts := PackedVector2Array([Vector2(r.position.x + c, r.position.y), Vector2(r.end.x - c, r.position.y), Vector2(r.end.x, r.position.y + c), Vector2(r.end.x, r.end.y - c), Vector2(r.end.x - c, r.end.y), Vector2(r.position.x + c, r.end.y), Vector2(r.position.x, r.end.y - c), Vector2(r.position.x, r.position.y + c), Vector2(r.position.x + c, r.position.y)])
+		w.draw_polyline(pts, Color(1, 1, 1, 0.5 * (1.0 - k)), 3.0, true))
+	b.add_child(w)
+	var tw := w.create_tween()
+	tw.tween_method(func(k: float): w.set_meta("k", k); w.queue_redraw(), 0.0, 1.0, 0.3)
+	tw.finished.connect(w.queue_free)
 
 
 ## Marges de sécurité en px de conception (720 de large) : encoche ou caméra en haut, barre de gestes en bas.

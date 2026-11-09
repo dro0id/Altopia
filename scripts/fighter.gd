@@ -20,6 +20,7 @@ var stride := 0.0           # phase de marche
 var move := 0.0             # 0..1, intensité du déplacement (jambes)
 var _last_off := 0.0
 var _hit_dir := 0.0
+var _pal := {}             # teinte des ennemis (chapitre ou secteur)
 
 
 func setup(u: BattleSim.Unit, pos: Vector2) -> void:
@@ -32,19 +33,17 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 	t = randf() * 4.0
 	if u.side == 1:
 		appear = -randf() * 0.25      # les ennemis arrivent en décalé
-	if u.kind == "foreur":
-		scale_k *= 0.8
-		self_modulate = Color(1.0, 0.86, 0.62)
-	elif u.kind == "sentinelle":
-		scale_k *= 1.15
-		self_modulate = Color(0.78, 0.7, 1.3)
-	elif u.kind == "reine":
-		scale_k *= 1.7
-		self_modulate = Color(1.25, 0.6, 1.1)
-	elif u.kind == "titan":
-		self_modulate = Color(0.72, 0.9, 1.25)       # le Gardien de verre est translucide et bleuté
-		if u.boss and Game.stage == Data.LAST_STORY_BOSS:
-			self_modulate = Color(1.35, 1.1, 0.5)    # le Gardien du dernier seuil est doré
+	# les créatures de verre ont leur propre teinte (palette du chapitre) : plus de filtre de couleur
+	match u.kind:
+		"foreur":
+			scale_k *= 0.8
+		"titan":
+			scale_k *= 0.85
+		"sentinelle":
+			scale_k *= 0.75
+		"reine":
+			scale_k *= 1.0
+	_pal = EnemyArt.palette_for(Game.stage) if u.side == 1 else {}
 
 
 func play_attack(melee: bool) -> void:
@@ -110,6 +109,11 @@ func _draw() -> void:
 		"hurt": 1.0 - hurt_t, "dead": dead_t, "stun": unit.alive and unit.stun_t > 0.0,
 		"stride": stride, "move": move, "melee": lunge > 0.0,
 	}
+	if unit.side == 1:
+		p["pal"] = _pal
+		p["phase2"] = unit.phase2
+		p["elite"] = unit.elite != ""
+		p["gold"] = unit.boss and unit.kind == "titan" and Game.stage == Data.LAST_STORY_BOSS
 	if unit.side == 0:
 		Art.draw_hero_back(self, unit.data, p)
 	else:
@@ -120,10 +124,15 @@ func _draw() -> void:
 		var top := -165.0 if unit.side == 0 else (-62.0 if unit.kind == "mite" else -118.0)
 		if unit.boss:
 			top = -155.0
-		if unit.kind == "reine":
-			top = -78.0
-		elif unit.kind == "sentinelle":
-			top = -125.0
+		match unit.kind:
+			"titan":
+				top = -166.0 if not p.get("gold", false) else -178.0
+			"reine":
+				top = -124.0
+			"sentinelle":
+				top = -172.0
+			"foreur":
+				top = -172.0
 		draw_set_transform(Vector2(0, top), 0.0, Vector2.ONE)
 		draw_rect(Rect2(-w * 0.5 - 1, -1, w + 2, 9), Color(0, 0, 0, 0.7))
 		var col := Color(0.35, 0.9, 0.5) if unit.side == 0 else Color(1.0, 0.4, 0.35)
