@@ -156,7 +156,9 @@ func _refresh() -> void:
 	var voyage := not Game.mission_open()
 	_mission.size.y = 184.0 if voyage else 128.0
 	_join.text = "Y aller" if voyage else "Rejoindre"
-	_join.position.y = 40.0 if voyage else 24.0
+	# la plaque de verre déborde (lueur) : en voyage, plus petite et plus haute pour libérer la frise
+	_join.position.y = 26.0 if voyage else 24.0
+	_join.size.y = 72.0 if voyage else 80.0
 	var od := Game.voyage_done()
 	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
 	if not _adv.is_empty():
