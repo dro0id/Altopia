@@ -74,6 +74,11 @@ func s() -> ShipState:
 
 func _refresh() -> void:
 	var st := s()
+	if st.room_level(room) <= 0:
+		_b_left.visible = false
+		_b_right.visible = false
+		_content.queue_redraw()
+		return
 	var res := String(Ship.ROOMS[room].res)
 	var b := st.building(room)
 	_b_left.visible = true
@@ -153,6 +158,15 @@ func _draw_content() -> void:
 	M3.text(c, Vector2(216, 116), _headline(), 38, UI.TEXT, true, 450)
 	M3.text(c, Vector2(216, 156), _subline(), 24, UI.MUTED, false, 450)
 	var y := 216.0
+	if lv <= 0:
+		# salle pas encore construite (maquette I8) : une seule carte qui dit quand elle s'ouvre, pas un écran de zéros
+		var open := st.is_buildable(room)
+		M3.card(c, Rect2(32, y, 656, 168), M3.S2, 32)
+		M3.lock(c, Vector2(96, y + 84), UI.MUTED, 1.6)
+		M3.text(c, Vector2(160, y + 72), "À construire depuis l’Aurore" if open else "S’ouvre au niveau %d du vaisseau" % int(info.unlock), 30, UI.TEXT, true, 500)
+		M3.para(c, Vector2(160, y + 116), String(ShipScreen.BLURB.get(room, "")), 24, UI.MUTED, 500)
+		_content.custom_minimum_size.y = y + 200.0
+		return
 	var res := String(info.res)
 	if res != "":
 		var cap := st.capacity(room, Game.best_stage)

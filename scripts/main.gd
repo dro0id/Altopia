@@ -44,6 +44,7 @@ var coach: Coach
 
 
 func _ready() -> void:
+	add_child(EdgeBack.new(self))
 	var bg := ColorRect.new()
 	bg.color = UI.BG
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -291,10 +292,50 @@ func _equip_suggestion() -> Dictionary:
 	return best
 
 
+## Glisser depuis le bord gauche = Retour (maquettes E2 et I6), seulement quand une fenêtre est ouverte.
+## Nœud à part : il doit recevoir les appuis pendant la pause des fenêtres.
+class EdgeBack extends Node:
+	var host: Control
+	var _from := Vector2(-1, -1)
+
+	func _init(h: Control) -> void:
+		host = h
+		process_mode = Node.PROCESS_MODE_ALWAYS
+
+	func _input(ev: InputEvent) -> void:
+		var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+		var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+		if not (down or up or ev is InputEventScreenDrag or ev is InputEventMouseMotion):
+			return
+		var p: Vector2 = host.get_global_transform_with_canvas().affine_inverse() * ev.position
+		if down:
+			_from = p if p.x < 28.0 and host.call("_has_modal") else Vector2(-1, -1)
+		elif up:
+			_from = Vector2(-1, -1)
+		elif _from.x >= 0.0 and p.x - _from.x > 150.0 and absf(p.y - _from.y) < 120.0:
+			_from = Vector2(-1, -1)
+			host.get_viewport().set_input_as_handled()
+			host.call("_back")
+
+
+func _has_modal() -> bool:
+	return _modal != null and is_instance_valid(_modal)
+
+
 ## Bouton ou geste Retour d'Android : ferme la fenêtre ouverte ; sur le combat, demande avant de quitter.
 func _notification(what: int) -> void:
-	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
-		return
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_back()
+
+
+func _back() -> void:
+	# une salle ouverte par-dessus l'Aurore se ferme d'abord
+	if _modal != null and is_instance_valid(_modal):
+		for i in range(_modal.get_child_count() - 1, -1, -1):
+			var ch := _modal.get_child(i)
+			if ch is RoomScreen and not ch.is_queued_for_deletion():
+				(ch as RoomScreen).close()
+				return
 	if _quit != null and is_instance_valid(_quit):
 		_quit.close()
 		return

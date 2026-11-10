@@ -63,6 +63,7 @@ func _equip() -> void:
 		return
 	Game.save_game()
 	Sfx.play("chest", -4.0)
+	M3.toast(self, "Objet équipé sur %s" % String(Data.HEROES[row.hero].name).split(" ")[0])
 	changed.emit()
 	close()
 
@@ -73,7 +74,8 @@ func _menu() -> void:
 		M3.menu(st, Vector2(704, 96), [["Objet verrouillé ou porté : pas de recyclage", func(): pass]])
 		return
 	M3.menu(st, Vector2(704, 96), [["Recycler · %d éclats" % int(Items.RECYCLE_SHARDS[it.rarity]), func():
-		Game.recycle_items([_item_id])
+		var res: Dictionary = Game.recycle_items([_item_id])
+		M3.toast(self, "Recyclé · +%d éclats" % int(res.shards), Color("7fdcff"))
 		Game.save_game()
 		changed.emit()
 		close()]])

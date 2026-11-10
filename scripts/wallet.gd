@@ -56,19 +56,42 @@ func set_extra(k: String) -> void:
 	refresh()
 
 
-static func value(k: String) -> String:
+static func raw(k: String) -> float:
 	match k:
-		"coin": return UI.num(Game.credits)
-		"shard": return UI.num(Game.shards)
-		"crystal": return UI.num(Game.crystals)
-		"token": return UI.num(Game.tokens)
-		"itoken": return UI.num(Game.item_tokens)
-		"wild": return UI.num(Game.wild)
-	return ""
+		"coin": return float(Game.credits)
+		"shard": return float(Game.shards)
+		"crystal": return float(Game.crystals)
+		"token": return float(Game.tokens)
+		"itoken": return float(Game.item_tokens)
+		"wild": return float(Game.wild)
+	return 0.0
 
 
-func _process(_d: float) -> void:
+static func value(k: String) -> String:
+	return UI.num(raw(k))
+
+
+var _shown := {}      # valeurs affichées : le compteur défile jusqu'à la nouvelle valeur (maquette E4)
+
+
+func _process(d: float) -> void:
+	for k in _shown:
+		var t := raw(k)
+		var v: float = _shown[k]
+		if v != t:
+			v = lerpf(v, t, minf(1.0, d * 7.0))
+			if absf(t - v) < maxf(1.0, absf(t) * 0.002):
+				v = t
+			_shown[k] = v
 	refresh()
+
+
+## Point d'arrivée d'un gain qui vole vers sa pastille (coordonnées globales), ou null.
+func target_of(k: String):
+	if _chips.has(k) and (_chips[k] as Control).visible:
+		var c: Control = _chips[k]
+		return c.global_position + Vector2(32, c.size.y * 0.5)
+	return null
 
 
 func refresh() -> void:
@@ -77,7 +100,9 @@ func refresh() -> void:
 	var total := 0.0
 	for k in keys():
 		var c: HudButton = _chips[k]
-		var t := value(k) if k != "+" else "+"
+		if k != "+" and not _shown.has(k):
+			_shown[k] = raw(k)
+		var t: String = UI.num(roundf(_shown[k])) if k != "+" else "+"
 		if k != "+" and (c.text != t or c.size.x == 0.0):
 			c.set_texts(t)
 			c.fit_chip()
@@ -145,3 +170,41 @@ func _explain(keys_: Array) -> void:
 			box.size.y = y + 20.0
 			box.queue_redraw())
 	layer.add_child(box)
+
+
+const RES_KEY := {"credits": "coin", "shards": "shard", "crystals": "crystal", "tokens": "token", "item_tokens": "itoken"}
+
+
+## Le gain vole vers sa pastille (maquette E4) : quelques éclats partent de `from` (global) et rejoignent la monnaie.
+## `res` : nom de ressource du jeu (credits, shards…) ou clé de pastille. Sans porte-monnaie à l'écran, rien ne se passe.
+static func fly(tree: SceneTree, from: Vector2, res: String) -> void:
+	var k := String(RES_KEY.get(res, res))
+	var ws := tree.root.find_children("*", "Wallet", true, false)
+	if ws.is_empty():
+		return
+	var w: Wallet = ws[ws.size() - 1]
+	var to = w.target_of(k)
+	if to == null:
+		to = w.target_of("+")
+	if to == null:
+		return
+	var col := {"coin": UI.GOLD, "shard": Color("7fdcff"), "crystal": Color("ff7ad9"), "token": Color("b388ff"), "itoken": Color("ffb142")}.get(k, UI.GOLD) as Color
+	for i in 7:
+		var p := Control.new()
+		p.size = Vector2(18, 18)
+		p.z_index = 4096
+		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p.process_mode = Node.PROCESS_MODE_ALWAYS
+		p.draw.connect(func():
+			p.draw_circle(Vector2(9, 9), 9, Color(col, 0.35))
+			p.draw_circle(Vector2(9, 9), 6, col))
+		tree.root.add_child(p)
+		var start: Vector2 = from + Vector2(randf_range(-40, 40), randf_range(-24, 24)) - Vector2(9, 9)
+		p.global_position = start
+		var mid: Vector2 = start.lerp(to, 0.5) + Vector2(randf_range(-80, 80), -120)
+		var tw := p.create_tween()
+		tw.tween_interval(i * 0.04)
+		tw.tween_method(func(t: float):
+			p.global_position = start.lerp(mid, t).lerp(mid.lerp(to - Vector2(9, 9), t), t)
+			p.scale = Vector2.ONE * lerpf(1.0, 0.6, t), 0.0, 1.0, 0.55).set_ease(Tween.EASE_IN)
+		tw.tween_callback(p.queue_free)

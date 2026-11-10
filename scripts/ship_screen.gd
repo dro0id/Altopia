@@ -50,7 +50,7 @@ func _init() -> void:
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_labels.draw.connect(_draw_labels)
 	_st.add_child(_labels)
-	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [Wallet.make()])
+	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [Wallet.make()], false)
 	var title: Label = bar.get_node("Title")
 	title.position.y = 18
 	_sub = UI.label(bar, "", M3.fs(22), UI.MUTED)
@@ -65,6 +65,13 @@ func _init() -> void:
 	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
+	# mémo de l'écran (maquette E5) : ici avec les boutons ronds, pour laisser les monnaies en haut
+	var b3 := _round_button("?", Vector2(720 - 32 - 88, 508))
+	if not Help.seen("L’Aurore"):
+		b3.add_theme_color_override("font_color", UI.GOLD)
+	b3.pressed.connect(func():
+		b3.add_theme_color_override("font_color", UI.TEXT)
+		Help.show(self, "L’Aurore"))
 	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "success", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
@@ -602,6 +609,7 @@ func _harvest_one() -> void:
 	var got := Game.ship.collect(Game, _sel)
 	if not got.is_empty():
 		Sfx.play("coin")
+		Wallet.fly(get_tree(), _sheet_btns[0].global_position + _sheet_btns[0].size * 0.5, String(got.res))
 		Game.changed.emit()
 
 
@@ -609,4 +617,6 @@ func _harvest_all() -> void:
 	var got := Game.ship.collect_all(Game)
 	if not got.is_empty():
 		Sfx.play("coin")
+		for res in got:
+			Wallet.fly(get_tree(), _harvest.global_position + _harvest.size * 0.5, String(res))
 		Game.changed.emit()

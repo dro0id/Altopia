@@ -60,6 +60,10 @@ func _initialize() -> void:
 		"fiche_stats": func(): main._open_modal(HeroScreen.new("mara", 0)),
 		"recrutement": func(): main._open_recruit(),
 		"boutique": func(): main._open_shop(),
+		"message": func():
+			main._open_collection(1)
+			await process_frame
+			M3.toast(main, "Objet équipé sur Mara"),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame

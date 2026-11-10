@@ -137,7 +137,7 @@ func _do() -> void:
 		Sfx.play("coin")
 		_sel = []
 		if int(res.count) > 0:
-			pass
+			M3.toast(self, "%d objet%s recyclé%s · +%d éclats" % [int(res.count), "s" if int(res.count) > 1 else "", "s" if int(res.count) > 1 else "", int(res.shards)], Color("7fdcff"))
 	Game.save_game()
 	changed.emit()
 	_refresh()

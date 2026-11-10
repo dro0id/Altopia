@@ -39,7 +39,7 @@ static func is_release(ev: InputEvent) -> bool:
 
 
 ## Barre du haut de 56 dp : retour facultatif, titre, actions à droite (glyphes ou contrôles déjà construits).
-static func top_bar(parent: Control, title: String, on_back: Callable = Callable(), actions: Array = []) -> Control:
+static func top_bar(parent: Control, title: String, on_back: Callable = Callable(), actions: Array = [], help := true) -> Control:
 	var bar := Control.new()
 	bar.name = "TopBar"
 	bar.size = Vector2(720, 112)
@@ -59,6 +59,13 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 	t.size = Vector2(600 - x, fs(40) + 14)
 	var rx := 712.0
 	var acts := actions.duplicate()
+	var help_btn := []
+	if help and Help.has(title):
+		# mémo de l'écran (maquette E5), à droite de tout
+		acts.append(["?", func():
+			Help.show(bar, title)
+			if not help_btn.is_empty():
+				(help_btn[0] as Button).add_theme_color_override("font_color", UI.TEXT)])
 	acts.reverse()
 	for a in acts:
 		var c: Control
@@ -74,6 +81,10 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 		else:
 			var ib := icon_button(bar, String(a[0]), 36)
 			ib.pressed.connect(a[1])
+			if String(a[0]) == "?":
+				help_btn.append(ib)
+				if not Help.seen(title):
+					ib.add_theme_color_override("font_color", UI.GOLD)
 			ib.position = Vector2(rx - 96.0, 8)
 			rx -= 96.0
 	# le titre s'arrête avant les actions (coupé par « … » s'il est trop long)
@@ -312,6 +323,35 @@ static func price(b: Button, label: String, items: Array) -> void:
 			var c: Color = Color("ff9b9b") if not p[2] else Color(col, 0.85)
 			text(b, Vector2(x, yb), p[1], ps, c, true)
 			x += text_w(p[1], ps, true) + 14.0)
+
+
+## Message bref (maquette I6) : une plaquette de verre en haut du contenu, 2 s, qui ne masque ni les boutons ni le combat.
+static func toast(from: Node, msg: String, col: Color = UI.GREEN) -> void:
+	var vp := from.get_viewport()
+	if vp == null:
+		return
+	for old in vp.get_children():
+		if old.has_meta("toast"):
+			old.queue_free()
+	var t := Control.new()
+	t.set_meta("toast", true)
+	t.z_index = 4096
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.process_mode = Node.PROCESS_MODE_ALWAYS
+	var w := minf(656.0, text_w(msg, 26, true) + 96.0)
+	t.size = Vector2(w, 72)
+	t.position = Vector2((720.0 - w) * 0.5, 128)
+	t.draw.connect(func():
+		glass_card(t, Rect2(Vector2.ZERO, t.size), true, 16.0)
+		t.draw_circle(Vector2(36, 36), 8, col)
+		text(t, Vector2(60, 36 + fs(26) * 0.36), msg, 26, UI.TEXT, true, w - 80.0))
+	vp.add_child(t)
+	t.modulate.a = 0.0
+	var tw := t.create_tween()
+	tw.tween_property(t, "modulate:a", 1.0, 0.15)
+	tw.tween_interval(2.0)
+	tw.tween_property(t, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(t.queue_free)
 
 
 ## Le libellé d'un bouton rétrécit (jusqu'à 70 %) s'il ne tient pas dans le bouton, même quand le texte change ensuite.
