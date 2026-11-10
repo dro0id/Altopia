@@ -9,6 +9,7 @@ signal item_slot_requested(slot: String)
 const PAGES := ["Stats", "Équipement", "Pouvoirs"]
 
 var _id := ""
+var _fig: Node2D
 var _stage: Control
 var _t := 0.0
 var _picker: Control
@@ -44,6 +45,7 @@ func _rebuild() -> void:
 			changed.emit()
 			_rebuild()]])])
 	M3.top_bar(_stage, String(h.name).split(" ")[0], close, acts)
+	var n0 := _stage.get_child_count()
 	# en-tête
 	_head = Control.new()
 	_head.position = Vector2(0, 112)
@@ -63,10 +65,49 @@ func _rebuild() -> void:
 			_build_equipment(h, have)
 		_:
 			_build_powers(h)
+	_hero_band(h, n0)
+
+
+## Écran haut : une bande montre le héros en pied sous la barre du haut ; le reste de la fiche descend d'autant.
+func _hero_band(h: Dictionary, n0: int) -> void:
+	var hb := minf(UI.tall(), 300.0)
+	if hb < 120.0:
+		return
+	for i in range(n0, _stage.get_child_count()):
+		var ch := _stage.get_child(i)
+		if ch is Control and ch.position.y < UI.H - 320.0:
+			ch.position.y += hb
+	var band := Control.new()
+	band.position = Vector2(0, 112)
+	band.size = Vector2(720, hb)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var col: Color = Data.RARITY_COLORS[h.rarity]
+	band.draw.connect(func():
+		for i in 9:
+			band.draw_circle(Vector2(360, hb * 0.62), hb * 0.9 - i * hb * 0.09, Color(col, 0.022))
+		var pts := PackedVector2Array()
+		for i in 25:
+			var a := TAU * i / 24.0
+			pts.append(Vector2(360, hb - 26.0) + Vector2(cos(a) * 150.0, sin(a) * 22.0))
+		band.draw_colored_polygon(pts, Color(col, 0.16))
+		band.draw_polyline(pts, Color(col, 0.6), 2.0))
+	_stage.add_child(band)
+	var fig := Node2D.new()
+	fig.position = Vector2(350, 112 + hb - 30.0)
+	var k := (hb - 50.0) / 150.0
+	fig.scale = Vector2(k, k)
+	var owned := Game.is_owned(_id)
+	if not owned:
+		fig.modulate = Color(0.1, 0.12, 0.2)
+	fig.draw.connect(func(): Art.draw_hero(fig, h, {"t": _t}))
+	_stage.add_child(fig)
+	_fig = fig
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _fig != null and is_instance_valid(_fig):
+		_fig.queue_redraw()
 	if _head != null:
 		_head.queue_redraw()
 

@@ -110,7 +110,27 @@ static func cur_chip(icon: String, text: String) -> HudButton:
 	return c
 
 
+static var _cards := {}
+
+
+## Plaque de verre dépoli à angles coupés (maquette G2) : cartes et lignes partagent la matière des boutons.
+static func glass_card(ci: CanvasItem, r: Rect2, sel := false, corner := 20.0) -> void:
+	var key := "%s%d" % ["s" if sel else "c", int(corner)]
+	if not _cards.has(key):
+		var g := GlassBox.make("cardsel" if sel else "card")
+		g.flat = true
+		g.corner = corner
+		_cards[key] = g
+	(_cards[key] as GlassBox).draw(ci.get_canvas_item(), r)
+
+
 static func card(ci: CanvasItem, r: Rect2, fill: Color = S2, radius: int = 32, border: Color = Color(0, 0, 0, 0), bw: int = 2) -> void:
+	if fill == S2 and border.a <= 0.0 and r.size.y >= 56.0:
+		glass_card(ci, r, false, 20.0 if radius >= 28 else 12.0)
+		return
+	if fill == TONAL and border == UI.ACCENT and r.size.y >= 56.0:
+		glass_card(ci, r, true)
+		return
 	var sb := UI.box(fill, border, radius, 0)
 	sb.set_border_width_all(bw if border.a > 0.0 else 0)
 	ci.draw_style_box(sb, r)

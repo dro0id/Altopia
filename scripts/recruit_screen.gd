@@ -34,7 +34,7 @@ func _init() -> void:
 	_stage.add_child(_seg)
 	_hero = Control.new()
 	_hero.size = Vector2(720, 860)
-	_hero.position = Vector2(0, 216)
+	_hero.position = Vector2(0, 216 + UI.tall(0.25))
 	_hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hero.draw.connect(_draw_hero)
 	_stage.add_child(_hero)
