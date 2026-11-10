@@ -7,7 +7,7 @@ signal equipped
 signal fullscreen(on: bool)
 
 var _stage: Control
-var _chip: HudButton
+var _chip: Wallet
 var _seg: M3Seg
 var _mode := 0
 var _hero: Control
@@ -26,7 +26,9 @@ func _init() -> void:
 	_stage = Control.new()
 	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	box.add_child(_stage)
-	_chip = M3.cur_chip("token", str(Game.tokens))
+	_chip = Wallet.make("", "token")
+	_chip.max_w = 720.0 - 40.0 - M3.text_w("Recruter", M3.fs(40), true) - 56.0
+	_chip.refresh()
 	M3.top_bar(_stage, "Recruter", Callable(), [_chip])
 	_seg = M3Seg.new(["Héros", "Objets"], 0)
 	_seg.position = Vector2(32, 112)
@@ -57,7 +59,7 @@ func _set_mode(m: int) -> void:
 	_seg.queue_redraw()
 	_hero.visible = m == 0
 	_items.visible = m == 1
-	_chip.icon = "token" if m == 0 else "itoken"
+	_chip.set_extra("token" if m == 0 else "itoken")
 	if m == 0:
 		_ten.text = "Ouvrir ×10 · %d jetons" % Data.RECRUIT_COST_10
 		_one.text = "Ouvrir ×1 · %d jetons" % Data.RECRUIT_COST
@@ -69,10 +71,6 @@ func _set_mode(m: int) -> void:
 
 func _refresh() -> void:
 	var have: int = Game.tokens if _mode == 0 else Game.item_tokens
-	_chip.set_texts(str(have))
-	_chip.fit_chip()
-	_chip.size.y = 64.0
-	_chip.position.x = 704.0 - _chip.size.x - 8.0
 	_ten.disabled = have < (Data.RECRUIT_COST_10 if _mode == 0 else Data.ITEM_PACK_COST_10)
 	_one.disabled = have < (Data.RECRUIT_COST if _mode == 0 else Data.ITEM_PACK_COST)
 	# un seul bouton principal : le ×10 s'il est payable, sinon le ×1

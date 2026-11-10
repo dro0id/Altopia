@@ -15,6 +15,7 @@ var icon := ""          # "coin", "shard", "crystal", "token", "itoken", "copies
 var tappable := true
 var bold := false
 var fill := UI.HUD
+var ring := false       # liseré or : monnaie de l'écran (porte-monnaie, maquette I3)
 var role := ""          # rôle de verre (GlassBox) ; vide : secondaire si on peut appuyer, plaquette sinon
 var _glass := {}
 
@@ -56,6 +57,11 @@ func _draw() -> void:
 		_glass[r] = GlassBox.make(r, "normal", 0.3)
 		(_glass[r] as GlassBox).glow_on = false
 	draw_style_box(_glass[r], Rect2(Vector2.ZERO, size))
+	if ring:
+		var k := minf(16.0, size.y * 0.3)
+		var w := size.x
+		var h := size.y
+		draw_polyline(PackedVector2Array([Vector2(k, 1), Vector2(w - k, 1), Vector2(w - 1, k), Vector2(w - 1, h - k), Vector2(w - k, h - 1), Vector2(k, h - 1), Vector2(1, h - k), Vector2(1, k), Vector2(k, 1)]), UI.GOLD, 3.0, true)
 	var f: Font = UI.bold_font() if (bold or icon != "" or sub != "") else ThemeDB.fallback_font
 	if icon != "":
 		var c := Vector2(32, size.y * 0.5)

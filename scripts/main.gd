@@ -1006,4 +1006,8 @@ func _refresh() -> void:
 	for sh in Game.ship.shuttles:
 		if bool(Game.ship.shuttles[sh].get("back", false)):
 			back += 1
-	_nav.badges = [0, affordable + (1 if ready_items > 0 else 0), Game.ship.ready_rooms().size() + back + Game.ship.buildable().size(), Game.tokens / Data.RECRUIT_COST + Game.item_tokens / Data.ITEM_PACK_COST, 0]
+	# pastille rouge chiffrée : des choses à réclamer ou terminées, jamais un stock (maquette I4)
+	_nav.badges = [0, 0, Game.ship.ready_rooms().size() + back, 0, 1 if Game.free_chest_ready() else 0]
+	# point vert : une action possible sans urgence
+	var can_pull := Game.tokens >= Data.RECRUIT_COST or Game.item_tokens >= Data.ITEM_PACK_COST
+	_nav.dots = [false, affordable > 0 or ready_items > 0, not Game.ship.buildable().is_empty(), can_pull, Game.daily_available()]

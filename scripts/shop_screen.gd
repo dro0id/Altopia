@@ -16,7 +16,7 @@ var _tab := 0
 var _stage: Control
 var _scroll: ScrollContainer
 var _content: Control
-var _chip: HudButton
+var _chip: Wallet
 var _chips: M3Chips
 var _timer := 0.0
 var _live: Array = []          # éléments qui changent avec le temps : [Control, Callable]
@@ -30,7 +30,7 @@ func _init() -> void:
 	_stage = Control.new()
 	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))
 	box.add_child(_stage)
-	_chip = M3.cur_chip("crystal", str(Game.crystals))
+	_chip = Wallet.make("crystal")
 	M3.top_bar(_stage, "Boutique", Callable(), [_chip])
 	var labels: Array = []
 	for t in TABS:
@@ -272,10 +272,6 @@ func _process(delta: float) -> void:
 
 
 func _refresh() -> void:
-	_chip.set_texts(UI.short(float(Game.crystals)))
-	_chip.fit_chip()
-	_chip.size.y = 64.0
-	_chip.position.x = 704.0 - _chip.size.x - 8.0
 	for pair in _live:
 		(pair[1] as Callable).call()
 		(pair[0] as Control).queue_redraw()

@@ -20,7 +20,6 @@ var _cut: Button
 var _sel := ""
 var _sheet_btns: Array = []
 var _t := 0.0
-var _chips: Array = []
 var _sub: Label
 var _lab_rects := {}
 var _mission: Control
@@ -51,10 +50,7 @@ func _init() -> void:
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_labels.draw.connect(_draw_labels)
 	_st.add_child(_labels)
-	var cr := M3.cur_chip("coin", UI.num(Game.credits))
-	var sh := M3.cur_chip("shard", str(Game.shards))
-	_chips = [cr, sh]
-	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [cr, sh])
+	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [Wallet.make()])
 	var title: Label = bar.get_node("Title")
 	title.position.y = 18
 	_sub = UI.label(bar, "", M3.fs(22), UI.MUTED)
@@ -146,8 +142,6 @@ func _refresh() -> void:
 		_sub.text = "Niveau %d · Héros de la Ceinture" % s.level
 	else:
 		_sub.text = "Niveau %d · %s" % [s.level, ti.name]
-	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))
-	(_chips[1] as HudButton).set_texts(str(Game.shards))
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0
