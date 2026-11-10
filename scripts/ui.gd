@@ -17,6 +17,11 @@ const MUTED := Color("a9b6d6")
 const TEXT := Color("e8eefc")
 const DARK := Color("06101f")
 const TONAL := Color("1d3a66")               # boutons tonals et sélections (refonte Android)
+## Palette à règles (maquette G1) : surfaces, actions, raretés, texte. Les écrans s'y réfèrent par leur nom.
+const SURFACE := {"vide": Color("070b1a"), "fond": Color("0b1226"), "carte": Color("141d3a"), "relief": Color("1d2a52"), "trait": Color("2b3a6b")}
+const ACTION := {"agir": Color("4fd8ff"), "recolter": Color("7dffb0"), "premium": Color("ffd166"), "danger": Color("ff6b6b")}
+const RARITY := {"commun": Color("9aa7c7"), "normal": Color("58c98f"), "rare": Color("4fa8ff"), "epique": Color("b388ff"), "legendaire": Color("ffb142"), "ultime": Color("ff6b6b")}
+const TEXT_OFF := Color("6b7aa3")
 const HUD := Color(0.051, 0.082, 0.188, 0.8)      # rgba(13,21,48,.8) : pastilles et boutons posés sur le terrain
 
 
@@ -135,22 +140,29 @@ static func safe_insets(win: Window) -> Vector2:
 
 ## Nombre avec espace entre les milliers (« 1 240 »).
 static func num(v: float) -> String:
+	# une seule écriture (maquette XK) : en entier jusqu'à 9 999, puis trois chiffres utiles et l'unité
 	var n := int(v)
+	var av := absf(v)
+	var sign := "-" if n < 0 else ""
+	for u in [[1.0e9, "G"], [1.0e6, "M"], [1.0e4, "k"]]:
+		if av >= float(u[0]):
+			var x: float = av / (1000.0 if String(u[1]) == "k" else float(u[0]))
+			var t := ("%.2f" % x) if x < 10.0 else (("%.1f" % x) if x < 100.0 else str(int(x)))
+			if t.contains("."):
+				t = t.rstrip("0").rstrip(".")
+			return sign + t.replace(".", ",") + " " + String(u[1])
 	var s := str(absi(n))
 	var out := ""
 	for i in s.length():
 		if i > 0 and (s.length() - i) % 3 == 0:
 			out += " "
 		out += s[i]
-	return ("-" if n < 0 else "") + out
+	return sign + out
 
 
-## Nombre court (« 1,2k ») pour les pastilles étroites.
+## Nombre court : même écriture que `num`.
 static func short(v: float) -> String:
-	if v >= 1000.0:
-		var s := "%.1f" % (v / 1000.0)
-		return s.replace(".", ",").trim_suffix(",0") + "k"
-	return str(int(v))
+	return num(v)
 
 
 ## Rectangle arrondi rempli d'un dégradé horizontal, avec bordure.
@@ -176,9 +188,11 @@ static func draw_gradient_box(ci: CanvasItem, r: Rect2, rad: float, c0: Color, c
 
 ## Portrait rond d'un héros sur fond sombre cerclé de turquoise (comme les portraits de la maquette).
 static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: float = 0.0) -> void:
-	ci.draw_circle(c, r + 2.0, Color("0a1424"))
-	Art.draw_portrait(ci, hero, c, r - 3.0, t)
-	ci.draw_arc(c, r, 0, TAU, 48, Color(0.31, 0.72, 0.78, 0.8), 2.5, true)
+	var rar := String(hero.get("rarity", "common"))
+	var fp := M3.frame_pts(c, r, rar)
+	ci.draw_colored_polygon(fp.slice(0, fp.size() - 1), Color("0a1424"))
+	Art.draw_portrait(ci, hero, c, r - (3.0 if rar == "common" else 6.0), t)
+	ci.draw_polyline(fp, Color(0.31, 0.72, 0.78, 0.8), 2.5, true)
 
 
 static var _icons := {}
@@ -269,9 +283,17 @@ static func set_button_parts(b: Button, parts: Array, fs: int, col: Color) -> vo
 
 
 static func duration(seconds: float) -> String:
+	# on ne montre jamais une unité à zéro (maquette XK)
 	var s := int(seconds)
 	var h := s / 3600
 	var m := (s % 3600) / 60
 	if h > 0:
-		return "%d h %02d min" % [h, m]
-	return "%d min %02d s" % [m, s % 60]
+		return "%d h" % h if m == 0 else "%d h %02d" % [h, m]
+	if m > 0:
+		return "%d min" % m if s % 60 == 0 else "%d min %02d s" % [m, s % 60]
+	return "%d s" % s
+
+
+## Écrans hauts (maquette I1) : part de la hauteur gagnée au-delà de 1280, pour descendre un contenu ancré en haut.
+static func tall(k := 1.0) -> float:
+	return maxf(0.0, H - 1280.0) * k

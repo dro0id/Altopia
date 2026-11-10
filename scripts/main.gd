@@ -767,7 +767,7 @@ func _on_cleared(_credits: float) -> void:
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if shows_chest:
-		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
+		var next_label := "Descendre au secteur %d" % (stage + 1) if Game.best_stage > stage else "Rejouer le secteur %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
 		var go_next := func():
 			_pick_boost(func():
@@ -792,7 +792,7 @@ func _on_cleared(_credits: float) -> void:
 				_open_map.call_deferred()))
 		_open_modal(r)
 	else:
-		_show_toast("Étage %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
+		_show_toast("Secteur %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
 		if not Game.last_drop.is_empty():
 			_show_item_toast(Game.last_drop)
 		Sfx.play("coin", -6.0)
@@ -916,11 +916,14 @@ func _refresh_boss() -> void:
 	var big := _boss == "big"
 	_boss_bar.col = UI.RED if big else Color("ffb142")
 	_boss_bar.title = Data.boss_name(Game.stage)
-	_boss_bar.phase = ""
-	_boss_bar.frac = 0.0
+	_boss_bar.phase = "arrive à la vague %d" % battle.sim.waves_total
+	_boss_bar.frac = 1.0
+	_boss_bar.wait = true
 	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(Game.stage), BOSS_INFO.titan)
 	if bu != null:
 		_boss_bar.frac = bu.hp_frac()
+		_boss_bar.wait = false
+		_boss_bar.phase = ""
 		if big:
 			_boss_bar.phase = "Phase 2" if bu.phase2 else "Phase 1"
 		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= 2.0 and battle.sim.state == "fighting"
@@ -936,7 +939,7 @@ func _refresh_boss() -> void:
 
 func _refresh() -> void:
 	var big := _boss == "big"
-	_stage_btn.set_texts(("☠ Étage %d" if big else "Étage %d ▾") % Game.stage)
+	_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
 	_stage_btn.text_color = Color("ff9b9b") if big else UI.TEXT
 	_stage_btn.role = "danger" if big else ""
 	_stage_btn.queue_redraw()

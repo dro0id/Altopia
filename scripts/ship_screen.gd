@@ -156,7 +156,9 @@ func _refresh() -> void:
 	var voyage := not Game.mission_open()
 	_mission.size.y = 184.0 if voyage else 128.0
 	_join.text = "Y aller" if voyage else "Rejoindre"
-	_join.position.y = 40.0 if voyage else 24.0
+	# la plaque de verre déborde (lueur) : en voyage, plus petite et plus haute pour libérer la frise
+	_join.position.y = 26.0 if voyage else 24.0
+	_join.size.y = 72.0 if voyage else 80.0
 	var od := Game.voyage_done()
 	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
 	if not _adv.is_empty():
@@ -197,6 +199,48 @@ func _draw_bg() -> void:
 
 
 ## Étiquettes des salles : nom court, niveau, réserve prête (maquette KB).
+## Largeur d'une pastille de salle (même calcul que le dessin).
+func _label_w(r: String) -> float:
+	var s: ShipState = Game.ship
+	var lv := s.room_level(r)
+	var to_build := s.is_buildable(r)
+	var w := M3.text_w(String(Ship.ROOMS[r].short), 22, true) + 32.0 + (30.0 if lv <= 0 and not to_build else 0.0)
+	if lv > 0:
+		w += M3.text_w(str(lv), 22, true) + 10.0
+	var ready := floorf(float(s.stock.get(r, 0.0)))
+	if to_build:
+		w += M3.text_w("Construire" if s.building(r).is_empty() else "En chantier", 18, true) + 20.0
+	if ready >= 1.0:
+		w += M3.text_w("+" + (UI.num(ready) if String(Ship.ROOMS[r].res) == "credits" else str(int(ready))), 20, true) + 28.0
+	return w
+
+
+## Deux salles sur un même pont : leurs pastilles s'écartent l'une de l'autre au lieu de se recouvrir.
+func _label_rects(order: Array) -> Dictionary:
+	var items: Array = []
+	for r in order:
+		var lp := view.label_pos(r)
+		if lp.is_empty() or not lp.visible:
+			continue
+		var w := _label_w(r)
+		items.append({"r": r, "x": clampf(float(lp.pos.x), 8.0, 712.0 - w), "y": float(lp.pos.y), "w": w})
+	items.sort_custom(func(a, b): return a.x < b.x)
+	for i in items.size():
+		for j in range(i + 1, items.size()):
+			var a: Dictionary = items[i]
+			var b: Dictionary = items[j]
+			if absf(a.y - b.y) > 40.0:
+				continue
+			var over: float = a.x + a.w + 8.0 - b.x
+			if over > 0.0:
+				a.x = maxf(8.0, a.x - over * 0.5)
+				b.x = minf(712.0 - b.w, maxf(b.x, a.x + a.w + 8.0))
+	var out := {}
+	for it in items:
+		out[it.r] = it.x
+	return out
+
+
 func _draw_labels() -> void:
 	var c := _labels
 	_lab_rects = {}
@@ -204,6 +248,7 @@ func _draw_labels() -> void:
 	# les salles à construire passent en dernier, au-dessus des pastilles voisines
 	var order: Array = view.anchors.keys()
 	order.sort_custom(func(a, b): return int(s.is_buildable(a)) < int(s.is_buildable(b)))
+	var placed := _label_rects(order)
 	for r in order:
 		var lp := view.label_pos(r)
 		if lp.is_empty() or not lp.visible:
@@ -230,6 +275,8 @@ func _draw_labels() -> void:
 		var p: Vector2 = lp.pos
 		var rect := Rect2(p.x, p.y - 22.0, w, 44.0)
 		rect.position.x = clampf(rect.position.x, 8.0, 712.0 - w)
+		if placed.has(r):
+			rect.position.x = float(placed[r])
 		var sb := UI.box(Color(0.04, 0.07, 0.15, 0.85), col if not sealed else UI.MUTED, 22, 0)
 		if to_build:
 			sb.border_color = Color(col, 0.55 + 0.45 * absf(sin(_t * 3.0)))
@@ -299,10 +346,7 @@ func _draw_sheet() -> void:
 	var r := _sel
 	var info: Dictionary = Ship.ROOMS[r]
 	var col: Color = info.color
-	var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	c.draw_style_box(sb, Rect2(0, 0, 720, 460))
+	M3.sheet(c, Rect2(0, 0, 720, 460))
 	c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 	var lv := s.room_level(r)
 	c.draw_style_box(UI.box(Color("0a1424"), col, 24, 0), Rect2(32, 48, 88, 88))
@@ -372,7 +416,7 @@ func _draw_mission() -> void:
 	var boss := Data.boss_type(stg)
 	var where := String(sec.name) if not sec.is_empty() else "Trou de verre"
 	M3.text(c, Vector2(132, 40), where.to_upper() + " · EN COURS", 20, UI.ACCENT, true, 330)
-	var title := "Étage %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
+	var title := "Secteur %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
 	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
 	var line := "Combat auto · +%s/min" % UI.short(Game.offline_rate_per_minute())
 	if mission_gain >= 1.0:
@@ -464,7 +508,7 @@ const BLURB := {
 	"hangar": "Navettes et expéditions",
 	"antenne": "Capte des jetons de recrutement",
 	"labo": "Recherches permanentes pour l’escouade",
-	"observatoire": "Plus de butin dans les secteurs générés",
+	"observatoire": "Plus de butin dans les zones générées",
 }
 
 
@@ -553,7 +597,7 @@ static func room_line(r: String) -> String:
 		"hangar":
 			return "%d navette%s · expéditions" % [s.fleet().size(), "s" if s.fleet().size() > 1 else ""]
 		"observatoire":
-			return "Secteurs générés : +%d %% de butin" % int(round(Ship.observatory_bonus(lv) * (1.0 + s.workers_bonus("observatoire")) * 100.0))
+			return "Zones générées : +%d %% de butin" % int(round(Ship.observatory_bonus(lv) * (1.0 + s.workers_bonus("observatoire")) * 100.0))
 	return ""
 
 

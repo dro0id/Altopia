@@ -34,7 +34,7 @@ func _init() -> void:
 	_stage.add_child(_seg)
 	_hero = Control.new()
 	_hero.size = Vector2(720, 860)
-	_hero.position = Vector2(0, 216)
+	_hero.position = Vector2(0, 216 + UI.tall(0.25))
 	_hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hero.draw.connect(_draw_hero)
 	_stage.add_child(_hero)
@@ -75,6 +75,9 @@ func _refresh() -> void:
 	_chip.position.x = 704.0 - _chip.size.x - 8.0
 	_ten.disabled = have < (Data.RECRUIT_COST_10 if _mode == 0 else Data.ITEM_PACK_COST_10)
 	_one.disabled = have < (Data.RECRUIT_COST if _mode == 0 else Data.ITEM_PACK_COST)
+	# un seul bouton principal : le ×10 s'il est payable, sinon le ×1
+	UI.set_role(_ten, "main" if not _ten.disabled else "secondary")
+	UI.set_role(_one, "secondary" if not _ten.disabled else "main")
 
 
 func _process(delta: float) -> void:

@@ -9,6 +9,7 @@ signal item_slot_requested(slot: String)
 const PAGES := ["Stats", "Équipement", "Pouvoirs"]
 
 var _id := ""
+var _fig: Node2D
 var _stage: Control
 var _t := 0.0
 var _picker: Control
@@ -44,6 +45,7 @@ func _rebuild() -> void:
 			changed.emit()
 			_rebuild()]])])
 	M3.top_bar(_stage, String(h.name).split(" ")[0], close, acts)
+	var n0 := _stage.get_child_count()
 	# en-tête
 	_head = Control.new()
 	_head.position = Vector2(0, 112)
@@ -63,10 +65,49 @@ func _rebuild() -> void:
 			_build_equipment(h, have)
 		_:
 			_build_powers(h)
+	_hero_band(h, n0)
+
+
+## Écran haut : une bande montre le héros en pied sous la barre du haut ; le reste de la fiche descend d'autant.
+func _hero_band(h: Dictionary, n0: int) -> void:
+	var hb := minf(UI.tall(), 300.0)
+	if hb < 120.0:
+		return
+	for i in range(n0, _stage.get_child_count()):
+		var ch := _stage.get_child(i)
+		if ch is Control and ch.position.y < UI.H - 320.0:
+			ch.position.y += hb
+	var band := Control.new()
+	band.position = Vector2(0, 112)
+	band.size = Vector2(720, hb)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var col: Color = Data.RARITY_COLORS[h.rarity]
+	band.draw.connect(func():
+		for i in 9:
+			band.draw_circle(Vector2(360, hb * 0.62), hb * 0.9 - i * hb * 0.09, Color(col, 0.022))
+		var pts := PackedVector2Array()
+		for i in 25:
+			var a := TAU * i / 24.0
+			pts.append(Vector2(360, hb - 26.0) + Vector2(cos(a) * 150.0, sin(a) * 22.0))
+		band.draw_colored_polygon(pts, Color(col, 0.16))
+		band.draw_polyline(pts, Color(col, 0.6), 2.0))
+	_stage.add_child(band)
+	var fig := Node2D.new()
+	fig.position = Vector2(350, 112 + hb - 30.0)
+	var k := (hb - 50.0) / 150.0
+	fig.scale = Vector2(k, k)
+	var owned := Game.is_owned(_id)
+	if not owned:
+		fig.modulate = Color(0.1, 0.12, 0.2)
+	fig.draw.connect(func(): Art.draw_hero(fig, h, {"t": _t}))
+	_stage.add_child(fig)
+	_fig = fig
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _fig != null and is_instance_valid(_fig):
+		_fig.queue_redraw()
 	if _head != null:
 		_head.queue_redraw()
 
@@ -146,6 +187,10 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 		label = "Niveau maximum" if stars >= 5 else ("Monter à %s" % star_text(stars + 1))
 	var up := M3.button(_stage, label, Rect2(32, UI.H - 136.0, 656, 104), "premium" if capped else "main")
 	up.disabled = (not capped and Game.credits < cost_v) or (capped and stars >= 5)
+	if capped and stars < 5 and not Game.can_star_up(_id):
+		var miss := Game.star_cost(_id) - Game.copies_for(_id)
+		up.disabled = true
+		up.text = "Il manque %d doublon%s" % [miss, "s" if miss > 1 else ""]
 	level_button = up
 	up.pressed.connect(func():
 		if capped:
@@ -186,10 +231,7 @@ func _open_picker() -> void:
 	var y0 := UI.H - 800.0
 	_picker.draw.connect(func():
 		_picker.draw_rect(Rect2(0, 0, 720, UI.H), Color(0, 0, 0, 0.6))
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		_picker.draw_style_box(sb, Rect2(0, y0, 720, 800))
+		M3.sheet(_picker, Rect2(0, y0, 720, 800))
 		_picker.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
 		M3.text(_picker, Vector2(32, y0 + 88), "Choisir l'emplacement", 40, UI.TEXT, true))
 	_picker.gui_input.connect(func(ev: InputEvent):
@@ -241,10 +283,10 @@ func _build_equipment(_h: Dictionary, have: bool) -> void:
 				if better.has(slot):
 					ItemUI.dot(grid, tr.position + Vector2(tr.size.x - 4.0, 4.0), "▲")
 			M3.text(grid, r.position + Vector2(152, 66), String(Items.SLOT_NAMES[slot]), 24, UI.MUTED)
-			var lines := _wrap2(nm, 26, 152.0)
-			M3.text(grid, r.position + Vector2(152, 100), lines[0], 26, UI.TEXT, true)
+			var lines := _wrap2(nm, 22, 152.0)
+			M3.text(grid, r.position + Vector2(152, 100), lines[0], 22, UI.TEXT, true)
 			if lines[1] != "":
-				M3.text(grid, r.position + Vector2(152, 132), lines[1], 26, UI.TEXT, true)
+				M3.text(grid, r.position + Vector2(152, 132), lines[1], 22, UI.TEXT, true)
 		if gain > 0.0:
 			grid.draw_style_box(UI.box(Color("10331f"), Color(0, 0, 0, 0), 24, 0), Rect2(32, 344, 656, 72))
 			M3.text(grid, Vector2(64, 390), "▲ Gain possible : +%s de puissance" % UI.num(gain), 26, UI.GREEN))

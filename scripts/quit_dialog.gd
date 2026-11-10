@@ -7,7 +7,11 @@ signal quit_pressed
 
 func _init(title := "Quitter Altopia ?", body := "Ta progression est sauvegardée. Tes héros gagnent des crédits hors ligne (8 h max).", ok := "Quitter", cancel := "Rester") -> void:
 	super._init(600.0)
-	panel.add_theme_stylebox_override("panel", UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 40))
+	var qg := GlassBox.make("sheet")
+	qg.flat = true
+	qg.corner = 28.0
+	qg.set_content_margin_all(40)
+	panel.add_theme_stylebox_override("panel", qg)
 	box.add_theme_constant_override("separation", 20)
 	var t := UI.label(box, title, M3.fs(40), UI.TEXT, true)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT

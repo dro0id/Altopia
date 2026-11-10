@@ -877,7 +877,7 @@ func test_ship() -> void:
 	ShipState.clock_offset += 3600
 	_g.ship_update()
 	_check(s.level == 2 and s.room_level("pont") == 2 and s.builds.is_empty(), "chantier terminé en temps réel")
-	_check(s.upgrade_block(_g, "pont").begins_with("Étage"), "le Pont exige ensuite l'étage suivant")
+	_check(s.upgrade_block(_g, "pont").begins_with("Secteur"), "le Pont exige ensuite le secteur suivant")
 	_check(s.start_upgrade(_g, "raffinerie"), "chantier de salle")
 	_g.crystals = 0
 	_check(not s.rush_build(_g, "raffinerie"), "accélérer demande des cristaux")

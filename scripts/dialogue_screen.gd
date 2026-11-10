@@ -77,7 +77,7 @@ func _init(scene: Dictionary, replay := false) -> void:
 				M3.text(top, Vector2(0, 478), "UNE VOIX DANS LE VERRE", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 				return
 			top.draw_style_box(UI.box(Color("3a1620"), Color(0, 0, 0, 0), 40, 0), Rect2(32, 32, 336, 80))
-			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Étage %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
+			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Secteur %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
 		_st.add_child(top)
 	var skip := M3.button(_st, "Passer ›", Rect2(520, 32, 168, 80), "ghost", 26)
 	skip.pressed.connect(_finish)
@@ -93,6 +93,11 @@ func _init(scene: Dictionary, replay := false) -> void:
 	for k in 2:
 		var o := M3.button(_st, "", Rect2(32, 0, 656, 112), "outline", 30)
 		o.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		for stn in ["normal", "hover", "pressed", "disabled"]:
+			var sbx := o.get_theme_stylebox(stn)
+			if sbx != null:
+				sbx.content_margin_left = 32.0
+				sbx.content_margin_right = 32.0
 		for k2 in ["font_color", "font_hover_color", "font_pressed_color"]:
 			o.add_theme_color_override(k2, UI.TEXT)
 		var idx := k
@@ -203,10 +208,7 @@ func _peek() -> Dictionary:
 
 func _draw_sheet() -> void:
 	var c := _sheet
-	var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size + Vector2(0, 40)))
+	M3.sheet(c, Rect2(Vector2.ZERO, c.size + Vector2(0, 40)))
 	c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 	var l := _cur()
 	var sp := Story.speaker(String(l.who))
@@ -261,7 +263,7 @@ func _step_label() -> String:
 		return "%d/%d" % [_i + 1, _lines.size()]
 	if String(_scene.get("when", "")) == "board":
 		return "À bord"
-	return "Étage %d" % int(_scene.stage)
+	return "Secteur %d" % int(_scene.stage)
 
 
 ## Portrait d'un personnage : héros dessiné, ou le dessin du gros boss.

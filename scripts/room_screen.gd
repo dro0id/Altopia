@@ -96,6 +96,9 @@ func _refresh() -> void:
 		_b_right.disabled = false
 		# pendant un chantier, le bouton se remplit d'or comme une jauge
 		UI.set_role(_b_right, "secondary")
+		# texte lisible sur la partie dorée comme sur la partie sombre
+		_b_right.add_theme_constant_override("outline_size", 8)
+		_b_right.add_theme_color_override("font_outline_color", Color("06101f"))
 		var tot := float(Ship.build_cost(room, st.rank("logistique")).time) if int(b.to) == 1 else float(Ship.upgrade_cost(room, int(b.to), st.rank("logistique")).time)
 		_set_gauge(_b_right, 1.0 - float(st.remaining(int(b.end))) / maxf(1.0, tot))
 	else:
@@ -107,7 +110,18 @@ func _refresh() -> void:
 		else:
 			_set_gauge(_b_right, 0.0)
 			UI.set_role(_b_right, "main")
-			_b_right.text = ("Améliorer → niv. %d" % (lv + 1)) if (block == "" or block == "Pas assez de ressources") else block
+			var cst: Dictionary = st.cost_of(Game, room)
+			if block == "Pas assez de ressources":
+				var mc := float(cst.credits) - float(Game.credits)
+				var ms := int(cst.shards) - int(Game.shards)
+				_b_right.text = ("Il manque %s ¢" % UI.num(ceilf(mc))) if mc > 0.0 else ("Il manque %d éclat%s" % [ms, "s" if ms > 1 else ""])
+				UI.set_role(_b_right, "secondary")
+			elif block == "":
+				_b_right.text = ("Améliorer · %s ¢" % UI.num(float(cst.credits))) if float(cst.credits) > 0.0 and not full else ("Améliorer → niv. %d" % (lv + 1))
+				if full and float(cst.credits) > 0.0:
+					_b_right.text = "Améliorer → niv. %d · %s ¢" % [lv + 1, UI.num(float(cst.credits))]
+			else:
+				_b_right.text = block
 			_b_right.disabled = block != "" and block != "Pas assez de ressources"
 	_content.queue_redraw()
 
@@ -216,7 +230,7 @@ func _subline() -> String:
 		"quartiers":
 			return "jusqu’au niveau moyen de l’escouade − 3"
 		"observatoire":
-			return "dans les secteurs générés (étage 41+)"
+			return "dans les zones générées (secteur 41+)"
 		"labo":
 			return "Bonus permanents sur toute l’escouade"
 		"hangar":
@@ -331,7 +345,7 @@ func _pont(c: Control, y: float) -> float:
 		M3.text(c, Vector2(32, y + 56), str(lv), 26, Color("06101f") if cur else (Color("7dffb0") if ok else UI.MUTED), true, 68, HORIZONTAL_ALIGNMENT_CENTER)
 		var t := ", ".join(what) if not what.is_empty() else "Niveau actuel"
 		M3.text(c, Vector2(124, y + 40), t.substr(0, 1).to_upper() + t.substr(1), 26, UI.TEXT if (ok or cur) else UI.MUTED, true, 560)
-		M3.text(c, Vector2(124, y + 74), "Atteint" if lv <= st.level else ("Étage %d atteint ✓" % int(Ship.PONT_STAGE[lv]) if ok else "Étage %d requis" % int(Ship.PONT_STAGE[lv])), 22, Color("7dffb0") if ok else UI.MUTED)
+		M3.text(c, Vector2(124, y + 74), "Atteint" if lv <= st.level else ("Secteur %d atteint ✓" % int(Ship.PONT_STAGE[lv]) if ok else "Secteur %d requis" % int(Ship.PONT_STAGE[lv])), 22, Color("7dffb0") if ok else UI.MUTED)
 		c.draw_line(Vector2(32, y + 96), Vector2(688, y + 96), M3.S3, 2)
 		y += 104.0
 		shown += 1
@@ -361,9 +375,9 @@ func _destinations(c: Control, y: float) -> float:
 		Game.go_to(best)
 		mission_requested.emit()
 	var rows := [
-		["Étage %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur étage %d" % best, "run", func(): mission_requested.emit()],
-		["Choisir un étage", "Monter, ou farmer un étage déjà vaincu", "map", func(): map_requested.emit()],
-		["Ceinture sans fin", ("Secteurs générés · front à l’étage %d" % best) if belt else "Secteurs générés · après l’étage %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
+		["Secteur %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur secteur %d" % best, "run", func(): mission_requested.emit()],
+		["Choisir un secteur", "Descendre, ou farmer un secteur déjà vaincu", "map", func(): map_requested.emit()],
+		["Ceinture sans fin", ("Zones générées · front au secteur %d" % best) if belt else "Zones générées · après le secteur %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
 	]
 	for row in rows:
 		var r := Rect2(32, y, 656, 112)
@@ -413,12 +427,15 @@ func _labo(c: Control, y: float) -> float:
 	var labels := ["Combat", "Butin", "Vaisseau"]
 	var keys := ["combat", "butin", "vaisseau"]
 	var w := 656.0 / 3.0
+	# segment de verre, comme sur les autres écrans
+	GlassBox.make("chip", "normal", 0.3).draw(c.get_canvas_item(), Rect2(32, y, 656, 80))
 	for i in 3:
 		var r := Rect2(32 + i * w, y, w, 80)
 		var on := i == _branch
-		var sb := UI.box(M3.TONAL if on else Color(0, 0, 0, 0), M3.OUT, 40 if (i == 0 or i == 2) else 0, 0)
-		sb.set_border_width_all(2)
-		c.draw_style_box(sb, r)
+		if on:
+			var gt := GlassBox.make("tab", "normal", 0.3)
+			gt.inset = 6.0
+			gt.draw(c.get_canvas_item(), r)
 		M3.text(c, r.position + Vector2(0, 50), ("✓ " if on else "") + labels[i], 26, UI.TEXT if on else UI.MUTED, on, w, HORIZONTAL_ALIGNMENT_CENTER)
 		var bi := i
 		_hit(r, func():
@@ -501,7 +518,7 @@ func _hangar(c: Control, y: float) -> float:
 			M3.text(c, r.position + Vector2(132 + M3.text_w(String(info.name), 28, true) + 12, 52), "· à quai", 22, info.color, true)
 			M3.text(c, r.position + Vector2(132, 90), role, 22, UI.MUTED, false, 360)
 			var br := Rect2(r.position + Vector2(500, 34), Vector2(136, 64))
-			c.draw_style_box(UI.box(UI.ACCENT, Color(0, 0, 0, 0), 32, 0), br)
+			GlassBox.make("main").draw(c.get_canvas_item(), br)
 			M3.text(c, br.position + Vector2(0, 42), "Lancer", 24, Color("06101f"), true, 136, HORIZONTAL_ALIGNMENT_CENTER)
 			_hit(r, _expedition_sheet.bind(sh))
 		else:
@@ -590,7 +607,7 @@ func _upgrade_dialog() -> void:
 	var lines := _upgrade_lines(lv)
 	var block := st.upgrade_block(Game, room)
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		_room_glyph(box, room, Vector2(80, 84), Ship.ROOMS[room].color, 1.0)
 		M3.text(box, Vector2(140, 78), "%s · niveau %d" % [Ship.ROOMS[room].short, lv + 1], 34, UI.TEXT, true, 470)
 		M3.text(box, Vector2(140, 116), "Amélioration", 24, UI.MUTED)
@@ -642,7 +659,7 @@ func _upgrade_lines(lv: int) -> Array:
 		"hangar":
 			out.append(["Navettes", str(Ship.shuttles_for(lv).size()), str(Ship.shuttles_for(lv + 1).size())])
 		"observatoire":
-			out.append(["Butin des secteurs générés", "+%d %%" % int(Ship.observatory_bonus(lv) * 100.0), "+%d %%" % int(Ship.observatory_bonus(lv + 1) * 100.0)])
+			out.append(["Butin des zones générées", "+%d %%" % int(Ship.observatory_bonus(lv) * 100.0), "+%d %%" % int(Ship.observatory_bonus(lv + 1) * 100.0)])
 	if res != "":
 		var m := st.production_mult(room)
 		var a := Ship.base_rate(room, lv, Game.best_stage) * m
@@ -661,7 +678,7 @@ func _confirm_rush(cost: int, action: Callable) -> void:
 	d.add_child(box)
 	var enough := Game.crystals >= cost
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		M3.text(box, Vector2(40, 80), "Terminer tout de suite", 34, UI.TEXT, true)
 		M3.text(box, Vector2(40, 124), "1 cristal par tranche de 10 min restantes", 24, UI.MUTED)
 		box.draw_texture(UI.icon("crystal", 56), Vector2(40, 170))
@@ -703,10 +720,7 @@ func _assign_sheet(current: String) -> void:
 	var hits: Array = []
 	sheet.draw.connect(func():
 		hits.clear()
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
+		M3.sheet(sheet, Rect2(Vector2.ZERO, sheet.size))
 		sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 		M3.text(sheet, Vector2(32, 92), ("Coucher aux Quartiers" if room == "quartiers" else "Affecter : %s" % Ship.ROOMS[room].short), 34, UI.TEXT, true)
 		M3.text(sheet, Vector2(32, 134), ("Les héros au repos rattrapent l’escouade" if room == "quartiers" else "Métiers idéaux : " + ", ".join(Ship.ROOMS[room].jobs)), 22, UI.MUTED, false, 656)
@@ -768,10 +782,7 @@ func _expedition_sheet(sh: String) -> void:
 	var info: Dictionary = Ship.SHUTTLES[sh]
 	sheet.draw.connect(func():
 		hits.clear()
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
+		M3.sheet(sheet, Rect2(Vector2.ZERO, sheet.size))
 		_shuttle_icon(sheet, sh, Vector2(76, 84), info.color)
 		M3.text(sheet, Vector2(140, 80), "%s · expédition" % info.name, 34, UI.TEXT, true)
 		M3.text(sheet, Vector2(140, 118), "%s : %s" % [info.role, ["−25 % de durée", "+50 % de butin", "va plus loin, trouvailles ×2"][Ship.SHUTTLE_ORDER.find(sh)]], 24, info.color)
@@ -784,7 +795,7 @@ func _expedition_sheet(sh: String) -> void:
 			M3.card(sheet, rr, M3.TONAL if on else M3.S2, 32, UI.ACCENT if on else Color(0, 0, 0, 0), 3)
 			M3.text(sheet, rr.position + Vector2(28, 46), String(dd.name), 28, UI.TEXT if open else UI.MUTED, true)
 			M3.text(sheet, rr.position + Vector2(0, 46), "⏱ " + UI.duration(st.expedition_hours(dest, sh, String(sel.pilot)) * 3600.0), 24, UI.GOLD, true, 628, HORIZONTAL_ALIGNMENT_RIGHT)
-			M3.text(sheet, rr.position + Vector2(28, 82), String(dd.sub) if open else "S’ouvre à l’étage %d" % (int(dd.stage) - (10 if sh == "sterne" else 0)), 22, UI.MUTED)
+			M3.text(sheet, rr.position + Vector2(28, 82), String(dd.sub) if open else "S’ouvre au secteur %d" % (int(dd.stage) - (10 if sh == "sterne" else 0)), 22, UI.MUTED)
 			var rw := Ship.dest_reward(dest, Game.best_stage)
 			var x := 28.0
 			for k in rw:
@@ -887,7 +898,7 @@ func _show_return(sh: String, out: Dictionary) -> void:
 	d.add_child(box)
 	var info: Dictionary = Ship.SHUTTLES[sh]
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		_shuttle_icon(box, sh, Vector2(320, 90), info.color, 2.2)
 		M3.text(box, Vector2(0, 190), "%s EST RENTRÉE" % String(info.name).to_upper(), 24, UI.ACCENT, true, 640, HORIZONTAL_ALIGNMENT_CENTER)
 		M3.text(box, Vector2(0, 236), String(Ship.DESTS[out.dest].name), 34, UI.TEXT, true, 640, HORIZONTAL_ALIGNMENT_CENTER)

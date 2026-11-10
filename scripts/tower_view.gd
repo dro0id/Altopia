@@ -134,7 +134,7 @@ func _node(n: int) -> void:
 		label = Data.boss_name(n)
 		sub = "%s · ◆ %d cristaux" % ["Gros boss", int(Data.BIG_BOSS_CRYSTALS[3])] if bt == "big" else "Mini-boss"
 	elif cur:
-		label = "Étage %d · en cours" % n
+		label = "Secteur %d · en cours" % n
 		sub = "Reco %d · toi %d %s" % [int(Data.recommended_power(n)), int(Game.power()), "✓" if Game.power() >= Data.recommended_power(n) else ""]
 	var s := int(Game.stars.get(n, 0))
 	var x := c.x - r - 16.0 if left else c.x + r + 16.0
