@@ -231,10 +231,7 @@ func _open_sheet() -> void:
 	var y0 := (UI.H - 160.0) - 640.0
 	_sheet.draw.connect(func():
 		_sheet.draw_rect(Rect2(0, 0, 720, (UI.H - 160.0)), Color(0, 0, 0, 0.6))
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		_sheet.draw_style_box(sb, Rect2(0, y0, 720, 640))
+		M3.sheet(_sheet, Rect2(0, y0, 720, 640))
 		_sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
 		M3.text(_sheet, Vector2(32, y0 + 88), "Formation de l'escouade", 40, UI.TEXT, true)
 		M3.text(_sheet, Vector2(32, y0 + 128), "Glisse un héros pour échanger les places", 26, UI.MUTED))

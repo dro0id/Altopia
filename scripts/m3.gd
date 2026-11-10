@@ -124,6 +124,52 @@ static func glass_card(ci: CanvasItem, r: Rect2, sel := false, corner := 20.0) -
 	(_cards[key] as GlassBox).draw(ci.get_canvas_item(), r)
 
 
+## Feuille du bas (maquette G2) : verre à deux angles coupés en haut, liseré clair.
+static func sheet(ci: CanvasItem, r: Rect2) -> void:
+	var c := 28.0
+	var x0 := r.position.x
+	var y0 := r.position.y
+	var x1 := r.end.x
+	var y1 := r.end.y
+	var pts := PackedVector2Array([Vector2(x0 + c, y0), Vector2(x1 - c, y0), Vector2(x1, y0 + c), Vector2(x1, y1), Vector2(x0, y1), Vector2(x0, y0 + c)])
+	var top := Color("24345f")
+	var cols := PackedColorArray()
+	for p in pts:
+		cols.append(top.lerp(SHEET, clampf((p.y - y0) / 240.0, 0.0, 1.0)))
+	ci.draw_polygon(pts, cols)
+	ci.draw_polyline(PackedVector2Array([pts[5], pts[0], pts[1], pts[2]]), Color("5a78b8"), 2.0, true)
+
+
+## Boîte de dialogue : verre à quatre angles coupés.
+static func dialog(ci: CanvasItem, r: Rect2) -> void:
+	if not _cards.has("dlg"):
+		var g := GlassBox.make("sheet")
+		g.flat = true
+		g.corner = 28.0
+		_cards["dlg"] = g
+	(_cards["dlg"] as GlassBox).draw(ci.get_canvas_item(), r)
+
+
+## Contour d'un cadre de portrait selon la rareté (maquette G4) : rond, angles coupés, hexagone.
+static func frame_pts(c: Vector2, r: float, rarity: String) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	match rarity:
+		"rare":
+			for i in 8:
+				var a := TAU * (i + 0.5) / 8.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r * 1.06)
+		"epic":
+			for i in 6:
+				var a := TAU * i / 6.0 - PI / 2.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r * 1.1)
+		_:
+			for i in 40:
+				var a := TAU * i / 40.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+	pts.append(pts[0])
+	return pts
+
+
 static func card(ci: CanvasItem, r: Rect2, fill: Color = S2, radius: int = 32, border: Color = Color(0, 0, 0, 0), bw: int = 2) -> void:
 	if fill == S2 and border.a <= 0.0 and r.size.y >= 56.0:
 		glass_card(ci, r, false, 20.0 if radius >= 28 else 12.0)
@@ -150,9 +196,13 @@ static func bar(ci: CanvasItem, r: Rect2, ratio: float, col: Color = UI.ACCENT) 
 
 ## Portrait rond cerclé (couleur de rareté ou turquoise).
 static func avatar(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, ring: Color = Color("4fb8c8"), t := 0.0) -> void:
-	ci.draw_circle(c, r, Color("0a1424"))
-	Art.draw_portrait(ci, hero, c, r - 6.0, t)
-	ci.draw_arc(c, r - 2.0, 0, TAU, 56, ring, 4.0, true)
+	var rar := String(hero.get("rarity", "common"))
+	var fp := frame_pts(c, r - 2.0, rar)
+	ci.draw_colored_polygon(fp.slice(0, fp.size() - 1), Color("0a1424"))
+	Art.draw_portrait(ci, hero, c, r - (6.0 if rar == "common" else 9.0), t)
+	if rar == "epic":
+		ci.draw_polyline(frame_pts(c, r + 2.0, rar), Color(ring, 0.35), 8.0, true)
+	ci.draw_polyline(fp, ring, 4.0, true)
 
 
 ## Texte dessiné ; avec une largeur donnée, la taille diminue (jusqu'à 70 %) plutôt que de couper le texte.

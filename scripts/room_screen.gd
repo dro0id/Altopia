@@ -110,7 +110,18 @@ func _refresh() -> void:
 		else:
 			_set_gauge(_b_right, 0.0)
 			UI.set_role(_b_right, "main")
-			_b_right.text = ("Améliorer → niv. %d" % (lv + 1)) if (block == "" or block == "Pas assez de ressources") else block
+			var cst: Dictionary = st.cost_of(Game, room)
+			if block == "Pas assez de ressources":
+				var mc := float(cst.credits) - float(Game.credits)
+				var ms := int(cst.shards) - int(Game.shards)
+				_b_right.text = ("Il manque %s ¢" % UI.num(ceilf(mc))) if mc > 0.0 else ("Il manque %d éclat%s" % [ms, "s" if ms > 1 else ""])
+				UI.set_role(_b_right, "secondary")
+			elif block == "":
+				_b_right.text = ("Améliorer · %s ¢" % UI.num(float(cst.credits))) if float(cst.credits) > 0.0 and not full else ("Améliorer → niv. %d" % (lv + 1))
+				if full and float(cst.credits) > 0.0:
+					_b_right.text = "Améliorer → niv. %d · %s ¢" % [lv + 1, UI.num(float(cst.credits))]
+			else:
+				_b_right.text = block
 			_b_right.disabled = block != "" and block != "Pas assez de ressources"
 	_content.queue_redraw()
 
@@ -596,7 +607,7 @@ func _upgrade_dialog() -> void:
 	var lines := _upgrade_lines(lv)
 	var block := st.upgrade_block(Game, room)
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		_room_glyph(box, room, Vector2(80, 84), Ship.ROOMS[room].color, 1.0)
 		M3.text(box, Vector2(140, 78), "%s · niveau %d" % [Ship.ROOMS[room].short, lv + 1], 34, UI.TEXT, true, 470)
 		M3.text(box, Vector2(140, 116), "Amélioration", 24, UI.MUTED)
@@ -667,7 +678,7 @@ func _confirm_rush(cost: int, action: Callable) -> void:
 	d.add_child(box)
 	var enough := Game.crystals >= cost
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		M3.text(box, Vector2(40, 80), "Terminer tout de suite", 34, UI.TEXT, true)
 		M3.text(box, Vector2(40, 124), "1 cristal par tranche de 10 min restantes", 24, UI.MUTED)
 		box.draw_texture(UI.icon("crystal", 56), Vector2(40, 170))
@@ -709,10 +720,7 @@ func _assign_sheet(current: String) -> void:
 	var hits: Array = []
 	sheet.draw.connect(func():
 		hits.clear()
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
+		M3.sheet(sheet, Rect2(Vector2.ZERO, sheet.size))
 		sheet.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 		M3.text(sheet, Vector2(32, 92), ("Coucher aux Quartiers" if room == "quartiers" else "Affecter : %s" % Ship.ROOMS[room].short), 34, UI.TEXT, true)
 		M3.text(sheet, Vector2(32, 134), ("Les héros au repos rattrapent l’escouade" if room == "quartiers" else "Métiers idéaux : " + ", ".join(Ship.ROOMS[room].jobs)), 22, UI.MUTED, false, 656)
@@ -774,10 +782,7 @@ func _expedition_sheet(sh: String) -> void:
 	var info: Dictionary = Ship.SHUTTLES[sh]
 	sheet.draw.connect(func():
 		hits.clear()
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		sheet.draw_style_box(sb, Rect2(Vector2.ZERO, sheet.size))
+		M3.sheet(sheet, Rect2(Vector2.ZERO, sheet.size))
 		_shuttle_icon(sheet, sh, Vector2(76, 84), info.color)
 		M3.text(sheet, Vector2(140, 80), "%s · expédition" % info.name, 34, UI.TEXT, true)
 		M3.text(sheet, Vector2(140, 118), "%s : %s" % [info.role, ["−25 % de durée", "+50 % de butin", "va plus loin, trouvailles ×2"][Ship.SHUTTLE_ORDER.find(sh)]], 24, info.color)
@@ -893,7 +898,7 @@ func _show_return(sh: String, out: Dictionary) -> void:
 	d.add_child(box)
 	var info: Dictionary = Ship.SHUTTLES[sh]
 	box.draw.connect(func():
-		box.draw_style_box(UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0), Rect2(Vector2.ZERO, box.size))
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
 		_shuttle_icon(box, sh, Vector2(320, 90), info.color, 2.2)
 		M3.text(box, Vector2(0, 190), "%s EST RENTRÉE" % String(info.name).to_upper(), 24, UI.ACCENT, true, 640, HORIZONTAL_ALIGNMENT_CENTER)
 		M3.text(box, Vector2(0, 236), String(Ship.DESTS[out.dest].name), 34, UI.TEXT, true, 640, HORIZONTAL_ALIGNMENT_CENTER)

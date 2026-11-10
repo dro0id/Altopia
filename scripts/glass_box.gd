@@ -15,6 +15,7 @@ const ROLES := {
 	"danger": {"b0": "ff9b9b", "b1": "a02f3f", "f0": "4e1b2c", "f1": "2a1020", "glow": "", "text": "ffb3b3"},
 	"alert": {"b0": "ffc4c4", "b1": "b02f3f", "f0": "ff8a8a", "f1": "ff5a5a", "glow": "ff6b6b", "text": "1a0505"},
 	"tab": {"b0": "6fd0f0", "b1": "3a86b4", "f0": "2d5a94", "f1": "1d3a66", "glow": "", "text": "e8eefc"},
+	"sheet": {"b0": "5a78b8", "b1": "24345f", "f0": "24345f", "f1": "1a2547", "glow": "", "text": "e8eefc"},
 	"card": {"b0": "33457c", "b1": "1f2b52", "f0": "182449", "f1": "121b38", "glow": "", "text": "e8eefc"},
 	"cardsel": {"b0": "6fd0f0", "b1": "3a86b4", "f0": "25467a", "f1": "1a3058", "glow": "", "text": "e8eefc"},
 	"chip": {"b0": "2f3f72", "b1": "232f58", "f0": "1d2a52", "f1": "16213f", "glow": "", "text": "e8eefc"},

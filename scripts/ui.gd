@@ -188,9 +188,11 @@ static func draw_gradient_box(ci: CanvasItem, r: Rect2, rad: float, c0: Color, c
 
 ## Portrait rond d'un héros sur fond sombre cerclé de turquoise (comme les portraits de la maquette).
 static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: float = 0.0) -> void:
-	ci.draw_circle(c, r + 2.0, Color("0a1424"))
-	Art.draw_portrait(ci, hero, c, r - 3.0, t)
-	ci.draw_arc(c, r, 0, TAU, 48, Color(0.31, 0.72, 0.78, 0.8), 2.5, true)
+	var rar := String(hero.get("rarity", "common"))
+	var fp := M3.frame_pts(c, r, rar)
+	ci.draw_colored_polygon(fp.slice(0, fp.size() - 1), Color("0a1424"))
+	Art.draw_portrait(ci, hero, c, r - (3.0 if rar == "common" else 6.0), t)
+	ci.draw_polyline(fp, Color(0.31, 0.72, 0.78, 0.8), 2.5, true)
 
 
 static var _icons := {}

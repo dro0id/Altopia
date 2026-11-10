@@ -208,10 +208,7 @@ func _peek() -> Dictionary:
 
 func _draw_sheet() -> void:
 	var c := _sheet
-	var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size + Vector2(0, 40)))
+	M3.sheet(c, Rect2(Vector2.ZERO, c.size + Vector2(0, 40)))
 	c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 	var l := _cur()
 	var sp := Story.speaker(String(l.who))

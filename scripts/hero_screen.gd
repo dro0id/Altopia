@@ -231,10 +231,7 @@ func _open_picker() -> void:
 	var y0 := UI.H - 800.0
 	_picker.draw.connect(func():
 		_picker.draw_rect(Rect2(0, 0, 720, UI.H), Color(0, 0, 0, 0.6))
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		_picker.draw_style_box(sb, Rect2(0, y0, 720, 800))
+		M3.sheet(_picker, Rect2(0, y0, 720, 800))
 		_picker.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
 		M3.text(_picker, Vector2(32, y0 + 88), "Choisir l'emplacement", 40, UI.TEXT, true))
 	_picker.gui_input.connect(func(ev: InputEvent):

@@ -89,10 +89,7 @@ func _draw_art() -> void:
 	if p.has("who"):
 		# réplique de Vance dans une feuille du bas
 		var y0 := UI.H - 96.0 - 104.0 - 32.0 - 420.0
-		var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-		sb.corner_radius_bottom_left = 0
-		sb.corner_radius_bottom_right = 0
-		c.draw_style_box(sb, Rect2(0, y0, 720, UI.H - y0))
+		M3.sheet(c, Rect2(0, y0, 720, UI.H - y0))
 		c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, y0 + 16, 64, 8))
 		var sp := Story.speaker(String(p.who))
 		M3.avatar(c, Data.HEROES[p.who], Vector2(104, y0 + 136), 72.0, sp.color, _t)

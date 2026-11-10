@@ -346,10 +346,7 @@ func _draw_sheet() -> void:
 	var r := _sel
 	var info: Dictionary = Ship.ROOMS[r]
 	var col: Color = info.color
-	var sb := UI.box(M3.SHEET, Color(0, 0, 0, 0), 56, 0)
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	c.draw_style_box(sb, Rect2(0, 0, 720, 460))
+	M3.sheet(c, Rect2(0, 0, 720, 460))
 	c.draw_style_box(UI.box(M3.OUT, Color(0, 0, 0, 0), 4, 0), Rect2(328, 16, 64, 8))
 	var lv := s.room_level(r)
 	c.draw_style_box(UI.box(Color("0a1424"), col, 24, 0), Rect2(32, 48, 88, 88))
