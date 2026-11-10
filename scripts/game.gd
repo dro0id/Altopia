@@ -740,6 +740,20 @@ func buzz(ms: int = 30) -> void:
 		Input.vibrate_handheld(ms)
 
 
+## Trois vibrations, trois sens (maquette E4) : "tap" courte (appui), "reward" double (récompense), "alert" longue (boss).
+func haptic(kind: String) -> void:
+	if not haptics:
+		return
+	match kind:
+		"tap":
+			Input.vibrate_handheld(8)
+		"reward":
+			Input.vibrate_handheld(30)
+			get_tree().create_timer(0.12, true).timeout.connect(func(): Input.vibrate_handheld(30))
+		"alert":
+			Input.vibrate_handheld(220)
+
+
 func add_credits(v: float) -> void:
 	credits += v * (1.0 + ship.research_bonus("prospection"))
 	changed.emit()

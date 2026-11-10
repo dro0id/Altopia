@@ -55,8 +55,13 @@ func play(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	p.volume_db = volume_db + linear_to_db(maxf(0.001, g.sfx_vol if g != null else 1.0))
 	p.pitch_scale = pitch
 	p.play()
-	if g != null and sound in ["chest", "star", "win", "lose"]:
-		g.buzz(35)
+	if g != null:
+		if sound in ["chest", "star", "win", "coin"]:
+			g.haptic("reward")
+		elif sound in ["lose", "warn"]:
+			g.haptic("alert")
+		elif sound == "click":
+			g.haptic("tap")
 
 
 func refresh_music() -> void:

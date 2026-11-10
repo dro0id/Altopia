@@ -97,6 +97,7 @@ func _equip() -> void:
 		return
 	Game.save_game()
 	Sfx.play("chest", -4.0)
+	M3.toast(self, "Objet équipé sur %s" % String(Data.HEROES[_hero].name).split(" ")[0])
 	changed.emit()
 	close()
 

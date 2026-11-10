@@ -175,14 +175,14 @@ func _consume() -> void:
 				if f3 != null:
 					f3.play_hurt()
 				if Game.dmg_numbers:
-					texts.append({"pos": _center(u) + Vector2(randf_range(-14, 14), -40), "txt": str(int(round(e.amount))), "col": Color(1, 0.95, 0.6) if u.side == 1 else Color(1, 0.5, 0.45), "t": 0.0, "dx": randf_range(-18, 18)})
+					_dmg_text(u, float(e.amount), bool(e.get("crit", false)), String(e.get("fx", "")) != "")
 				_impact(u, e.amount, String(e.get("fx", "")))
 				Sfx.play("hit", -10.0, randf_range(0.85, 1.2))
 			"heal":
 				var u2: BattleSim.Unit = e.unit
 				if e.amount >= 1.0:
 					if Game.dmg_numbers:
-						texts.append({"pos": _center(u2) + Vector2(randf_range(-14, 14), -50), "txt": "+" + str(int(round(e.amount))), "col": Color(0.5, 1, 0.65), "t": 0.0, "dx": 0.0})
+						texts.append({"pos": _center(u2) + Vector2(randf_range(-14, 14), -50), "txt": "+" + UI.num(roundf(e.amount)), "col": Color(0.5, 1, 0.65), "t": 0.0, "dx": 0.0, "size": 24.0, "unit": u2, "amt": float(e.amount), "heal": true})
 					for i in 3:
 						parts.append({"kind": "cross", "pos": _center(u2) + Vector2(randf_range(-22, 22), randf_range(-10, 20)), "vel": Vector2(0, -40 - randf() * 30), "t": -i * 0.1, "dur": 0.8, "col": Color(0.5, 1.0, 0.7), "size": 7.0, "grav": 0.0})
 			"cast":
@@ -248,6 +248,33 @@ func _cast_fx(e: Dictionary) -> void:
 			_ring_fx(Vector2(360, 480), Color(1.0, 0.8, 0.5), 220.0, 0.55, 0.55)
 			for i in 12:
 				parts.append({"kind": "dust", "pos": Vector2(360 + randf_range(-60, 60), 300), "vel": Vector2(randf_range(-260, 260), randf_range(-30, 30)), "t": -0.5, "dur": 0.9, "col": Color(0.65, 0.58, 0.5), "size": 14.0, "grav": 0.0})
+
+
+## Chiffre de dégâts lisible (maquette G6) : taille selon la force du coup (part des PV de la cible),
+## critique doré avec « ! », coup reçu par un héros en rouge avec « − ». Les petits coups sur une même cible
+## dans le même quart de seconde se regroupent en un seul chiffre, pour ne pas noyer l'écran en ×3.
+func _dmg_text(u: BattleSim.Unit, amount: float, crit: bool, skill: bool) -> void:
+	var share := clampf(amount / maxf(1.0, u.max_hp), 0.0, 1.0)
+	if not crit and not skill:
+		for x in texts:
+			if x.get("unit") == u and not bool(x.get("big", false)) and not bool(x.get("heal", false)) and float(x.t) < 0.25:
+				x.amt = float(x.amt) + amount
+				x.txt = ("−" if u.side == 0 else "") + UI.num(roundf(x.amt))
+				x.size = minf(34.0, float(x.size) + 1.5)
+				return
+	var size := 22.0 + 26.0 * sqrt(share)
+	var col := Color(1, 0.95, 0.6) if u.side == 1 else Color(1, 0.5, 0.45)
+	var txt := UI.num(roundf(amount))
+	if u.side == 0:
+		txt = "−" + txt
+	if crit:
+		size += 10.0
+		col = UI.GOLD
+		txt += " !"
+	elif skill:
+		size += 6.0
+		col = Color(0.75, 0.95, 1.0) if u.side == 1 else col
+	texts.append({"pos": _center(u) + Vector2(randf_range(-14, 14), -40), "txt": txt, "col": col, "t": 0.0, "dx": randf_range(-18, 18), "size": minf(size, 52.0), "unit": u, "amt": amount, "big": crit or skill})
 
 
 func _process(delta: float) -> void:
@@ -429,9 +456,12 @@ func _draw_overlay() -> void:
 		var pop := maxf(0.0, 1.0 - x.t / 0.18)
 		var pos: Vector2 = x.pos + Vector2(x.dx * k3, -44 * k3 + 24 * k3 * k3)
 		var c: Color = x.col
-		var fs := int(22 + 18 * pop)
-		_ov.draw_string(ThemeDB.fallback_font, pos + Vector2(1, 1), x.txt, HORIZONTAL_ALIGNMENT_CENTER, 80, fs, Color(0, 0, 0, 1.0 - k3))
-		_ov.draw_string(ThemeDB.fallback_font, pos, x.txt, HORIZONTAL_ALIGNMENT_CENTER, 80, fs, Color(c.r, c.g, c.b, 1.0 - k3 * 0.8))
+		var base: float = float(x.get("size", 22.0))
+		var fs := int(base + base * 0.8 * pop)
+		var f: Font = UI.bold_font() if base >= 28.0 else ThemeDB.fallback_font
+		var bw := 160.0
+		_ov.draw_string_outline(f, pos - Vector2(bw * 0.5 - 40.0, 0), x.txt, HORIZONTAL_ALIGNMENT_CENTER, bw, fs, 6, Color(0, 0, 0, 0.8 * (1.0 - k3)))
+		_ov.draw_string(f, pos - Vector2(bw * 0.5 - 40.0, 0), x.txt, HORIZONTAL_ALIGNMENT_CENTER, bw, fs, Color(c.r, c.g, c.b, 1.0 - k3 * 0.8))
 	if banner_t > 0.0:
 		var a := minf(1.0, banner_t * 2.0)
 		var slide := (1.0 - minf(1.0, (1.6 - banner_t) * 6.0)) * 40.0 if banner_t > 1.0 else 0.0

@@ -44,10 +44,27 @@ func use_stage(dim_alpha: float = 1.0) -> Control:
 	panel.visible = false
 	center.visible = false
 	dim.color = Color(UI.BG, dim_alpha)
+	if dim_alpha >= 1.0:
+		set_backdrop(UI.ACCENT)
 	stage = Control.new()
 	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(stage)
 	return stage
+
+
+var backdrop: Backdrop
+
+
+## Fond en trois plans teinté selon le lieu (maquette G3), posé juste au-dessus du voile.
+func set_backdrop(c: Color) -> void:
+	if backdrop != null:
+		backdrop.tint = c
+		backdrop._tex = Backdrop._nebula(c)
+		backdrop.queue_redraw()
+		return
+	backdrop = Backdrop.make(c)
+	add_child(backdrop)
+	move_child(backdrop, dim.get_index() + 1)
 
 
 func close() -> void:

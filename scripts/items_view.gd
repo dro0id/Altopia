@@ -98,9 +98,11 @@ func _draw_grid() -> void:
 		if it.locked:
 			M3.text(_grid, r.position + Vector2(10, 32), "🔒", 22)
 	if _list.is_empty():
-		M3.text(_grid, Vector2(0, 120), "📦", 56, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
-		M3.text(_grid, Vector2(0, 180), "Aucun objet pour ce filtre.", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
-		M3.text(_grid, Vector2(0, 220), "Gagne-en au combat ou ouvre une caisse.", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
+		# état vide dessiné (maquette I8) : pas d'émoji, qui change d'un téléphone à l'autre
+		_grid.draw_circle(Vector2(360, 100), 56, M3.S2)
+		ItemUI.slot_icon(_grid, _filter if _filter != "" else "module", Vector2(360, 100), 64.0, UI.MUTED)
+		M3.text(_grid, Vector2(0, 196), "Aucun objet pour ce filtre." if _filter != "" else "Aucun objet pour l’instant.", 28, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(_grid, Vector2(0, 240), "Gagne-en au combat ou ouvre une caisse au Recrutement.", 26, UI.MUTED, false, 720, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _grid_input(ev: InputEvent) -> void:

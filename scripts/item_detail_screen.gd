@@ -49,7 +49,8 @@ func _init(item_id: int) -> void:
 		close())
 	_rec = button("", "outline", Vector2(368, UI.H - 32 - 96), Vector2(320, 96), 26)
 	_rec.pressed.connect(func():
-		Game.recycle_items([_id])
+		var res: Dictionary = Game.recycle_items([_id])
+		M3.toast(self, "Recyclé · +%d éclats" % int(res.shards), Color("7fdcff"))
 		Game.save_game()
 		changed.emit()
 		close())
@@ -64,6 +65,7 @@ func _menu() -> void:
 	if it.on != "":
 		items.append(["Retirer du héros", func():
 			Game.unequip(_id)
+			M3.toast(self, "Objet retiré", UI.MUTED)
 			Game.save_game()
 			changed.emit()
 			_refresh()])

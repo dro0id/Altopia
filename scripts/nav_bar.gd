@@ -15,7 +15,8 @@ static func total() -> float:
 	return HEIGHT + inset_bottom
 
 var active := 0
-var badges: Array = [0, 0, 0, 0, 0]
+var badges: Array = [0, 0, 0, 0, 0]   # rouge chiffré : à réclamer ou terminé
+var dots: Array = [false, false, false, false, false]   # point vert : action possible, sans urgence
 var ship_on := true            # onglet Vaisseau visible
 
 
@@ -98,6 +99,10 @@ func _draw() -> void:
 			draw_circle(bc, 20, UI.BAR)
 			draw_circle(bc, 16, UI.RED)
 			draw_string(UI.bold_font(), bc + Vector2(-16, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 22, Color.WHITE)
+		elif dots[i]:
+			var dc := Vector2(cx + 30.0, 30.0)
+			draw_circle(dc, 12, UI.BAR)
+			draw_circle(dc, 8, UI.GREEN)
 
 
 ## Fusée de l'Aurore (onglet de la barre du bas, bouton « retour à l'Aurore » du combat).

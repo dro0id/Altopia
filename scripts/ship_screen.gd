@@ -20,7 +20,6 @@ var _cut: Button
 var _sel := ""
 var _sheet_btns: Array = []
 var _t := 0.0
-var _chips: Array = []
 var _sub: Label
 var _lab_rects := {}
 var _mission: Control
@@ -51,10 +50,7 @@ func _init() -> void:
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_labels.draw.connect(_draw_labels)
 	_st.add_child(_labels)
-	var cr := M3.cur_chip("coin", UI.num(Game.credits))
-	var sh := M3.cur_chip("shard", str(Game.shards))
-	_chips = [cr, sh]
-	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [cr, sh])
+	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [Wallet.make()], false)
 	var title: Label = bar.get_node("Title")
 	title.position.y = 18
 	_sub = UI.label(bar, "", M3.fs(22), UI.MUTED)
@@ -69,6 +65,13 @@ func _init() -> void:
 	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
 	b2.text = "⚒"
 	b2.pressed.connect(func(): builds_requested.emit())
+	# mémo de l'écran (maquette E5) : ici avec les boutons ronds, pour laisser les monnaies en haut
+	var b3 := _round_button("?", Vector2(720 - 32 - 88, 508))
+	if not Help.seen("L’Aurore"):
+		b3.add_theme_color_override("font_color", UI.GOLD)
+	b3.pressed.connect(func():
+		b3.add_theme_color_override("font_color", UI.TEXT)
+		Help.show(self, "L’Aurore"))
 	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "success", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
@@ -97,7 +100,7 @@ func _init() -> void:
 			else:
 				room_requested.emit(String(_adv.room)))
 	_st.add_child(_advice)
-	_advice_btn = M3.button(_advice, "Lancer", Rect2(500, 24, 156, 76), "success", 26)
+	_advice_btn = M3.button(_advice, "Lancer", Rect2(452, 22, 204, 84), "success", 26)
 	_advice_btn.pressed.connect(_launch_advice)
 	_sheet = Control.new()
 	_sheet.size = Vector2(720, 420)
@@ -146,8 +149,6 @@ func _refresh() -> void:
 		_sub.text = "Niveau %d · Héros de la Ceinture" % s.level
 	else:
 		_sub.text = "Niveau %d · %s" % [s.level, ti.name]
-	(_chips[0] as HudButton).set_texts(UI.num(Game.credits))
-	(_chips[1] as HudButton).set_texts(str(Game.shards))
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0
@@ -163,7 +164,7 @@ func _refresh() -> void:
 	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
 	if not _adv.is_empty():
 		_advice_btn.disabled = not bool(_adv.ok)
-		_advice_btn.text = "Lancer" if bool(_adv.ok) else "Bientôt"
+		M3.price(_advice_btn, "Lancer" if bool(_adv.ok) else "Bientôt", RoomScreen.price_items(Game.ship.cost_of(Game, String(_adv.room))))
 	_advice.queue_redraw()
 	_sheet.queue_redraw()
 
@@ -494,10 +495,10 @@ func _draw_advice() -> void:
 	RoomScreen._room_glyph(c, r, Vector2(60, 62), col, 0.8)
 	var lv := s.room_level(r)
 	var cost := s.cost_of(Game, r)
-	M3.text(c, Vector2(124, 40), "PROCHAIN CHANTIER CONSEILLÉ", 20, UI.GREEN, true, 360)
-	M3.text(c, Vector2(124, 76), ("Construire : %s" % Ship.ROOMS[r].short) if lv <= 0 else ("%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1]), 28, UI.TEXT, true, 360)
-	var line := "%s crédits · %d éclats · %s" % [UI.short(float(cost.credits)), int(cost.shards), UI.duration(float(cost.time))]
-	M3.text(c, Vector2(124, 108), line, 22, UI.MUTED if bool(_adv.ok) else UI.GOLD, false, 360)
+	M3.text(c, Vector2(124, 40), "CHANTIER CONSEILLÉ", 20, UI.GREEN, true, 316)
+	M3.text(c, Vector2(124, 76), ("Construire : %s" % Ship.ROOMS[r].short) if lv <= 0 else ("%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1]), 28, UI.TEXT, true, 316)
+	# le prix est dans le bouton (maquette E3) ; reste la durée
+	M3.text(c, Vector2(124, 108), "⏱ " + UI.duration(float(cost.time)), 22, UI.MUTED, false, 316)
 
 
 ## Ce que fait chaque salle, pour la proposer à la construction.
@@ -529,7 +530,7 @@ func _draw_build_sheet(c: Control, r: String) -> void:
 	var run := s.building(r)
 	if not run.is_empty():
 		M3.text(c, Vector2(32, 200), "⏱ Construction · %s" % UI.duration(s.remaining(int(run.end))), 26, UI.GOLD, true, 656)
-		b.text = "Chantier en cours"
+		M3.price(b, "Chantier en cours", [])
 		b.disabled = true
 		return
 	var cost := s.cost_of(Game, r)
@@ -543,7 +544,10 @@ func _draw_build_sheet(c: Control, r: String) -> void:
 		x += w + 12.0
 	var block := s.upgrade_block(Game, r)
 	b.disabled = block != ""
-	b.text = "Construire" if block == "" else block
+	if block == "" or block == "Pas assez de ressources":
+		M3.price(b, "Construire", RoomScreen.price_items(cost))
+	else:
+		M3.price(b, block, [])
 
 
 func _build_selected() -> void:
@@ -605,6 +609,7 @@ func _harvest_one() -> void:
 	var got := Game.ship.collect(Game, _sel)
 	if not got.is_empty():
 		Sfx.play("coin")
+		Wallet.fly(get_tree(), _sheet_btns[0].global_position + _sheet_btns[0].size * 0.5, String(got.res))
 		Game.changed.emit()
 
 
@@ -612,4 +617,6 @@ func _harvest_all() -> void:
 	var got := Game.ship.collect_all(Game)
 	if not got.is_empty():
 		Sfx.play("coin")
+		for res in got:
+			Wallet.fly(get_tree(), _harvest.global_position + _harvest.size * 0.5, String(res))
 		Game.changed.emit()

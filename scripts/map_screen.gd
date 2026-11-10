@@ -22,6 +22,7 @@ var _down := false
 func _init() -> void:
 	super._init(720.0)
 	_st = use_stage(1.0)
+	set_backdrop(Color("3a6cff"))
 	_sel = Game.stage
 	_sector = (_sel - 1) / PER_SECTOR
 	M3.top_bar(_st, "Secteurs", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Journal de bord", func():
@@ -103,7 +104,12 @@ func _draw_list() -> void:
 		M3.card(_list, r, M3.TONAL if sel else M3.S2, 32)
 		var bt := Data.boss_type(n)
 		var cc := r.position + Vector2(64, 56)
-		_list.draw_circle(cc, 40, Color("3a1620") if bt == "big" else M3.S3)
+		var st: int = int(Game.stars.get(n, 0))
+		# repère à gauche (maquette I5) : vert si déjà vaincu, cyan pour le prochain
+		var nxt: bool = n == Game.best_stage and st == 0
+		_list.draw_circle(cc, 40, Color("3a1620") if bt == "big" else (Color("1d4a3a") if st > 0 else (Color("16405a") if nxt else M3.S3)))
+		if nxt:
+			_list.draw_arc(cc, 40, 0, TAU, 48, UI.ACCENT, 3.0, true)
 		var glyph := "☠" if bt == "big" else str(n)
 		M3.text(_list, cc + Vector2(-40, M3.fs(28) * 0.36), glyph, 28, Color("ff9b9b") if bt == "big" else UI.TEXT, true, 80, HORIZONTAL_ALIGNMENT_CENTER)
 		var title := "Secteur %d" % n
@@ -111,10 +117,12 @@ func _draw_list() -> void:
 			title += " · Gros boss"
 		elif bt == "mini":
 			title += " · Mini-boss"
-		M3.text(_list, r.position + Vector2(128, 50), title, 30, UI.MUTED if locked else UI.TEXT, true)
-		var st: int = int(Game.stars.get(n, 0))
-		var sub := "Verrouillé" if locked else ("Non vaincu" if st == 0 else "★".repeat(st) + "☆".repeat(3 - st))
-		M3.text(_list, r.position + Vector2(128, 88), sub, 24, UI.MUTED if locked else UI.GOLD)
+		# on ne répète pas l'état par défaut : seulement ce qui diffère (maquette I5)
+		var sub := "Verrouillé" if locked else ("À vaincre" if nxt else ("★".repeat(st) + "☆".repeat(3 - st) if st > 0 else ""))
+		var ty := 50.0 if sub != "" else 68.0
+		M3.text(_list, r.position + Vector2(128, ty), title, 30, UI.MUTED if locked else UI.TEXT, true, 440)
+		if sub != "":
+			M3.text(_list, r.position + Vector2(128, 88), sub, 24, UI.MUTED if locked else (UI.ACCENT if nxt else UI.GOLD), nxt)
 		if locked:
 			M3.lock(_list, r.position + Vector2(612, 56), UI.MUTED, 1.2)
 		else:

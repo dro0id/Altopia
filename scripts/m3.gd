@@ -39,7 +39,7 @@ static func is_release(ev: InputEvent) -> bool:
 
 
 ## Barre du haut de 56 dp : retour facultatif, titre, actions à droite (glyphes ou contrôles déjà construits).
-static func top_bar(parent: Control, title: String, on_back: Callable = Callable(), actions: Array = []) -> Control:
+static func top_bar(parent: Control, title: String, on_back: Callable = Callable(), actions: Array = [], help := true) -> Control:
 	var bar := Control.new()
 	bar.name = "TopBar"
 	bar.size = Vector2(720, 112)
@@ -59,17 +59,32 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 	t.size = Vector2(600 - x, fs(40) + 14)
 	var rx := 712.0
 	var acts := actions.duplicate()
+	var help_btn := []
+	if help and Help.has(title):
+		# mémo de l'écran (maquette E5), à droite de tout
+		acts.append(["?", func():
+			Help.show(bar, title)
+			if not help_btn.is_empty():
+				(help_btn[0] as Button).add_theme_color_override("font_color", UI.TEXT)])
 	acts.reverse()
 	for a in acts:
 		var c: Control
 		if a is Control:
 			c = a
+			if c is Wallet:
+				# porte-monnaie : masque d'abord les crédits plutôt que de couper le titre
+				(c as Wallet).max_w = 712.0 - x - text_w(title, 40, true) - 40.0 - (720.0 - rx)
+				(c as Wallet).refresh()
 			bar.add_child(c)
 			c.position = Vector2(rx - c.size.x - 8.0, 56 - c.size.y * 0.5)
 			rx -= c.size.x + 16.0
 		else:
 			var ib := icon_button(bar, String(a[0]), 36)
 			ib.pressed.connect(a[1])
+			if String(a[0]) == "?":
+				help_btn.append(ib)
+				if not Help.seen(title):
+					ib.add_theme_color_override("font_color", UI.GOLD)
 			ib.position = Vector2(rx - 96.0, 8)
 			rx -= 96.0
 	# le titre s'arrête avant les actions (coupé par « … » s'il est trop long)
@@ -263,6 +278,80 @@ static func button(parent: Node, text: String, rect: Rect2, kind := "main", size
 	b.custom_minimum_size = Vector2(0, rect.size.y)
 	fit_button(b, fs(size))
 	return b
+
+
+## Bouton qui porte son prix (maquette E3) : libellé en haut, coûts en dessous, ce qui manque en rouge.
+## `items` : [[icône, montant (texte), suffisant (bool)], …] ; icônes de UI.icon (coin, shard, crystal…) ou "" (durée).
+## Rappeler la fonction pour changer libellé ou prix ; un tableau vide revient au bouton simple.
+static func price(b: Button, label: String, items: Array) -> void:
+	if items.is_empty():
+		b.set_meta("price", null)
+		b.text = label
+		b.queue_redraw()
+		return
+	var first := not b.has_meta("price")
+	b.set_meta("price", [label, items])
+	b.text = ""
+	b.queue_redraw()
+	if not first:
+		return
+	b.draw.connect(func():
+		var m = b.get_meta("price", null)
+		if m == null:
+			return
+		var off := b.disabled
+		var col := b.get_theme_color("font_disabled_color" if off else "font_color")
+		var lab := String(m[0])
+		var w := b.size.x - 24.0
+		var y0 := b.size.y * 0.5 - 2.0
+		text(b, Vector2(12, y0), lab, 28, col, true, w, HORIZONTAL_ALIGNMENT_CENTER)
+		var ps := 20
+		var parts := []
+		var tw := 0.0
+		for it in m[1]:
+			var t := String(it[1])
+			var iw := (26.0 if String(it[0]) != "" else 0.0)
+			parts.append([String(it[0]), t, bool(it[2]), iw])
+			tw += iw + text_w(t, ps, true) + 14.0
+		tw -= 14.0
+		var x := (b.size.x - tw) * 0.5
+		var yb := y0 + 10.0 + fs(ps)
+		for p in parts:
+			if p[0] != "":
+				b.draw_texture_rect(UI.icon(p[0], 22), Rect2(x, yb - fs(ps) + 1.0, 22, 22), false, Color(1, 1, 1, 0.6 if off else 1.0))
+				x += p[3]
+			var c: Color = Color("ff9b9b") if not p[2] else Color(col, 0.85)
+			text(b, Vector2(x, yb), p[1], ps, c, true)
+			x += text_w(p[1], ps, true) + 14.0)
+
+
+## Message bref (maquette I6) : une plaquette de verre en haut du contenu, 2 s, qui ne masque ni les boutons ni le combat.
+static func toast(from: Node, msg: String, col: Color = UI.GREEN) -> void:
+	var vp := from.get_viewport()
+	if vp == null:
+		return
+	for old in vp.get_children():
+		if old.has_meta("toast"):
+			old.queue_free()
+	var t := Control.new()
+	t.set_meta("toast", true)
+	t.z_index = 4096
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.process_mode = Node.PROCESS_MODE_ALWAYS
+	var w := minf(656.0, text_w(msg, 26, true) + 96.0)
+	t.size = Vector2(w, 72)
+	t.position = Vector2((720.0 - w) * 0.5, 128)
+	t.draw.connect(func():
+		glass_card(t, Rect2(Vector2.ZERO, t.size), true, 16.0)
+		t.draw_circle(Vector2(36, 36), 8, col)
+		text(t, Vector2(60, 36 + fs(26) * 0.36), msg, 26, UI.TEXT, true, w - 80.0))
+	vp.add_child(t)
+	t.modulate.a = 0.0
+	var tw := t.create_tween()
+	tw.tween_property(t, "modulate:a", 1.0, 0.15)
+	tw.tween_interval(2.0)
+	tw.tween_property(t, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(t.queue_free)
 
 
 ## Le libellé d'un bouton rétrécit (jusqu'à 70 %) s'il ne tient pas dans le bouton, même quand le texte change ensuite.

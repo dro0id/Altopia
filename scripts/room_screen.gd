@@ -74,6 +74,11 @@ func s() -> ShipState:
 
 func _refresh() -> void:
 	var st := s()
+	if st.room_level(room) <= 0:
+		_b_left.visible = false
+		_b_right.visible = false
+		_content.queue_redraw()
+		return
 	var res := String(Ship.ROOMS[room].res)
 	var b := st.building(room)
 	_b_left.visible = true
@@ -92,7 +97,7 @@ func _refresh() -> void:
 	_b_right.position.x = 32.0 if full else 348.0
 	_b_right.size.x = 656.0 if full else 340.0
 	if not b.is_empty():
-		_b_right.text = "Accélérer · %d ◆" % Ship.rush_cost(st.remaining(int(b.end)))
+		M3.price(_b_right, "Accélérer · %d ◆" % Ship.rush_cost(st.remaining(int(b.end))), [])
 		_b_right.disabled = false
 		# pendant un chantier, le bouton se remplit d'or comme une jauge
 		UI.set_role(_b_right, "secondary")
@@ -105,23 +110,19 @@ func _refresh() -> void:
 		var lv := st.room_level(room)
 		var block := st.upgrade_block(Game, room)
 		if lv >= Ship.MAX_LEVEL:
-			_b_right.text = "Niveau maximum"
+			M3.price(_b_right, "Niveau maximum", [])
 			_b_right.disabled = true
 		else:
 			_set_gauge(_b_right, 0.0)
 			UI.set_role(_b_right, "main")
 			var cst: Dictionary = st.cost_of(Game, room)
-			if block == "Pas assez de ressources":
-				var mc := float(cst.credits) - float(Game.credits)
-				var ms := int(cst.shards) - int(Game.shards)
-				_b_right.text = ("Il manque %s ¢" % UI.num(ceilf(mc))) if mc > 0.0 else ("Il manque %d éclat%s" % [ms, "s" if ms > 1 else ""])
-				UI.set_role(_b_right, "secondary")
-			elif block == "":
-				_b_right.text = ("Améliorer · %s ¢" % UI.num(float(cst.credits))) if float(cst.credits) > 0.0 and not full else ("Améliorer → niv. %d" % (lv + 1))
-				if full and float(cst.credits) > 0.0:
-					_b_right.text = "Améliorer → niv. %d · %s ¢" % [lv + 1, UI.num(float(cst.credits))]
+			if block == "Pas assez de ressources" or block == "":
+				# le bouton porte son prix ; ce qui manque est en rouge (maquette E3)
+				M3.price(_b_right, "Améliorer → niv. %d" % (lv + 1), price_items(cst))
+				if block != "":
+					UI.set_role(_b_right, "secondary")
 			else:
-				_b_right.text = block
+				M3.price(_b_right, block, [])
 			_b_right.disabled = block != "" and block != "Pas assez de ressources"
 	_content.queue_redraw()
 
@@ -157,6 +158,15 @@ func _draw_content() -> void:
 	M3.text(c, Vector2(216, 116), _headline(), 38, UI.TEXT, true, 450)
 	M3.text(c, Vector2(216, 156), _subline(), 24, UI.MUTED, false, 450)
 	var y := 216.0
+	if lv <= 0:
+		# salle pas encore construite (maquette I8) : une seule carte qui dit quand elle s'ouvre, pas un écran de zéros
+		var open := st.is_buildable(room)
+		M3.card(c, Rect2(32, y, 656, 168), M3.S2, 32)
+		M3.lock(c, Vector2(96, y + 84), UI.MUTED, 1.6)
+		M3.text(c, Vector2(160, y + 72), "À construire depuis l’Aurore" if open else "S’ouvre au niveau %d du vaisseau" % int(info.unlock), 30, UI.TEXT, true, 500)
+		M3.para(c, Vector2(160, y + 116), String(ShipScreen.BLURB.get(room, "")), 24, UI.MUTED, 500)
+		_content.custom_minimum_size.y = y + 200.0
+		return
 	var res := String(info.res)
 	if res != "":
 		var cap := st.capacity(room, Game.best_stage)
@@ -594,6 +604,16 @@ func _open_dialog() -> Control:
 	return _dialog
 
 
+## Coûts d'un chantier pour M3.price : crédits et éclats, rouges s'ils manquent.
+static func price_items(cst: Dictionary) -> Array:
+	var out := []
+	if float(cst.credits) > 0.0:
+		out.append(["coin", UI.num(float(cst.credits)), Game.credits >= float(cst.credits)])
+	if int(cst.shards) > 0:
+		out.append(["shard", UI.num(int(cst.shards)), Game.shards >= int(cst.shards)])
+	return out
+
+
 ## Amélioration (maquette IE) : avant → après, coûts, durée.
 func _upgrade_dialog() -> void:
 	var st := s()
@@ -631,6 +651,7 @@ func _upgrade_dialog() -> void:
 	var cancel := M3.button(box, "Annuler", Rect2(40, 520, 250, 96), "tonal", 28)
 	cancel.pressed.connect(func(): d.queue_free())
 	var ok := M3.button(box, "Améliorer", Rect2(306, 520, 294, 96), "main", 28)
+	M3.price(ok, "Améliorer", price_items(c))
 	ok.disabled = block != ""
 	ok.pressed.connect(func():
 		if st.start_upgrade(Game, room):
