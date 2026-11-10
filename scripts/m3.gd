@@ -64,6 +64,10 @@ static func top_bar(parent: Control, title: String, on_back: Callable = Callable
 		var c: Control
 		if a is Control:
 			c = a
+			if c is Wallet:
+				# porte-monnaie : masque d'abord les crédits plutôt que de couper le titre
+				(c as Wallet).max_w = 712.0 - x - text_w(title, 40, true) - 40.0 - (720.0 - rx)
+				(c as Wallet).refresh()
 			bar.add_child(c)
 			c.position = Vector2(rx - c.size.x - 8.0, 56 - c.size.y * 0.5)
 			rx -= c.size.x + 16.0
@@ -263,6 +267,51 @@ static func button(parent: Node, text: String, rect: Rect2, kind := "main", size
 	b.custom_minimum_size = Vector2(0, rect.size.y)
 	fit_button(b, fs(size))
 	return b
+
+
+## Bouton qui porte son prix (maquette E3) : libellé en haut, coûts en dessous, ce qui manque en rouge.
+## `items` : [[icône, montant (texte), suffisant (bool)], …] ; icônes de UI.icon (coin, shard, crystal…) ou "" (durée).
+## Rappeler la fonction pour changer libellé ou prix ; un tableau vide revient au bouton simple.
+static func price(b: Button, label: String, items: Array) -> void:
+	if items.is_empty():
+		b.set_meta("price", null)
+		b.text = label
+		b.queue_redraw()
+		return
+	var first := not b.has_meta("price")
+	b.set_meta("price", [label, items])
+	b.text = ""
+	b.queue_redraw()
+	if not first:
+		return
+	b.draw.connect(func():
+		var m = b.get_meta("price", null)
+		if m == null:
+			return
+		var off := b.disabled
+		var col := b.get_theme_color("font_disabled_color" if off else "font_color")
+		var lab := String(m[0])
+		var w := b.size.x - 24.0
+		var y0 := b.size.y * 0.5 - 2.0
+		text(b, Vector2(12, y0), lab, 28, col, true, w, HORIZONTAL_ALIGNMENT_CENTER)
+		var ps := 20
+		var parts := []
+		var tw := 0.0
+		for it in m[1]:
+			var t := String(it[1])
+			var iw := (26.0 if String(it[0]) != "" else 0.0)
+			parts.append([String(it[0]), t, bool(it[2]), iw])
+			tw += iw + text_w(t, ps, true) + 14.0
+		tw -= 14.0
+		var x := (b.size.x - tw) * 0.5
+		var yb := y0 + 10.0 + fs(ps)
+		for p in parts:
+			if p[0] != "":
+				b.draw_texture_rect(UI.icon(p[0], 22), Rect2(x, yb - fs(ps) + 1.0, 22, 22), false, Color(1, 1, 1, 0.6 if off else 1.0))
+				x += p[3]
+			var c: Color = Color("ff9b9b") if not p[2] else Color(col, 0.85)
+			text(b, Vector2(x, yb), p[1], ps, c, true)
+			x += text_w(p[1], ps, true) + 14.0)
 
 
 ## Le libellé d'un bouton rétrécit (jusqu'à 70 %) s'il ne tient pas dans le bouton, même quand le texte change ensuite.

@@ -19,16 +19,28 @@ static func make(ring_key := "", extra := "") -> Wallet:
 	w._extra = extra
 	w.mouse_filter = Control.MOUSE_FILTER_PASS
 	for k in w.keys():
+		if k == "+":
+			continue
 		var c := M3.cur_chip(k, "")
 		c.ring = k == w.ring
+		c.tappable = true
+		c.role = "chip"
+		c.pressed.connect(func(): w._explain([c.icon]))
 		w.add_child(c)
 		w._chips[k] = c
+	var plus := M3.cur_chip("", "+")
+	plus.tappable = true
+	plus.role = "chip"
+	plus.size = Vector2(56, 64)
+	plus.pressed.connect(func(): w._explain(["coin", "shard", "crystal", "token", "itoken", "wild"]))
+	w.add_child(plus)
+	w._chips["+"] = plus
 	w.refresh()
 	return w
 
 
 func keys() -> Array:
-	return KEYS + ([_extra] if _extra != "" else [])
+	return KEYS + ([_extra] if _extra != "" else []) + ["+"]
 
 
 ## Change la monnaie propre à l'écran (jetons de héros ou d'objet au Recrutement).
@@ -51,6 +63,7 @@ static func value(k: String) -> String:
 		"crystal": return UI.num(Game.crystals)
 		"token": return UI.num(Game.tokens)
 		"itoken": return UI.num(Game.item_tokens)
+		"wild": return UI.num(Game.wild)
 	return ""
 
 
@@ -64,15 +77,15 @@ func refresh() -> void:
 	var total := 0.0
 	for k in keys():
 		var c: HudButton = _chips[k]
-		var t := value(k)
-		if c.text != t or c.size.x == 0.0:
+		var t := value(k) if k != "+" else "+"
+		if k != "+" and (c.text != t or c.size.x == 0.0):
 			c.set_texts(t)
 			c.fit_chip()
 		c.size.y = 64.0
 		c.visible = true
 		total += c.size.x + GAP
 	for k in keys():
-		if max_w <= 0.0 or total - GAP <= max_w or k == ring:
+		if max_w <= 0.0 or total - GAP <= max_w or k == ring or k == "+":
 			break
 		_chips[k].visible = false
 		total -= _chips[k].size.x + GAP
@@ -87,3 +100,48 @@ func refresh() -> void:
 		size = Vector2(w, 64.0)
 		if right > 0.0 and get_parent() != null:
 			position.x = right - w          # garde le bord droit en place
+
+
+## Ce que fait chaque monnaie et où en gagner (maquette I3 : toucher une pastille explique la monnaie).
+const INFO := {
+	"coin": ["Crédits", "Font monter les héros et paient les chantiers. Combat, Serre et gains hors ligne."],
+	"shard": ["Éclats", "Paient les chantiers et les recherches du vaisseau. Raffinerie, boss et recyclage d’objets."],
+	"crystal": ["Cristaux", "Accélèrent les chantiers et achètent en Boutique. Coffres, fins de chapitre et Boutique."],
+	"token": ["Jetons", "Ouvrent le Recrutement de héros. Antenne, coffres et Boutique."],
+	"itoken": ["Jetons d’objet", "Ouvrent les caisses d’objets. Atelier, coffres et Boutique."],
+	"wild": ["Doublons au choix", "Comptent comme doublon de n’importe quel héros pour monter en étoile. Coffres et expéditions."],
+}
+
+
+func _explain(keys_: Array) -> void:
+	var host: Node = get_viewport()
+	var layer := Control.new()
+	layer.size = Vector2(720, UI.H)
+	layer.z_index = 4096
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev):
+			layer.queue_free())
+	host.add_child(layer)
+	var lh := 120.0
+	var box := Control.new()
+	box.position = Vector2(24, 104)
+	box.size = Vector2(672, 40 + lh * keys_.size())
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.draw.connect(func():
+		M3.dialog(box, Rect2(Vector2.ZERO, box.size))
+		var y := 20.0
+		for k in keys_:
+			var ic := "copies" if k == "wild" else String(k)
+			var chip := HudButton.new()
+			chip.icon = ic
+			chip.draw_icon(box, Vector2(52, y + 34))
+			M3.text(box, Vector2(84, y + 44), String(INFO[k][0]), 28, UI.TEXT, true, 380)
+			M3.text(box, Vector2(84, y + 44), value(k), 28, UI.GOLD, true, 560, HORIZONTAL_ALIGNMENT_RIGHT)
+			var ph := M3.para(box, Vector2(84, y + 80), String(INFO[k][1]), 22, UI.MUTED, 560, 1.3)
+			chip.free()
+			y += maxf(lh, 56.0 + ph + 8.0)
+		if absf(box.size.y - (y + 20.0)) > 1.0:
+			box.size.y = y + 20.0
+			box.queue_redraw())
+	layer.add_child(box)

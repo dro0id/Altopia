@@ -60,6 +60,11 @@ func _initialize() -> void:
 		"fiche_stats": func(): main._open_modal(HeroScreen.new("mara", 0)),
 		"recrutement": func(): main._open_recruit(),
 		"boutique": func(): main._open_shop(),
+		"monnaies": func():
+			main._open_shop()
+			await process_frame
+			var w = root.find_children("*", "Wallet", true, false)[0]
+			w._explain(["coin", "shard", "crystal", "token", "itoken", "wild"]),
 		"carte": func(): main._open_map(),
 		"reglages": func(): main._open_settings(),
 		"defaite": func(): main._open_modal(DefeatScreen.new(12)),
