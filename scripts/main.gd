@@ -767,7 +767,7 @@ func _on_cleared(_credits: float) -> void:
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if shows_chest:
-		var next_label := "Monter à l'étage %d" % (stage + 1) if Game.best_stage > stage else "Rejouer l'étage %d" % stage
+		var next_label := "Descendre au secteur %d" % (stage + 1) if Game.best_stage > stage else "Rejouer le secteur %d" % stage
 		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
 		var go_next := func():
 			_pick_boost(func():
@@ -792,7 +792,7 @@ func _on_cleared(_credits: float) -> void:
 				_open_map.call_deferred()))
 		_open_modal(r)
 	else:
-		_show_toast("Étage %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
+		_show_toast("Secteur %d vaincu · coffre %s : +%s" % [stage, String(Data.RARITY_NAMES[chest.rarity]).to_lower(), Data.fmt(chest.credits)], 1.8)
 		if not Game.last_drop.is_empty():
 			_show_item_toast(Game.last_drop)
 		Sfx.play("coin", -6.0)
@@ -939,7 +939,7 @@ func _refresh_boss() -> void:
 
 func _refresh() -> void:
 	var big := _boss == "big"
-	_stage_btn.set_texts(("☠ Étage %d" if big else "Étage %d ▾") % Game.stage)
+	_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
 	_stage_btn.text_color = Color("ff9b9b") if big else UI.TEXT
 	_stage_btn.role = "danger" if big else ""
 	_stage_btn.queue_redraw()

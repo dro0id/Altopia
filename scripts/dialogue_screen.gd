@@ -77,7 +77,7 @@ func _init(scene: Dictionary, replay := false) -> void:
 				M3.text(top, Vector2(0, 478), "UNE VOIX DANS LE VERRE", 22, UI.MUTED, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 				return
 			top.draw_style_box(UI.box(Color("3a1620"), Color(0, 0, 0, 0), 40, 0), Rect2(32, 32, 336, 80))
-			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Étage %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
+			M3.text(top, Vector2(32, 72 + M3.fs(28) * 0.36), "☠ Secteur %d · Gros boss" % int(_scene.stage), 28, Color("ff9b9b"), true, 336, HORIZONTAL_ALIGNMENT_CENTER))
 		_st.add_child(top)
 	var skip := M3.button(_st, "Passer ›", Rect2(520, 32, 168, 80), "ghost", 26)
 	skip.pressed.connect(_finish)
@@ -266,7 +266,7 @@ func _step_label() -> String:
 		return "%d/%d" % [_i + 1, _lines.size()]
 	if String(_scene.get("when", "")) == "board":
 		return "À bord"
-	return "Étage %d" % int(_scene.stage)
+	return "Secteur %d" % int(_scene.stage)
 
 
 ## Portrait d'un personnage : héros dessiné, ou le dessin du gros boss.

@@ -257,7 +257,7 @@ func upgrade_block(game: Node, r: String) -> String:
 	if r != "pont" and lv > 0 and lv >= level:
 		return "Monte d’abord le Pont (niveau %d)" % (level + 1)
 	if r == "pont" and int(game.best_stage) <= int(Ship.PONT_STAGE[lv + 1]) - 1:
-		return "Étage %d requis" % int(Ship.PONT_STAGE[lv + 1])
+		return "Secteur %d requis" % int(Ship.PONT_STAGE[lv + 1])
 	# le Pont a son propre chantier ; les salles se partagent les autres
 	var room_builds := builds.filter(func(b): return String(b.room) != "pont").size()
 	if r != "pont" and room_builds >= max_builds():

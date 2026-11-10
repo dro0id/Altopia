@@ -96,6 +96,9 @@ func _refresh() -> void:
 		_b_right.disabled = false
 		# pendant un chantier, le bouton se remplit d'or comme une jauge
 		UI.set_role(_b_right, "secondary")
+		# texte lisible sur la partie dorée comme sur la partie sombre
+		_b_right.add_theme_constant_override("outline_size", 8)
+		_b_right.add_theme_color_override("font_outline_color", Color("06101f"))
 		var tot := float(Ship.build_cost(room, st.rank("logistique")).time) if int(b.to) == 1 else float(Ship.upgrade_cost(room, int(b.to), st.rank("logistique")).time)
 		_set_gauge(_b_right, 1.0 - float(st.remaining(int(b.end))) / maxf(1.0, tot))
 	else:
@@ -216,7 +219,7 @@ func _subline() -> String:
 		"quartiers":
 			return "jusqu’au niveau moyen de l’escouade − 3"
 		"observatoire":
-			return "dans les secteurs générés (étage 41+)"
+			return "dans les zones générées (secteur 41+)"
 		"labo":
 			return "Bonus permanents sur toute l’escouade"
 		"hangar":
@@ -331,7 +334,7 @@ func _pont(c: Control, y: float) -> float:
 		M3.text(c, Vector2(32, y + 56), str(lv), 26, Color("06101f") if cur else (Color("7dffb0") if ok else UI.MUTED), true, 68, HORIZONTAL_ALIGNMENT_CENTER)
 		var t := ", ".join(what) if not what.is_empty() else "Niveau actuel"
 		M3.text(c, Vector2(124, y + 40), t.substr(0, 1).to_upper() + t.substr(1), 26, UI.TEXT if (ok or cur) else UI.MUTED, true, 560)
-		M3.text(c, Vector2(124, y + 74), "Atteint" if lv <= st.level else ("Étage %d atteint ✓" % int(Ship.PONT_STAGE[lv]) if ok else "Étage %d requis" % int(Ship.PONT_STAGE[lv])), 22, Color("7dffb0") if ok else UI.MUTED)
+		M3.text(c, Vector2(124, y + 74), "Atteint" if lv <= st.level else ("Secteur %d atteint ✓" % int(Ship.PONT_STAGE[lv]) if ok else "Secteur %d requis" % int(Ship.PONT_STAGE[lv])), 22, Color("7dffb0") if ok else UI.MUTED)
 		c.draw_line(Vector2(32, y + 96), Vector2(688, y + 96), M3.S3, 2)
 		y += 104.0
 		shown += 1
@@ -361,9 +364,9 @@ func _destinations(c: Control, y: float) -> float:
 		Game.go_to(best)
 		mission_requested.emit()
 	var rows := [
-		["Étage %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur étage %d" % best, "run", func(): mission_requested.emit()],
-		["Choisir un étage", "Monter, ou farmer un étage déjà vaincu", "map", func(): map_requested.emit()],
-		["Ceinture sans fin", ("Secteurs générés · front à l’étage %d" % best) if belt else "Secteurs générés · après l’étage %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
+		["Secteur %d · en cours" % stg, (String(sec.name) if not sec.is_empty() else "Trou de verre") + " · meilleur secteur %d" % best, "run", func(): mission_requested.emit()],
+		["Choisir un secteur", "Descendre, ou farmer un secteur déjà vaincu", "map", func(): map_requested.emit()],
+		["Ceinture sans fin", ("Zones générées · front au secteur %d" % best) if belt else "Zones générées · après le secteur %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
 	]
 	for row in rows:
 		var r := Rect2(32, y, 656, 112)
@@ -645,7 +648,7 @@ func _upgrade_lines(lv: int) -> Array:
 		"hangar":
 			out.append(["Navettes", str(Ship.shuttles_for(lv).size()), str(Ship.shuttles_for(lv + 1).size())])
 		"observatoire":
-			out.append(["Butin des secteurs générés", "+%d %%" % int(Ship.observatory_bonus(lv) * 100.0), "+%d %%" % int(Ship.observatory_bonus(lv + 1) * 100.0)])
+			out.append(["Butin des zones générées", "+%d %%" % int(Ship.observatory_bonus(lv) * 100.0), "+%d %%" % int(Ship.observatory_bonus(lv + 1) * 100.0)])
 	if res != "":
 		var m := st.production_mult(room)
 		var a := Ship.base_rate(room, lv, Game.best_stage) * m
@@ -787,7 +790,7 @@ func _expedition_sheet(sh: String) -> void:
 			M3.card(sheet, rr, M3.TONAL if on else M3.S2, 32, UI.ACCENT if on else Color(0, 0, 0, 0), 3)
 			M3.text(sheet, rr.position + Vector2(28, 46), String(dd.name), 28, UI.TEXT if open else UI.MUTED, true)
 			M3.text(sheet, rr.position + Vector2(0, 46), "⏱ " + UI.duration(st.expedition_hours(dest, sh, String(sel.pilot)) * 3600.0), 24, UI.GOLD, true, 628, HORIZONTAL_ALIGNMENT_RIGHT)
-			M3.text(sheet, rr.position + Vector2(28, 82), String(dd.sub) if open else "S’ouvre à l’étage %d" % (int(dd.stage) - (10 if sh == "sterne" else 0)), 22, UI.MUTED)
+			M3.text(sheet, rr.position + Vector2(28, 82), String(dd.sub) if open else "S’ouvre au secteur %d" % (int(dd.stage) - (10 if sh == "sterne" else 0)), 22, UI.MUTED)
 			var rw := Ship.dest_reward(dest, Game.best_stage)
 			var x := 28.0
 			for k in rw:

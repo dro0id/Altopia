@@ -67,7 +67,7 @@ func _draw_list() -> void:
 	var head := Rect2(32, 0, 656, 200)
 	var col: Color = ch.get("color", UI.ACCENT)
 	UI.draw_gradient_box(c, head, 32.0, ch.get("head", Color("16305e")), M3.S2, Color(0, 0, 0, 0), 0.0)
-	M3.text(c, Vector2(64, 52), ("CHAPITRE %d · À BORD DE L’AURORE" % _ch) if ch.get("board", false) else ("CHAPITRE %d · ÉTAGES %d À %d" % [_ch, int(ch.from), int(ch.to)]), 24, col, true)
+	M3.text(c, Vector2(64, 52), ("CHAPITRE %d · À BORD DE L’AURORE" % _ch) if ch.get("board", false) else ("CHAPITRE %d · SECTEURS %d À %d" % [_ch, int(ch.from), int(ch.to)]), 24, col, true)
 	M3.text(c, Vector2(64, 100), String(ch.title), 36, UI.TEXT, true)
 	M3.bar(c, Rect2(64, 124, 592, 12), float(seen) / float(maxi(1, _rows.size())), col)
 	M3.text(c, Vector2(64, 172), "%d scène%s sur %d vue%s" % [seen, "s" if seen > 1 else "", _rows.size(), "s" if seen > 1 else ""], 24, UI.MUTED)

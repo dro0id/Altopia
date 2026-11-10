@@ -422,9 +422,9 @@ static func chapter_of(stage: int) -> int:
 
 static func fmt(v: float) -> String:
 	if v >= 1.0e9:
-		return "%.2fG" % (v / 1.0e9)
+		return ("%.2f" % (v / 1.0e9)).replace(".", ",") + " G"
 	if v >= 1.0e6:
-		return "%.2fM" % (v / 1.0e6)
+		return ("%.2f" % (v / 1.0e6)).replace(".", ",") + " M"
 	if v >= 1.0e4:
-		return "%.1fK" % (v / 1.0e3)
+		return ("%.1f" % (v / 1.0e3)).replace(".", ",") + " k"
 	return str(int(v))

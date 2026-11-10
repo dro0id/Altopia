@@ -140,22 +140,29 @@ static func safe_insets(win: Window) -> Vector2:
 
 ## Nombre avec espace entre les milliers (« 1 240 »).
 static func num(v: float) -> String:
+	# une seule écriture (maquette XK) : en entier jusqu'à 9 999, puis trois chiffres utiles et l'unité
 	var n := int(v)
+	var av := absf(v)
+	var sign := "-" if n < 0 else ""
+	for u in [[1.0e9, "G"], [1.0e6, "M"], [1.0e4, "k"]]:
+		if av >= float(u[0]):
+			var x: float = av / (1000.0 if String(u[1]) == "k" else float(u[0]))
+			var t := ("%.2f" % x) if x < 10.0 else (("%.1f" % x) if x < 100.0 else str(int(x)))
+			if t.contains("."):
+				t = t.rstrip("0").rstrip(".")
+			return sign + t.replace(".", ",") + " " + String(u[1])
 	var s := str(absi(n))
 	var out := ""
 	for i in s.length():
 		if i > 0 and (s.length() - i) % 3 == 0:
 			out += " "
 		out += s[i]
-	return ("-" if n < 0 else "") + out
+	return sign + out
 
 
-## Nombre court (« 1,2k ») pour les pastilles étroites.
+## Nombre court : même écriture que `num`.
 static func short(v: float) -> String:
-	if v >= 1000.0:
-		var s := "%.1f" % (v / 1000.0)
-		return s.replace(".", ",").trim_suffix(",0") + "k"
-	return str(int(v))
+	return num(v)
 
 
 ## Rectangle arrondi rempli d'un dégradé horizontal, avec bordure.
@@ -274,12 +281,15 @@ static func set_button_parts(b: Button, parts: Array, fs: int, col: Color) -> vo
 
 
 static func duration(seconds: float) -> String:
+	# on ne montre jamais une unité à zéro (maquette XK)
 	var s := int(seconds)
 	var h := s / 3600
 	var m := (s % 3600) / 60
 	if h > 0:
-		return "%d h %02d min" % [h, m]
-	return "%d min %02d s" % [m, s % 60]
+		return "%d h" % h if m == 0 else "%d h %02d" % [h, m]
+	if m > 0:
+		return "%d min" % m if s % 60 == 0 else "%d min %02d s" % [m, s % 60]
+	return "%d s" % s
 
 
 ## Écrans hauts (maquette I1) : part de la hauteur gagnée au-delà de 1280, pour descendre un contenu ancré en haut.

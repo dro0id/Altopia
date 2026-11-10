@@ -419,7 +419,7 @@ func _draw_mission() -> void:
 	var boss := Data.boss_type(stg)
 	var where := String(sec.name) if not sec.is_empty() else "Trou de verre"
 	M3.text(c, Vector2(132, 40), where.to_upper() + " · EN COURS", 20, UI.ACCENT, true, 330)
-	var title := "Étage %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
+	var title := "Secteur %d%s" % [stg, " · gros boss" if boss == "big" else (" · mini-boss" if boss != "" else "")]
 	M3.text(c, Vector2(132, 76), title, 28, UI.TEXT, true, 330)
 	var line := "Combat auto · +%s/min" % UI.short(Game.offline_rate_per_minute())
 	if mission_gain >= 1.0:
@@ -511,7 +511,7 @@ const BLURB := {
 	"hangar": "Navettes et expéditions",
 	"antenne": "Capte des jetons de recrutement",
 	"labo": "Recherches permanentes pour l’escouade",
-	"observatoire": "Plus de butin dans les secteurs générés",
+	"observatoire": "Plus de butin dans les zones générées",
 }
 
 
@@ -600,7 +600,7 @@ static func room_line(r: String) -> String:
 		"hangar":
 			return "%d navette%s · expéditions" % [s.fleet().size(), "s" if s.fleet().size() > 1 else ""]
 		"observatoire":
-			return "Secteurs générés : +%d %% de butin" % int(round(Ship.observatory_bonus(lv) * (1.0 + s.workers_bonus("observatoire")) * 100.0))
+			return "Zones générées : +%d %% de butin" % int(round(Ship.observatory_bonus(lv) * (1.0 + s.workers_bonus("observatoire")) * 100.0))
 	return ""
 
 

@@ -24,9 +24,9 @@ func _init() -> void:
 	_st = use_stage(1.0)
 	_sel = Game.stage
 	_sector = (_sel - 1) / PER_SECTOR
-	M3.top_bar(_st, "Étages", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Journal de bord", func():
+	M3.top_bar(_st, "Secteurs", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Journal de bord", func():
 		journal_requested.emit()
-		close()], ["Aller à mon record (étage %d)" % Game.best_stage, func():
+		close()], ["Aller à mon record (secteur %d)" % Game.best_stage, func():
 		_sel = Game.best_stage
 		_sector = (_sel - 1) / PER_SECTOR
 		_chips.sel = _sector
@@ -85,7 +85,7 @@ func _stages() -> Array:
 func _refresh() -> void:
 	var n := _stages().size()
 	_list.custom_minimum_size = Vector2(720, n * 128.0 + 16.0)
-	_go.text = ("Monter à l'étage %d" if _sel >= Game.best_stage else "Farmer l'étage %d") % _sel
+	_go.text = ("Descendre au secteur %d" if _sel >= Game.best_stage else "Farmer le secteur %d") % _sel
 	_list.queue_redraw()
 
 
@@ -106,7 +106,7 @@ func _draw_list() -> void:
 		_list.draw_circle(cc, 40, Color("3a1620") if bt == "big" else M3.S3)
 		var glyph := "☠" if bt == "big" else str(n)
 		M3.text(_list, cc + Vector2(-40, M3.fs(28) * 0.36), glyph, 28, Color("ff9b9b") if bt == "big" else UI.TEXT, true, 80, HORIZONTAL_ALIGNMENT_CENTER)
-		var title := "Étage %d" % n
+		var title := "Secteur %d" % n
 		if bt == "big":
 			title += " · Gros boss"
 		elif bt == "mini":

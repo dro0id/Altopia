@@ -61,12 +61,12 @@ const SCENES := [
 		{"who": "oru", "text": "La Ceinture… Le verre a un trou au milieu. Un trou qui respire.", "key": true},
 		{"who": "vance", "text": "Le signal vient de l’intérieur. Préparez l’escouade, on descend secteur par secteur."},
 	]},
-	{"id": "c1_entree", "chapter": 2, "title": "L'entrée", "sub": "Avant l'étage 1 · Vance, Mara", "when": "before", "stage": 1, "lines": [
+	{"id": "c1_entree", "chapter": 2, "title": "L'entrée", "sub": "Avant le secteur 1 · Vance, Mara", "when": "before", "stage": 1, "lines": [
 		{"who": "vance", "text": "Premier secteur du Trou de verre, Capitaine. Le signal est juste en dessous."},
 		{"who": "mara", "text": "Des drones à l'entrée. Pas vraiment un comité d'accueil.", "choice": ["On passe en force.", "Restez prudents."],
 			"replies": [{"who": "vance", "text": "Bien reçu. En force, donc."}, {"who": "vance", "text": "Prudents. C'est noté, Capitaine."}]},
 	]},
-	{"id": "c1_soleil", "chapter": 2, "title": "Plus vieux que le Soleil", "sub": "Après l'étage 4 · T-9, Kaï", "when": "after", "stage": 4, "lines": [
+	{"id": "c1_soleil", "chapter": 2, "title": "Plus vieux que le Soleil", "sub": "Après le secteur 4 · T-9, Kaï", "when": "after", "stage": 4, "lines": [
 		{"who": "t9", "text": "Analyse terminée : le verre des parois est plus ancien que le Soleil."},
 		{"who": "kai", "text": "Donc plus de garantie constructeur."},
 		{"who": "t9", "text": "Exact."},
@@ -75,7 +75,7 @@ const SCENES := [
 		{"who": "zyra", "text": "Le Foreur creusait vers le haut. Quelque chose veut sortir, Capitaine.", "choice": ["Ou quelqu'un veut entrer.", "Alors on l'en empêche."],
 			"replies": [{"who": "zyra", "text": "Entrer… Oui. C'est peut-être nous qu'il attendait."}, {"who": "zyra", "text": "Alors il faudra descendre plus vite que lui ne monte."}]},
 	]},
-	{"id": "c1_gardien", "chapter": 2, "title": "Le Gardien parle", "sub": "Avant l'étage 10", "when": "before", "stage": 10, "lines": [
+	{"id": "c1_gardien", "chapter": 2, "title": "Le Gardien parle", "sub": "Avant le secteur 10", "when": "before", "stage": 10, "lines": [
 		{"who": "gardien", "text": "Vous portez le signal sur vous comme une odeur. Repartez tant que le verre vous laisse passer."},
 		{"who": "vance", "text": "Il parle ? Personne ne m'avait dit qu'ils parlaient."},
 		{"who": "gardien", "text": "Je garde. Je ne parle qu'une fois."},
@@ -85,26 +85,26 @@ const SCENES := [
 		{"who": "vance", "text": "Le signal a changé. Ce n'est plus un appel… c'est une réponse.", "key": true},
 		{"who": "zyra", "text": "Il nous a reconnus."},
 	]},
-	{"id": "c2_voix", "chapter": 3, "title": "Des voix humaines", "sub": "Avant l'étage 11 · T-9, Zyra", "when": "before", "stage": 11, "lines": [
+	{"id": "c2_voix", "chapter": 3, "title": "Des voix humaines", "sub": "Avant le secteur 11 · T-9, Zyra", "when": "before", "stage": 11, "lines": [
 		{"who": "t9", "text": "Le signal répond… avec des voix humaines. Datation des enregistrements : quarante ans."},
 		{"who": "zyra", "text": "Ce ne sont pas des échos. Ce sont des souvenirs."},
 	]},
-	{"id": "c2_epave", "chapter": 3, "title": "L'épave de l'Aube", "sub": "Après l'étage 12 · Kaï", "when": "after", "stage": 12, "lines": [
+	{"id": "c2_epave", "chapter": 3, "title": "L'épave de l'Aube", "sub": "Après le secteur 12 · Kaï", "when": "after", "stage": 12, "lines": [
 		{"who": "kai", "text": "Une épave terrienne. Classe Aurore. Comme nous.", "choice": ["On fouille l'épave.", "On la laisse en paix."],
 			"replies": [{"who": "kai", "text": "Je prends la soute. Le nom sur la coque : l'Aube. Si quelque chose bouge, je hurle."}, {"who": "kai", "text": "Reçu. Je note juste son nom sur la coque : l'Aube."}]},
 	]},
-	{"id": "c2_holt", "chapter": 3, "title": "Commandant Holt", "sub": "Après l'étage 14 · T-9, Vance", "when": "after", "stage": 14, "lines": [
+	{"id": "c2_holt", "chapter": 3, "title": "Commandant Holt", "sub": "Après le secteur 14 · T-9, Vance", "when": "after", "stage": 14, "lines": [
 		{"who": "t9", "text": "L'Aube émet son journal de bord en boucle. Commandant : Holt."},
 		{"who": "vance", "text": "… Mon père commandait l'Aube."},
 	]},
-	{"id": "c2_temple", "chapter": 3, "title": "Le temple", "sub": "Après l'étage 15 · Oru", "when": "after", "stage": 15, "lines": [
+	{"id": "c2_temple", "chapter": 3, "title": "Le temple", "sub": "Après le secteur 15 · Oru", "when": "after", "stage": 15, "lines": [
 		{"who": "oru", "text": "Les mites ne mangent pas le verre. Elles le gardent propre. Comme un temple."},
 	]},
-	{"id": "c2_phare", "chapter": 3, "title": "Le phare", "sub": "Avant l'étage 18 · Mara", "when": "before", "stage": 18, "lines": [
+	{"id": "c2_phare", "chapter": 3, "title": "Le phare", "sub": "Avant le secteur 18 · Mara", "when": "before", "stage": 18, "lines": [
 		{"who": "mara", "text": "Lecture énorme droit devant. On dirait un phare.", "choice": ["Éteignons-le.", "Voyons ce qu'il éclaire."],
 			"replies": [{"who": "vance", "text": "Escouade, on éteint la lumière."}, {"who": "vance", "text": "Curiosité scientifique. Je note que c'était votre idée."}]},
 	]},
-	{"id": "c2_porteuse", "chapter": 3, "title": "Porteuse des voix", "sub": "Avant l'étage 20", "when": "before", "stage": 20, "lines": [
+	{"id": "c2_porteuse", "chapter": 3, "title": "Porteuse des voix", "sub": "Avant le secteur 20", "when": "before", "stage": 20, "lines": [
 		{"who": "phare", "text": "J'ai porté leurs voix jusqu'à vous. Je porterai les vôtres plus loin."},
 		{"who": "vance", "text": "Pas aujourd'hui."},
 	]},
@@ -113,16 +113,16 @@ const SCENES := [
 		{"who": "kai", "text": "Un peu tard."},
 		{"who": "mara", "text": "Au moins, l’Aurore tient le coup. Et elle grandit à chaque secteur franchi."},
 	]},
-	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant l'étage 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
+	{"id": "c3_sens", "chapter": 4, "title": "Sens inverse", "sub": "Avant le secteur 21 · Zyra, Vance, T-9", "when": "before", "stage": 21, "lines": [
 		{"who": "zyra", "text": "Le signal a changé de sens. Il ne vient plus d'en bas… il monte."},
 		{"who": "vance", "text": "Vers la Terre ?"},
 		{"who": "t9", "text": "Vers la Terre. Inquiétude : élevée."},
 	]},
-	{"id": "c3_unique", "chapter": 4, "title": "Sens unique", "sub": "Après l'étage 22 · Mara, Kaï", "when": "after", "stage": 22, "lines": [
+	{"id": "c3_unique", "chapter": 4, "title": "Sens unique", "sub": "Après le secteur 22 · Mara, Kaï", "when": "after", "stage": 22, "lines": [
 		{"who": "mara", "text": "Les parois se referment derrière nous."},
 		{"who": "kai", "text": "Super. J'adore les sens uniques."},
 	]},
-	{"id": "c3_dormeurs", "chapter": 4, "title": "Les dormeurs", "sub": "Après l'étage 24 · Oru", "when": "after", "stage": 24, "lines": [
+	{"id": "c3_dormeurs", "chapter": 4, "title": "Les dormeurs", "sub": "Après le secteur 24 · Oru", "when": "after", "stage": 24, "lines": [
 		{"who": "oru", "text": "Il y a des formes dans le verre. Des gens. Ils dorment.", "choice": ["On peut les réveiller ?", "Ne touchez à rien."],
 			"replies": [{"who": "oru", "text": "Pas sans réveiller tout le reste."}, {"who": "oru", "text": "Je ne touche jamais à rien. Presque jamais."}]},
 	]},
@@ -130,11 +130,11 @@ const SCENES := [
 		{"who": "kai", "text": "Encore un Foreur. Ils creusent tous vers le haut."},
 		{"who": "zyra", "text": "Ils préparent une route. Pour le retour."},
 	]},
-	{"id": "c3_voix", "chapter": 4, "title": "Sa voix", "sub": "Avant l'étage 28 · Vance", "when": "before", "stage": 28, "lines": [
+	{"id": "c3_voix", "chapter": 4, "title": "Sa voix", "sub": "Avant le secteur 28 · Vance", "when": "before", "stage": 28, "lines": [
 		{"who": "vance", "text": "Cette voix sur le canal… c'est la sienne. Il dit mon nom.", "choice": ["On lui répond.", "On reste silencieux."],
 			"replies": [{"who": "vance", "text": "… Je n'y arrive pas. Il a dit de ne pas répondre."}, {"who": "vance", "text": "Merci, Capitaine. Il aurait voulu ça."}]},
 	]},
-	{"id": "c3_reine", "chapter": 4, "title": "Gardienne des dormeurs", "sub": "Avant l'étage 30", "when": "before", "stage": 30, "lines": [
+	{"id": "c3_reine", "chapter": 4, "title": "Gardienne des dormeurs", "sub": "Avant le secteur 30", "when": "before", "stage": 30, "lines": [
 		{"who": "reine", "text": "Mes enfants gardent le verre propre pour ceux qui dorment. Vous faites du bruit."},
 		{"who": "mara", "text": "On fait surtout des trous."},
 	]},
@@ -142,11 +142,11 @@ const SCENES := [
 		{"who": "t9", "text": "La Reine gardait une porte. Elle est ouverte."},
 		{"who": "zyra", "text": "Le signal ne veut pas rentrer chez nous, Capitaine. Il veut nous emmener chez lui.", "key": true},
 	]},
-	{"id": "c4_coeur", "chapter": 5, "title": "Le cœur bat", "sub": "Avant l'étage 31 · Oru, Kaï", "when": "before", "stage": 31, "lines": [
+	{"id": "c4_coeur", "chapter": 5, "title": "Le cœur bat", "sub": "Avant le secteur 31 · Oru, Kaï", "when": "before", "stage": 31, "lines": [
 		{"who": "oru", "text": "Plus de mites. Plus de drones. Juste le cœur qui bat, très fort."},
 		{"who": "kai", "text": "Je préférais les drones."},
 	]},
-	{"id": "c4_holt", "chapter": 5, "title": "Si vous m'entendez", "sub": "Après l'étage 33 · Holt, Vance", "when": "after", "stage": 33, "lines": [
+	{"id": "c4_holt", "chapter": 5, "title": "Si vous m'entendez", "sub": "Après le secteur 33 · Holt, Vance", "when": "after", "stage": 33, "lines": [
 		{"who": "holt", "text": "Si vous m'entendez, vous avez répondu. Alors écoutez : le verre apprend de ceux qu'il garde."},
 		{"who": "vance", "text": "Papa…"},
 	]},
@@ -154,15 +154,15 @@ const SCENES := [
 		{"who": "mara", "text": "Le Foreur s'est arrêté net."},
 		{"who": "t9", "text": "Quelqu'un plus bas a besoin de toute l'énergie."},
 	]},
-	{"id": "c4_rendormir", "chapter": 5, "title": "Se rendormir", "sub": "Après l'étage 37 · Holt", "when": "after", "stage": 37, "lines": [
+	{"id": "c4_rendormir", "chapter": 5, "title": "Se rendormir", "sub": "Après le secteur 37 · Holt", "when": "after", "stage": 37, "lines": [
 		{"who": "holt", "text": "Le Gardien du dernier seuil porte le signal. Éteignez-le, et la Ceinture se rendort.", "choice": ["Et votre équipage ?", "Et vous ?"],
 			"replies": [{"who": "holt", "text": "Ils dorment bien. Laissez-les rêver."}, {"who": "holt", "text": "Moi, j'ai déjà répondu une fois. C'était assez."}]},
 	]},
-	{"id": "c4_discours", "chapter": 5, "title": "Pas de discours", "sub": "Avant l'étage 38 · Zyra, Kaï", "when": "before", "stage": 38, "lines": [
+	{"id": "c4_discours", "chapter": 5, "title": "Pas de discours", "sub": "Avant le secteur 38 · Zyra, Kaï", "when": "before", "stage": 38, "lines": [
 		{"who": "zyra", "text": "Capitaine. Quoi qu'il arrive en bas… merci de nous avoir emmenés."},
 		{"who": "kai", "text": "Pas de discours avant le boss, ça porte malheur."},
 	]},
-	{"id": "c4_seuil", "chapter": 5, "title": "Le premier verre", "sub": "Avant l'étage 40", "when": "before", "stage": 40, "lines": [
+	{"id": "c4_seuil", "chapter": 5, "title": "Le premier verre", "sub": "Avant le secteur 40", "when": "before", "stage": 40, "lines": [
 		{"who": "seuil", "text": "Je suis le premier verre et le dernier. Le signal, c'est moi. Répondez une dernière fois."},
 		{"who": "vance", "text": "On a une réponse. Elle va vous plaire moyennement."},
 	]},

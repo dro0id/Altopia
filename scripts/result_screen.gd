@@ -113,7 +113,7 @@ func _show_victory() -> void:
 	_t = 0.0
 	_stars_shown = 0
 	var h := _st.size.y if _st.size.y > 0.0 else UI.H
-	var nxt_txt := "Monter à l'étage %d" % (_stage + 1) if _next_label.begins_with("Monter") else _next_label
+	var nxt_txt := "Descendre au secteur %d" % (_stage + 1) if _next_label.begins_with("Monter") else _next_label
 	var can: bool = _best.get("hero", "") != "" and float(_best.get("gain", 0.0)) > 0.0
 	var main_txt := ("Équiper sur %s" % String(Data.HEROES[_best.hero].name).split(" ")[0]) if can else nxt_txt
 	var b1 := M3.button(_st, main_txt, Rect2(32, h - 32 - 96 - 16 - 104, 656, 104), "main", 32)
@@ -124,7 +124,7 @@ func _show_victory() -> void:
 			Sfx.play("chest", -4.0)
 		next_pressed.emit()
 		close())
-	var second := nxt_txt if can else ("À qui l'équiper ?" if (not it.is_empty() and _drop.status == "added") else "Rejouer l'étage %d" % _stage)
+	var second := nxt_txt if can else ("À qui l'équiper ?" if (not it.is_empty() and _drop.status == "added") else "Rejouer le secteur %d" % _stage)
 	var b2 := M3.button(_st, second, Rect2(32, h - 32 - 96, 656, 96), "ghost", 30)
 	b2.pressed.connect(func():
 		if can:
@@ -138,7 +138,7 @@ func _show_victory() -> void:
 
 func _draw_victory() -> void:
 	var c := _victory
-	var title := "ÉTAGE %d · %s" % [_stage, "GROS BOSS VAINCU" if _bt == "big" else ("MINI-BOSS VAINCU" if _bt == "mini" else "ÉTAGE VAINCU")]
+	var title := "SECTEUR %d · %s" % [_stage, "GROS BOSS VAINCU" if _bt == "big" else ("MINI-BOSS VAINCU" if _bt == "mini" else "SECTEUR VAINCU")]
 	_spaced(c, 88, title, 24, Color("ffb142"))
 	M3.text(c, Vector2(0, 160), "Victoire", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	for i in 3:

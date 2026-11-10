@@ -26,11 +26,11 @@ func _init(stage_n: int, timed_out := false) -> void:
 	_body.draw.connect(_draw_body)
 	_st.add_child(_body)
 	var h := UI.H
-	var b1 := M3.button(_st, "Réessayer l'étage %d" % stage_n, Rect2(32, h - 32 - 96 - 16 - 96 - 16 - 104, 656, 104), "main", 32)
+	var b1 := M3.button(_st, "Réessayer le secteur %d" % stage_n, Rect2(32, h - 32 - 96 - 16 - 96 - 16 - 104, 656, 104), "main", 32)
 	b1.pressed.connect(func():
 		retry_pressed.emit()
 		close())
-	var b2 := M3.button(_st, "Farmer l'étage %d" % maxi(1, stage_n - 1), Rect2(32, h - 32 - 96 - 16 - 96, 656, 96), "ghost", 30)
+	var b2 := M3.button(_st, "Farmer le secteur %d" % maxi(1, stage_n - 1), Rect2(32, h - 32 - 96 - 16 - 96, 656, 96), "ghost", 30)
 	b2.disabled = stage_n <= 1
 	b2.pressed.connect(func():
 		farm_pressed.emit()
@@ -59,7 +59,7 @@ func _advice() -> String:
 			return "%s a besoin d'une étoile (des doublons) pour continuer à monter." % String(Data.HEROES[hid].name).split(" ")[0]
 	if Game.tokens >= Data.RECRUIT_COST:
 		return "Tu as %d jetons : recrute un nouveau héros." % Game.tokens
-	return "Farme l'étage précédent pour gagner des crédits."
+	return "Farme le secteur précédent pour gagner des crédits."
 
 
 func _draw_body() -> void:
@@ -67,7 +67,7 @@ func _draw_body() -> void:
 	for i in 10:
 		c.draw_circle(Vector2(360, 160), 320.0 - i * 28.0, Color(1.0, 0.42, 0.42, 0.012))
 	var fb := UI.bold_font()
-	var txt := "ÉTAGE %d" % _stage
+	var txt := "SECTEUR %d" % _stage
 	var tw := 0.0
 	for ch in txt:
 		tw += fb.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, M3.fs(24)).x + 3.0
@@ -78,7 +78,7 @@ func _draw_body() -> void:
 	M3.text(c, Vector2(0, 168), "Temps écoulé" if _timeout else "Équipe à terre", 56, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	if _timeout:
 		M3.text(c, Vector2(32, 222), "Après 3 minutes de combat, l'escouade se replie.", 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
-		M3.text(c, Vector2(32, 260), "La difficulté du secteur baisse un peu.", 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
+		M3.text(c, Vector2(32, 260), "La difficulté de la zone baisse un peu.", 28, UI.MUTED, false, 656, HORIZONTAL_ALIGNMENT_CENTER)
 	else:
 		_draw_perseverance(c)
 	_draw_rest(c)

@@ -55,7 +55,7 @@ func _menu() -> void:
 
 
 func _confirm_erase() -> void:
-	var d := QuitDialog.new("Réinitialiser la partie ?", "Toute ta progression sera effacée : héros, objets, étages et monnaies.", "Effacer", "Annuler")
+	var d := QuitDialog.new("Réinitialiser la partie ?", "Toute ta progression sera effacée : héros, objets, secteurs et monnaies.", "Effacer", "Annuler")
 	d.quit_pressed.connect(func():
 		d.close()
 		erase_requested.emit()

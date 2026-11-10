@@ -14,9 +14,9 @@ const STEPS := [
 	{"title": "Fais progresser ton escouade", "text": "Tu as gagné des crédits. Ils servent à monter le niveau de tes héros.", "action": "Touche « Héros »"},
 	{"title": "Choisis un héros", "text": "Chaque carte ouvre la fiche du héros : statistiques, équipement, pouvoir.", "action": "Touche la carte de %s"},
 	{"title": "Monte son niveau", "text": "Chaque niveau augmente PV, attaque et défense. Au niveau 10, le héros devra évoluer.", "action": "Touche « Monter le niveau »"},
-	{"title": "Monte les étages", "text": "Le jeu passe seul à l'étage suivant. Touche l'étage pour voir la carte, farmer un étage ou revoir le journal.", "btn": "Terminer"},
+	{"title": "Descends les secteurs", "text": "Le jeu passe seul au secteur suivant. Touche le secteur pour voir la carte, farmer un secteur ou revoir le journal.", "btn": "Terminer"},
 ]
-const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec l’étage atteint.", "action": "Touche « Aurore »"}
+const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec le secteur atteint.", "action": "Touche « Aurore »"}
 const TIP_BUILD := {"eyebrow": "NOUVEAU · SALLE À CONSTRUIRE", "title": "Construis ta nouvelle salle", "text": "Une salle vient de s’ouvrir sur l’Aurore, mais elle ne se construit pas toute seule : touche-la, puis « Construire ».", "action": "Touche la salle"}
 const TIP := {"eyebrow": "ASTUCE · PREMIER OBJET", "title": "Équipe ton butin", "text": "Les coffres donnent des objets. Un seul bouton les place sur les héros qui en profitent le plus.", "action": "Touche « Équiper au mieux »"}
 

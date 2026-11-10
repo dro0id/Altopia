@@ -245,10 +245,10 @@ func _build_equipment(_h: Dictionary, have: bool) -> void:
 				if better.has(slot):
 					ItemUI.dot(grid, tr.position + Vector2(tr.size.x - 4.0, 4.0), "▲")
 			M3.text(grid, r.position + Vector2(152, 66), String(Items.SLOT_NAMES[slot]), 24, UI.MUTED)
-			var lines := _wrap2(nm, 26, 152.0)
-			M3.text(grid, r.position + Vector2(152, 100), lines[0], 26, UI.TEXT, true)
+			var lines := _wrap2(nm, 22, 152.0)
+			M3.text(grid, r.position + Vector2(152, 100), lines[0], 22, UI.TEXT, true)
 			if lines[1] != "":
-				M3.text(grid, r.position + Vector2(152, 132), lines[1], 26, UI.TEXT, true)
+				M3.text(grid, r.position + Vector2(152, 132), lines[1], 22, UI.TEXT, true)
 		if gain > 0.0:
 			grid.draw_style_box(UI.box(Color("10331f"), Color(0, 0, 0, 0), 24, 0), Rect2(32, 344, 656, 72))
 			M3.text(grid, Vector2(64, 390), "▲ Gain possible : +%s de puissance" % UI.num(gain), 26, UI.GREEN))

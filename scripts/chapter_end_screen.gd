@@ -82,7 +82,7 @@ func _draw_body() -> void:
 		_dashed(c, fr.grow(-2), green)
 		M3.text(c, fr.position + Vector2(32, 52), "DÉBLOQUÉ · LA CEINTURE SANS FIN", 24, green, true, 592)
 		M3.text(c, fr.position + Vector2(32, 100), "Le verre continue plus bas", 36, UI.TEXT, true, 592)
-		M3.para(c, fr.position + Vector2(32, 148), "À partir de l'étage %d : un nouveau secteur tous les 10 étages, une difficulté qui s'adapte, un butin qui monte avec elle. L'escouade continue même quand tu fermes le jeu." % Sector.GEN_START, 26, UI.MUTED, 592)
+		M3.para(c, fr.position + Vector2(32, 148), "À partir du secteur %d : une nouvelle zone tous les 10 secteurs, une difficulté qui s'adapte, un butin qui monte avec elle. L'escouade continue même quand tu fermes le jeu." % Sector.GEN_START, 26, UI.MUTED, 592)
 		return
 	var nxt := Story.chapter(_n + 1)
 	if not nxt.is_empty():
@@ -91,7 +91,7 @@ func _draw_body() -> void:
 		_dashed(c, nr.grow(-2), UI.ACCENT)
 		M3.text(c, nr.position + Vector2(32, 52), "DÉBLOQUÉ", 24, UI.ACCENT, true)
 		M3.text(c, nr.position + Vector2(32, 100), "Chapitre %d · %s" % [_n + 1, nxt.title], 36, UI.TEXT, true)
-		M3.para(c, nr.position + Vector2(32, 144), "Étages %d à %d · %s" % [int(nxt.from), int(nxt.to), String(nxt.get("teaser", ""))], 26, UI.MUTED, 592)
+		M3.para(c, nr.position + Vector2(32, 144), "Secteurs %d à %d · %s" % [int(nxt.from), int(nxt.to), String(nxt.get("teaser", ""))], 26, UI.MUTED, 592)
 
 
 func _icon(ci: CanvasItem, kind: String, c: Vector2) -> void:
