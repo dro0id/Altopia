@@ -41,6 +41,8 @@ func tab_rect(i: int) -> Rect2:
 	var w := (size.x - 16.0) / tb.size()
 	return Rect2(8.0 + w * maxi(j, 0), 8.0, w, 136.0)
 var t := 0.0
+var refresher := Callable()      # met à jour onglets et pastilles (main._update_nav), même en pause
+var _rt := 0.0
 var _tab_plate: GlassBox
 
 
@@ -54,6 +56,10 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
+	_rt += delta
+	if _rt > 0.5 and refresher.is_valid():
+		_rt = 0.0
+		refresher.call()
 	queue_redraw()
 
 

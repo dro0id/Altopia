@@ -358,6 +358,7 @@ func _back() -> void:
 
 func _build_nav() -> void:
 	_nav = NavBar.new()
+	_nav.refresher = _update_nav
 	_nav.z_index = 4095
 	add_child(_nav)
 	_nav.tab_pressed.connect(_on_tab)
@@ -1033,6 +1034,12 @@ func _refresh() -> void:
 		_aurora.size.y = 56.0
 		_aurora.position = Vector2(696.0 - _aurora.size.x, _strip.position.y - 72.0)
 	_buffs.size.x = 656.0 - (_aurora.size.x + 16.0 if _aurora.visible else 0.0)
+	_update_nav()
+
+
+## Onglets et pastilles de la barre du bas. Aussi appelé par la barre elle-même pendant qu'une fenêtre
+## met le jeu en pause (sinon l'onglet Aurore et les pastilles restent figés jusqu'au retour au combat).
+func _update_nav() -> void:
 	var affordable := 0
 	for id in Game.squad_ids():
 		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):

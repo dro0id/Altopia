@@ -100,8 +100,7 @@ static func icon_button(parent: Node, glyph: String, size: int = 36) -> Button:
 	b.custom_minimum_size = Vector2(96, 96)
 	b.add_theme_font_size_override("font_size", size)
 	UI.glassify(b, "secondary", 0.3, 6.0)
-	b.add_theme_stylebox_override("focus", GlassBox.make("secondary", "normal", 0.3))
-	(b.get_theme_stylebox("focus") as GlassBox).inset = 6.0
+	UI.no_focus(b)
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, UI.TEXT)
 	b.pressed.connect(func(): Sfx.play("click", -6.0))
