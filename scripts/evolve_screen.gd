@@ -17,6 +17,7 @@ func _init(id: String) -> void:
 	var nxt := rank + 1
 	var lv: int = Game.levels[id]
 	var st := use_stage(1.0)
+	set_backdrop(UI.GOLD)
 	M3.top_bar(st, "Nouvelle étoile", close)
 	_head = Control.new()
 	_head.position = Vector2(0, 112)

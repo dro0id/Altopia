@@ -16,6 +16,7 @@ var _rows: Array = []        # [y, titre, sous-titre (Callable), clé on/off, cl
 func _init() -> void:
 	super._init(720.0)
 	_st = use_stage(1.0)
+	set_backdrop(Color("6f7fa8"))
 	M3.top_bar(_st, "Réglages", func():
 		changed.emit()
 		close(), [["⋮", _menu]])
@@ -24,7 +25,7 @@ func _init() -> void:
 		[262.0, "Musique", func(): return "Volume %d %%" % int(round(Game.music_vol * 100.0)), "music_on", "music_vol"],
 		[356.0, "Vibrations", func(): return "Retour haptique", "haptics", ""],
 		[588.0, "Chiffres de dégâts", func(): return "Au-dessus des ennemis", "dmg_numbers", ""],
-		[698.0, "Réduire les tremblements", func(): return "", "reduce_shake", ""],
+		[698.0, "Réduire les animations", func(): return "Tremblements, fond mouvant, envols", "reduce_shake", ""],
 		[850.0, "Économie de batterie", func(): return "30 images par seconde", "battery_saver", ""],
 		[958.0, "Économie auto sous 20 %", func(): return "" if Game.battery_level() >= 0 else "Niveau de batterie illisible sur ce téléphone", "battery_auto", ""],
 	]

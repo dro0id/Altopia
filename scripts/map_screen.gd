@@ -22,6 +22,7 @@ var _down := false
 func _init() -> void:
 	super._init(720.0)
 	_st = use_stage(1.0)
+	set_backdrop(Color("3a6cff"))
 	_sel = Game.stage
 	_sector = (_sel - 1) / PER_SECTOR
 	M3.top_bar(_st, "Secteurs", close, [["⋮", func(): M3.menu(_st, Vector2(704, 96), [["Journal de bord", func():

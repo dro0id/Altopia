@@ -148,6 +148,7 @@ func _frame() -> void:
 	var hf := 2.0 * atan(tan(vf / 2.0) * a)
 	var dw := need_w / 2.0 / tan(hf / 2.0)
 	dist = maxf(dh, dw) * 1.02
+	_home_dist = dist
 	target = Vector3(0, (HULL_TOP - 1.6) / 2.0, 0)
 
 
@@ -218,7 +219,28 @@ func _gui_input(ev: InputEvent) -> void:
 		pitch = clampf(pitch + ev.relative.y * 0.006, -0.6, 0.9)
 
 
+var _home_dist := 21.0
+var _last_tap := -1.0
+
+
+## Double appui : le vaisseau revient à sa vue de départ (maquette E6).
+func _maybe_recenter() -> bool:
+	var now := Time.get_ticks_msec() / 1000.0
+	var dbl := now - _last_tap < 0.32
+	_last_tap = -1.0 if dbl else now
+	if not dbl:
+		return false
+	var tw := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.set_parallel(true)
+	tw.tween_property(self, "yaw", -0.35, 0.4)
+	tw.tween_property(self, "pitch", 0.2, 0.4)
+	tw.tween_property(self, "dist", _home_dist, 0.4)
+	return true
+
+
 func _tap(pos: Vector2) -> void:
+	if _maybe_recenter():
+		return
 	var k := Vector2(vp.size) / maxf(1.0, size.x) if size.x > 0 else Vector2.ONE
 	var o := cam.project_ray_origin(pos * k.x)
 	var d := cam.project_ray_normal(pos * k.x)

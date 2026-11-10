@@ -39,7 +39,9 @@ var _gdown := false
 func _init() -> void:
 	super._init(720.0)
 	panel.custom_minimum_size = Vector2(720, (UI.H - 160.0))
-	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
+	panel.add_theme_stylebox_override("panel", UI.box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+	dim.color = UI.BG
+	set_backdrop(Color("58c98f"))
 	box.add_theme_constant_override("separation", 0)
 	_stage = Control.new()
 	_stage.custom_minimum_size = Vector2(720, (UI.H - 160.0))

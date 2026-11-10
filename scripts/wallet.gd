@@ -79,7 +79,7 @@ func _process(d: float) -> void:
 		var t := raw(k)
 		var v: float = _shown[k]
 		if v != t:
-			v = lerpf(v, t, minf(1.0, d * 7.0))
+			v = t if Game.reduce_shake else lerpf(v, t, minf(1.0, d * 7.0))
 			if absf(t - v) < maxf(1.0, absf(t) * 0.002):
 				v = t
 			_shown[k] = v
@@ -179,6 +179,8 @@ const RES_KEY := {"credits": "coin", "shards": "shard", "crystals": "crystal", "
 ## `res` : nom de ressource du jeu (credits, shards…) ou clé de pastille. Sans porte-monnaie à l'écran, rien ne se passe.
 static func fly(tree: SceneTree, from: Vector2, res: String) -> void:
 	var k := String(RES_KEY.get(res, res))
+	if Game.reduce_shake:
+		return
 	var ws := tree.root.find_children("*", "Wallet", true, false)
 	if ws.is_empty():
 		return

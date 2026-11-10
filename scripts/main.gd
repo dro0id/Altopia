@@ -509,7 +509,7 @@ func _open_collection(tab: int = 0) -> void:
 			hs.close()
 			_open_evolve.call_deferred(eid))
 		hs.item_slot_requested.connect(func(slot: String):
-			_open_pick(id, slot))
+			_open_pick(hs.hero_id(), slot))
 		# fiche en plein écran ; en la quittant on revient à la collection
 		hs.closed.connect(func(): _open_collection.call_deferred())
 		_open_modal(hs))
@@ -543,7 +543,7 @@ func _open_pick(hero_id: String, slot: String) -> void:
 	p.closed.connect(func():
 		var hs := HeroScreen.new(hero_id, 1)
 		hs.changed.connect(_start_battle)
-		hs.item_slot_requested.connect(func(sl: String): _open_pick(hero_id, sl))
+		hs.item_slot_requested.connect(func(sl: String): _open_pick(hs.hero_id(), sl))
 		hs.closed.connect(func(): _open_collection.call_deferred())
 		_open_modal.call_deferred(hs))
 	_open_modal(p)

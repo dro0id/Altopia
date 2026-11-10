@@ -404,7 +404,7 @@ func _apply_hit(p: Dictionary) -> void:
 		dst.shield -= absorbed
 		dmg -= absorbed
 	dst.hp -= dmg
-	events.append({"type": "hit", "unit": dst, "amount": dmg, "fx": p.get("fx", "")})
+	events.append({"type": "hit", "unit": dst, "amount": dmg, "fx": p.get("fx", ""), "crit": bool(p.get("crit", false))})
 	if dst.hp <= 0.0:
 		dst.alive = false
 		dst.hp = 0.0
@@ -446,11 +446,13 @@ func _act(u: Unit) -> void:
 		return
 	var delay := 0.35 if u.ranged else 0.14
 	var dmg := u.atk * rng.randf_range(0.92, 1.08)
+	var crit := false
 	if u.crit > 0.0 and rng.randf() < u.crit:
 		dmg *= 1.5
+		crit = true
 	if u.boss_dmg > 0.0 and t.boss:
 		dmg *= 1.0 + u.boss_dmg
-	pending.append({"t": delay, "kind": "hit", "src": u, "dst": t, "dmg": dmg, "fx": ""})
+	pending.append({"t": delay, "kind": "hit", "src": u, "dst": t, "dmg": dmg, "fx": "", "crit": crit})
 	events.append({"type": "attack", "src": u, "dst": t, "ranged": u.ranged, "delay": delay})
 
 

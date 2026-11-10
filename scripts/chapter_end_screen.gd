@@ -15,6 +15,7 @@ func _init(n: int, reward: Dictionary) -> void:
 	_n = n
 	_reward = reward
 	var st := use_stage(1.0)
+	set_backdrop(UI.GOLD)
 	_body = Control.new()
 	_body.size = Vector2(720, 1000)
 	_body.position.y = UI.tall(0.3)

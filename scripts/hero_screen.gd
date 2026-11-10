@@ -24,7 +24,8 @@ func _init(id: String, page: int = 0) -> void:
 	_id = id
 	_page = page
 	panel.custom_minimum_size = Vector2(720, UI.H)
-	panel.add_theme_stylebox_override("panel", UI.box(UI.BG, Color(0, 0, 0, 0), 0, 0))
+	panel.add_theme_stylebox_override("panel", UI.box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+	dim.color = UI.BG
 	box.add_theme_constant_override("separation", 0)
 	_rebuild()
 
@@ -37,6 +38,7 @@ func _rebuild() -> void:
 	box.add_child(_stage)
 	var h: Dictionary = Data.HEROES[_id]
 	var have := Game.is_owned(_id)
+	set_backdrop(Data.RARITY_COLORS[h.rarity])      # fond teinté par la rareté (maquette G3)
 	var acts: Array = []
 	if have:
 		acts.append(["⋮", func(): M3.menu(_stage, Vector2(704, 96), [["Placer en escouade", _open_picker], ["Tout retirer", func():
@@ -102,6 +104,39 @@ func _hero_band(h: Dictionary, n0: int) -> void:
 	fig.draw.connect(func(): Art.draw_hero(fig, h, {"t": _t}))
 	_stage.add_child(fig)
 	_fig = fig
+
+
+func hero_id() -> String:
+	return _id
+
+
+## Glisser à gauche ou à droite sur le haut de la fiche : héros suivant ou précédent (maquette E6).
+var _swipe0 := Vector2(-1, -1)
+
+
+func _input(ev: InputEvent) -> void:
+	var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+	var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+	if not (down or up) or not is_visible_in_tree():
+		return
+	var p: Vector2 = get_global_transform_with_canvas().affine_inverse() * ev.position
+	if down:
+		var top := 112.0 + 160.0 + maxf(0.0, minf(UI.tall(), 300.0))
+		_swipe0 = p if p.y > 112.0 and p.y < top and p.x > 40.0 else Vector2(-1, -1)
+		return
+	if _swipe0.x < 0.0:
+		return
+	var d := p - _swipe0
+	_swipe0 = Vector2(-1, -1)
+	if absf(d.x) > 140.0 and absf(d.y) < 110.0:
+		var ids: Array = Data.HEROES.keys()
+		var mine := ids.filter(func(x): return Game.is_owned(x))
+		var lst: Array = mine if mine.has(_id) else ids
+		var i := lst.find(_id)
+		_id = lst[(i + (1 if d.x < 0.0 else -1) + lst.size()) % lst.size()]
+		Sfx.play("click", -8.0)
+		get_viewport().set_input_as_handled()
+		_rebuild()
 
 
 func _process(delta: float) -> void:

@@ -18,6 +18,7 @@ func _init(stage_n: int, timed_out := false) -> void:
 	super._init(720.0)
 	_timeout = timed_out
 	_st = use_stage(1.0)
+	set_backdrop(UI.RED)
 	_stage = stage_n
 	_body = Control.new()
 	_body.size = Vector2(720, 800)
