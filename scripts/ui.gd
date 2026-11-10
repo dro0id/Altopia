@@ -74,6 +74,13 @@ static func glassify(b: Button, role: String, chamfer := 0.26, inset := 0.0, hex
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(k, fg)
 	b.add_theme_color_override("font_disabled_color", GlassBox.text_color(role, "disabled"))
+	no_focus(b)
+
+
+## Pas de cadre de focus : sur écran tactile, il restait dessiné autour du dernier bouton touché.
+static func no_focus(b: Control) -> void:
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 
 ## Change le rôle d'un bouton déjà créé (sans refaire ses styles s'il a déjà ce rôle).
@@ -97,6 +104,7 @@ static func button(parent: Node, text: String, size: int, kind: String = "main")
 		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			b.add_theme_color_override(k, ACCENT)
 		b.add_theme_color_override("font_disabled_color", ACCENT.darkened(0.5))
+		no_focus(b)
 	else:
 		glassify(b, role_of(kind))
 	b.add_theme_font_override("font", bold_font())

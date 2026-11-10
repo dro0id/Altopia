@@ -144,6 +144,7 @@ func _explain(keys_: Array) -> void:
 	layer.size = Vector2(720, UI.H)
 	layer.z_index = 4096
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS      # les fenêtres mettent le jeu en pause : sans ça, l'appui pour fermer n'arrive jamais
 	layer.gui_input.connect(func(ev: InputEvent):
 		if M3.is_tap(ev):
 			layer.queue_free())
