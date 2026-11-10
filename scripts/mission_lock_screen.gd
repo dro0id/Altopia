@@ -16,7 +16,7 @@ func _init() -> void:
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.draw.connect(_draw_body)
 	st.add_child(_body)
-	var b := M3.button(st, "Retour à l’Aurore", Rect2(64, 860, 592, 104), "main", 30)
+	var b := M3.button(st, "Retour à l’Aurore", Rect2(64, 860 + UI.tall(0.4), 592, 104), "main", 30)
 	b.pressed.connect(func():
 		home_requested.emit()
 		close())
@@ -37,9 +37,11 @@ func _draw_body() -> void:
 	for i in 80:
 		var p := Vector2(rng.randf() * 720.0, rng.randf() * UI.H)
 		c.draw_circle(p, 1.3, Color(1, 1, 1, 0.3 + 0.25 * sin(_t * 1.4 + i)))
+	c.draw_set_transform(Vector2(0, UI.tall(0.4)))
 	c.draw_circle(Vector2(360, 330), 96, M3.S2)
 	M3.lock(c, Vector2(360, 340), UI.GOLD, 3.0)
 	M3.text(c, Vector2(0, 500), "TROU DE VERRE · EN ROUTE", 24, UI.GOLD, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.text(c, Vector2(0, 560), "Le Trou de verre t’attend à l’arrivée", 38, UI.TEXT, true, 720, HORIZONTAL_ALIGNMENT_CENTER)
 	M3.para(c, Vector2(72, 620), "Le combat se joue dans le Trou de verre, au cœur de la Ceinture d’Altopia. Termine les objectifs de bord pour y arriver.", 26, UI.MUTED, 576)
 	ShipScreen.draw_voyage(c, Rect2(96, 760, 528, 60), Game.voyage_done())
+	c.draw_set_transform(Vector2.ZERO)

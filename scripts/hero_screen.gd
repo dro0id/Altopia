@@ -146,6 +146,10 @@ func _build_stats(h: Dictionary, have: bool) -> void:
 		label = "Niveau maximum" if stars >= 5 else ("Monter à %s" % star_text(stars + 1))
 	var up := M3.button(_stage, label, Rect2(32, UI.H - 136.0, 656, 104), "premium" if capped else "main")
 	up.disabled = (not capped and Game.credits < cost_v) or (capped and stars >= 5)
+	if capped and stars < 5 and not Game.can_star_up(_id):
+		var miss := Game.star_cost(_id) - Game.copies_for(_id)
+		up.disabled = true
+		up.text = "Il manque %d doublon%s" % [miss, "s" if miss > 1 else ""]
 	level_button = up
 	up.pressed.connect(func():
 		if capped:

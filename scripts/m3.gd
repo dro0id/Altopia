@@ -12,7 +12,22 @@ const OUT := Color("2b3a6b")         # contour
 
 ## Taille de texte selon le réglage de lisibilité (Normal / Grand / Très grand).
 static func fs(n: int) -> int:
-	return int(round(float(n) * UI.text_scale))
+	return int(round(float(step(n)) * UI.text_scale))
+
+
+## Échelle de texte (maquette I7) : étiquette 20, détail 22, corps 24 et 26, sous-titre 28, titre 34, affiche 48 et plus.
+static func step(n: int) -> int:
+	if n <= 21:
+		return 20 if n >= 19 else n
+	if n <= 23:
+		return 22
+	if n <= 27:
+		return 24 if n <= 25 else 26
+	if n <= 31:
+		return 28
+	if n <= 38:
+		return 34
+	return n
 
 
 static func is_tap(ev: InputEvent) -> bool:

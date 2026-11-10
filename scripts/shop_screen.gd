@@ -43,7 +43,7 @@ func _init() -> void:
 	_stage.add_child(_chips)
 	_scroll = ScrollContainer.new()
 	_scroll.position = Vector2(0, 192)
-	_scroll.size = Vector2(720, 928)
+	_scroll.size = Vector2(720, UI.H - 160.0 - 192.0)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_stage.add_child(_scroll)

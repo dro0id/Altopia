@@ -17,6 +17,7 @@ func _init(n: int, reward: Dictionary) -> void:
 	var st := use_stage(1.0)
 	_body = Control.new()
 	_body.size = Vector2(720, 1000)
+	_body.position.y = UI.tall(0.3)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.draw.connect(_draw_body)
 	st.add_child(_body)

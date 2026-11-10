@@ -413,12 +413,15 @@ func _labo(c: Control, y: float) -> float:
 	var labels := ["Combat", "Butin", "Vaisseau"]
 	var keys := ["combat", "butin", "vaisseau"]
 	var w := 656.0 / 3.0
+	# segment de verre, comme sur les autres écrans
+	GlassBox.make("chip", "normal", 0.3).draw(c.get_canvas_item(), Rect2(32, y, 656, 80))
 	for i in 3:
 		var r := Rect2(32 + i * w, y, w, 80)
 		var on := i == _branch
-		var sb := UI.box(M3.TONAL if on else Color(0, 0, 0, 0), M3.OUT, 40 if (i == 0 or i == 2) else 0, 0)
-		sb.set_border_width_all(2)
-		c.draw_style_box(sb, r)
+		if on:
+			var gt := GlassBox.make("tab", "normal", 0.3)
+			gt.inset = 6.0
+			gt.draw(c.get_canvas_item(), r)
 		M3.text(c, r.position + Vector2(0, 50), ("✓ " if on else "") + labels[i], 26, UI.TEXT if on else UI.MUTED, on, w, HORIZONTAL_ALIGNMENT_CENTER)
 		var bi := i
 		_hit(r, func():
@@ -501,7 +504,7 @@ func _hangar(c: Control, y: float) -> float:
 			M3.text(c, r.position + Vector2(132 + M3.text_w(String(info.name), 28, true) + 12, 52), "· à quai", 22, info.color, true)
 			M3.text(c, r.position + Vector2(132, 90), role, 22, UI.MUTED, false, 360)
 			var br := Rect2(r.position + Vector2(500, 34), Vector2(136, 64))
-			c.draw_style_box(UI.box(UI.ACCENT, Color(0, 0, 0, 0), 32, 0), br)
+			GlassBox.make("main").draw(c.get_canvas_item(), br)
 			M3.text(c, br.position + Vector2(0, 42), "Lancer", 24, Color("06101f"), true, 136, HORIZONTAL_ALIGNMENT_CENTER)
 			_hit(r, _expedition_sheet.bind(sh))
 		else:

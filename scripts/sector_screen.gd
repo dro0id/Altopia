@@ -13,6 +13,7 @@ func _init(stage: int) -> void:
 	var st := use_stage(1.0)
 	_body = Control.new()
 	_body.size = Vector2(720, 1100)
+	_body.position.y = UI.tall(0.35)
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_body.draw.connect(_draw_body)
 	st.add_child(_body)
@@ -30,7 +31,7 @@ func _draw_body() -> void:
 	var c := _body
 	var pal: Array = _info.palette
 	var accent := Color(pal[6])
-	c.draw_rect(Rect2(0, 0, 720, UI.H), Color(pal[0]))
+	c.draw_rect(Rect2(0, -c.position.y, 720, UI.H), Color(pal[0]))
 	for k in 14:
 		c.draw_circle(Vector2(360, 300), 420.0 - k * 26.0, Color(accent, 0.02))
 	M3.text(c, Vector2(0, 104), "NOUVEAU SECTEUR · ÉTAGES %d À %d" % [int(_info.from), int(_info.to)], 24, accent, true, 720, HORIZONTAL_ALIGNMENT_CENTER)

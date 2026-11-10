@@ -93,6 +93,11 @@ func _init(scene: Dictionary, replay := false) -> void:
 	for k in 2:
 		var o := M3.button(_st, "", Rect2(32, 0, 656, 112), "outline", 30)
 		o.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		for stn in ["normal", "hover", "pressed", "disabled"]:
+			var sbx := o.get_theme_stylebox(stn)
+			if sbx != null:
+				sbx.content_margin_left = 32.0
+				sbx.content_margin_right = 32.0
 		for k2 in ["font_color", "font_hover_color", "font_pressed_color"]:
 			o.add_theme_color_override(k2, UI.TEXT)
 		var idx := k

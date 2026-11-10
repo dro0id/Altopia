@@ -17,6 +17,11 @@ const MUTED := Color("a9b6d6")
 const TEXT := Color("e8eefc")
 const DARK := Color("06101f")
 const TONAL := Color("1d3a66")               # boutons tonals et sélections (refonte Android)
+## Palette à règles (maquette G1) : surfaces, actions, raretés, texte. Les écrans s'y réfèrent par leur nom.
+const SURFACE := {"vide": Color("070b1a"), "fond": Color("0b1226"), "carte": Color("141d3a"), "relief": Color("1d2a52"), "trait": Color("2b3a6b")}
+const ACTION := {"agir": Color("4fd8ff"), "recolter": Color("7dffb0"), "premium": Color("ffd166"), "danger": Color("ff6b6b")}
+const RARITY := {"commun": Color("9aa7c7"), "normal": Color("58c98f"), "rare": Color("4fa8ff"), "epique": Color("b388ff"), "legendaire": Color("ffb142"), "ultime": Color("ff6b6b")}
+const TEXT_OFF := Color("6b7aa3")
 const HUD := Color(0.051, 0.082, 0.188, 0.8)      # rgba(13,21,48,.8) : pastilles et boutons posés sur le terrain
 
 
@@ -275,3 +280,8 @@ static func duration(seconds: float) -> String:
 	if h > 0:
 		return "%d h %02d min" % [h, m]
 	return "%d min %02d s" % [m, s % 60]
+
+
+## Écrans hauts (maquette I1) : part de la hauteur gagnée au-delà de 1280, pour descendre un contenu ancré en haut.
+static func tall(k := 1.0) -> float:
+	return maxf(0.0, H - 1280.0) * k

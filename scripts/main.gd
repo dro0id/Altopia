@@ -916,11 +916,14 @@ func _refresh_boss() -> void:
 	var big := _boss == "big"
 	_boss_bar.col = UI.RED if big else Color("ffb142")
 	_boss_bar.title = Data.boss_name(Game.stage)
-	_boss_bar.phase = ""
-	_boss_bar.frac = 0.0
+	_boss_bar.phase = "arrive à la vague %d" % battle.sim.waves_total
+	_boss_bar.frac = 1.0
+	_boss_bar.wait = true
 	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(Game.stage), BOSS_INFO.titan)
 	if bu != null:
 		_boss_bar.frac = bu.hp_frac()
+		_boss_bar.wait = false
+		_boss_bar.phase = ""
 		if big:
 			_boss_bar.phase = "Phase 2" if bu.phase2 else "Phase 1"
 		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= 2.0 and battle.sim.state == "fighting"
