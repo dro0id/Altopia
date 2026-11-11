@@ -8,6 +8,7 @@ signal open_room(r: String)
 signal open_evolve(id: String)
 signal open_items
 signal open_orders
+signal open_event(e: Dictionary)
 
 const ROW := 108.0
 
@@ -36,6 +37,9 @@ static func entries() -> Array:
 		for sh in Game.ship.shuttles:
 			if bool(Game.ship.shuttles[sh].get("back", false)):
 				out.append({"kind": "shuttle", "title": "%s est rentrée" % String(Ship.SHUTTLES[sh].name) if Ship.SHUTTLES.has(sh) else "Navette rentrée", "sub": "rapport d’expédition au Hangar", "action": "Lire", "rank": 0, "role": "main"})
+	for e in Game.board.pending:
+		var t := BoardEvents.template(String(e.id))
+		out.append({"kind": "event", "title": "Événement · %s" % String(t.title), "sub": String(Ship.ROOMS[e.room].name), "action": "Voir", "rank": 1, "role": "main", "data": e})
 	for id in Game.squad_ids():
 		if Game.can_star_up(id):
 			out.append({"kind": "star", "title": "%s peut monter en étoile" % String(Data.HEROES[id].name).split(" ")[0], "sub": "assez de doublons", "action": "Monter", "rank": 1, "role": "gold", "data": id})
@@ -145,6 +149,8 @@ func _glyph(c: Control, kind: String, at: Vector2, col: Color) -> void:
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -12), at + Vector2(14, 0), at + Vector2(-10, 12), at + Vector2(-4, 0)]), col)
 		"star":
 			Art.star(c, at, 15.0, col, 0.0)
+		"event":
+			M3.text(c, at + Vector2(-20, 10), "!", 30, col, true, 40, HORIZONTAL_ALIGNMENT_CENTER)
 		_:
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -14), at + Vector2(13, 2), at + Vector2(5, 2), at + Vector2(5, 13), at + Vector2(-5, 13), at + Vector2(-5, 2), at + Vector2(-13, 2)]), col)
 
@@ -180,6 +186,9 @@ func _act(e: Dictionary) -> void:
 		"orders":
 			close()
 			open_orders.emit()
+		"event":
+			close()
+			open_event.emit(e.data)
 
 
 func _claim_all() -> void:

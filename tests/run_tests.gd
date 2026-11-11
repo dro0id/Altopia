@@ -1088,3 +1088,41 @@ func test_orders() -> void:
 	_check(o.week_done == 0 and o.week_claimed.is_empty(), "nouvelle semaine : solde remise à zéro")
 	var back := Orders.from_dict(o.to_dict())
 	_check(back.day == o.day and back.list.size() == 3, "sauvegarde des ordres")
+
+
+## Maquette WK : événements à bord.
+func test_board_events() -> void:
+	var b := BoardEvents.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	_g.ship.unlock()
+	_g.ship.level = 10
+	_g.ship.open_rooms()
+	for r in ["serre", "quartiers", "atelier"]:
+		_g.ship.rooms[r] = 2
+	var now := 1000000
+	_check(b.update(10.0, _g.ship, rng, now).is_empty(), "pas d'événement avant 20 minutes de jeu")
+	var e := b.update(b.gap, _g.ship, rng, now)
+	_check(not e.is_empty() and b.pending.size() == 1, "un événement apparaît après l'attente")
+	for i in 5:
+		b.spawn(_g.ship, rng, now)
+	_check(b.pending.size() >= 3, "plusieurs salles peuvent avoir un événement")
+	var rooms := {}
+	for p in b.pending:
+		rooms[p.room] = true
+	_check(rooms.size() == b.pending.size(), "un seul événement par salle")
+	b.update(1.0, _g.ship, rng, now + BoardEvents.LIFETIME + 1)
+	_check(b.pending.is_empty(), "les événements expirent")
+	# un choix sans hasard verse son gain
+	var ev := {"id": "cargaison", "room": "hangar", "expires": now + 100}
+	b.pending = [ev]
+	var it0: int = _g.item_tokens
+	var res := b.resolve(ev, 0, _g, rng)
+	_check(_g.item_tokens - it0 == 2 and res != "" and b.pending.is_empty(), "choisir verse la conséquence")
+	# un pari impossible sans les éclats
+	var ev2 := {"id": "course", "room": "quartiers", "expires": now + 100}
+	b.pending = [ev2]
+	_g.shards = 3
+	_check(b.resolve(ev2, 0, _g, rng) == "Pas assez d’éclats" and b.pending.size() == 1, "un pari demande les éclats")
+	var back := BoardEvents.from_dict(b.to_dict())
+	_check(back.pending.size() == 1, "sauvegarde des événements")

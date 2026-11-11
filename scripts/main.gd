@@ -637,6 +637,9 @@ func _open_todo() -> void:
 	t.open_evolve.connect(func(id: String): _open_evolve.call_deferred(id))
 	t.open_items.connect(func(): _open_collection.call_deferred(1))
 	t.open_orders.connect(_open_orders)
+	t.open_event.connect(func(e: Dictionary):
+		if _modal is ShipScreen:
+			(_modal as ShipScreen).open_event(e))
 	_modal.add_child(t)
 
 

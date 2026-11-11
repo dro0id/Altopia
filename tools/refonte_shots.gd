@@ -150,6 +150,16 @@ func _initialize() -> void:
 		"rapport": func():
 			_ship(10)
 			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"start": 1000, "stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "atelier", "to": 8, "end": 1000 + 3600}], "research": "blindage", "trained": {}, "shuttles": ["colibri"], "lost": {"raffinerie": 126.0}, "full": {"raffinerie": 22200.0}, "at": {"research": 1000 + 32400, "shuttle_colibri": 1000 + 21600}}})),
+		"evenement": func():
+			_ship(10)
+			g.board.pending = [{"id": "clandestin", "room": "serre", "expires": int(Time.get_unix_time_from_system()) + 7000}, {"id": "visite", "room": "pont", "expires": int(Time.get_unix_time_from_system()) + 3000}]
+			main._open_ship(),
+		"evenement2": func():
+			_ship(10)
+			g.board.pending = [{"id": "terre", "room": "antenne", "expires": int(Time.get_unix_time_from_system()) + 7000}, {"id": "clandestin", "room": "serre", "expires": int(Time.get_unix_time_from_system()) + 7000}]
+			main._open_ship()
+			await process_frame
+			main._modal.open_event(g.board.pending[1]),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -391,7 +401,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

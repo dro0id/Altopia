@@ -324,20 +324,40 @@ func _draw_labels() -> void:
 			var rr := Rect2(x, rect.position.y + 6, M3.text_w(rtxt, csz, true) + 20.0, 32)
 			c.draw_style_box(UI.box(col, Color(0, 0, 0, 0), 16, 0), rr)
 			M3.text(c, Vector2(rr.position.x + 10, rr.position.y + 23), rtxt, csz, Color("06101f"), true)
+		# événement à bord (maquette WK) : un « ! » doré au bout de l'étiquette
+		if not Game.board.at_room(r).is_empty():
+			var ec := Vector2(maxf(22.0, rect.position.x - 2.0), rect.position.y + 2.0)     # coin gauche : la voisine est souvent à droite
+			var pulse := 1.0 + 0.12 * sin(_t * 5.0)
+			c.draw_circle(ec, 21.0 * pulse, Color(UI.GOLD, 0.25))
+			c.draw_circle(ec, 17.0, UI.GOLD)
+			M3.text(c, ec + Vector2(-17, 9), "!", 24, Color("06101f"), true, 34, HORIZONTAL_ALIGNMENT_CENTER)
+			rect = rect.grow_individual(24, 18, 0, 0)
 		_lab_rects[r] = Rect2(rect.position + c.position, rect.size)
 
 
 func _input(ev: InputEvent) -> void:
 	if not is_visible_in_tree() or not M3.is_tap(ev):
 		return
-	var p: Vector2 = ev.position
+	# coordonnées de la scène (sous l'encoche), comme les rectangles des étiquettes
+	var p: Vector2 = _st.get_global_transform_with_canvas().affine_inverse() * ev.position
 	if _sheet.visible and Rect2(_sheet.position, _sheet.size).has_point(p):
 		return
 	for r in _lab_rects:
 		if (_lab_rects[r] as Rect2).has_point(p):
+			var ev2: Dictionary = Game.board.at_room(r)
+			if not ev2.is_empty():
+				open_event(ev2)
+				get_viewport().set_input_as_handled()
+				return
 			_select(r)
 			get_viewport().set_input_as_handled()
 			return
+
+
+## Ouvre la feuille d'un événement à bord.
+func open_event(e: Dictionary) -> void:
+	Sfx.play("click", -6.0)
+	add_child(EventScreen.new(e))
 
 
 func _select(r: String) -> void:
