@@ -77,6 +77,8 @@ func _process(delta: float) -> void:
 	appear = minf(1.0, appear + delta * 1.8)
 	if unit != null and not unit.alive:
 		dead_t = minf(1.0, dead_t + delta * 1.6)
+	elif dead_t > 0.0:
+		dead_t = maxf(0.0, dead_t - delta * 2.5)     # relevé (Second souffle)
 	var off := _lunge_curve(atk_t) * lunge if atk_t < 1.0 else 0.0
 	var vel := absf(off - _last_off) / maxf(delta, 0.001)
 	_last_off = off

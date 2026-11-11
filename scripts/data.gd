@@ -360,6 +360,67 @@ static func level_cap(rank: int) -> int:
 
 
 ## Bonus de dégâts d'un enchaînement de `n` pouvoirs rapprochés : +10 % par pouvoir au-delà du premier, plafonné à +50 %.
+## Pouvoirs signature (maquette WA) : chaque héros garde la famille de son pouvoir et gagne un effet à lui.
+const SIGNATURES := {
+	"mara": {"name": "Contre-choc", "desc": "Le bouclier renvoie 30 % des dégâts qu'il absorbe."},
+	"pim": {"name": "Rivets renforcés", "desc": "Le bouclier tient 9 s au lieu de 6."},
+	"vance": {"name": "Ordre de tir", "desc": "Sous le bouclier, l'escouade attaque 15 % plus vite pendant 6 s."},
+	"gorn": {"name": "Carapace", "desc": "Le bouclier explose quand il se termine et frappe tous les ennemis."},
+	"kai": {"name": "Achève", "desc": "Dégâts doublés sur les ennemis sous 30 % de PV."},
+	"dax": {"name": "Tir de barrage", "desc": "Les ennemis touchés attaquent 20 % moins vite pendant 4 s."},
+	"brix": {"name": "Fragmentation", "desc": "Un missile de plus sur l'ennemi le plus solide."},
+	"zyra": {"name": "Éclat traversant", "desc": "Traverse sa cible et touche l'ennemi suivant (60 %)."},
+	"sora": {"name": "Point faible", "desc": "Le tir est toujours critique."},
+	"omega": {"name": "Surcharge ionique", "desc": "La cible est étourdie 1,5 s."},
+	"t9": {"name": "Nanites", "desc": "Les soins continuent : 3 % des PV par seconde pendant 4 s."},
+	"neelo": {"name": "Spores apaisantes", "desc": "Les héros soignés subissent 20 % de dégâts en moins pendant 4 s."},
+	"aria": {"name": "Second souffle", "desc": "Relève un héros tombé à 50 % de PV, une fois par combat."},
+	"oru": {"name": "Implosion", "desc": "Les ennemis étourdis subissent 20 % de dégâts en plus."},
+	"lumi": {"name": "Éblouissement", "desc": "L'étourdissement dure 1 s de plus."},
+}
+
+
+## Talents (maquette WG) : à chaque étoile, de 2★ à 5★, un choix entre deux talents, selon le rôle.
+## Effets : hp, atk, def, speed, crit, boss, heal, skill, cdr (parts) ; taunt (attire les coups),
+## laststand (sous 30 % de PV : DÉF doublée 5 s, une fois), execute (+30 % sous 30 % de PV),
+## lifesteal (part des dégâts rendue en PV), ready (pouvoir prêt dès le début du combat).
+const TALENT_TIERS := [2, 3, 4, 5]
+const TALENT_RESPEC := 50                       # éclats pour changer d'avis
+const TALENTS := {
+	"tank": {
+		2: [{"name": "Plaques épaisses", "desc": "+15 % de PV.", "fx": {"hp": 0.15}}, {"name": "Provocation", "desc": "Les ennemis la visent 8 fois sur 10.", "fx": {"taunt": 0.8}}],
+		3: [{"name": "Blindage lourd", "desc": "+20 % de DÉF.", "fx": {"def": 0.2}}, {"name": "Dernier rempart", "desc": "Sous 30 % de PV : DÉF doublée pendant 5 s, une fois.", "fx": {"laststand": 1.0}}],
+		4: [{"name": "Recharge rapide", "desc": "Pouvoir rechargé 15 % plus vite.", "fx": {"cdr": 0.15}}, {"name": "Colosse", "desc": "+10 % de PV et +10 % de DÉF.", "fx": {"hp": 0.1, "def": 0.1}}],
+		5: [{"name": "Égide", "desc": "Pouvoir 30 % plus fort.", "fx": {"skill": 0.3}}, {"name": "Prêt au combat", "desc": "Pouvoir prêt dès le début du combat.", "fx": {"ready": 1.0}}],
+	},
+	"dps": {
+		2: [{"name": "Visée", "desc": "+10 % d’ATQ.", "fx": {"atk": 0.1}}, {"name": "Œil vif", "desc": "+10 % de chances de coup critique.", "fx": {"crit": 0.1}}],
+		3: [{"name": "Cadence", "desc": "Attaque 12 % plus vite.", "fx": {"speed": 0.12}}, {"name": "Exécuteur", "desc": "+30 % de dégâts sur les ennemis sous 30 % de PV.", "fx": {"execute": 0.3}}],
+		4: [{"name": "Chasseur de boss", "desc": "+15 % de dégâts aux boss.", "fx": {"boss": 0.15}}, {"name": "Vampirisme", "desc": "8 % des dégâts infligés rendus en PV.", "fx": {"lifesteal": 0.08}}],
+		5: [{"name": "Surpuissance", "desc": "Pouvoir 25 % plus fort.", "fx": {"skill": 0.25}}, {"name": "Prêt à tirer", "desc": "Pouvoir prêt dès le début du combat.", "fx": {"ready": 1.0}}],
+	},
+	"healer": {
+		2: [{"name": "Mains sûres", "desc": "Soins 15 % plus forts.", "fx": {"heal": 0.15}}, {"name": "Endurance", "desc": "+15 % de PV.", "fx": {"hp": 0.15}}],
+		3: [{"name": "Recharge rapide", "desc": "Pouvoir rechargé 15 % plus vite.", "fx": {"cdr": 0.15}}, {"name": "Prêt à soigner", "desc": "Pouvoir prêt dès le début du combat.", "fx": {"ready": 1.0}}],
+		4: [{"name": "Médecine de bord", "desc": "Soins 20 % plus forts.", "fx": {"heal": 0.2}}, {"name": "Autodéfense", "desc": "+15 % d’ATQ.", "fx": {"atk": 0.15}}],
+		5: [{"name": "Grand soin", "desc": "Pouvoir 25 % plus fort.", "fx": {"skill": 0.25}}, {"name": "Coriace", "desc": "+20 % de DÉF.", "fx": {"def": 0.2}}],
+	},
+	"control": {
+		2: [{"name": "Concentration", "desc": "+10 % d’ATQ.", "fx": {"atk": 0.1}}, {"name": "Résistance", "desc": "+15 % de PV.", "fx": {"hp": 0.15}}],
+		3: [{"name": "Recharge rapide", "desc": "Pouvoir rechargé 15 % plus vite.", "fx": {"cdr": 0.15}}, {"name": "Prêt à agir", "desc": "Pouvoir prêt dès le début du combat.", "fx": {"ready": 1.0}}],
+		4: [{"name": "Amplificateur", "desc": "Pouvoir 20 % plus fort.", "fx": {"skill": 0.2}}, {"name": "Œil vif", "desc": "+10 % de chances de coup critique.", "fx": {"crit": 0.1}}],
+		5: [{"name": "Surcharge", "desc": "Pouvoir 25 % plus fort.", "fx": {"skill": 0.25}}, {"name": "Cadence", "desc": "Attaque 12 % plus vite.", "fx": {"speed": 0.12}}],
+	},
+}
+
+
+## Fenêtre de tir du boss (maquette WB) : pendant les dernières secondes avant son gros coup,
+## un pouvoir de contrôle l'interrompt (exposé, dégâts reçus +50 %) et un bouclier pare le coup.
+const INTERRUPT_WINDOW := 2.0
+const EXPOSED_TIME := 3.0
+const EXPOSED_BONUS := 0.5
+
+
 static func combo_mult(n: int) -> float:
 	return 1.0 + minf(0.5, 0.1 * float(maxi(0, n - 1)))
 

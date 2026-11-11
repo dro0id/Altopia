@@ -13,7 +13,7 @@ const STEPS := [
 	{"title": "Lance un pouvoir", "text": "L'anneau de %s est plein : son pouvoir est prêt.", "action": "Touche le portrait de %s"},
 	{"title": "Fais progresser ton escouade", "text": "Tu as gagné des crédits. Ils servent à monter le niveau de tes héros.", "action": "Touche « Héros »"},
 	{"title": "Choisis un héros", "text": "Chaque carte ouvre la fiche du héros : statistiques, équipement, pouvoir.", "action": "Touche la carte de %s"},
-	{"title": "Monte son niveau", "text": "Chaque niveau augmente PV, attaque et défense. Au niveau 10, le héros devra évoluer.", "action": "Touche « Monter le niveau »"},
+	{"title": "Monte son niveau", "text": "Chaque niveau augmente PV, attaque et défense. Au niveau 10, le héros devra évoluer.", "action": "Touche « Niveau 2 », en bas"},
 	{"title": "Descends les secteurs", "text": "Le jeu passe seul au secteur suivant. Touche le secteur pour voir la carte, farmer un secteur ou revoir le journal.", "btn": "Terminer"},
 ]
 const TIP_SHIP := {"eyebrow": "NOUVEAU · L’AURORE", "title": "Ton vaisseau", "text": "Il produit même jeu fermé : éclats, jetons, crédits. Ses salles s’améliorent avec le secteur atteint.", "action": "Touche « Aurore »"}

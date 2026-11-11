@@ -18,6 +18,7 @@ var _fab_cast: Button
 var _fab_speed: Button
 var _field: Control
 var _boss_bar: BossBar
+var _hud: CombatHud
 var _warn: HudButton
 var _boss := ""
 var _fh := 600.0
@@ -166,6 +167,12 @@ func _build_top() -> void:
 	_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boss_bar.visible = false
 	add_child(_boss_bar)
+	# haut de l'écran sur les téléphones hauts (maquette XC)
+	_hud = CombatHud.new()
+	_hud.battle = battle
+	_hud.z_index = 2990
+	_hud.visible = false
+	add_child(_hud)
 	_info = Label.new()
 	_info.add_theme_font_override("font", UI.bold_font())
 	_info.add_theme_font_size_override("font_size", M3.fs(24))
@@ -201,12 +208,12 @@ func _build_top() -> void:
 func _build_skills() -> void:
 	# bande des portraits (maquette BB) : un portrait par héros ; le toucher lance son pouvoir
 	_strip = Control.new()
-	_strip.size = Vector2(720, 148)
+	_strip.size = Vector2(720, 164)
 	_strip.draw.connect(func(): _strip.draw_rect(Rect2(Vector2.ZERO, _strip.size), UI.BG))
 	add_child(_strip)
 	_skill_row = HBoxContainer.new()
 	_skill_row.position = Vector2(24, 4)
-	_skill_row.size = Vector2(672, 136)
+	_skill_row.size = Vector2(672, 156)
 	_skill_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_skill_row.add_theme_constant_override("separation", 16)
 	_strip.add_child(_skill_row)
@@ -216,7 +223,8 @@ func _build_skills() -> void:
 		b.hero = Data.HEROES[Game.squad[i]] if Game.squad[i] != "" else {}
 		b.pressed.connect(func(slot: int):
 			if battle.sim != null and battle.sim.cast(slot):
-				_manual_cast = true)
+				_manual_cast = true
+				Game.orders.track("cast"))
 		_skill_row.add_child(b)
 		skill_buttons.append(b)
 
@@ -242,6 +250,7 @@ func _build_squad() -> void:
 					n += 1
 		if n > 0:
 			_manual_cast = true
+			Game.orders.track("cast", n)
 		else:
 			Sfx.play("click", -10.0))
 	_fab_speed = _fab(_controls, "⚡", Rect2(576, 0, 112, 112), "secondary")
@@ -379,19 +388,30 @@ func _layout() -> void:
 	_top.queue_redraw()
 	# bas : rangée d'actions puis bande des portraits, posées au-dessus de la barre de navigation
 	_controls.position = Vector2(0, h - NavBar.total() - 128.0)
-	_strip.position = Vector2(0, _controls.position.y - 148.0)
+	_strip.position = Vector2(0, _controls.position.y - 164.0)
 	_boss = Data.boss_type(Game.stage)
 	var top := 112.0 + _dy
 	_fh = _strip.position.y - top
+	# écran haut : la place au-dessus du terrain sert au suivi du combat (maquette XC)
+	var need := CombatHud.needed(_boss != "")
+	_hud.visible = _fh - 560.0 >= need
+	_hud.show_boss = _boss != ""
+	battle.banner_in_field = not _hud.visible
+	var hud_top := top
+	if _hud.visible:
+		_hud.position = Vector2(0, top)
+		_hud.size = Vector2(720, need)
+		top += need
+		_fh -= need
 	var k := minf(_fh / 560.0, 1.25)
 	_field.position = Vector2(0, top)
 	_field.size = Vector2(720, _fh)
 	battle.scale = Vector2.ONE * k
 	battle.position = Vector2(-(720.0 * k - 720.0) * 0.5, _fh - 560.0 * k)
 	battle._base = battle.position
-	_boss_bar.position = Vector2(32, top + 16)
+	_boss_bar.position = Vector2(32, hud_top + _hud.boss_y()) if _hud.visible else Vector2(32, top + 16)
 	_boss_bar.visible = _boss != ""
-	_info.position = Vector2(32, top + (96.0 if _boss != "" else 16.0))
+	_info.position = Vector2(32, top + (16.0 if _hud.visible or _boss == "" else 96.0))
 	_buffs.position = Vector2(32, _strip.position.y - 64.0)
 	_toast_box.position = Vector2(32, _strip.position.y - 184.0)      # au-dessus des renforts actifs
 
@@ -603,7 +623,30 @@ func _open_ship() -> void:
 	sc.builds_requested.connect(func(): _open_room.call_deferred("pont"))
 	sc.mission_requested.connect(_open_mission)
 	sc.recruit_requested.connect(func(): _open_recruit.call_deferred())
+	sc.todo_requested.connect(_open_todo)
 	_open_modal(sc, 2)
+
+
+## « À faire » (maquette XB) et ordres de l'Amirauté (WJ), par-dessus l'Aurore.
+func _open_todo() -> void:
+	if _modal == null or not is_instance_valid(_modal):
+		return
+	var t := TodoScreen.new()
+	t.open_shop.connect(func(): _open_shop.call_deferred())
+	t.open_room.connect(func(r: String): _open_room.call_deferred(r))
+	t.open_evolve.connect(func(id: String): _open_evolve.call_deferred(id))
+	t.open_items.connect(func(): _open_collection.call_deferred(1))
+	t.open_orders.connect(_open_orders)
+	t.open_event.connect(func(e: Dictionary):
+		if _modal is ShipScreen:
+			(_modal as ShipScreen).open_event(e))
+	_modal.add_child(t)
+
+
+func _open_orders() -> void:
+	if _modal == null or not is_instance_valid(_modal):
+		return
+	_modal.add_child(OrdersScreen.new())
 
 
 ## Retour à la mission (le combat) depuis l'Aurore.
@@ -632,7 +675,12 @@ func _open_offline() -> void:
 	var o := OfflineScreen.new(Game.offline_report)
 	Game.offline_report = {}
 	o.chest_claimed.connect(_show_chest_toast)
-	o.closed.connect(func(): _go_home.call_deferred())
+	var room := [""]
+	o.room_requested.connect(func(r: String): room[0] = r)
+	o.closed.connect(func():
+		_go_home.call_deferred()
+		if room[0] != "":
+			_open_room.call_deferred(room[0]))
 	_open_modal(o)
 
 
@@ -808,11 +856,17 @@ func _on_cleared(_credits: float) -> void:
 	var shows_chest := frontier or Data.is_boss_stage(stage)
 	if frontier:
 		Game.record_generated(stage, true)
+	Game.orders.track("clear")
+	# liens d'équipage : ceux qui ont combattu ensemble se rapprochent
+	for b in Game.bond_gain(Game.squad_ids()):
+		_show_toast("Lien « %s » niveau %d · nouvelle conversation" % [b.name, Game.bond_level(String(b.id))], 3.0)
+	if Data.is_boss_stage(stage):
+		Game.orders.track("boss")
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if shows_chest:
 		var next_label := "Descendre au secteur %d" % (stage + 1) if Game.best_stage > stage else "Rejouer le secteur %d" % stage
-		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
+		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo, battle.sim.report())
 		var go_next := func():
 			_pick_boost(func():
 				if Game.best_stage > stage:
@@ -970,14 +1024,19 @@ func _refresh_boss() -> void:
 		_boss_bar.phase = ""
 		if big:
 			_boss_bar.phase = "Phase 2" if bu.phase2 else "Phase 1"
-		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= 2.0 and battle.sim.state == "fighting"
+		if bu.exposed_t > 0.0:
+			_boss_bar.phase = "exposé · dégâts +50 %"
+		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= Data.INTERRUPT_WINDOW and battle.sim.state == "fighting"
 		_warn.visible = warning
 		if warning:
-			_warn.set_texts("⚠ %s dans %d s" % [info.attack, int(ceil(bu.skill_cd))])
-			_warn.size = Vector2(656, 80)
-			_warn.position = Vector2(32, _field.position.y + 260.0)
+			# fenêtre de tir (maquette WB) : un contrôle interrompt, un bouclier pare
+			_warn.set_texts("⚠ %s dans %d s · fenêtre !" % [info.attack, int(ceil(bu.skill_cd))])
+			_warn.size = Vector2(656, 72)
+			# sur écran haut, l'alerte prend la place du bandeau d'annonces, hors du terrain (maquette XC)
+			_warn.position = Vector2(32, _hud.position.y + _hud.size.y - 74.0) if _hud.visible else Vector2(32, _field.position.y + 260.0)
 	else:
 		_warn.visible = false
+	_hud.has_banner = not _warn.visible
 	_boss_bar.queue_redraw()
 
 
@@ -1020,6 +1079,22 @@ func _refresh() -> void:
 	_auto_b.size.x = 528.0 if big else 400.0
 	_fab_cast.position.x = 576.0 if big else 448.0
 	_refresh_boss()
+	# part des dégâts sous chaque portrait (maquette XC), une fois que le combat a commencé
+	var best := -1
+	var bv := 0.0
+	for b in skill_buttons:
+		var sh: float = battle.sim.share(b.slot) if not battle.sim.dealt.is_empty() else -1.0
+		b.share = sh
+		if sh > bv:
+			bv = sh
+			best = b.slot
+	for b in skill_buttons:
+		b.top = b.slot == best
+		# pendant la fenêtre du boss, les pouvoirs qui interrompent ou parent s'allument (maquette WB)
+		var hint := ""
+		if b.unit != null and b.unit.alive and battle.sim.charging_boss() != null:
+			hint = {"gravity": "INTERROMPRE", "shield": "PARADE"}.get(b.unit.skill_kind, "")
+		b.hint = hint
 	var parts: Array = []
 	if Game.perseverance > 0:
 		parts.append("Persévérance + %d %%" % Game.perseverance_pct())

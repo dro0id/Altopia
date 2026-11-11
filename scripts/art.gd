@@ -132,21 +132,40 @@ static func draw_hero(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
 	var breathe := sin(t * 2.2 + 0.6) * 1.2
 	var lean := sin(PI * atk) * 6.0 + cast * -4.0
 	var fall := dead
-	ci.draw_set_transform(Vector2(0, -fall * 14.0), fall * 1.2, Vector2.ONE)
-	# ombre
-	ellipse(ci, Vector2(0, 2), 30.0 * (1.0 - fall * 0.4), 8.0, Color(0, 0, 0, 0.35))
-	# sac à dos et jambes
-	rrect(ci, Rect2(-37, -84 + bob, 18, 44), 6, dark)
+	# gabarit selon le rôle (maquette YC) : rempart large, dégâts élancé, soutien chargé, contrôle qui flotte
+	var role := String(h.get("role", ""))
+	var hover := (10.0 + sin(t * 2.0) * 3.0) if role == "control" else 0.0
+	ellipse(ci, Vector2(0, 2), 30.0 * (1.0 - fall * 0.4) * (0.7 if hover > 0.0 else 1.0), 8.0, Color(0, 0, 0, 0.35 if hover == 0.0 else 0.22))
+	ci.draw_set_transform(Vector2(0, -fall * 14.0 - hover), fall * 1.2, Vector2.ONE)
+	var tw := {"tank": 58.0, "dps": 40.0, "control": 44.0}.get(role, 46.0) as float
+	var leg_w := 19.0 if role == "tank" else 16.0
+	if role == "control":
+		_ring(ci, Vector2(0, -50 + bob), accent, t, true)
+	if role == "dps":
+		_scarf(ci, Vector2(-10 + lean * 0.4, -86 + bob), accent, t, false)
+	# sac à dos (sac médical pour le soutien) et jambes
+	if role == "healer":
+		rrect(ci, Rect2(-44, -92 + bob, 26, 54), 7, Color(0.92, 0.94, 0.98))
+		rrect(ci, Rect2(-34, -75 + bob, 6, 18), 1, Color(0.9, 0.25, 0.3))
+		rrect(ci, Rect2(-40, -69 + bob, 18, 6), 1, Color(0.9, 0.25, 0.3))
+	else:
+		rrect(ci, Rect2(-37 - (tw - 46.0) * 0.5, -84 + bob, 18, 44), 6, dark)
 	var step := sin(t * 2.2) * 1.0
 	for s in [-1, 1]:
-		var lx: float = s * 9.0
-		rrect(ci, Rect2(lx - 8, -34, 16, 34), 6, _shade(suit, 0.8))
+		var lx: float = s * (9.0 + (2.0 if role == "tank" else 0.0))
+		rrect(ci, Rect2(lx - leg_w * 0.5, -34, leg_w, 34), 6, _shade(suit, 0.8))
 		rrect(ci, Rect2(lx - 9 + step * s * 0.0, -9, 22, 11), 5, dark)
 	# bras arrière
 	limb(ci, Vector2(-14 + lean * 0.3, -66 + bob), Vector2(-24 + lean * 0.2, -40 + bob * 0.5), 11, _shade(suit, 0.75))
 	# torse
-	rrect(ci, Rect2(-23 + lean * 0.4, -86 + bob + breathe * 0.3, 46, 58), 16, suit)
-	rrect(ci, Rect2(-23 + lean * 0.4, -52 + bob, 46, 8), 3, accent)
+	rrect(ci, Rect2(-tw * 0.5 + lean * 0.4, -86 + bob + breathe * 0.3, tw, 58), 16, suit)
+	rrect(ci, Rect2(-tw * 0.5 + lean * 0.4, -52 + bob, tw, 8), 3, accent)
+	if role == "tank":
+		# épaulières
+		for s in [-1, 1]:
+			ellipse(ci, Vector2(s * 26 + lean * 0.4, -82 + bob), 15, 10, OUTLINE)
+			ellipse(ci, Vector2(s * 26 + lean * 0.4, -83 + bob), 13, 8, _shade(suit, 1.15))
+			rrect(ci, Rect2(s * 26 - 9 + lean * 0.4, -80 + bob, 18, 3), 1, accent)
 	rrect(ci, Rect2(-10 + lean * 0.4, -78 + bob, 20, 14), 4, _shade(suit, 0.7))
 	disc(ci, Vector2(-4 + lean * 0.4, -71 + bob), 2.2, accent)
 	disc(ci, Vector2(4 + lean * 0.4, -71 + bob), 2.2, Color(1, 0.4, 0.4) if p.get("hurt", 0.0) > 0.0 else accent)
@@ -154,10 +173,56 @@ static func draw_hero(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
 	var hc := Vector2(2 + lean * 0.8, -112 + bob * 1.2 + breathe)
 	_draw_head(ci, h, look, hc, t, atk, cast, stun)
 	# bras avant + arme
-	_draw_front_arm(ci, look, suit, accent, Vector2(16 + lean * 0.4, -68 + bob), atk, cast, t)
+	_draw_front_arm(ci, look, suit, accent, Vector2(16 + lean * 0.4 + (tw - 46.0) * 0.4, -68 + bob), atk, cast, t)
+	if role == "control":
+		_ring(ci, Vector2(0, -50 + bob), accent, t, false)
+	if role == "healer":
+		_drone(ci, Vector2(-46, -146 + sin(t * 2.6) * 5.0), accent, t)
+	if String(h.get("rarity", "")) == "epic":
+		_halo(ci, hc + Vector2(0, -52), accent, t)
 	aura(ci, Vector2(0, -70), cast, t, accent)
 	shatter(ci, Vector2(0, -60), accent, fall)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Anneau du contrôle (maquette YC) : moitié arrière dessinée avant le corps, moitié avant après.
+static func _ring(ci: CanvasItem, c: Vector2, col: Color, t: float, back: bool) -> void:
+	var rot := t * 1.4
+	var pts := PackedVector2Array()
+	for i in 25:
+		var a := (PI if back else 0.0) + PI * i / 24.0
+		pts.append(c + Vector2(cos(a + rot * 0.0) * 40.0, sin(a) * 9.0))
+	ci.draw_polyline(pts, OUTLINE, 6.0, true)
+	ci.draw_polyline(pts, Color(col, 0.9 if not back else 0.55), 3.5, true)
+	if not back:
+		var k := fmod(rot, TAU)
+		disc(ci, c + Vector2(cos(k) * 40.0, absf(sin(k)) * 9.0), 4.0, col)
+
+
+## Écharpe des dégâts : flotte derrière le cou.
+static func _scarf(ci: CanvasItem, neck: Vector2, col: Color, t: float, back: bool) -> void:
+	var fl := sin(t * 5.0) * 4.0
+	var tip := neck + (Vector2(-6, 52 + fl) if back else Vector2(-34, 14 + fl))
+	ci.draw_colored_polygon(PackedVector2Array([neck + Vector2(-4, -2), neck + Vector2(10, 2), tip + Vector2(6, 0), tip]), _shade(col, 0.85))
+	ci.draw_colored_polygon(PackedVector2Array([neck + Vector2(-6, -4), neck + Vector2(20, -4), neck + Vector2(20, 4), neck + Vector2(-6, 4)]), col)
+
+
+## Petit drone médical du soutien.
+static func _drone(ci: CanvasItem, c: Vector2, col: Color, t: float) -> void:
+	disc(ci, c, 13.0, Color(col, 0.18))
+	ellipse(ci, c, 10, 8, OUTLINE)
+	ellipse(ci, c, 8.5, 6.5, Color(0.9, 0.93, 0.98))
+	rrect(ci, Rect2(c.x - 1.5, c.y - 4.5, 3, 9), 1, Color(0.9, 0.25, 0.3))
+	rrect(ci, Rect2(c.x - 4.5, c.y - 1.5, 9, 3), 1, Color(0.9, 0.25, 0.3))
+	var w := absf(sin(t * 30.0)) * 8.0 + 4.0
+	ci.draw_line(c + Vector2(-w, -9), c + Vector2(w, -9), Color(1, 1, 1, 0.6), 2.0)
+
+
+## Halo des héros épiques.
+static func _halo(ci: CanvasItem, c: Vector2, col: Color, t: float) -> void:
+	var a := 0.55 + 0.25 * sin(t * 2.0)
+	ci.draw_arc(c, 22, PI * 1.05, PI * 1.95, 14, Color(col, a), 4.0, true)
+	ci.draw_arc(c, 22, PI * 1.05, PI * 1.95, 14, Color(1, 1, 1, a * 0.4), 1.5, true)
 
 
 static func _draw_head(ci: CanvasItem, h: Dictionary, look: Dictionary, c: Vector2, t: float, atk: float, cast: float, stun: bool) -> void:
@@ -399,9 +464,13 @@ static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void
 	var jump := cast * -16.0
 	var body_y := breathe * 1.2 + wind * 5.0 - hit * 6.0 + jump + hurt * 3.0 + absf(sin(stride)) * -2.5 * move
 	var weapon: String = look.weapon
+	var role := String(h.get("role", ""))
+	var hover := (10.0 + sin(t * 2.0) * 3.0) if role == "control" else 0.0
+	ellipse(ci, Vector2(0, 2), 32.0 * (1.0 - cast * 0.35) * (0.7 if hover > 0.0 else 1.0), 9.0 * (1.0 - cast * 0.3), Color(0, 0, 0, 0.35 if hover == 0.0 else 0.22))
 	# écrasement à la mort : le héros s'affaisse
-	ci.draw_set_transform(Vector2(0, 0), fall * 0.25, Vector2(1.0 + fall * 0.35, 1.0 - fall * 0.7))
-	ellipse(ci, Vector2(0, 2), 32.0 * (1.0 - cast * 0.35), 9.0 * (1.0 - cast * 0.3), Color(0, 0, 0, 0.35))
+	ci.draw_set_transform(Vector2(0, -hover), fall * 0.25, Vector2(1.0 + fall * 0.35, 1.0 - fall * 0.7))
+	if role == "control":
+		_ring(ci, Vector2(lean_x, -50 + body_y), accent, t, true)
 	# jambes : pas alternés quand ça avance, appui sur une jambe sinon
 	for s in [-1, 1]:
 		var ph := stride + (0.0 if s < 0 else PI)
@@ -424,13 +493,28 @@ static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void
 	rh = rh.lerp(Vector2(24, -122 + body_y), cast)
 	limb(ci, Vector2(-27 + lean_x, -74 + body_y), lh, 11, _shade(suit, 0.8))
 	limb(ci, Vector2(27 + lean_x, -74 + body_y), rh, 11, _shade(suit, 0.8))
-	# torse et sac à dos
-	rrect(ci, Rect2(-25 + lean_x - breathe * 0.4, -90 + body_y, 50 + breathe * 0.8, 60 - wind * 2.0), 16, suit)
-	rrect(ci, Rect2(-25 + lean_x, -52 + body_y, 50, 7), 3, accent)
-	rrect(ci, Rect2(-17 + lean_x, -84 + body_y, 34, 38), 8, dark)
-	rrect(ci, Rect2(-11 + lean_x, -76 + body_y, 8, 4), 2, accent)
-	rrect(ci, Rect2(3 + lean_x, -76 + body_y, 8, 4), 2, accent)
-	rrect(ci, Rect2(-2 + lean_x, -70 + body_y, 4, 18), 2, _shade(suit, 0.5))
+	# torse et sac à dos (largeur selon le rôle, maquette YC)
+	var tw := {"tank": 62.0, "dps": 44.0, "control": 48.0}.get(role, 50.0) as float
+	rrect(ci, Rect2(-tw * 0.5 + lean_x - breathe * 0.4, -90 + body_y, tw + breathe * 0.8, 60 - wind * 2.0), 16, suit)
+	rrect(ci, Rect2(-tw * 0.5 + lean_x, -52 + body_y, tw, 7), 3, accent)
+	if role == "healer":
+		# sac médical : blanc, croix rouge
+		rrect(ci, Rect2(-20 + lean_x, -88 + body_y, 40, 44), 8, Color(0.92, 0.94, 0.98))
+		rrect(ci, Rect2(-3 + lean_x, -78 + body_y, 6, 24), 1, Color(0.9, 0.25, 0.3))
+		rrect(ci, Rect2(-12 + lean_x, -69 + body_y, 24, 6), 1, Color(0.9, 0.25, 0.3))
+	else:
+		rrect(ci, Rect2(-17 + lean_x, -84 + body_y, 34, 38), 8, dark)
+		rrect(ci, Rect2(-11 + lean_x, -76 + body_y, 8, 4), 2, accent)
+		rrect(ci, Rect2(3 + lean_x, -76 + body_y, 8, 4), 2, accent)
+		rrect(ci, Rect2(-2 + lean_x, -70 + body_y, 4, 18), 2, _shade(suit, 0.5))
+	if role == "tank":
+		for sx in [-1, 1]:
+			ellipse(ci, Vector2(sx * 29 + lean_x, -86 + body_y), 16, 10, OUTLINE)
+			ellipse(ci, Vector2(sx * 29 + lean_x, -87 + body_y), 14, 8, _shade(suit, 1.15))
+	if role == "dps":
+		_scarf(ci, Vector2(lean_x, -92 + body_y), accent, t, true)
+	if role == "control":
+		_ring(ci, Vector2(lean_x, -50 + body_y), accent, t, false)
 	# réacteur du sac à dos quand on avance ou qu'on lance un pouvoir
 	var thrust := maxf(move, cast)
 	if thrust > 0.2:
@@ -485,6 +569,10 @@ static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void
 			if hit > 0.2:
 				ci.draw_arc(oc, 14 + (1.0 - hit) * 34.0, 0, TAU, 6, Color(accent.r, accent.g, accent.b, hit), 3.0)
 	_draw_head_back(ci, h, look, Vector2(lean_x * 1.3, -112 + body_y * 1.1 - hit * 2.0 + wind * 2.0), t, hit - wind * 0.6 + hurt)
+	if role == "healer":
+		_drone(ci, Vector2(40 + lean_x, -150 + sin(t * 2.6) * 5.0), accent, t)
+	if String(h.get("rarity", "")) == "epic":
+		_halo(ci, Vector2(lean_x * 1.3, -166 + body_y), accent, t)
 	aura(ci, Vector2(0, -70), cast, t, accent)
 	shatter(ci, Vector2(0, -60), accent, fall)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

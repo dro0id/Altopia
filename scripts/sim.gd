@@ -24,6 +24,22 @@ class Unit:
 	var skill_max := 10.0
 	var shield := 0.0
 	var shield_t := 0.0
+	var shield_src := -1             # place du héros qui a posé le bouclier (part de soutien)
+	var last_target: Unit = null     # dernière cible attaquée (intention affichée, maquette WC)
+	var exposed_t := 0.0             # boss interrompu : dégâts reçus +50 % (maquette WB)
+	var sig := ""                    # pouvoir signature (maquette WA) : identifiant du héros
+	var shield_sig := ""             # signature du héros qui a posé le bouclier
+	var slow_t := 0.0                # Tir de barrage : attaque 20 % moins vite
+	var haste_t := 0.0               # Ordre de tir : attaque 15 % plus vite
+	var dr_t := 0.0                  # Spores apaisantes : dégâts reçus −20 %
+	var vuln_t := 0.0                # Implosion : dégâts reçus +20 %
+	var hot_t := 0.0                 # Nanites : soin continu
+	var hot := 0.0
+	var hot_src := -1
+	var taunt := 0.0                 # talents (maquette WG)
+	var laststand := false
+	var execute := 0.0
+	var lifesteal := 0.0
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -57,6 +73,15 @@ var fallen := 0                  # héros tombés pendant l'étage
 var stars := 0                   # étoiles à la victoire (voir Data.stars_for)
 var combo := 0                   # enchaînement de pouvoirs en cours
 var max_combo := 0
+var dealt := {}                  # dégâts infligés par place de héros (part de dégâts, maquettes XC et XD)
+var support := {}                # soins et dégâts absorbés par bouclier, par place de héros
+var finisher := -1
+var casts := {}
+var focus: Unit = null
+var tactical := false            # recherche « Auto tactique » : l'auto garde contrôle et bouclier pour la fenêtre du boss
+var parry_until := -1.0
+var revived := false             # Second souffle déjà utilisé dans ce combat
+var bursts: Array = []           # Carapace : explosions de bouclier à venir {t, src, dmg}          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -72,6 +97,8 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	var slot := 0
 	for e in team:
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
+		_apply_talents(u, e.get("tal", {}))
+		u.skill_mod += float(e.get("bond", 0.0))        # liens d'équipage (maquette WH)
 		var sb: Dictionary = e.get("ship", {})
 		if not sb.is_empty():
 			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss
@@ -81,6 +108,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 			u.skill_max *= 1.0 - minf(0.5, float(sb.get("cdr", 0.0)))
 			u.skill_cd = minf(u.skill_cd, u.skill_max)
 			u.boss_dmg += float(sb.get("boss", 0.0))
+			tactical = tactical or bool(sb.get("tactic", false))
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)
@@ -172,6 +200,7 @@ func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int 
 	u.interval = h.interval
 	u.ranged = h.ranged
 	u.skill_kind = h.skill.kind
+	u.sig = id if Data.SIGNATURES.has(id) else ""
 	u.skill_max = h.skill.cd
 	u.skill_cd = h.skill.cd * 0.5
 	u.cd = 0.4 + 0.15 * slot
@@ -308,6 +337,7 @@ func _cast(u: Unit) -> bool:
 	u.warned = false
 	var k := 1.0
 	if u.side == 0:
+		casts[u.slot] = int(casts.get(u.slot, 0)) + 1
 		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
 		_last_cast = time
 		max_combo = maxi(max_combo, combo)
@@ -318,13 +348,30 @@ func _cast(u: Unit) -> bool:
 		"shield":
 			for a in _alive(0):
 				a.shield = u.atk * 3.5 * k
-				a.shield_t = 6.0
+				a.shield_t = 9.0 if u.sig == "pim" else 6.0
+				a.shield_src = u.slot
+				a.shield_sig = u.sig
+				if u.sig == "vance":
+					a.haste_t = 6.0
+			if u.sig == "gorn":
+				bursts.append({"t": time + 6.0, "src": u, "dmg": u.atk * 2.5 * k})
 			events.append({"type": "cast", "unit": u, "kind": "shield"})
 		"volley":
 			var i := 0
+			var strongest: Unit = null
 			for e in _alive(1):
-				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 2.4 * k, "fx": "missile"})
+				var d := u.atk * 2.4 * k
+				if u.sig == "kai" and e.hp_frac() < 0.3:
+					d *= 2.0
+				var hit := {"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": d, "fx": "missile"}
+				if u.sig == "dax":
+					hit.slow = 4.0
+				pending.append(hit)
+				if strongest == null or e.hp > strongest.hp:
+					strongest = e
 				i += 1
+			if u.sig == "brix" and strongest != null:
+				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": strongest, "dmg": u.atk * 2.4 * k, "fx": "missile"})
 			events.append({"type": "cast", "unit": u, "kind": "volley", "targets": _alive(1)})
 		"pierce":
 			var best: Unit = null
@@ -332,15 +379,43 @@ func _cast(u: Unit) -> bool:
 				if best == null or e.hp > best.hp:
 					best = e
 			if best != null:
-				pending.append({"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0 * k, "fx": "pierce"})
+				var shot := {"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0 * k, "fx": "pierce"}
+				if u.sig == "sora":
+					shot.dmg *= 1.5
+					shot.crit = true
+				elif u.sig == "omega":
+					shot.stun = 1.5
+				pending.append(shot)
+				if u.sig == "zyra":
+					for e in _alive(1):
+						if e != best:
+							pending.append({"t": 0.5, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 6.0 * k * 0.6, "fx": "pierce"})
+							break
 				events.append({"type": "cast", "unit": u, "kind": "pierce", "target": best})
 		"repair":
+			if u.sig == "aria" and not revived:
+				for a in units:
+					if a.side == 0 and not a.alive:
+						a.alive = true
+						a.hp = a.max_hp * 0.5
+						a.stun_t = 0.0
+						revived = true
+						events.append({"type": "revive", "unit": a, "by": u})
+						break
 			for a in _alive(0):
-				_heal(a, u.atk * 2.4 * k * u.heal_mult)
+				_heal(a, u.atk * 2.4 * k * u.heal_mult, u.slot)
+				if u.sig == "t9":
+					a.hot_t = 4.0
+					a.hot = a.max_hp * 0.03 * u.heal_mult
+					a.hot_src = u.slot
+				elif u.sig == "neelo":
+					a.dr_t = 4.0
 			events.append({"type": "cast", "unit": u, "kind": "repair"})
 		"gravity":
 			for e in _alive(1):
-				e.stun_t = 2.0 + 0.5 * u.evo
+				e.stun_t = 2.0 + 0.5 * u.evo + (1.0 if u.sig == "lumi" else 0.0)
+				if u.sig == "oru":
+					e.vuln_t = e.stun_t
 				pending.append({"t": 0.3, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 1.3 * k, "fx": "gravity"})
 			events.append({"type": "cast", "unit": u, "kind": "gravity"})
 		"prism":
@@ -368,7 +443,94 @@ func _cast(u: Unit) -> bool:
 				var sk := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
 				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * sk, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
+	if u.side == 0:
+		_window_effect(u)
 	return true
+
+
+## Boss qui prépare son gros coup et dont la fenêtre de tir est ouverte (maquette WB), ou null.
+func charging_boss() -> Unit:
+	for e in _alive(1):
+		if e.boss and e.skill_cd > 0.0 and e.skill_cd <= Data.INTERRUPT_WINDOW:
+			return e
+	return null
+
+
+## Pouvoir lancé dans la fenêtre : un contrôle interrompt le boss (exposé 3 s), un bouclier pare son coup.
+func _window_effect(u: Unit) -> void:
+	var bu := charging_boss()
+	if bu == null:
+		return
+	if u.skill_kind == "gravity":
+		bu.skill_cd = bu.skill_max
+		bu.warned = false
+		bu.exposed_t = Data.EXPOSED_TIME
+		events.append({"type": "interrupt", "unit": bu, "by": u})
+	elif u.skill_kind == "shield":
+		parry_until = time + bu.skill_cd + 1.2
+		events.append({"type": "parry_ready", "unit": bu, "by": u})
+
+
+## Auto tactique : garder un contrôle ou un bouclier tant qu'un boss est là mais pas encore dans sa fenêtre.
+func _holds(u: Unit) -> bool:
+	if not tactical or not (u.skill_kind in ["gravity", "shield"]):
+		return false
+	for e in _alive(1):
+		if e.boss:
+			return e.skill_cd > Data.INTERRUPT_WINDOW
+	return false
+
+
+## Désigne la cible de l'escouade ; null revient à l'ordre normal.
+func set_focus(u: Unit) -> void:
+	focus = u if u != null and u.alive and u.side == 1 else null
+
+
+## Talents choisis (maquette WG) : statistiques et effets propres au héros.
+func _apply_talents(u: Unit, fx: Dictionary) -> void:
+	if fx.is_empty():
+		return
+	u.max_hp *= 1.0 + float(fx.get("hp", 0.0))
+	u.hp = u.max_hp
+	u.atk *= 1.0 + float(fx.get("atk", 0.0))
+	u.def *= 1.0 + float(fx.get("def", 0.0))
+	u.interval /= 1.0 + float(fx.get("speed", 0.0))
+	u.crit += float(fx.get("crit", 0.0))
+	u.boss_dmg += float(fx.get("boss", 0.0))
+	u.heal_mult += float(fx.get("heal", 0.0))
+	u.skill_mod += float(fx.get("skill", 0.0))
+	u.skill_max *= 1.0 - minf(0.5, float(fx.get("cdr", 0.0)))
+	u.skill_cd = 0.0 if float(fx.get("ready", 0.0)) > 0.0 else minf(u.skill_cd, u.skill_max)
+	u.taunt = float(fx.get("taunt", 0.0))
+	u.laststand = float(fx.get("laststand", 0.0)) > 0.0
+	u.execute = float(fx.get("execute", 0.0))
+	u.lifesteal = float(fx.get("lifesteal", 0.0))
+
+
+## Bilan du combat pour l'écran de résultat (maquette XD).
+func report() -> Dictionary:
+	var ids := {}
+	for u in units:
+		if u.side == 0:
+			ids[u.slot] = u.id
+	return {"dealt": dealt.duplicate(), "support": support.duplicate(), "casts": casts.duplicate(), "finisher": finisher, "fallen": fallen, "ids": ids}
+
+
+## Part de chaque héros (0 à 1) : dégâts infligés, et soutien (soins + boucliers).
+func share(slot: int) -> float:
+	var tot := 0.0
+	for v in dealt.values():
+		tot += float(v)
+	return float(dealt.get(slot, 0.0)) / tot if tot > 0.0 else 0.0
+
+
+func support_share(slot: int) -> float:
+	var tot := 0.0
+	for v in dealt.values():
+		tot += float(v)
+	for v in support.values():
+		tot += float(v)
+	return float(support.get(slot, 0.0)) / tot if tot > 0.0 else 0.0
 
 
 ## Déclenche tout de suite le pouvoir d'un ennemi (pour les tests).
@@ -377,9 +539,11 @@ func cast_enemy(u: Unit) -> bool:
 	return _cast(u)
 
 
-func _heal(a: Unit, amount: float) -> void:
+func _heal(a: Unit, amount: float, src := -1) -> void:
 	var before := a.hp
 	a.hp = minf(a.max_hp, a.hp + amount)
+	if src >= 0:
+		support[src] = float(support.get(src, 0.0)) + a.hp - before
 	events.append({"type": "heal", "unit": a, "amount": a.hp - before})
 
 
@@ -388,7 +552,12 @@ func _pick_target(u: Unit) -> Unit:
 	if foes.is_empty():
 		return null
 	if u.side == 0:
+		if focus != null and focus.alive and focus.side == 1:
+			return focus                     # cible désignée par le joueur
 		return foes[0]                       # on vise l'ennemi le plus proche : la première place vivante
+	for f in foes:
+		if f.taunt > 0.0 and rng.randf() < f.taunt:
+			return f                         # Provocation : ce héros attire les coups
 	if rng.randf() < 0.6:
 		return foes[0]
 	return foes[rng.randi() % foes.size()]
@@ -399,11 +568,48 @@ func _apply_hit(p: Dictionary) -> void:
 	if not dst.alive:
 		return
 	var dmg: float = p.dmg * 100.0 / (100.0 + dst.def)
+	var src0: Unit = p.get("src")
+	if dst.exposed_t > 0.0:
+		dmg *= 1.0 + Data.EXPOSED_BONUS
+	if dst.vuln_t > 0.0:
+		dmg *= 1.2
+	if src0 != null and src0.execute > 0.0 and dst.hp_frac() < 0.3:
+		dmg *= 1.0 + src0.execute
+	if dst.dr_t > 0.0:
+		dmg *= 0.8
+	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
+		# parade : le coup du boss est absorbé en entier
+		events.append({"type": "parry", "unit": dst})
+		return
 	if dst.shield > 0.0:
 		var absorbed := minf(dst.shield, dmg)
 		dst.shield -= absorbed
 		dmg -= absorbed
+		if dst.shield_src >= 0:
+			support[dst.shield_src] = float(support.get(dst.shield_src, 0.0)) + absorbed
+		if dst.shield_sig == "mara" and src0 != null and src0.side == 1 and src0.alive and absorbed > 0.0:
+			# Contre-choc : le bouclier renvoie 30 % des dégâts absorbés
+			for m in units:
+				if m.side == 0 and m.slot == dst.shield_src:
+					pending.append({"t": 0.05, "kind": "hit", "src": m, "dst": src0, "dmg": absorbed * 0.3, "fx": "reflect"})
+					break
+	var src: Unit = p.get("src")
+	if src != null and src.side == 0 and dst.side == 1:
+		dealt[src.slot] = float(dealt.get(src.slot, 0.0)) + minf(dmg, maxf(0.0, dst.hp))
+		if dst.boss and dst.hp - dmg <= 0.0:
+			finisher = src.slot
 	dst.hp -= dmg
+	if src0 != null and src0.lifesteal > 0.0 and src0.alive and dst.side != src0.side:
+		src0.hp = minf(src0.max_hp, src0.hp + dmg * src0.lifesteal)
+	if dst.laststand and dst.hp > 0.0 and dst.hp < dst.max_hp * 0.3:
+		# Dernier rempart : DÉF doublée 5 s, une fois par combat
+		dst.laststand = false
+		dst.def *= 2.0
+		pending.append({"t": 5.0, "kind": "unstand", "dst": dst})
+	if p.has("slow"):
+		dst.slow_t = maxf(dst.slow_t, float(p.slow))
+	if p.has("stun") and dst.hp > 0.0:
+		dst.stun_t = maxf(dst.stun_t, float(p.stun))
 	events.append({"type": "hit", "unit": dst, "amount": dmg, "fx": p.get("fx", ""), "crit": bool(p.get("crit", false))})
 	if dst.hp <= 0.0:
 		dst.alive = false
@@ -438,12 +644,13 @@ func _act(u: Unit) -> void:
 			if a.hp_frac() < 0.75 and (low == null or a.hp_frac() < low.hp_frac()):
 				low = a
 		if low != null:
-			_heal(low, u.atk * 2.0 * u.heal_mult)
+			_heal(low, u.atk * 2.0 * u.heal_mult, u.slot)
 			events.append({"type": "attack", "src": u, "dst": low, "ranged": true, "delay": 0.2, "heal": true})
 			return
 	var t := _pick_target(u)
 	if t == null:
 		return
+	u.last_target = t
 	var delay := 0.35 if u.ranged else 0.14
 	var dmg := u.atk * rng.randf_range(0.92, 1.08)
 	var crit := false
@@ -471,6 +678,17 @@ func step(dt: float) -> void:
 		u.skill_cd = maxf(0.0, u.skill_cd - dt)
 		u.cd = maxf(0.0, u.cd - dt)
 		u.stun_t = maxf(0.0, u.stun_t - dt)
+		u.exposed_t = maxf(0.0, u.exposed_t - dt)
+		u.slow_t = maxf(0.0, u.slow_t - dt)
+		u.haste_t = maxf(0.0, u.haste_t - dt)
+		u.dr_t = maxf(0.0, u.dr_t - dt)
+		u.vuln_t = maxf(0.0, u.vuln_t - dt)
+		if u.hot_t > 0.0:
+			u.hot_t -= dt
+			var before := u.hp
+			u.hp = minf(u.max_hp, u.hp + u.hot * dt)
+			if u.hot_src >= 0:
+				support[u.hot_src] = float(support.get(u.hot_src, 0.0)) + u.hp - before
 		if u.shield_t > 0.0:
 			u.shield_t -= dt
 			if u.shield_t <= 0.0:
@@ -484,16 +702,31 @@ func step(dt: float) -> void:
 			events.append({"type": "warn", "unit": u})
 		if u.side == 1 and u.boss and u.skill_cd <= 0.0:
 			_cast(u)
-		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0:
+		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0 and not _holds(u):
 			_cast(u)
 		if u.cd <= 0.0 and u.alive:
-			u.cd = u.interval
+			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0)
 			_act(u)
+	# Carapace : le bouclier de Gorn explose quand il se termine
+	var bi := 0
+	while bi < bursts.size():
+		if time >= float(bursts[bi].t):
+			var b: Dictionary = bursts[bi]
+			if (b.src as Unit).alive:
+				for e in _alive(1):
+					pending.append({"t": 0.05, "kind": "hit", "src": b.src, "dst": e, "dmg": b.dmg, "fx": "gravity"})
+				events.append({"type": "burst", "unit": b.src})
+			bursts.remove_at(bi)
+		else:
+			bi += 1
 	var i := 0
 	while i < pending.size():
 		pending[i].t -= dt
 		if pending[i].t <= 0.0:
-			_apply_hit(pending[i])
+			if String(pending[i].get("kind", "hit")) == "unstand":
+				(pending[i].dst as Unit).def /= 2.0          # fin du Dernier rempart
+			else:
+				_apply_hit(pending[i])
 			pending.remove_at(i)
 		else:
 			i += 1

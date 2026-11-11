@@ -67,6 +67,124 @@ func _initialize() -> void:
 			main._open_collection(1)
 			await process_frame
 			M3.toast(main, "Objet équipé sur Mara"),
+		"cible": func():
+			await _wait(2.45)
+			var best = null
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.alive and (best == null or u.hp > best.hp):
+					best = u
+			main.battle.sim.set_focus(best)
+			main.battle.speed = 0.0
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.alive and u.boss:
+					u.skill_cd = 2.5,
+		"fenetre": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle()
+			var sim0 = main.battle.sim
+			for i in 60:
+				if sim0.wave >= sim0.waves_total:
+					break
+				for e in sim0.units:
+					if e.side == 1 and not e.boss:
+						e.hp = 0.0
+				await _wait(0.05)
+			await _wait(0.4)
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.boss and u.alive:
+					u.skill_cd = 1.5
+			main.battle.speed = 0.0,
+		"interrompu": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle()
+			var sim0 = main.battle.sim
+			for i in 60:
+				if sim0.wave >= sim0.waves_total:
+					break
+				for e in sim0.units:
+					if e.side == 1 and not e.boss:
+						e.hp = 0.0
+				await _wait(0.05)
+			await _wait(0.4)
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.boss and u.alive:
+					u.skill_cd = 1.5
+			for u in main.battle.sim.units:
+				if u.side == 0 and u.skill_kind == "gravity":
+					u.skill_cd = 0.0
+					main.battle.sim.cast(u.slot)
+			await _wait(0.3)
+			main.battle.speed = 0.0,
+		"signature": func():
+			await _wait(2.0)
+			while main.battle.sim._alive(1).is_empty():
+				await process_frame
+			for u in main.battle.sim.units:
+				if u.side == 0 and u.id == "zyra":
+					main.battle.sim.events.append({"type": "cast", "unit": u, "kind": "pierce", "target": main.battle.sim._alive(1)[0]})
+			await _wait(0.15)
+			main.battle.banner_t = 60.0
+			main.battle.speed = 0.0,
+		"pouvoirs": func(): main._open_modal(HeroScreen.new("zyra", 2)),
+		"afaire": func():
+			_ship(10)
+			g.orders.refresh()
+			g.orders.track("harvest", 3)
+			g.orders.track("cast", 6)
+			g.fragments["mara"] = 20
+			main._open_ship()
+			await process_frame
+			main._open_todo(),
+		"ordres": func():
+			_ship(10)
+			g.orders.refresh()
+			g.orders.track("harvest", 3)
+			g.orders.track("cast", 6)
+			g.orders.week_done = 7
+			g.orders.week_claimed = [3, 6]
+			main._open_ship()
+			await process_frame
+			main._open_orders(),
+		"rapport": func():
+			_ship(10)
+			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"start": 1000, "stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "atelier", "to": 8, "end": 1000 + 3600}], "research": "blindage", "trained": {}, "shuttles": ["colibri"], "lost": {"raffinerie": 126.0}, "full": {"raffinerie": 22200.0}, "at": {"research": 1000 + 32400, "shuttle_colibri": 1000 + 21600}}})),
+		"evenement": func():
+			_ship(10)
+			g.board.pending = [{"id": "clandestin", "room": "serre", "expires": int(Time.get_unix_time_from_system()) + 7000}, {"id": "visite", "room": "pont", "expires": int(Time.get_unix_time_from_system()) + 3000}]
+			main._open_ship(),
+		"evenement2": func():
+			_ship(10)
+			g.board.pending = [{"id": "terre", "room": "antenne", "expires": int(Time.get_unix_time_from_system()) + 7000}, {"id": "clandestin", "room": "serre", "expires": int(Time.get_unix_time_from_system()) + 7000}]
+			main._open_ship()
+			await process_frame
+			main._modal.open_event(g.board.pending[1]),
+		"talents": func():
+			g.hero_stars["mara"] = 3
+			g.talents = {"mara": {"2": 0}}
+			main._open_modal(HeroScreen.new("mara"))
+			await process_frame
+			main._modal.add_child(TalentScreen.new("mara")),
+		"fiche_talents": func():
+			g.hero_stars["mara"] = 3
+			g.talents = {"mara": {"2": 0}}
+			main._open_modal(HeroScreen.new("mara")),
+		"liens": func():
+			for id in ["vance", "dax", "pim", "neelo", "sora", "lumi", "gorn", "omega", "brix"]:
+				g.owned[id] = true
+			g.bond_xp = {"anciens": 52, "ecoutent": 25, "chasseurs": 4, "medical": 120}
+			g.bond_read = ["anciens:1", "medical:1", "medical:2"]
+			main._open_collection(0)
+			await process_frame
+			main._modal.add_child(BondsScreen.new()),
+		"conversation": func():
+			g.bond_xp = {"ecoutent": 25}
+			main._open_collection(0)
+			await process_frame
+			var bs := BondsScreen.new()
+			main._modal.add_child(bs)
+			bs._open_convo(Bonds.get_bond("ecoutent"), 0),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -183,7 +301,7 @@ func _initialize() -> void:
 			main._open_ship()
 			main._open_room("pont"),
 		"labo": func():
-			_ship(10)
+			_ship(15)
 			main._open_ship()
 			main._open_room("labo"),
 		"quartiers": func():
@@ -298,7 +416,8 @@ func _initialize() -> void:
 		"victoire": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch
-			var rs := ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)
+			var rep := {"dealt": {0: 820.0, 1: 2310.0, 2: 2830.0, 3: 300.0, 4: 1340.0}, "support": {0: 1500.0, 3: 2200.0, 4: 80.0}, "casts": {2: 2, 1: 3}, "finisher": 2, "fallen": 1, "ids": {0: "mara", 1: "kai", 2: "zyra", 3: "aria", 4: "oru"}}
+			var rs := ResultScreen.new(20, 2, ch, "Monter à l'étage 21", 4, rep)
 			main._open_modal(rs)
 			rs._cv.arm()
 			rs._cv.t = rs._cv._t0 + rs._cv.open_at - 0.02,
@@ -307,7 +426,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

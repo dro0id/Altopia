@@ -950,3 +950,222 @@ func test_ship() -> void:
 	_check(int(Ship.upgrade_cost("pont", 11).time) >= 1800, "chantiers longs au-delà du niveau 10")
 	_check(Ship.tier_of(1) == 1 and Ship.tier_of(6) == 2 and Ship.tier_of(15) == 3 and Ship.tier_of(19) == 4 and Ship.tier_of(20) == 5, "cinq versions du vaisseau")
 	ShipState.clock_offset = 0
+
+
+## Maquette WB : un contrôle dans la fenêtre interrompt le boss (exposé), un bouclier pare son coup.
+func test_boss_window() -> void:
+	var s := BattleSim.new(_team(30), 10, 3)
+	# on amène la vague du boss
+	while s.wave < s.waves_total and s.state == "fighting":
+		for e in s._alive(1):
+			if not e.boss:
+				e.hp = 0.0
+				e.alive = false
+		s.step(0.1)
+	var bu: BattleSim.Unit = null
+	for e in s._alive(1):
+		if e.boss:
+			bu = e
+	_check(bu != null, "le boss du secteur 10 arrive à la dernière vague")
+	if bu == null:
+		return
+	var oru: BattleSim.Unit = null
+	var mara: BattleSim.Unit = null
+	for u in s._alive(0):
+		if u.id == "oru":
+			oru = u
+		elif u.id == "mara":
+			mara = u
+	# hors fenêtre : aucun effet
+	bu.skill_cd = 6.0
+	oru.skill_cd = 0.0
+	s.cast(oru.slot)
+	_check(bu.exposed_t == 0.0 and bu.skill_cd == 6.0, "contrôle hors fenêtre : pas d'interruption")
+	# dans la fenêtre : interrompu et exposé
+	bu.skill_cd = 1.5
+	oru.skill_cd = 0.0
+	s.cast(oru.slot)
+	_check(bu.exposed_t > 0.0 and bu.skill_cd == bu.skill_max, "contrôle dans la fenêtre : boss interrompu et exposé")
+	var hp0 := bu.hp
+	s._apply_hit({"src": mara, "dst": bu, "dmg": 100.0, "fx": ""})
+	var exposed_dmg := hp0 - bu.hp
+	bu.exposed_t = 0.0
+	hp0 = bu.hp
+	s._apply_hit({"src": mara, "dst": bu, "dmg": 100.0, "fx": ""})
+	_check(is_equal_approx(exposed_dmg, (hp0 - bu.hp) * 1.5), "boss exposé : dégâts reçus +50 %")
+	# bouclier dans la fenêtre : le coup du boss est paré
+	bu.skill_cd = 1.0
+	mara.skill_cd = 0.0
+	s.cast(mara.slot)
+	var hp1 := mara.hp
+	var sh := mara.shield
+	s._apply_hit({"src": bu, "dst": mara, "dmg": 500.0, "fx": "slam"})
+	_check(mara.hp == hp1 and mara.shield == sh, "bouclier dans la fenêtre : coup du boss paré")
+	# auto tactique : le contrôle attend la fenêtre
+	s.tactical = true
+	bu.skill_cd = 8.0
+	_check(s._holds(oru), "auto tactique : contrôle gardé hors fenêtre")
+	bu.skill_cd = 1.0
+	_check(not s._holds(oru), "auto tactique : contrôle lancé dans la fenêtre")
+
+
+## Maquette WA : quelques pouvoirs signature.
+func test_signatures() -> void:
+	var team: Array = []
+	for id in ["pim", "kai", "aria", "lumi", "zyra"]:
+		team.append({"id": id, "level": 20})
+	var s := BattleSim.new(team, 5, 2)
+	var by := {}
+	for u in s._alive(0):
+		by[u.id] = u
+	# Rivets renforcés : bouclier de 9 s
+	for u in s._alive(0):
+		u.skill_cd = 0.0
+	s.cast(by.pim.slot)
+	_check(is_equal_approx(by.kai.shield_t, 9.0), "Pim : bouclier de 9 s")
+	# Éblouissement : étourdissement +1 s
+	s.cast(by.lumi.slot)
+	var e0: BattleSim.Unit = s._alive(1)[0]
+	_check(is_equal_approx(e0.stun_t, 3.0), "Lumi : étourdissement de 3 s")
+	# Second souffle : relève un héros tombé, une seule fois
+	by.zyra.alive = false
+	by.zyra.hp = 0.0
+	by.aria.skill_cd = 0.0
+	s.cast(by.aria.slot)
+	_check(by.zyra.alive and by.zyra.hp > 0.0, "Aria : relève un héros tombé")
+	by.zyra.alive = false
+	by.aria.skill_cd = 0.0
+	s.cast(by.aria.slot)
+	_check(not by.zyra.alive, "Aria : une seule fois par combat")
+	# Achève : dégâts doublés sous 30 % de PV
+	var low: BattleSim.Unit = s._alive(1)[0]
+	low.hp = low.max_hp * 0.2
+	s.pending.clear()
+	by.kai.skill_cd = 0.0
+	s.cast(by.kai.slot)
+	var d_low := 0.0
+	var d_full := 0.0
+	for p in s.pending:
+		if p.dst == low:
+			d_low = p.dmg
+		elif d_full == 0.0:
+			d_full = p.dmg
+	_check(d_full > 0.0 and is_equal_approx(d_low, d_full * 2.0), "Kaï : dégâts doublés sous 30 % de PV")
+
+
+## Maquette WJ : ordres du jour, réclamation, solde de la semaine, renouvellement.
+func test_orders() -> void:
+	var o := Orders.new()
+	var d0 := Orders.today()
+	o.refresh(d0)
+	_check(o.list.size() == 3, "trois ordres par jour")
+	var kinds := {}
+	for ord in o.list:
+		kinds[Orders.template(ord.id).kind] = true
+	_check(kinds.size() == 3, "trois types d'action différents")
+	var t0 := Orders.template(o.list[0].id)
+	_check(o.claim(0, _g).is_empty(), "un ordre non rempli ne se réclame pas")
+	o.track(String(t0.kind), int(t0.goal) + 5)
+	_check(int(o.list[0].progress) == int(t0.goal), "la progression s'arrête à l'objectif")
+	var sh0: int = _g.shards
+	var tk0: int = _g.tokens
+	var rw := o.claim(0, _g)
+	_check(not rw.is_empty() and o.week_done == 1, "réclamer verse la récompense et fait avancer la solde")
+	_check(_g.shards - sh0 == int(rw.get("shards", 0)) and _g.tokens - tk0 == int(rw.get("tokens", 0)), "récompense versée")
+	_check(o.claim(0, _g).is_empty(), "un ordre ne se réclame qu'une fois")
+	o.week_done = 2
+	o.track(String(Orders.template(o.list[1].id).kind), 99)
+	var cr0: int = _g.crystals
+	o.claim(1, _g)
+	_check(o.week_claimed.has(3) and _g.crystals - cr0 >= 5, "palier de 3 ordres versé")
+	var w := o.week
+	o.refresh(d0 + 1)
+	_check(o.day == d0 + 1 and o.list.size() == 3 and o.list.all(func(x): return int(x.progress) == 0), "nouveau jour : nouveaux ordres")
+	var d2 := d0 + 1
+	while Orders.week_of(d2) == w:
+		d2 += 1
+	o.refresh(d2)
+	_check(o.week_done == 0 and o.week_claimed.is_empty(), "nouvelle semaine : solde remise à zéro")
+	var back := Orders.from_dict(o.to_dict())
+	_check(back.day == o.day and back.list.size() == 3, "sauvegarde des ordres")
+
+
+## Maquette WK : événements à bord.
+func test_board_events() -> void:
+	var b := BoardEvents.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	_g.ship.unlock()
+	_g.ship.level = 10
+	_g.ship.open_rooms()
+	for r in ["serre", "quartiers", "atelier"]:
+		_g.ship.rooms[r] = 2
+	var now := 1000000
+	_check(b.update(10.0, _g.ship, rng, now).is_empty(), "pas d'événement avant 20 minutes de jeu")
+	var e := b.update(b.gap, _g.ship, rng, now)
+	_check(not e.is_empty() and b.pending.size() == 1, "un événement apparaît après l'attente")
+	for i in 5:
+		b.spawn(_g.ship, rng, now)
+	_check(b.pending.size() >= 3, "plusieurs salles peuvent avoir un événement")
+	var rooms := {}
+	for p in b.pending:
+		rooms[p.room] = true
+	_check(rooms.size() == b.pending.size(), "un seul événement par salle")
+	b.update(1.0, _g.ship, rng, now + BoardEvents.LIFETIME + 1)
+	_check(b.pending.is_empty(), "les événements expirent")
+	# un choix sans hasard verse son gain
+	var ev := {"id": "cargaison", "room": "hangar", "expires": now + 100}
+	b.pending = [ev]
+	var it0: int = _g.item_tokens
+	var res := b.resolve(ev, 0, _g, rng)
+	_check(_g.item_tokens - it0 == 2 and res != "" and b.pending.is_empty(), "choisir verse la conséquence")
+	# un pari impossible sans les éclats
+	var ev2 := {"id": "course", "room": "quartiers", "expires": now + 100}
+	b.pending = [ev2]
+	_g.shards = 3
+	_check(b.resolve(ev2, 0, _g, rng) == "Pas assez d’éclats" and b.pending.size() == 1, "un pari demande les éclats")
+	var back := BoardEvents.from_dict(b.to_dict())
+	_check(back.pending.size() == 1, "sauvegarde des événements")
+
+
+## Maquette WG : talents à chaque étoile.
+func test_talents() -> void:
+	_g.owned["mara"] = true
+	_g.levels["mara"] = 20
+	_g.hero_stars["mara"] = 1
+	_check(_g.set_talent("mara", 2, 0) != "", "talent 2★ refusé à 1 étoile")
+	_g.hero_stars["mara"] = 3
+	_check(_g.talents_open("mara") == 2, "deux talents à choisir à 3 étoiles")
+	_check(_g.set_talent("mara", 2, 0) == "", "choisir un talent est gratuit")
+	_check(_g.talent_choice("mara", 2) == 0 and _g.talents_open("mara") == 1, "talent enregistré")
+	_g.shards = 10
+	_check(_g.set_talent("mara", 2, 1) != "", "changer d'avis demande des éclats")
+	_g.shards = 100
+	_check(_g.set_talent("mara", 2, 1) == "" and _g.shards == 100 - Data.TALENT_RESPEC, "changer d'avis coûte 50 éclats")
+	_g.set_talent("mara", 2, 0)
+	var fx: Dictionary = _g.talent_fx("mara")
+	_check(is_equal_approx(float(fx.get("hp", 0.0)), 0.15), "effet du talent cumulé")
+	var base := BattleSim.new([{"id": "mara", "level": 20}], 1, 1)
+	var with := BattleSim.new([{"id": "mara", "level": 20, "tal": fx}], 1, 1)
+	_check(is_equal_approx(with.units[0].max_hp, base.units[0].max_hp * 1.15), "le talent compte en combat")
+
+
+## Maquette WH : liens d'équipage.
+func test_bonds() -> void:
+	_check(Bonds.LIST.size() == 7, "sept liens")
+	var convos := 0
+	for b in Bonds.LIST:
+		convos += (b.convos as Array).size()
+		for m in b.members:
+			_check(Data.HEROES.has(m), "membre connu : %s" % m)
+	_check(convos == 21, "vingt et une conversations")
+	_check(_g.bond_gain(["kai", "mara"]).is_empty() and _g.bond_xp.is_empty(), "pas de lien entre Kaï et Mara")
+	var up: Array = []
+	for i in 10:
+		up += _g.bond_gain(["vance", "mara", "kai"])
+	_check(_g.bond_level("anciens") == 1 and up.size() == 1, "dix combats ensemble : niveau 1")
+	_check(_g.bond_unread() == 1, "une conversation à lire")
+	_check(is_equal_approx(Bonds.skill_bonus("mara", ["mara", "vance"], _g.bond_xp), 0.04), "bonus de pouvoir à deux")
+	_check(Bonds.skill_bonus("mara", ["mara", "kai"], _g.bond_xp) == 0.0, "pas de bonus sans un autre membre")
+	_g.bond_xp["ecoutent"] = 40
+	_check(is_equal_approx(Bonds.skill_bonus("zyra", ["zyra", "oru", "lumi"], _g.bond_xp), 0.12), "lien de niveau 2 à trois : +12 %")

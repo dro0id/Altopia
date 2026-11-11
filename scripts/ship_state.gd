@@ -115,7 +115,7 @@ func producers() -> Array:
 func tick(game: Node, t: int = -1) -> Dictionary:
 	if t < 0:
 		t = now()
-	var out := {"stock": {}, "done": [], "research": "", "trained": {}, "shuttles": []}
+	var out := {"stock": {}, "done": [], "research": "", "trained": {}, "shuttles": [], "lost": {}, "full": {}, "at": {}, "start": last_tick}
 	if not unlocked:
 		last_tick = t
 		return out
@@ -138,6 +138,7 @@ func tick(game: Node, t: int = -1) -> Dictionary:
 		var id := String(research_job.id)
 		research[id] = rank(id) + 1
 		out.research = id
+		out.at["research"] = int(research_job.end)
 		research_job = {}
 	# expéditions rentrées : signalées, récupérées depuis le Hangar
 	for s in shuttles:
@@ -145,6 +146,7 @@ func tick(game: Node, t: int = -1) -> Dictionary:
 		if not sh.is_empty() and int(sh.end) <= t and not sh.get("back", false):
 			sh["back"] = true
 			out.shuttles.append(s)
+			out.at["shuttle_" + String(s)] = int(sh.end)
 	return out
 
 
@@ -152,8 +154,13 @@ func _produce(game: Node, dt: float, out: Dictionary) -> void:
 	for r in producers():
 		var cap := capacity(r, int(game.best_stage))
 		var before := float(stock.get(r, 0.0))
-		var after := minf(cap, before + rate(r, int(game.best_stage)) * dt / 3600.0)
+		var made := rate(r, int(game.best_stage)) * dt / 3600.0
+		var after := minf(cap, before + made)
 		after = maxf(after, before)
+		# réserve pleine : ce qui n'a pas pu être produit (manque à gagner du rapport, maquette XJ)
+		if before + made > cap and made > 0.0:
+			out.lost[r] = float(out.lost.get(r, 0.0)) + before + made - maxf(cap, before)
+			out.full[r] = float(out.full.get(r, 0.0)) + dt * clampf((before + made - maxf(cap, before)) / made, 0.0, 1.0)
 		stock[r] = after
 		out.stock[r] = float(out.stock.get(r, 0.0)) + (after - before)
 	_train(game, dt, out)
@@ -169,7 +176,7 @@ func _finish_builds(t: int, out: Dictionary) -> void:
 			else:
 				rooms[r] = maxi(room_level(r), int(b.to))
 			builds.erase(b)
-			out.done.append({"room": r, "to": int(b.to)})
+			out.done.append({"room": r, "to": int(b.to), "end": int(b.end)})
 
 
 ## Entraînement des Quartiers : les héros au repos gagnent un niveau par intervalle, jusqu'au niveau moyen de l'escouade − 3.
@@ -203,6 +210,10 @@ func collect(game: Node, r: String) -> Dictionary:
 		return {}
 	stock[r] = s - amount
 	harvests += 1
+	if "orders" in game:
+		game.orders.track("harvest")
+	if "bond_xp" in game:
+		game.bond_gain(posts.get(r, []))          # travailler ensemble rapproche aussi
 	match res:
 		"shards":
 			game.shards += int(amount)
@@ -307,6 +318,8 @@ func start_upgrade(game: Node, r: String) -> bool:
 	game.credits -= float(c.credits)
 	game.shards -= int(c.shards)
 	builds.append({"room": r, "to": lv + 1, "end": now() + int(c.time)})
+	if "orders" in game:
+		game.orders.track("upgrade")
 	return true
 
 
@@ -376,8 +389,8 @@ func research_block(game: Node, id: String) -> String:
 		return "Labo niveau %d" % int(Ship.RESEARCH[id].labo)
 	if not research_job.is_empty():
 		return "Une recherche à la fois"
-	if rank(id) >= mini(Ship.RESEARCH_MAX, lab):
-		return "Rang maximal" if rank(id) >= Ship.RESEARCH_MAX else "Améliore le Labo"
+	if rank(id) >= mini(Ship.research_max(id), lab):
+		return ("Acquise" if Ship.research_max(id) == 1 else "Rang maximal") if rank(id) >= Ship.research_max(id) else "Améliore le Labo"
 	var c := research_cost(game, id)
 	if float(game.credits) < float(c.credits) or int(game.shards) < int(c.shards):
 		return "Pas assez de ressources"
@@ -510,7 +523,8 @@ static func from_dict(d: Dictionary) -> ShipState:
 			s.builds.append({"room": String(b.room), "to": int(b.to), "end": int(b.end)})
 	for k in d.get("research", {}):
 		if Ship.RESEARCH.has(String(k)):
-			s.research[String(k)] = clampi(int(d.research[k]), 0, Ship.RESEARCH_MAX)
+			if Ship.RESEARCH.has(String(k)):
+				s.research[String(k)] = clampi(int(d.research[k]), 0, Ship.research_max(String(k)))
 	var rj: Dictionary = d.get("research_job", {})
 	if not rj.is_empty() and Ship.RESEARCH.has(String(rj.get("id", ""))):
 		s.research_job = {"id": String(rj.id), "end": int(rj.end)}

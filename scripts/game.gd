@@ -65,6 +65,11 @@ var last_pulls: Array = []       # derniers héros obtenus au recrutement (id, r
 var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
 var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
+var orders := Orders.new()
+var board := BoardEvents.new()
+var talents := {}
+var bond_xp := {}                  # lien -> points (maquette WH)
+var bond_read: Array = []          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -85,6 +90,10 @@ func _process(delta: float) -> void:
 	if _ship_t >= 1.0:
 		_ship_t = 0.0
 		ship_update()
+		# événements à bord : seulement une fois le voyage du chapitre 1 terminé (pas pendant le tutoriel)
+		if mission_open() and tips.has("ship"):
+			if not board.update(1.0, ship, rng, int(Time.get_unix_time_from_system())).is_empty():
+				changed.emit()
 	_timer += delta
 	if _timer >= AUTOSAVE_EVERY:
 		_timer = 0.0
@@ -97,6 +106,11 @@ func _notification(what: int) -> void:
 
 
 func reset() -> void:
+	orders = Orders.new()
+	talents = {}
+	bond_xp = {}
+	bond_read = []
+	board = BoardEvents.new()
 	items = []
 	next_item = 1
 	stash = []
@@ -153,7 +167,86 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat()})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp)})
+	return out
+
+
+# ---------------------------------------------------------------- liens d'équipage (maquette WH)
+
+## Les héros `ids` ont combattu ou travaillé ensemble : leurs liens communs gagnent `n` points.
+## Renvoie les liens qui viennent de monter de niveau.
+func bond_gain(ids: Array, n: int = 1) -> Array:
+	var up := []
+	for a in Bonds.active(ids):
+		var id := String(a.bond.id)
+		var before := Bonds.level_of(int(bond_xp.get(id, 0)))
+		bond_xp[id] = int(bond_xp.get(id, 0)) + n
+		if Bonds.level_of(int(bond_xp[id])) > before:
+			up.append(a.bond)
+	return up
+
+
+func bond_level(id: String) -> int:
+	return Bonds.level_of(int(bond_xp.get(id, 0)))
+
+
+## Conversations ouvertes mais pas encore lues.
+func bond_unread() -> int:
+	var n := 0
+	for b in Bonds.LIST:
+		for lv in range(1, bond_level(String(b.id)) + 1):
+			if not bond_read.has("%s:%d" % [b.id, lv]):
+				n += 1
+	return n
+
+
+# ---------------------------------------------------------------- talents (maquette WG)
+
+## Choix du talent pour une étoile (0 ou 1), ou -1.
+func talent_choice(id: String, tier: int) -> int:
+	return int(talents.get(id, {}).get(str(tier), -1))
+
+
+## Étoiles atteintes dont le talent n'est pas encore choisi.
+func talents_open(id: String) -> int:
+	if not is_owned(id):
+		return 0
+	var n := 0
+	for tier in Data.TALENT_TIERS:
+		if int(hero_stars.get(id, 1)) >= tier and talent_choice(id, tier) < 0:
+			n += 1
+	return n
+
+
+## Choisit un talent ; changer d'avis coûte des éclats. Renvoie "" ou la raison du refus.
+func set_talent(id: String, tier: int, i: int) -> String:
+	if int(hero_stars.get(id, 1)) < tier:
+		return "Étoile %d★ requise" % tier
+	var cur := talent_choice(id, tier)
+	if cur == i:
+		return ""
+	if cur >= 0:
+		if shards < Data.TALENT_RESPEC:
+			return "Il faut %d éclats pour changer d’avis" % Data.TALENT_RESPEC
+		shards -= Data.TALENT_RESPEC
+	if not talents.has(id):
+		talents[id] = {}
+	talents[id][str(tier)] = i
+	changed.emit()
+	return ""
+
+
+## Effets cumulés des talents choisis d'un héros.
+func talent_fx(id: String) -> Dictionary:
+	var out := {}
+	var role := String(Data.HEROES[id].role)
+	for tier in Data.TALENT_TIERS:
+		var c := talent_choice(id, tier)
+		if c < 0 or int(hero_stars.get(id, 1)) < tier:
+			continue
+		var fx: Dictionary = Data.TALENTS[role][tier][c].fx
+		for k in fx:
+			out[k] = float(out.get(k, 0.0)) + float(fx[k])
 	return out
 
 
@@ -244,6 +337,7 @@ func recruit(count: int) -> Array:
 	if tokens < cost:
 		return []
 	tokens -= cost
+	orders.track("recruit", count)
 	var out: Array = []
 	for i in count:
 		var rarity := Data.roll_recruit(rng, recruit_pity)
@@ -573,6 +667,7 @@ func equip(item_id: int, hid: String) -> String:
 	if not old.is_empty():
 		old.on = ""
 	it.on = hid
+	orders.track("equip")
 	it.bound = hid
 	changed.emit()
 	return ""
@@ -978,7 +1073,7 @@ func ship_update() -> Dictionary:
 
 ## Bonus du Labo appliqués au combat.
 func ship_combat() -> Dictionary:
-	return {"hp": ship.research_bonus("blindage"), "atk": ship.research_bonus("armement"), "cdr": ship.research_bonus("reacteurs"), "boss": ship.research_bonus("briseur")}
+	return {"hp": ship.research_bonus("blindage"), "atk": ship.research_bonus("armement"), "cdr": ship.research_bonus("reacteurs"), "boss": ship.research_bonus("briseur"), "tactic": ship.rank("tactique") > 0}
 
 
 func free_chest_remaining() -> float:
@@ -1011,7 +1106,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read,
 	}))
 
 
@@ -1181,6 +1276,11 @@ func load_game() -> bool:
 	if pending_load.has("credits"):
 		_pay(pending_load)                    # un coffre non ouvert avant la fermeture est versé au rechargement
 	ship = ShipState.from_dict(parsed.get("ship", {}))
+	orders = Orders.from_dict(parsed.get("orders", {}))
+	board = BoardEvents.from_dict(parsed.get("board", {}))
+	talents = parsed.get("talents", {}) if parsed.get("talents", {}) is Dictionary else {}
+	bond_xp = parsed.get("bond_xp", {}) if parsed.get("bond_xp", {}) is Dictionary else {}
+	bond_read = parsed.get("bond_read", []) if parsed.get("bond_read", []) is Array else []
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

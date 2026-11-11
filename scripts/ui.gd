@@ -307,6 +307,8 @@ static func duration(seconds: float) -> String:
 	var s := int(seconds)
 	var h := s / 3600
 	var m := (s % 3600) / 60
+	if h >= 24:
+		return "%d j" % (h / 24) if h % 24 == 0 else "%d j %d h" % [h / 24, h % 24]
 	if h > 0:
 		return "%d h" % h if m == 0 else "%d h %02d" % [h, m]
 	if m > 0:

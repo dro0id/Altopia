@@ -50,13 +50,19 @@ const RESEARCH := {
 	"armement": {"name": "Armement", "branch": "combat", "per": 0.03, "desc": "+3 % d’attaque par rang"},
 	"reacteurs": {"name": "Réacteurs", "branch": "combat", "per": 0.02, "desc": "Pouvoirs rechargés 2 % plus vite par rang"},
 	"briseur": {"name": "Briseur de boss", "branch": "combat", "per": 0.04, "desc": "+4 % de dégâts aux boss par rang", "labo": 4},
+	"tactique": {"name": "Auto tactique", "branch": "combat", "per": 0.0, "desc": "En auto, contrôle et bouclier attendent la fenêtre du boss", "labo": 3, "max": 1},
 	"prospection": {"name": "Prospection", "branch": "butin", "per": 0.05, "desc": "+5 % de crédits par rang"},
 	"tamisage": {"name": "Tamisage", "branch": "butin", "per": 0.05, "desc": "+5 % d’éclats dans les coffres par rang"},
 	"rendement": {"name": "Rendement", "branch": "vaisseau", "per": 0.05, "desc": "+5 % de production du vaisseau par rang"},
 	"logistique": {"name": "Logistique", "branch": "vaisseau", "per": 0.05, "desc": "Chantiers 5 % plus courts par rang", "labo": 3},
 }
-const RESEARCH_ORDER := ["blindage", "armement", "reacteurs", "briseur", "prospection", "tamisage", "rendement", "logistique"]
+const RESEARCH_ORDER := ["blindage", "armement", "reacteurs", "briseur", "tactique", "prospection", "tamisage", "rendement", "logistique"]
 const RESEARCH_MAX := 10
+
+
+## Rang maximal d'une recherche (une seule pour les recherches tout-ou-rien comme l'Auto tactique).
+static func research_max(id: String) -> int:
+	return int(RESEARCH[id].get("max", RESEARCH_MAX))
 
 ## Navettes du Hangar et destinations d'expédition (maquettes LA à LE).
 const SHUTTLES := {
