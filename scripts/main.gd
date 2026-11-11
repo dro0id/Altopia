@@ -672,7 +672,12 @@ func _open_offline() -> void:
 	var o := OfflineScreen.new(Game.offline_report)
 	Game.offline_report = {}
 	o.chest_claimed.connect(_show_chest_toast)
-	o.closed.connect(func(): _go_home.call_deferred())
+	var room := [""]
+	o.room_requested.connect(func(r: String): room[0] = r)
+	o.closed.connect(func():
+		_go_home.call_deferred()
+		if room[0] != "":
+			_open_room.call_deferred(room[0]))
 	_open_modal(o)
 
 

@@ -147,6 +147,9 @@ func _initialize() -> void:
 			main._open_ship()
 			await process_frame
 			main._open_orders(),
+		"rapport": func():
+			_ship(10)
+			main._open_modal(OfflineScreen.new({"seconds": 33600.0, "credits": 24600.0, "shards": 12, "ship": {"start": 1000, "stock": {"raffinerie": 56.0, "atelier": 3.0, "antenne": 2.0}, "done": [{"room": "atelier", "to": 8, "end": 1000 + 3600}], "research": "blindage", "trained": {}, "shuttles": ["colibri"], "lost": {"raffinerie": 126.0}, "full": {"raffinerie": 22200.0}, "at": {"research": 1000 + 32400, "shuttle_colibri": 1000 + 21600}}})),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
