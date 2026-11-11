@@ -830,7 +830,7 @@ func _on_cleared(_credits: float) -> void:
 	Game.save_game()
 	if shows_chest:
 		var next_label := "Descendre au secteur %d" % (stage + 1) if Game.best_stage > stage else "Rejouer le secteur %d" % stage
-		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo)
+		var r := ResultScreen.new(stage, stars, chest, next_label, battle.sim.max_combo, battle.sim.report())
 		var go_next := func():
 			_pick_boost(func():
 				if Game.best_stage > stage:

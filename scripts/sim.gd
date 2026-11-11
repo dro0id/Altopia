@@ -60,7 +60,8 @@ var combo := 0                   # enchaînement de pouvoirs en cours
 var max_combo := 0
 var dealt := {}                  # dégâts infligés par place de héros (part de dégâts, maquettes XC et XD)
 var support := {}                # soins et dégâts absorbés par bouclier, par place de héros
-var finisher := -1               # place du héros qui a porté le coup de grâce au boss
+var finisher := -1
+var casts := {}                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -312,6 +313,7 @@ func _cast(u: Unit) -> bool:
 	u.warned = false
 	var k := 1.0
 	if u.side == 0:
+		casts[u.slot] = int(casts.get(u.slot, 0)) + 1
 		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
 		_last_cast = time
 		max_combo = maxi(max_combo, combo)
@@ -374,6 +376,15 @@ func _cast(u: Unit) -> bool:
 				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * sk, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
 	return true
+
+
+## Bilan du combat pour l'écran de résultat (maquette XD).
+func report() -> Dictionary:
+	var ids := {}
+	for u in units:
+		if u.side == 0:
+			ids[u.slot] = u.id
+	return {"dealt": dealt.duplicate(), "support": support.duplicate(), "casts": casts.duplicate(), "finisher": finisher, "fallen": fallen, "ids": ids}
 
 
 ## Part de chaque héros (0 à 1) : dégâts infligés, et soutien (soins + boucliers).

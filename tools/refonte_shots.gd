@@ -298,7 +298,8 @@ func _initialize() -> void:
 		"victoire": func():
 			var ch: Dictionary = g.open_chest("legendaire", 20, 0.0, true, true)
 			g.pending_chest = ch
-			var rs := ResultScreen.new(20, 3, ch, "Monter à l'étage 21", 4)
+			var rep := {"dealt": {0: 820.0, 1: 2310.0, 2: 2830.0, 3: 300.0, 4: 1340.0}, "support": {0: 1500.0, 3: 2200.0, 4: 80.0}, "casts": {2: 2, 1: 3}, "finisher": 2, "fallen": 1, "ids": {0: "mara", 1: "kai", 2: "zyra", 3: "aria", 4: "oru"}}
+			var rs := ResultScreen.new(20, 2, ch, "Monter à l'étage 21", 4, rep)
 			main._open_modal(rs)
 			rs._cv.arm()
 			rs._cv.t = rs._cv._t0 + rs._cv.open_at - 0.02,
