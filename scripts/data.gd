@@ -360,6 +360,26 @@ static func level_cap(rank: int) -> int:
 
 
 ## Bonus de dégâts d'un enchaînement de `n` pouvoirs rapprochés : +10 % par pouvoir au-delà du premier, plafonné à +50 %.
+## Pouvoirs signature (maquette WA) : chaque héros garde la famille de son pouvoir et gagne un effet à lui.
+const SIGNATURES := {
+	"mara": {"name": "Contre-choc", "desc": "Le bouclier renvoie 30 % des dégâts qu'il absorbe."},
+	"pim": {"name": "Rivets renforcés", "desc": "Le bouclier tient 9 s au lieu de 6."},
+	"vance": {"name": "Ordre de tir", "desc": "Sous le bouclier, l'escouade attaque 15 % plus vite pendant 6 s."},
+	"gorn": {"name": "Carapace", "desc": "Le bouclier explose quand il se termine et frappe tous les ennemis."},
+	"kai": {"name": "Achève", "desc": "Dégâts doublés sur les ennemis sous 30 % de PV."},
+	"dax": {"name": "Tir de barrage", "desc": "Les ennemis touchés attaquent 20 % moins vite pendant 4 s."},
+	"brix": {"name": "Fragmentation", "desc": "Un missile de plus sur l'ennemi le plus solide."},
+	"zyra": {"name": "Éclat traversant", "desc": "Traverse sa cible et touche l'ennemi suivant (60 %)."},
+	"sora": {"name": "Point faible", "desc": "Le tir est toujours critique."},
+	"omega": {"name": "Surcharge ionique", "desc": "La cible est étourdie 1,5 s."},
+	"t9": {"name": "Nanites", "desc": "Les soins continuent : 3 % des PV par seconde pendant 4 s."},
+	"neelo": {"name": "Spores apaisantes", "desc": "Les héros soignés subissent 20 % de dégâts en moins pendant 4 s."},
+	"aria": {"name": "Second souffle", "desc": "Relève un héros tombé à 50 % de PV, une fois par combat."},
+	"oru": {"name": "Implosion", "desc": "Les ennemis étourdis subissent 20 % de dégâts en plus."},
+	"lumi": {"name": "Éblouissement", "desc": "L'étourdissement dure 1 s de plus."},
+}
+
+
 ## Fenêtre de tir du boss (maquette WB) : pendant les dernières secondes avant son gros coup,
 ## un pouvoir de contrôle l'interrompt (exposé, dégâts reçus +50 %) et un bouclier pare le coup.
 const INTERRUPT_WINDOW := 2.0

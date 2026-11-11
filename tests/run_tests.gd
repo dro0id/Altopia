@@ -1007,3 +1007,47 @@ func test_boss_window() -> void:
 	_check(s._holds(oru), "auto tactique : contrôle gardé hors fenêtre")
 	bu.skill_cd = 1.0
 	_check(not s._holds(oru), "auto tactique : contrôle lancé dans la fenêtre")
+
+
+## Maquette WA : quelques pouvoirs signature.
+func test_signatures() -> void:
+	var team: Array = []
+	for id in ["pim", "kai", "aria", "lumi", "zyra"]:
+		team.append({"id": id, "level": 20})
+	var s := BattleSim.new(team, 5, 2)
+	var by := {}
+	for u in s._alive(0):
+		by[u.id] = u
+	# Rivets renforcés : bouclier de 9 s
+	for u in s._alive(0):
+		u.skill_cd = 0.0
+	s.cast(by.pim.slot)
+	_check(is_equal_approx(by.kai.shield_t, 9.0), "Pim : bouclier de 9 s")
+	# Éblouissement : étourdissement +1 s
+	s.cast(by.lumi.slot)
+	var e0: BattleSim.Unit = s._alive(1)[0]
+	_check(is_equal_approx(e0.stun_t, 3.0), "Lumi : étourdissement de 3 s")
+	# Second souffle : relève un héros tombé, une seule fois
+	by.zyra.alive = false
+	by.zyra.hp = 0.0
+	by.aria.skill_cd = 0.0
+	s.cast(by.aria.slot)
+	_check(by.zyra.alive and by.zyra.hp > 0.0, "Aria : relève un héros tombé")
+	by.zyra.alive = false
+	by.aria.skill_cd = 0.0
+	s.cast(by.aria.slot)
+	_check(not by.zyra.alive, "Aria : une seule fois par combat")
+	# Achève : dégâts doublés sous 30 % de PV
+	var low: BattleSim.Unit = s._alive(1)[0]
+	low.hp = low.max_hp * 0.2
+	s.pending.clear()
+	by.kai.skill_cd = 0.0
+	s.cast(by.kai.slot)
+	var d_low := 0.0
+	var d_full := 0.0
+	for p in s.pending:
+		if p.dst == low:
+			d_low = p.dmg
+		elif d_full == 0.0:
+			d_full = p.dmg
+	_check(d_full > 0.0 and is_equal_approx(d_low, d_full * 2.0), "Kaï : dégâts doublés sous 30 % de PV")

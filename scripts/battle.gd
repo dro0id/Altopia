@@ -25,7 +25,8 @@ var boss_wave := false
 var banner := ""
 var banner_t := 0.0
 var banner_sub := ""
-var banner_in_field := true       # faux quand le haut de l'écran (CombatHud) affiche les annonces
+var banner_in_field := true
+var banner_hero := ""             # annonce d'un pouvoir signature : identifiant du héros (maquette WA)       # faux quand le haut de l'écran (CombatHud) affiche les annonces
 var shake := 0.0
 var _base := Vector2.ZERO
 var _result_timer := 0.0
@@ -197,6 +198,7 @@ func _consume() -> void:
 			"wave":
 				boss_wave = e.boss
 				var bt: String = e.get("boss_type", "")
+				banner_hero = ""
 				banner = ("GROS BOSS !" if bt == "big" else "MINI-BOSS !") if e.boss else "Vague %d / %d" % [e.wave, e.total]
 				banner_sub = String(e.get("boss_name", "")) if e.boss else ""
 				banner_t = 1.6
@@ -208,7 +210,18 @@ func _consume() -> void:
 				banner = "Attention !"
 				banner_t = 0.9
 				Sfx.play("warn")
+			"revive":
+				banner = "SECOND SOUFFLE"
+				banner_sub = "%s se relève" % String(Data.HEROES[e.unit.id].name).split(" ")[0]
+				banner_hero = ""
+				banner_t = 1.4
+				Sfx.play("star", -4.0, 1.2)
+				_burst(_center(e.unit), 20, Color(0.5, 1.0, 0.7), 100.0, 300.0, 0.8, -200.0)
+			"burst":
+				_ring_fx(_center(e.unit) + Vector2(0, -40), Color("7fdcff"), 260.0, 0.6, 0.0, 6.0)
+				Sfx.play("boom", -6.0, 1.3)
 			"interrupt":
+				banner_hero = ""
 				banner = "INTERROMPU !"
 				banner_sub = "boss exposé 3 s · dégâts +50 %"
 				banner_t = 1.6
@@ -224,6 +237,7 @@ func _consume() -> void:
 					banner_sub = "coup du boss absorbé"
 					banner_t = 1.2
 			"combo":
+				banner_hero = ""
 				banner = "COMBO x%d !" % e.n
 				banner_t = 1.2
 				boss_wave = false
@@ -276,7 +290,13 @@ func _consume() -> void:
 				if cf != null:
 					cf.play_cast()
 				banner = String(cu.data.get("skill", {}).get("name", "")) if cu.side == 0 else {"prism": "Faisceau prismatique !", "swarm": "Appel des mites !"}.get(String(e.kind), "Écrasement !")
-				banner_t = 1.0
+				banner_hero = ""
+				if cu.side == 0 and Data.SIGNATURES.has(cu.id):
+					# pouvoir signature : son nom en grand, le héros et le pouvoir au-dessus
+					banner = String(Data.SIGNATURES[cu.id].name)
+					banner_sub = "%s · %s" % [String(Data.HEROES[cu.id].name).split(" ")[0], String(Data.HEROES[cu.id].skill.name)]
+					banner_hero = cu.id
+				banner_t = 1.4 if banner_hero != "" else 1.0
 				Sfx.play("cast", -4.0)
 				_cast_fx(e)
 			"death":

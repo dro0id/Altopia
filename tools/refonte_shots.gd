@@ -117,6 +117,17 @@ func _initialize() -> void:
 					main.battle.sim.cast(u.slot)
 			await _wait(0.3)
 			main.battle.speed = 0.0,
+		"signature": func():
+			await _wait(2.0)
+			while main.battle.sim._alive(1).is_empty():
+				await process_frame
+			for u in main.battle.sim.units:
+				if u.side == 0 and u.id == "zyra":
+					main.battle.sim.events.append({"type": "cast", "unit": u, "kind": "pierce", "target": main.battle.sim._alive(1)[0]})
+			await _wait(0.15)
+			main.battle.banner_t = 60.0
+			main.battle.speed = 0.0,
+		"pouvoirs": func(): main._open_modal(HeroScreen.new("zyra", 2)),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -358,7 +369,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

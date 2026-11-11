@@ -27,6 +27,15 @@ class Unit:
 	var shield_src := -1             # place du héros qui a posé le bouclier (part de soutien)
 	var last_target: Unit = null     # dernière cible attaquée (intention affichée, maquette WC)
 	var exposed_t := 0.0             # boss interrompu : dégâts reçus +50 % (maquette WB)
+	var sig := ""                    # pouvoir signature (maquette WA) : identifiant du héros
+	var shield_sig := ""             # signature du héros qui a posé le bouclier
+	var slow_t := 0.0                # Tir de barrage : attaque 20 % moins vite
+	var haste_t := 0.0               # Ordre de tir : attaque 15 % plus vite
+	var dr_t := 0.0                  # Spores apaisantes : dégâts reçus −20 %
+	var vuln_t := 0.0                # Implosion : dégâts reçus +20 %
+	var hot_t := 0.0                 # Nanites : soin continu
+	var hot := 0.0
+	var hot_src := -1
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -66,7 +75,9 @@ var finisher := -1
 var casts := {}
 var focus: Unit = null
 var tactical := false            # recherche « Auto tactique » : l'auto garde contrôle et bouclier pour la fenêtre du boss
-var parry_until := -1.0          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
+var parry_until := -1.0
+var revived := false             # Second souffle déjà utilisé dans ce combat
+var bursts: Array = []           # Carapace : explosions de bouclier à venir {t, src, dmg}          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -183,6 +194,7 @@ func _make_hero(id: String, level: int, slot: int, bonus: float = 1.0, evo: int 
 	u.interval = h.interval
 	u.ranged = h.ranged
 	u.skill_kind = h.skill.kind
+	u.sig = id if Data.SIGNATURES.has(id) else ""
 	u.skill_max = h.skill.cd
 	u.skill_cd = h.skill.cd * 0.5
 	u.cd = 0.4 + 0.15 * slot
@@ -330,14 +342,30 @@ func _cast(u: Unit) -> bool:
 		"shield":
 			for a in _alive(0):
 				a.shield = u.atk * 3.5 * k
-				a.shield_t = 6.0
+				a.shield_t = 9.0 if u.sig == "pim" else 6.0
 				a.shield_src = u.slot
+				a.shield_sig = u.sig
+				if u.sig == "vance":
+					a.haste_t = 6.0
+			if u.sig == "gorn":
+				bursts.append({"t": time + 6.0, "src": u, "dmg": u.atk * 2.5 * k})
 			events.append({"type": "cast", "unit": u, "kind": "shield"})
 		"volley":
 			var i := 0
+			var strongest: Unit = null
 			for e in _alive(1):
-				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 2.4 * k, "fx": "missile"})
+				var d := u.atk * 2.4 * k
+				if u.sig == "kai" and e.hp_frac() < 0.3:
+					d *= 2.0
+				var hit := {"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": e, "dmg": d, "fx": "missile"}
+				if u.sig == "dax":
+					hit.slow = 4.0
+				pending.append(hit)
+				if strongest == null or e.hp > strongest.hp:
+					strongest = e
 				i += 1
+			if u.sig == "brix" and strongest != null:
+				pending.append({"t": 0.45 + i * 0.1, "kind": "hit", "src": u, "dst": strongest, "dmg": u.atk * 2.4 * k, "fx": "missile"})
 			events.append({"type": "cast", "unit": u, "kind": "volley", "targets": _alive(1)})
 		"pierce":
 			var best: Unit = null
@@ -345,15 +373,43 @@ func _cast(u: Unit) -> bool:
 				if best == null or e.hp > best.hp:
 					best = e
 			if best != null:
-				pending.append({"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0 * k, "fx": "pierce"})
+				var shot := {"t": 0.4, "kind": "hit", "src": u, "dst": best, "dmg": u.atk * 6.0 * k, "fx": "pierce"}
+				if u.sig == "sora":
+					shot.dmg *= 1.5
+					shot.crit = true
+				elif u.sig == "omega":
+					shot.stun = 1.5
+				pending.append(shot)
+				if u.sig == "zyra":
+					for e in _alive(1):
+						if e != best:
+							pending.append({"t": 0.5, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 6.0 * k * 0.6, "fx": "pierce"})
+							break
 				events.append({"type": "cast", "unit": u, "kind": "pierce", "target": best})
 		"repair":
+			if u.sig == "aria" and not revived:
+				for a in units:
+					if a.side == 0 and not a.alive:
+						a.alive = true
+						a.hp = a.max_hp * 0.5
+						a.stun_t = 0.0
+						revived = true
+						events.append({"type": "revive", "unit": a, "by": u})
+						break
 			for a in _alive(0):
 				_heal(a, u.atk * 2.4 * k * u.heal_mult, u.slot)
+				if u.sig == "t9":
+					a.hot_t = 4.0
+					a.hot = a.max_hp * 0.03 * u.heal_mult
+					a.hot_src = u.slot
+				elif u.sig == "neelo":
+					a.dr_t = 4.0
 			events.append({"type": "cast", "unit": u, "kind": "repair"})
 		"gravity":
 			for e in _alive(1):
-				e.stun_t = 2.0 + 0.5 * u.evo
+				e.stun_t = 2.0 + 0.5 * u.evo + (1.0 if u.sig == "lumi" else 0.0)
+				if u.sig == "oru":
+					e.vuln_t = e.stun_t
 				pending.append({"t": 0.3, "kind": "hit", "src": u, "dst": e, "dmg": u.atk * 1.3 * k, "fx": "gravity"})
 			events.append({"type": "cast", "unit": u, "kind": "gravity"})
 		"prism":
@@ -485,6 +541,10 @@ func _apply_hit(p: Dictionary) -> void:
 	var src0: Unit = p.get("src")
 	if dst.exposed_t > 0.0:
 		dmg *= 1.0 + Data.EXPOSED_BONUS
+	if dst.vuln_t > 0.0:
+		dmg *= 1.2
+	if dst.dr_t > 0.0:
+		dmg *= 0.8
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
 		# parade : le coup du boss est absorbé en entier
 		events.append({"type": "parry", "unit": dst})
@@ -495,12 +555,22 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg -= absorbed
 		if dst.shield_src >= 0:
 			support[dst.shield_src] = float(support.get(dst.shield_src, 0.0)) + absorbed
+		if dst.shield_sig == "mara" and src0 != null and src0.side == 1 and src0.alive and absorbed > 0.0:
+			# Contre-choc : le bouclier renvoie 30 % des dégâts absorbés
+			for m in units:
+				if m.side == 0 and m.slot == dst.shield_src:
+					pending.append({"t": 0.05, "kind": "hit", "src": m, "dst": src0, "dmg": absorbed * 0.3, "fx": "reflect"})
+					break
 	var src: Unit = p.get("src")
 	if src != null and src.side == 0 and dst.side == 1:
 		dealt[src.slot] = float(dealt.get(src.slot, 0.0)) + minf(dmg, maxf(0.0, dst.hp))
 		if dst.boss and dst.hp - dmg <= 0.0:
 			finisher = src.slot
 	dst.hp -= dmg
+	if p.has("slow"):
+		dst.slow_t = maxf(dst.slow_t, float(p.slow))
+	if p.has("stun") and dst.hp > 0.0:
+		dst.stun_t = maxf(dst.stun_t, float(p.stun))
 	events.append({"type": "hit", "unit": dst, "amount": dmg, "fx": p.get("fx", ""), "crit": bool(p.get("crit", false))})
 	if dst.hp <= 0.0:
 		dst.alive = false
@@ -570,6 +640,16 @@ func step(dt: float) -> void:
 		u.cd = maxf(0.0, u.cd - dt)
 		u.stun_t = maxf(0.0, u.stun_t - dt)
 		u.exposed_t = maxf(0.0, u.exposed_t - dt)
+		u.slow_t = maxf(0.0, u.slow_t - dt)
+		u.haste_t = maxf(0.0, u.haste_t - dt)
+		u.dr_t = maxf(0.0, u.dr_t - dt)
+		u.vuln_t = maxf(0.0, u.vuln_t - dt)
+		if u.hot_t > 0.0:
+			u.hot_t -= dt
+			var before := u.hp
+			u.hp = minf(u.max_hp, u.hp + u.hot * dt)
+			if u.hot_src >= 0:
+				support[u.hot_src] = float(support.get(u.hot_src, 0.0)) + u.hp - before
 		if u.shield_t > 0.0:
 			u.shield_t -= dt
 			if u.shield_t <= 0.0:
@@ -586,8 +666,20 @@ func step(dt: float) -> void:
 		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0 and not _holds(u):
 			_cast(u)
 		if u.cd <= 0.0 and u.alive:
-			u.cd = u.interval
+			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0)
 			_act(u)
+	# Carapace : le bouclier de Gorn explose quand il se termine
+	var bi := 0
+	while bi < bursts.size():
+		if time >= float(bursts[bi].t):
+			var b: Dictionary = bursts[bi]
+			if (b.src as Unit).alive:
+				for e in _alive(1):
+					pending.append({"t": 0.05, "kind": "hit", "src": b.src, "dst": e, "dmg": b.dmg, "fx": "gravity"})
+				events.append({"type": "burst", "unit": b.src})
+			bursts.remove_at(bi)
+		else:
+			bi += 1
 	var i := 0
 	while i < pending.size():
 		pending[i].t -= dt

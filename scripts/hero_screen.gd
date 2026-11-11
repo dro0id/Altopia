@@ -251,7 +251,16 @@ func _build_powers(h: Dictionary) -> void:
 		M3.section(body, Vector2(208, 64), "COMPÉTENCE")
 		M3.text(body, Vector2(208, 112), String(h.skill.name), 34, UI.TEXT, true)
 		M3.para(body, Vector2(64, 196), String(h.skill.desc), 26, UI.MUTED, 592)
-		M3.text(body, Vector2(64, 292), "Recharge %d s · combo si deux pouvoirs à moins de 3 s" % int(h.skill.cd), 24, UI.ACCENT))
+		M3.text(body, Vector2(64, 292), "Recharge %d s · combo si deux pouvoirs à moins de 3 s" % int(h.skill.cd), 24, UI.ACCENT)
+		# effet propre au héros (maquette WA)
+		if Data.SIGNATURES.has(_id):
+			var sg: Dictionary = Data.SIGNATURES[_id]
+			var r2 := Rect2(32, 336, 656, 168)
+			M3.glass_card(body, r2, true, 20.0)
+			M3.section(body, Vector2(64, 384), "EFFET PROPRE")
+			M3.text(body, Vector2(64, 428), String(sg.name), 32, UI.GOLD, true, 592)
+			M3.para(body, Vector2(64, 470), String(sg.desc), 24, UI.TEXT, 592))
+	body.size.y = 520
 	_stage.add_child(body)
 
 

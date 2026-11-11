@@ -85,6 +85,9 @@ func _draw() -> void:
 		return
 	var by := size.y - ROW_BANNER + 6.0
 	var a := minf(1.0, battle.banner_t * 2.0)
+	if battle.banner_hero != "" and Data.HEROES.has(battle.banner_hero):
+		_draw_signature(by, a)
+		return
 	var txt := battle.banner
 	var col := UI.RED if battle.boss_wave else UI.GOLD
 	if txt.begins_with("COMBO"):
@@ -102,3 +105,19 @@ func _draw() -> void:
 	M3.text(self, Vector2(r2.position.x, by + 30 + M3.fs(fsz) * 0.36), txt, fsz, Color(col.lightened(0.3), a), true, w2, HORIZONTAL_ALIGNMENT_CENTER)
 	if battle.banner_sub != "" and (txt.begins_with("INTERROMPU") or txt.begins_with("PARADE")):
 		M3.text(self, Vector2(0, by - 8), battle.banner_sub, 22, Color(1, 1, 1, a), true, 720, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## Bande d'un pouvoir signature (maquette WA) : couleur du héros, portrait, « HÉROS · POUVOIR », nom de l'effet.
+func _draw_signature(by: float, a: float) -> void:
+	var h: Dictionary = Data.HEROES[battle.banner_hero]
+	var col: Color = h.look.suit
+	var slide := (1.0 - clampf((1.4 - battle.banner_t) * 6.0, 0.0, 1.0)) * 60.0     # entre par la droite
+	var r := Rect2(32 + slide, by - 4, 656, 68)
+	var k := 22.0
+	var pl := PackedVector2Array([r.position + Vector2(k, 0), Vector2(r.end.x, r.position.y), Vector2(r.end.x - k, r.end.y), Vector2(r.position.x, r.end.y)])
+	draw_colored_polygon(pl, Color(col.darkened(0.55), 0.92 * a))
+	draw_colored_polygon(PackedVector2Array([pl[0], pl[1], Vector2(r.end.x - 4, r.position.y + 6), r.position + Vector2(k - 2, 6)]), Color(col.lightened(0.3), 0.35 * a))
+	draw_polyline(PackedVector2Array([pl[0], pl[1], pl[2], pl[3], pl[0]]), Color(col.lightened(0.2), 0.8 * a), 2.0, true)
+	Art.draw_portrait(self, h, r.position + Vector2(64, 34), 26.0, battle.clock)
+	M3.text(self, r.position + Vector2(108, 26), battle.banner_sub.to_upper(), 18, Color(col.lightened(0.55), a), true, 520)
+	M3.text(self, r.position + Vector2(108, 58), battle.banner, 30, Color(1, 1, 1, a), true, 520)
