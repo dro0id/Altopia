@@ -115,11 +115,11 @@ var _swipe0 := Vector2(-1, -1)
 
 
 func _input(ev: InputEvent) -> void:
-	var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
-	var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+	var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+	var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not UI.emulated(ev) and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
 	if not (down or up) or not is_visible_in_tree():
 		return
-	var p: Vector2 = get_global_transform_with_canvas().affine_inverse() * ev.position
+	var p: Vector2 = _stage.get_global_transform_with_canvas().affine_inverse() * ev.position
 	if down:
 		var top := 112.0 + 160.0 + maxf(0.0, minf(UI.tall(), 300.0))
 		_swipe0 = p if p.y > 112.0 and p.y < top and p.x > 40.0 else Vector2(-1, -1)

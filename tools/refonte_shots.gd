@@ -12,6 +12,9 @@ func _initialize() -> void:
 	await process_frame
 	g = root.get_node("Game")
 	var big := only.has("grand")
+	if only.has("encoche"):
+		only.erase("encoche")
+		UI.fake_top = 90.0
 	only.erase("grand")
 	g.save_path = "user://shot.json"
 	g.reset()

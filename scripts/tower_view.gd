@@ -58,7 +58,7 @@ func _gui_input(ev: InputEvent) -> void:
 	var pressed := false
 	var released := false
 	var pos := Vector2.ZERO
-	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+	if ev is InputEventMouseButton and not UI.emulated(ev) and ev.button_index == MOUSE_BUTTON_LEFT:
 		pressed = ev.pressed
 		released = not ev.pressed
 		pos = ev.position

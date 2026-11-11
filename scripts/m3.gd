@@ -31,11 +31,11 @@ static func step(n: int) -> int:
 
 
 static func is_tap(ev: InputEvent) -> bool:
-	return (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed)
+	return (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed)
 
 
 static func is_release(ev: InputEvent) -> bool:
-	return (ev is InputEventMouseButton and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and not ev.pressed)
+	return (ev is InputEventMouseButton and not UI.emulated(ev) and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and not ev.pressed)
 
 
 ## Barre du haut de 56 dp : retour facultatif, titre, actions à droite (glyphes ou contrôles déjà construits).
@@ -339,7 +339,7 @@ static func toast(from: Node, msg: String, col: Color = UI.GREEN) -> void:
 	t.process_mode = Node.PROCESS_MODE_ALWAYS
 	var w := minf(656.0, text_w(msg, 26, true) + 96.0)
 	t.size = Vector2(w, 72)
-	t.position = Vector2((720.0 - w) * 0.5, 128)
+	t.position = Vector2((720.0 - w) * 0.5, 128 + UI.TOP)
 	t.draw.connect(func():
 		glass_card(t, Rect2(Vector2.ZERO, t.size), true, 16.0)
 		t.draw_circle(Vector2(36, 36), 8, col)

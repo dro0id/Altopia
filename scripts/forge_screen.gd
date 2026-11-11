@@ -262,7 +262,7 @@ func _grid_input(ev: InputEvent) -> void:
 	var pos := Vector2.ZERO
 	var pressed := false
 	var released := false
-	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+	if ev is InputEventMouseButton and not UI.emulated(ev) and ev.button_index == MOUSE_BUTTON_LEFT:
 		pos = ev.position
 		pressed = ev.pressed
 		released = not ev.pressed

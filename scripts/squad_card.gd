@@ -25,7 +25,7 @@ func _process(delta: float) -> void:
 
 
 func _gui_input(ev: InputEvent) -> void:
-	if (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
+	if (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
 		pressed.emit(slot)
 
 

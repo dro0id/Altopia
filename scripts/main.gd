@@ -303,8 +303,8 @@ class EdgeBack extends Node:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 
 	func _input(ev: InputEvent) -> void:
-		var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
-		var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+		var down: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+		var up: bool = (ev is InputEventScreenTouch and not ev.pressed) or (ev is InputEventMouseButton and not UI.emulated(ev) and not ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
 		if not (down or up or ev is InputEventScreenDrag or ev is InputEventMouseMotion):
 			return
 		var p: Vector2 = host.get_global_transform_with_canvas().affine_inverse() * ev.position
@@ -367,8 +367,10 @@ func _build_nav() -> void:
 ## La barre est accrochée au bas de l'écran ; le reste suit la maquette depuis le haut (terrain de 600 px, 660 px contre un boss).
 func _layout() -> void:
 	var h := size.y if size.y > 0.0 else 1280.0
-	UI.H = maxf(1280.0, h)
 	var ins := UI.safe_insets(get_window())
+	# hauteur utile des fenêtres : sous l'encoche (UI.TOP), jusqu'en bas de l'écran
+	UI.TOP = ins.x
+	UI.H = maxf(1280.0, h - UI.TOP)
 	_dy = ins.x
 	NavBar.inset_bottom = ins.y
 	_nav.position = Vector2(0, h - NavBar.total())
@@ -673,7 +675,7 @@ func _show_item_toast(drop: Dictionary) -> void:
 			c.draw_string(UI.bold_font(), Vector2(498, 62), "Équiper", HORIZONTAL_ALIGNMENT_CENTER, 130.0, 22, UI.GREEN)
 			c.draw_colored_polygon(PackedVector2Array([Vector2(620, 60), Vector2(636, 60), Vector2(628, 44)]), UI.GREEN))
 	c.gui_input.connect(func(ev: InputEvent):
-		if ((ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed)) and can:
+		if ((ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed)) and can:
 			if Game.equip(int(it.id), best.hero) == "":
 				Game.save_game()
 				Sfx.play("chest", -4.0)

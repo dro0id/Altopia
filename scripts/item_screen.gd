@@ -47,4 +47,4 @@ func button(text: String, kind: String, pos: Vector2, sz: Vector2, fs := 28) -> 
 
 
 func tap(ev: InputEvent) -> bool:
-	return (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed)
+	return (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed)

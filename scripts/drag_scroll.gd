@@ -26,7 +26,7 @@ func _input(ev: InputEvent) -> void:
 		return
 	var kind := ""
 	var pos := Vector2.ZERO
-	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+	if ev is InputEventMouseButton and not UI.emulated(ev) and ev.button_index == MOUSE_BUTTON_LEFT:
 		kind = "down" if ev.pressed else "up"
 		pos = ev.position
 	elif ev is InputEventScreenTouch:
