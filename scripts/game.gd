@@ -66,7 +66,8 @@ var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
 var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
 var orders := Orders.new()
-var board := BoardEvents.new()     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
+var board := BoardEvents.new()
+var talents := {}                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -104,6 +105,7 @@ func _notification(what: int) -> void:
 
 func reset() -> void:
 	orders = Orders.new()
+	talents = {}
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -161,7 +163,57 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat()})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id)})
+	return out
+
+
+# ---------------------------------------------------------------- talents (maquette WG)
+
+## Choix du talent pour une étoile (0 ou 1), ou -1.
+func talent_choice(id: String, tier: int) -> int:
+	return int(talents.get(id, {}).get(str(tier), -1))
+
+
+## Étoiles atteintes dont le talent n'est pas encore choisi.
+func talents_open(id: String) -> int:
+	if not is_owned(id):
+		return 0
+	var n := 0
+	for tier in Data.TALENT_TIERS:
+		if int(hero_stars.get(id, 1)) >= tier and talent_choice(id, tier) < 0:
+			n += 1
+	return n
+
+
+## Choisit un talent ; changer d'avis coûte des éclats. Renvoie "" ou la raison du refus.
+func set_talent(id: String, tier: int, i: int) -> String:
+	if int(hero_stars.get(id, 1)) < tier:
+		return "Étoile %d★ requise" % tier
+	var cur := talent_choice(id, tier)
+	if cur == i:
+		return ""
+	if cur >= 0:
+		if shards < Data.TALENT_RESPEC:
+			return "Il faut %d éclats pour changer d’avis" % Data.TALENT_RESPEC
+		shards -= Data.TALENT_RESPEC
+	if not talents.has(id):
+		talents[id] = {}
+	talents[id][str(tier)] = i
+	changed.emit()
+	return ""
+
+
+## Effets cumulés des talents choisis d'un héros.
+func talent_fx(id: String) -> Dictionary:
+	var out := {}
+	var role := String(Data.HEROES[id].role)
+	for tier in Data.TALENT_TIERS:
+		var c := talent_choice(id, tier)
+		if c < 0 or int(hero_stars.get(id, 1)) < tier:
+			continue
+		var fx: Dictionary = Data.TALENTS[role][tier][c].fx
+		for k in fx:
+			out[k] = float(out.get(k, 0.0)) + float(fx[k])
 	return out
 
 
@@ -1021,7 +1073,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(),
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents,
 	}))
 
 
@@ -1193,6 +1245,7 @@ func load_game() -> bool:
 	ship = ShipState.from_dict(parsed.get("ship", {}))
 	orders = Orders.from_dict(parsed.get("orders", {}))
 	board = BoardEvents.from_dict(parsed.get("board", {}))
+	talents = parsed.get("talents", {}) if parsed.get("talents", {}) is Dictionary else {}
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

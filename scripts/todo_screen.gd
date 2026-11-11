@@ -41,6 +41,8 @@ static func entries() -> Array:
 		var t := BoardEvents.template(String(e.id))
 		out.append({"kind": "event", "title": "Événement · %s" % String(t.title), "sub": String(Ship.ROOMS[e.room].name), "action": "Voir", "rank": 1, "role": "main", "data": e})
 	for id in Game.squad_ids():
+		if Game.talents_open(id) > 0:
+			out.append({"kind": "talent", "title": "%s : talent à choisir" % String(Data.HEROES[id].name).split(" ")[0], "sub": "un choix à chaque étoile", "action": "Choisir", "rank": 1, "role": "gold", "data": id})
 		if Game.can_star_up(id):
 			out.append({"kind": "star", "title": "%s peut monter en étoile" % String(Data.HEROES[id].name).split(" ")[0], "sub": "assez de doublons", "action": "Monter", "rank": 1, "role": "gold", "data": id})
 	var better := 0
@@ -147,7 +149,7 @@ func _glyph(c: Control, kind: String, at: Vector2, col: Color) -> void:
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -13), at + Vector2(13, -2), at + Vector2(8, 13), at + Vector2(-8, 13), at + Vector2(-13, -2)]), col)
 		"shuttle":
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -12), at + Vector2(14, 0), at + Vector2(-10, 12), at + Vector2(-4, 0)]), col)
-		"star":
+		"star", "talent":
 			Art.star(c, at, 15.0, col, 0.0)
 		"event":
 			M3.text(c, at + Vector2(-20, 10), "!", 30, col, true, 40, HORIZONTAL_ALIGNMENT_CENTER)
@@ -177,6 +179,10 @@ func _act(e: Dictionary) -> void:
 		"star":
 			close()
 			open_evolve.emit(String(e.data))
+		"talent":
+			var ts := TalentScreen.new(String(e.data))
+			ts.closed.connect(_build)
+			add_child(ts)
 		"items":
 			var n := Game.equip_best_all()
 			if n > 0:

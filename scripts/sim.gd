@@ -36,6 +36,10 @@ class Unit:
 	var hot_t := 0.0                 # Nanites : soin continu
 	var hot := 0.0
 	var hot_src := -1
+	var taunt := 0.0                 # talents (maquette WG)
+	var laststand := false
+	var execute := 0.0
+	var lifesteal := 0.0
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -93,6 +97,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	var slot := 0
 	for e in team:
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
+		_apply_talents(u, e.get("tal", {}))
 		var sb: Dictionary = e.get("ship", {})
 		if not sb.is_empty():
 			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss
@@ -480,6 +485,27 @@ func set_focus(u: Unit) -> void:
 	focus = u if u != null and u.alive and u.side == 1 else null
 
 
+## Talents choisis (maquette WG) : statistiques et effets propres au héros.
+func _apply_talents(u: Unit, fx: Dictionary) -> void:
+	if fx.is_empty():
+		return
+	u.max_hp *= 1.0 + float(fx.get("hp", 0.0))
+	u.hp = u.max_hp
+	u.atk *= 1.0 + float(fx.get("atk", 0.0))
+	u.def *= 1.0 + float(fx.get("def", 0.0))
+	u.interval /= 1.0 + float(fx.get("speed", 0.0))
+	u.crit += float(fx.get("crit", 0.0))
+	u.boss_dmg += float(fx.get("boss", 0.0))
+	u.heal_mult += float(fx.get("heal", 0.0))
+	u.skill_mod += float(fx.get("skill", 0.0))
+	u.skill_max *= 1.0 - minf(0.5, float(fx.get("cdr", 0.0)))
+	u.skill_cd = 0.0 if float(fx.get("ready", 0.0)) > 0.0 else minf(u.skill_cd, u.skill_max)
+	u.taunt = float(fx.get("taunt", 0.0))
+	u.laststand = float(fx.get("laststand", 0.0)) > 0.0
+	u.execute = float(fx.get("execute", 0.0))
+	u.lifesteal = float(fx.get("lifesteal", 0.0))
+
+
 ## Bilan du combat pour l'écran de résultat (maquette XD).
 func report() -> Dictionary:
 	var ids := {}
@@ -528,6 +554,9 @@ func _pick_target(u: Unit) -> Unit:
 		if focus != null and focus.alive and focus.side == 1:
 			return focus                     # cible désignée par le joueur
 		return foes[0]                       # on vise l'ennemi le plus proche : la première place vivante
+	for f in foes:
+		if f.taunt > 0.0 and rng.randf() < f.taunt:
+			return f                         # Provocation : ce héros attire les coups
 	if rng.randf() < 0.6:
 		return foes[0]
 	return foes[rng.randi() % foes.size()]
@@ -543,6 +572,8 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + Data.EXPOSED_BONUS
 	if dst.vuln_t > 0.0:
 		dmg *= 1.2
+	if src0 != null and src0.execute > 0.0 and dst.hp_frac() < 0.3:
+		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
@@ -567,6 +598,13 @@ func _apply_hit(p: Dictionary) -> void:
 		if dst.boss and dst.hp - dmg <= 0.0:
 			finisher = src.slot
 	dst.hp -= dmg
+	if src0 != null and src0.lifesteal > 0.0 and src0.alive and dst.side != src0.side:
+		src0.hp = minf(src0.max_hp, src0.hp + dmg * src0.lifesteal)
+	if dst.laststand and dst.hp > 0.0 and dst.hp < dst.max_hp * 0.3:
+		# Dernier rempart : DÉF doublée 5 s, une fois par combat
+		dst.laststand = false
+		dst.def *= 2.0
+		pending.append({"t": 5.0, "kind": "unstand", "dst": dst})
 	if p.has("slow"):
 		dst.slow_t = maxf(dst.slow_t, float(p.slow))
 	if p.has("stun") and dst.hp > 0.0:
@@ -684,7 +722,10 @@ func step(dt: float) -> void:
 	while i < pending.size():
 		pending[i].t -= dt
 		if pending[i].t <= 0.0:
-			_apply_hit(pending[i])
+			if String(pending[i].get("kind", "hit")) == "unstand":
+				(pending[i].dst as Unit).def /= 2.0          # fin du Dernier rempart
+			else:
+				_apply_hit(pending[i])
 			pending.remove_at(i)
 		else:
 			i += 1

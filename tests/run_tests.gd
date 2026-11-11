@@ -1126,3 +1126,25 @@ func test_board_events() -> void:
 	_check(b.resolve(ev2, 0, _g, rng) == "Pas assez d’éclats" and b.pending.size() == 1, "un pari demande les éclats")
 	var back := BoardEvents.from_dict(b.to_dict())
 	_check(back.pending.size() == 1, "sauvegarde des événements")
+
+
+## Maquette WG : talents à chaque étoile.
+func test_talents() -> void:
+	_g.owned["mara"] = true
+	_g.levels["mara"] = 20
+	_g.hero_stars["mara"] = 1
+	_check(_g.set_talent("mara", 2, 0) != "", "talent 2★ refusé à 1 étoile")
+	_g.hero_stars["mara"] = 3
+	_check(_g.talents_open("mara") == 2, "deux talents à choisir à 3 étoiles")
+	_check(_g.set_talent("mara", 2, 0) == "", "choisir un talent est gratuit")
+	_check(_g.talent_choice("mara", 2) == 0 and _g.talents_open("mara") == 1, "talent enregistré")
+	_g.shards = 10
+	_check(_g.set_talent("mara", 2, 1) != "", "changer d'avis demande des éclats")
+	_g.shards = 100
+	_check(_g.set_talent("mara", 2, 1) == "" and _g.shards == 100 - Data.TALENT_RESPEC, "changer d'avis coûte 50 éclats")
+	_g.set_talent("mara", 2, 0)
+	var fx: Dictionary = _g.talent_fx("mara")
+	_check(is_equal_approx(float(fx.get("hp", 0.0)), 0.15), "effet du talent cumulé")
+	var base := BattleSim.new([{"id": "mara", "level": 20}], 1, 1)
+	var with := BattleSim.new([{"id": "mara", "level": 20, "tal": fx}], 1, 1)
+	_check(is_equal_approx(with.units[0].max_hp, base.units[0].max_hp * 1.15), "le talent compte en combat")

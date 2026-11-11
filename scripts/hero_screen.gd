@@ -77,8 +77,16 @@ func _rebuild() -> void:
 	body.size = Vector2(720, UI.H - 96 - bh)
 	body.draw.connect(_draw_body)
 	body.gui_input.connect(func(ev: InputEvent):
-		if M3.is_tap(ev) and have and ev.position.y > _stars_y() and ev.position.y < _stars_y() + 72.0 and int(Game.hero_stars[_id]) < Data.MAX_STARS:
-			evolve_requested.emit(_id))
+		if not M3.is_tap(ev) or not have:
+			return
+		if ev.position.y > _stars_y() and ev.position.y < _stars_y() + 72.0 and int(Game.hero_stars[_id]) < Data.MAX_STARS:
+			evolve_requested.emit(_id)
+		elif ev.position.y > _talent_y() and ev.position.y < _talent_y() + 72.0:
+			Sfx.play("click", -6.0)
+			var ts := TalentScreen.new(_id)
+			ts.changed.connect(func(): changed.emit())
+			ts.closed.connect(func(): _body.queue_redraw())
+			add_child(ts))
 	_stage.add_child(body)
 	_body = body
 	if not have:
@@ -246,6 +254,28 @@ func _draw_body() -> void:
 		if plus >= 1.0:
 			M3.text(c, r.position + Vector2(24 + M3.text_w(UI.num(roundf(total)), 34, true), 74), "+" + UI.num(roundf(plus)), 20, vals[i][4], true)
 	_draw_power(c, h, sy + 240.0)
+	_draw_talents(c, h, _talent_y())
+
+
+func _talent_y() -> float:
+	return _stars_y() + 240.0 + (132.0 if Data.SIGNATURES.has(_id) else 96.0) + 16.0
+
+
+## Ligne des talents (maquette WG) : ceux choisis, ou combien sont à choisir ; toucher ouvre le choix.
+func _draw_talents(c: Control, h: Dictionary, y: float) -> void:
+	var open := Game.talents_open(_id)
+	var r := Rect2(32, y, 656, 72)
+	M3.glass_card(c, r, open > 0, 18.0)
+	var names := []
+	for tier in Data.TALENT_TIERS:
+		var ch := Game.talent_choice(_id, tier)
+		if ch >= 0:
+			names.append(String(Data.TALENTS[h.role][tier][ch].name))
+	M3.text(c, Vector2(56, y + 46), "Talents", 26, UI.TEXT, true)
+	var txt := ", ".join(names) if not names.is_empty() else ("à partir de 2★" if int(Game.hero_stars.get(_id, 1)) < 2 else "")
+	if open > 0:
+		txt = "%d à choisir" % open
+	M3.text(c, Vector2(176, y + 46), txt + "  ›", 22, UI.GOLD if open > 0 else UI.MUTED, open > 0, 488, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 ## Pouvoir et effet propre (maquettes XF et WA).

@@ -160,6 +160,16 @@ func _initialize() -> void:
 			main._open_ship()
 			await process_frame
 			main._modal.open_event(g.board.pending[1]),
+		"talents": func():
+			g.hero_stars["mara"] = 3
+			g.talents = {"mara": {"2": 0}}
+			main._open_modal(HeroScreen.new("mara"))
+			await process_frame
+			main._modal.add_child(TalentScreen.new("mara")),
+		"fiche_talents": func():
+			g.hero_stars["mara"] = 3
+			g.talents = {"mara": {"2": 0}}
+			main._open_modal(HeroScreen.new("mara")),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
