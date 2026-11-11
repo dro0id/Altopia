@@ -18,6 +18,7 @@ var _fab_cast: Button
 var _fab_speed: Button
 var _field: Control
 var _boss_bar: BossBar
+var _hud: CombatHud
 var _warn: HudButton
 var _boss := ""
 var _fh := 600.0
@@ -166,6 +167,12 @@ func _build_top() -> void:
 	_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boss_bar.visible = false
 	add_child(_boss_bar)
+	# haut de l'écran sur les téléphones hauts (maquette XC)
+	_hud = CombatHud.new()
+	_hud.battle = battle
+	_hud.z_index = 2990
+	_hud.visible = false
+	add_child(_hud)
 	_info = Label.new()
 	_info.add_theme_font_override("font", UI.bold_font())
 	_info.add_theme_font_size_override("font_size", M3.fs(24))
@@ -201,12 +208,12 @@ func _build_top() -> void:
 func _build_skills() -> void:
 	# bande des portraits (maquette BB) : un portrait par héros ; le toucher lance son pouvoir
 	_strip = Control.new()
-	_strip.size = Vector2(720, 148)
+	_strip.size = Vector2(720, 164)
 	_strip.draw.connect(func(): _strip.draw_rect(Rect2(Vector2.ZERO, _strip.size), UI.BG))
 	add_child(_strip)
 	_skill_row = HBoxContainer.new()
 	_skill_row.position = Vector2(24, 4)
-	_skill_row.size = Vector2(672, 136)
+	_skill_row.size = Vector2(672, 156)
 	_skill_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_skill_row.add_theme_constant_override("separation", 16)
 	_strip.add_child(_skill_row)
@@ -379,19 +386,30 @@ func _layout() -> void:
 	_top.queue_redraw()
 	# bas : rangée d'actions puis bande des portraits, posées au-dessus de la barre de navigation
 	_controls.position = Vector2(0, h - NavBar.total() - 128.0)
-	_strip.position = Vector2(0, _controls.position.y - 148.0)
+	_strip.position = Vector2(0, _controls.position.y - 164.0)
 	_boss = Data.boss_type(Game.stage)
 	var top := 112.0 + _dy
 	_fh = _strip.position.y - top
+	# écran haut : la place au-dessus du terrain sert au suivi du combat (maquette XC)
+	var need := CombatHud.needed(_boss != "")
+	_hud.visible = _fh - 560.0 >= need
+	_hud.show_boss = _boss != ""
+	battle.banner_in_field = not _hud.visible
+	var hud_top := top
+	if _hud.visible:
+		_hud.position = Vector2(0, top)
+		_hud.size = Vector2(720, need)
+		top += need
+		_fh -= need
 	var k := minf(_fh / 560.0, 1.25)
 	_field.position = Vector2(0, top)
 	_field.size = Vector2(720, _fh)
 	battle.scale = Vector2.ONE * k
 	battle.position = Vector2(-(720.0 * k - 720.0) * 0.5, _fh - 560.0 * k)
 	battle._base = battle.position
-	_boss_bar.position = Vector2(32, top + 16)
+	_boss_bar.position = Vector2(32, hud_top + _hud.boss_y()) if _hud.visible else Vector2(32, top + 16)
 	_boss_bar.visible = _boss != ""
-	_info.position = Vector2(32, top + (96.0 if _boss != "" else 16.0))
+	_info.position = Vector2(32, top + (16.0 if _hud.visible or _boss == "" else 96.0))
 	_buffs.position = Vector2(32, _strip.position.y - 64.0)
 	_toast_box.position = Vector2(32, _strip.position.y - 184.0)      # au-dessus des renforts actifs
 
@@ -1020,6 +1038,17 @@ func _refresh() -> void:
 	_auto_b.size.x = 528.0 if big else 400.0
 	_fab_cast.position.x = 576.0 if big else 448.0
 	_refresh_boss()
+	# part des dégâts sous chaque portrait (maquette XC), une fois que le combat a commencé
+	var best := -1
+	var bv := 0.0
+	for b in skill_buttons:
+		var sh: float = battle.sim.share(b.slot) if not battle.sim.dealt.is_empty() else -1.0
+		b.share = sh
+		if sh > bv:
+			bv = sh
+			best = b.slot
+	for b in skill_buttons:
+		b.top = b.slot == best
 	var parts: Array = []
 	if Game.perseverance > 0:
 		parts.append("Persévérance + %d %%" % Game.perseverance_pct())

@@ -24,6 +24,7 @@ class Unit:
 	var skill_max := 10.0
 	var shield := 0.0
 	var shield_t := 0.0
+	var shield_src := -1             # place du héros qui a posé le bouclier (part de soutien)
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -57,6 +58,9 @@ var fallen := 0                  # héros tombés pendant l'étage
 var stars := 0                   # étoiles à la victoire (voir Data.stars_for)
 var combo := 0                   # enchaînement de pouvoirs en cours
 var max_combo := 0
+var dealt := {}                  # dégâts infligés par place de héros (part de dégâts, maquettes XC et XD)
+var support := {}                # soins et dégâts absorbés par bouclier, par place de héros
+var finisher := -1               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -319,6 +323,7 @@ func _cast(u: Unit) -> bool:
 			for a in _alive(0):
 				a.shield = u.atk * 3.5 * k
 				a.shield_t = 6.0
+				a.shield_src = u.slot
 			events.append({"type": "cast", "unit": u, "kind": "shield"})
 		"volley":
 			var i := 0
@@ -336,7 +341,7 @@ func _cast(u: Unit) -> bool:
 				events.append({"type": "cast", "unit": u, "kind": "pierce", "target": best})
 		"repair":
 			for a in _alive(0):
-				_heal(a, u.atk * 2.4 * k * u.heal_mult)
+				_heal(a, u.atk * 2.4 * k * u.heal_mult, u.slot)
 			events.append({"type": "cast", "unit": u, "kind": "repair"})
 		"gravity":
 			for e in _alive(1):
@@ -371,15 +376,34 @@ func _cast(u: Unit) -> bool:
 	return true
 
 
+## Part de chaque héros (0 à 1) : dégâts infligés, et soutien (soins + boucliers).
+func share(slot: int) -> float:
+	var tot := 0.0
+	for v in dealt.values():
+		tot += float(v)
+	return float(dealt.get(slot, 0.0)) / tot if tot > 0.0 else 0.0
+
+
+func support_share(slot: int) -> float:
+	var tot := 0.0
+	for v in dealt.values():
+		tot += float(v)
+	for v in support.values():
+		tot += float(v)
+	return float(support.get(slot, 0.0)) / tot if tot > 0.0 else 0.0
+
+
 ## Déclenche tout de suite le pouvoir d'un ennemi (pour les tests).
 func cast_enemy(u: Unit) -> bool:
 	u.skill_cd = 0.0
 	return _cast(u)
 
 
-func _heal(a: Unit, amount: float) -> void:
+func _heal(a: Unit, amount: float, src := -1) -> void:
 	var before := a.hp
 	a.hp = minf(a.max_hp, a.hp + amount)
+	if src >= 0:
+		support[src] = float(support.get(src, 0.0)) + a.hp - before
 	events.append({"type": "heal", "unit": a, "amount": a.hp - before})
 
 
@@ -403,6 +427,13 @@ func _apply_hit(p: Dictionary) -> void:
 		var absorbed := minf(dst.shield, dmg)
 		dst.shield -= absorbed
 		dmg -= absorbed
+		if dst.shield_src >= 0:
+			support[dst.shield_src] = float(support.get(dst.shield_src, 0.0)) + absorbed
+	var src: Unit = p.get("src")
+	if src != null and src.side == 0 and dst.side == 1:
+		dealt[src.slot] = float(dealt.get(src.slot, 0.0)) + minf(dmg, maxf(0.0, dst.hp))
+		if dst.boss and dst.hp - dmg <= 0.0:
+			finisher = src.slot
 	dst.hp -= dmg
 	events.append({"type": "hit", "unit": dst, "amount": dmg, "fx": p.get("fx", ""), "crit": bool(p.get("crit", false))})
 	if dst.hp <= 0.0:
@@ -438,7 +469,7 @@ func _act(u: Unit) -> void:
 			if a.hp_frac() < 0.75 and (low == null or a.hp_frac() < low.hp_frac()):
 				low = a
 		if low != null:
-			_heal(low, u.atk * 2.0 * u.heal_mult)
+			_heal(low, u.atk * 2.0 * u.heal_mult, u.slot)
 			events.append({"type": "attack", "src": u, "dst": low, "ranged": true, "delay": 0.2, "heal": true})
 			return
 	var t := _pick_target(u)

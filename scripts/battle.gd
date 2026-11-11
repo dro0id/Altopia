@@ -25,6 +25,7 @@ var boss_wave := false
 var banner := ""
 var banner_t := 0.0
 var banner_sub := ""
+var banner_in_field := true       # faux quand le haut de l'écran (CombatHud) affiche les annonces
 var shake := 0.0
 var _base := Vector2.ZERO
 var _result_timer := 0.0
@@ -462,7 +463,7 @@ func _draw_overlay() -> void:
 		var bw := 160.0
 		_ov.draw_string_outline(f, pos - Vector2(bw * 0.5 - 40.0, 0), x.txt, HORIZONTAL_ALIGNMENT_CENTER, bw, fs, 6, Color(0, 0, 0, 0.8 * (1.0 - k3)))
 		_ov.draw_string(f, pos - Vector2(bw * 0.5 - 40.0, 0), x.txt, HORIZONTAL_ALIGNMENT_CENTER, bw, fs, Color(c.r, c.g, c.b, 1.0 - k3 * 0.8))
-	if banner_t > 0.0:
+	if banner_t > 0.0 and banner_in_field:
 		var a := minf(1.0, banner_t * 2.0)
 		var slide := (1.0 - minf(1.0, (1.6 - banner_t) * 6.0)) * 40.0 if banner_t > 1.0 else 0.0
 		# le terrain est agrandi et rogné sur les écrans hauts : le titre tient dans la partie visible
