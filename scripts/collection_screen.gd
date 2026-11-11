@@ -34,6 +34,7 @@ var _drag_pos := Vector2.ZERO
 var _press := Vector2.ZERO
 var _gpress := Vector2.ZERO
 var _gdown := false
+var _figs: Array = []
 
 
 func _init() -> void:
@@ -71,21 +72,26 @@ func _init() -> void:
 	for c in ROLE_CHIPS:
 		labels.append(c[0])
 	_chips = M3Chips.new(labels, 0)
-	_chips.position = Vector2(32, 200)
+	_chips.position = Vector2(32, 328)
 	_chips.changed.connect(func(i: int):
 		_role = ROLE_CHIPS[i][1]
 		_rebuild())
 	_stage.add_child(_chips)
+	# escouade épinglée (maquette XG) : les cinq visages, la puissance, le nombre de héros possédés
 	_info = Control.new()
-	_info.position = Vector2(32, 296)
-	_info.size = Vector2(656, 40)
-	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info.draw.connect(func():
-		M3.text(_info, Vector2(0, 28), "Escouade · %d / %d · Puissance %s" % [Game.squad_ids().size(), Data.SQUAD_SIZE, UI.num(Game.power())], 24, UI.MUTED))
+	_info.position = Vector2(32, 196)
+	_info.size = Vector2(656, 120)
+	_info.mouse_filter = Control.MOUSE_FILTER_STOP
+	_info.draw.connect(_draw_squad_row)
+	_info.gui_input.connect(func(ev: InputEvent):
+		if M3.is_tap(ev):
+			var i := clampi(int((ev.position.x - 8.0) / 128.0), 0, Data.SQUAD_SIZE - 1)
+			if Game.squad[i] != "":
+				hero_requested.emit(Game.squad[i]))
 	_stage.add_child(_info)
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(0, 344)
-	_scroll.size = Vector2(720, 776)
+	_scroll.position = Vector2(0, 416)
+	_scroll.size = Vector2(720, (UI.H - 160.0) - 416.0)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_stage.add_child(_scroll)
@@ -165,8 +171,24 @@ func _rebuild() -> void:
 			return int(Game.levels[a]) > int(Game.levels[b])
 		return Data.RARITIES_HERO.find(Data.HEROES[a].rarity) > Data.RARITIES_HERO.find(Data.HEROES[b].rarity))
 	_cells = ids
-	var rows := ceili(float(_cells.size()) / 3.0)
-	_grid.custom_minimum_size = Vector2(720, rows * 264.0 + 24.0)
+	var rows := ceili(float(_cells.size()) / float(COLS))
+	_grid.custom_minimum_size = Vector2(720, rows * (CARD.y + 12.0) + 24.0)
+	# héros en pied : un nœud par carte (comme sur la fiche)
+	for f in _figs:
+		f.queue_free()
+	_figs = []
+	for i in _cells.size():
+		var id: String = _cells[i]
+		var h: Dictionary = Data.HEROES[id]
+		var r := _cell_rect(i)
+		var fig := Node2D.new()
+		fig.position = r.position + Vector2(r.size.x * 0.5, 176)
+		fig.scale = Vector2(0.88, 0.88)
+		if not Game.is_owned(id):
+			fig.modulate = Color(0.05, 0.07, 0.14)       # ombre : à recruter
+		fig.draw.connect(func(): Art.draw_hero(fig, h, {"t": _t}))
+		_grid.add_child(fig)
+		_figs.append(fig)
 	_grid.queue_redraw()
 	_info.queue_redraw()
 
@@ -174,12 +196,36 @@ func _rebuild() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_grid.queue_redraw()
+	for f in _figs:
+		f.queue_redraw()
 	if _form != null:
 		_form.queue_redraw()
 
 
+const COLS := 4
+const CARD := Vector2(155, 248)
+
+
 func _cell_rect(i: int) -> Rect2:
-	return Rect2(32.0 + (i % 3) * 224.0, (i / 3) * 264.0, 208, 248)
+	return Rect2(32.0 + (i % COLS) * (CARD.x + 12.0), (i / COLS) * (CARD.y + 12.0), CARD.x, CARD.y)
+
+
+## Rangée de l'escouade épinglée en haut de l'onglet (maquette XG).
+func _draw_squad_row() -> void:
+	var c := _info
+	M3.glass_card(c, Rect2(Vector2.ZERO, c.size), false, 20.0)
+	var owned := 0
+	for id in Data.ALL_HEROES:
+		if Game.is_owned(id):
+			owned += 1
+	for i in Data.SQUAD_SIZE:
+		var id: String = Game.squad[i]
+		var cc := Vector2(72 + i * 128.0, 60)
+		if id == "":
+			c.draw_circle(cc, 40, M3.S3)
+			continue
+		var h: Dictionary = Data.HEROES[id]
+		M3.avatar(c, h, cc, 42.0, Data.RARITY_COLORS[h.rarity], _t)
 
 
 func _draw_grid() -> void:
@@ -190,20 +236,46 @@ func _draw_grid() -> void:
 		var have := Game.is_owned(id)
 		var r := _cell_rect(i)
 		var rc: Color = Data.RARITY_COLORS[h.rarity]
-		M3.card(_grid, r, M3.S2, 32, Color(rc, 0.33) if have else M3.OUT, 2)
-		var c := r.position + Vector2(104, 84)
-		M3.avatar(_grid, h, c, 64.0, rc if have else M3.OUT, _t)
-		if not have:
-			_grid.draw_circle(c, 62.0, Color(0.04, 0.06, 0.12, 0.7))
-		M3.text(_grid, r.position + Vector2(0, 190), String(h.name).split(" ")[0], 28, UI.TEXT if have else UI.MUTED, true, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
-		var sub := "À recruter"
+		# carte : fond teinté par la rareté, liseré de la rareté si possédé
+		M3.glass_card(_grid, r, false, 16.0)
 		if have:
-			sub = "Niv. %d" % int(Game.levels[id])
+			_grid.draw_rect(Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, 170)), Color(rc, 0.16))
+			_grid.draw_style_box(UI.box(Color(0, 0, 0, 0), Color(rc, 0.8), 14, 0), r)
+		# rôle en haut à gauche, escouade en haut à droite
+		_role_glyph(_grid, String(h.role), r.position + Vector2(22, 22), rc if have else UI.MUTED)
+		if squad.has(id):
+			var tag := Rect2(r.end.x - 62, r.position.y + 6, 56, 28)
+			_grid.draw_style_box(UI.box(UI.ACCENT, Color(0, 0, 0, 0), 8, 0), tag)
+			M3.text(_grid, tag.position + Vector2(0, 21), "ESC.", 18, Color("06101f"), true, tag.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		# bas de carte : nom, étoiles et niveau
+		_grid.draw_rect(Rect2(r.position.x + 2, r.position.y + 180, r.size.x - 4, r.size.y - 182), Color("0b1226", 0.85))
+		M3.text(_grid, r.position + Vector2(0, 210), String(h.name).split(" ")[0], 26, UI.TEXT if have else UI.MUTED, true, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
+		var sub := "à recruter"
+		var col := UI.GOLD
+		if have:
+			var st := int(Game.hero_stars.get(id, 1))
+			sub = "%s · niv. %d" % ["★".repeat(mini(st, 5)), int(Game.levels[id])]
+			col = UI.TEXT
 			if Game.can_star_up(id):
-				sub += " · ▲ étoile"
-			elif Game.needs_star(id):
-				sub += " · ★ requise"
-		M3.text(_grid, r.position + Vector2(8, 224), sub, 24, UI.MUTED, false, r.size.x - 16.0, HORIZONTAL_ALIGNMENT_CENTER)
+				sub = "▲ étoile · niv. %d" % int(Game.levels[id])
+				col = UI.GREEN
+		M3.text(_grid, r.position + Vector2(4, 238), sub, 20, col if have else Color(UI.GOLD, 0.7), true, r.size.x - 8.0, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## Pictogramme du rôle : bouclier (rempart), épées (dégâts), croix (soins), ondes (contrôle).
+static func _role_glyph(ci: CanvasItem, role: String, c: Vector2, col: Color) -> void:
+	match role:
+		"tank":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-10, -10), c + Vector2(10, -10), c + Vector2(10, 1), c + Vector2(0, 12), c + Vector2(-10, 1), c + Vector2(-10, -10)]), col, 3.0, true)
+		"dps":
+			ci.draw_line(c + Vector2(-10, 10), c + Vector2(10, -10), col, 3.0, true)
+			ci.draw_line(c + Vector2(-10, -10), c + Vector2(10, 10), col, 3.0, true)
+		"healer":
+			ci.draw_rect(Rect2(c + Vector2(-3, -11), Vector2(6, 22)), col)
+			ci.draw_rect(Rect2(c + Vector2(-11, -3), Vector2(22, 6)), col)
+		_:
+			for k in 3:
+				ci.draw_arc(c + Vector2(0, -6 + k * 6), 10, PI * 1.1, PI * 1.9, 10, col, 2.5, true)
 
 
 func _grid_input(ev: InputEvent) -> void:
