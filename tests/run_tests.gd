@@ -1148,3 +1148,24 @@ func test_talents() -> void:
 	var base := BattleSim.new([{"id": "mara", "level": 20}], 1, 1)
 	var with := BattleSim.new([{"id": "mara", "level": 20, "tal": fx}], 1, 1)
 	_check(is_equal_approx(with.units[0].max_hp, base.units[0].max_hp * 1.15), "le talent compte en combat")
+
+
+## Maquette WH : liens d'équipage.
+func test_bonds() -> void:
+	_check(Bonds.LIST.size() == 7, "sept liens")
+	var convos := 0
+	for b in Bonds.LIST:
+		convos += (b.convos as Array).size()
+		for m in b.members:
+			_check(Data.HEROES.has(m), "membre connu : %s" % m)
+	_check(convos == 21, "vingt et une conversations")
+	_check(_g.bond_gain(["kai", "mara"]).is_empty() and _g.bond_xp.is_empty(), "pas de lien entre Kaï et Mara")
+	var up: Array = []
+	for i in 10:
+		up += _g.bond_gain(["vance", "mara", "kai"])
+	_check(_g.bond_level("anciens") == 1 and up.size() == 1, "dix combats ensemble : niveau 1")
+	_check(_g.bond_unread() == 1, "une conversation à lire")
+	_check(is_equal_approx(Bonds.skill_bonus("mara", ["mara", "vance"], _g.bond_xp), 0.04), "bonus de pouvoir à deux")
+	_check(Bonds.skill_bonus("mara", ["mara", "kai"], _g.bond_xp) == 0.0, "pas de bonus sans un autre membre")
+	_g.bond_xp["ecoutent"] = 40
+	_check(is_equal_approx(Bonds.skill_bonus("zyra", ["zyra", "oru", "lumi"], _g.bond_xp), 0.12), "lien de niveau 2 à trois : +12 %")

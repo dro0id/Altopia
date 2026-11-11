@@ -52,6 +52,9 @@ static func entries() -> Array:
 			better += 1
 	if better > 0:
 		out.append({"kind": "items", "title": "%d objet%s meilleur%s en stock" % [better, "s" if better > 1 else "", "s" if better > 1 else ""], "sub": "pour l’escouade", "action": "Équiper", "rank": 1, "role": "main"})
+	var unread: int = Game.bond_unread()
+	if unread > 0:
+		out.append({"kind": "bond", "title": "Conversation%s d’équipage" % ("s" if unread > 1 else ""), "sub": "%d à lire · liens d’équipage" % unread, "action": "Lire", "rank": 2, "role": "secondary"})
 	var left := 0
 	for ord in o.list:
 		if not o.is_done(ord):
@@ -179,6 +182,10 @@ func _act(e: Dictionary) -> void:
 		"star":
 			close()
 			open_evolve.emit(String(e.data))
+		"bond":
+			var bs := BondsScreen.new()
+			bs.closed.connect(_build)
+			add_child(bs)
 		"talent":
 			var ts := TalentScreen.new(String(e.data))
 			ts.closed.connect(_build)

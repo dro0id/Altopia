@@ -48,7 +48,7 @@ func _rebuild() -> void:
 	set_backdrop(Data.RARITY_COLORS[h.rarity])      # fond teinté par la rareté (maquette G3)
 	var acts: Array = []
 	if have:
-		acts.append(["⋮", func(): M3.menu(_stage, Vector2(704, 96), [["Placer en escouade", _open_picker], ["Tout retirer", func():
+		acts.append(["⋮", func(): M3.menu(_stage, Vector2(704, 96), [["Placer en escouade", _open_picker], ["Liens d’équipage", func(): add_child(BondsScreen.new())], ["Tout retirer", func():
 			Game.unequip_all(_id)
 			Game.save_game()
 			changed.emit()

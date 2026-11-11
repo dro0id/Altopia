@@ -857,6 +857,9 @@ func _on_cleared(_credits: float) -> void:
 	if frontier:
 		Game.record_generated(stage, true)
 	Game.orders.track("clear")
+	# liens d'équipage : ceux qui ont combattu ensemble se rapprochent
+	for b in Game.bond_gain(Game.squad_ids()):
+		_show_toast("Lien « %s » niveau %d · nouvelle conversation" % [b.name, Game.bond_level(String(b.id))], 3.0)
 	if Data.is_boss_stage(stage):
 		Game.orders.track("boss")
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)

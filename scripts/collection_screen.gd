@@ -143,7 +143,8 @@ func _toggle_search() -> void:
 
 
 func _open_menu() -> void:
-	M3.menu(_stage, Vector2(704, 96), [["Formation de l'escouade", _open_sheet], ["Forge", func(): forge_requested.emit()]])
+	var unread: int = Game.bond_unread()
+	M3.menu(_stage, Vector2(704, 96), [["Formation de l'escouade", _open_sheet], ["Liens d’équipage" + (" · %d nouvelle%s" % [unread, "s" if unread > 1 else ""] if unread > 0 else ""), func(): add_child(BondsScreen.new())], ["Forge", func(): forge_requested.emit()]])
 
 
 # ---------------------------------------------------------------- grille

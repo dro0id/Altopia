@@ -67,7 +67,9 @@ var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
 var orders := Orders.new()
 var board := BoardEvents.new()
-var talents := {}                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
+var talents := {}
+var bond_xp := {}                  # lien -> points (maquette WH)
+var bond_read: Array = []          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -106,6 +108,8 @@ func _notification(what: int) -> void:
 func reset() -> void:
 	orders = Orders.new()
 	talents = {}
+	bond_xp = {}
+	bond_read = []
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -163,8 +167,37 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id)})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp)})
 	return out
+
+
+# ---------------------------------------------------------------- liens d'équipage (maquette WH)
+
+## Les héros `ids` ont combattu ou travaillé ensemble : leurs liens communs gagnent `n` points.
+## Renvoie les liens qui viennent de monter de niveau.
+func bond_gain(ids: Array, n: int = 1) -> Array:
+	var up := []
+	for a in Bonds.active(ids):
+		var id := String(a.bond.id)
+		var before := Bonds.level_of(int(bond_xp.get(id, 0)))
+		bond_xp[id] = int(bond_xp.get(id, 0)) + n
+		if Bonds.level_of(int(bond_xp[id])) > before:
+			up.append(a.bond)
+	return up
+
+
+func bond_level(id: String) -> int:
+	return Bonds.level_of(int(bond_xp.get(id, 0)))
+
+
+## Conversations ouvertes mais pas encore lues.
+func bond_unread() -> int:
+	var n := 0
+	for b in Bonds.LIST:
+		for lv in range(1, bond_level(String(b.id)) + 1):
+			if not bond_read.has("%s:%d" % [b.id, lv]):
+				n += 1
+	return n
 
 
 # ---------------------------------------------------------------- talents (maquette WG)
@@ -1073,7 +1106,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read,
 	}))
 
 
@@ -1246,6 +1279,8 @@ func load_game() -> bool:
 	orders = Orders.from_dict(parsed.get("orders", {}))
 	board = BoardEvents.from_dict(parsed.get("board", {}))
 	talents = parsed.get("talents", {}) if parsed.get("talents", {}) is Dictionary else {}
+	bond_xp = parsed.get("bond_xp", {}) if parsed.get("bond_xp", {}) is Dictionary else {}
+	bond_read = parsed.get("bond_read", []) if parsed.get("bond_read", []) is Array else []
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

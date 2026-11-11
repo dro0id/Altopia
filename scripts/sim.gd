@@ -98,6 +98,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	for e in team:
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
 		_apply_talents(u, e.get("tal", {}))
+		u.skill_mod += float(e.get("bond", 0.0))        # liens d'équipage (maquette WH)
 		var sb: Dictionary = e.get("ship", {})
 		if not sb.is_empty():
 			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss

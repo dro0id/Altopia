@@ -212,6 +212,8 @@ func collect(game: Node, r: String) -> Dictionary:
 	harvests += 1
 	if "orders" in game:
 		game.orders.track("harvest")
+	if "bond_xp" in game:
+		game.bond_gain(posts.get(r, []))          # travailler ensemble rapproche aussi
 	match res:
 		"shards":
 			game.shards += int(amount)

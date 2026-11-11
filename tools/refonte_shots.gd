@@ -170,6 +170,21 @@ func _initialize() -> void:
 			g.hero_stars["mara"] = 3
 			g.talents = {"mara": {"2": 0}}
 			main._open_modal(HeroScreen.new("mara")),
+		"liens": func():
+			for id in ["vance", "dax", "pim", "neelo", "sora", "lumi", "gorn", "omega", "brix"]:
+				g.owned[id] = true
+			g.bond_xp = {"anciens": 52, "ecoutent": 25, "chasseurs": 4, "medical": 120}
+			g.bond_read = ["anciens:1", "medical:1", "medical:2"]
+			main._open_collection(0)
+			await process_frame
+			main._modal.add_child(BondsScreen.new()),
+		"conversation": func():
+			g.bond_xp = {"ecoutent": 25}
+			main._open_collection(0)
+			await process_frame
+			var bs := BondsScreen.new()
+			main._modal.add_child(bs)
+			bs._open_convo(Bonds.get_bond("ecoutent"), 0),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
