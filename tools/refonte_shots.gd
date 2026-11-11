@@ -128,6 +128,25 @@ func _initialize() -> void:
 			main.battle.banner_t = 60.0
 			main.battle.speed = 0.0,
 		"pouvoirs": func(): main._open_modal(HeroScreen.new("zyra", 2)),
+		"afaire": func():
+			_ship(10)
+			g.orders.refresh()
+			g.orders.track("harvest", 3)
+			g.orders.track("cast", 6)
+			g.fragments["mara"] = 20
+			main._open_ship()
+			await process_frame
+			main._open_todo(),
+		"ordres": func():
+			_ship(10)
+			g.orders.refresh()
+			g.orders.track("harvest", 3)
+			g.orders.track("cast", 6)
+			g.orders.week_done = 7
+			g.orders.week_claimed = [3, 6]
+			main._open_ship()
+			await process_frame
+			main._open_orders(),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame

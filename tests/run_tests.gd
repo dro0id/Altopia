@@ -1051,3 +1051,40 @@ func test_signatures() -> void:
 		elif d_full == 0.0:
 			d_full = p.dmg
 	_check(d_full > 0.0 and is_equal_approx(d_low, d_full * 2.0), "Kaï : dégâts doublés sous 30 % de PV")
+
+
+## Maquette WJ : ordres du jour, réclamation, solde de la semaine, renouvellement.
+func test_orders() -> void:
+	var o := Orders.new()
+	var d0 := Orders.today()
+	o.refresh(d0)
+	_check(o.list.size() == 3, "trois ordres par jour")
+	var kinds := {}
+	for ord in o.list:
+		kinds[Orders.template(ord.id).kind] = true
+	_check(kinds.size() == 3, "trois types d'action différents")
+	var t0 := Orders.template(o.list[0].id)
+	_check(o.claim(0, _g).is_empty(), "un ordre non rempli ne se réclame pas")
+	o.track(String(t0.kind), int(t0.goal) + 5)
+	_check(int(o.list[0].progress) == int(t0.goal), "la progression s'arrête à l'objectif")
+	var sh0: int = _g.shards
+	var tk0: int = _g.tokens
+	var rw := o.claim(0, _g)
+	_check(not rw.is_empty() and o.week_done == 1, "réclamer verse la récompense et fait avancer la solde")
+	_check(_g.shards - sh0 == int(rw.get("shards", 0)) and _g.tokens - tk0 == int(rw.get("tokens", 0)), "récompense versée")
+	_check(o.claim(0, _g).is_empty(), "un ordre ne se réclame qu'une fois")
+	o.week_done = 2
+	o.track(String(Orders.template(o.list[1].id).kind), 99)
+	var cr0: int = _g.crystals
+	o.claim(1, _g)
+	_check(o.week_claimed.has(3) and _g.crystals - cr0 >= 5, "palier de 3 ordres versé")
+	var w := o.week
+	o.refresh(d0 + 1)
+	_check(o.day == d0 + 1 and o.list.size() == 3 and o.list.all(func(x): return int(x.progress) == 0), "nouveau jour : nouveaux ordres")
+	var d2 := d0 + 1
+	while Orders.week_of(d2) == w:
+		d2 += 1
+	o.refresh(d2)
+	_check(o.week_done == 0 and o.week_claimed.is_empty(), "nouvelle semaine : solde remise à zéro")
+	var back := Orders.from_dict(o.to_dict())
+	_check(back.day == o.day and back.list.size() == 3, "sauvegarde des ordres")

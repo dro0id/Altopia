@@ -65,6 +65,7 @@ var last_pulls: Array = []       # derniers héros obtenus au recrutement (id, r
 var daily_day := -1             # jour (UTC) de l'offre du jour déjà achetée
 var boost_until := 0            # fin du boost de crédits ×2 (secondes Unix)
 var offline_report := {}        # {seconds, credits} calculé au chargement
+var orders := Orders.new()       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -97,6 +98,7 @@ func _notification(what: int) -> void:
 
 
 func reset() -> void:
+	orders = Orders.new()
 	items = []
 	next_item = 1
 	stash = []
@@ -244,6 +246,7 @@ func recruit(count: int) -> Array:
 	if tokens < cost:
 		return []
 	tokens -= cost
+	orders.track("recruit", count)
 	var out: Array = []
 	for i in count:
 		var rarity := Data.roll_recruit(rng, recruit_pity)
@@ -573,6 +576,7 @@ func equip(item_id: int, hid: String) -> String:
 	if not old.is_empty():
 		old.on = ""
 	it.on = hid
+	orders.track("equip")
 	it.bound = hid
 	changed.emit()
 	return ""
@@ -1011,7 +1015,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(),
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(),
 	}))
 
 
@@ -1181,6 +1185,7 @@ func load_game() -> bool:
 	if pending_load.has("credits"):
 		_pay(pending_load)                    # un coffre non ouvert avant la fermeture est versé au rechargement
 	ship = ShipState.from_dict(parsed.get("ship", {}))
+	orders = Orders.from_dict(parsed.get("orders", {}))
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

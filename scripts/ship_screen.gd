@@ -8,6 +8,7 @@ signal room_requested(room: String)
 signal builds_requested
 signal mission_requested
 signal recruit_requested
+signal todo_requested
 
 
 var view: ShipView
@@ -25,6 +26,7 @@ var _lab_rects := {}
 var _mission: Control
 var _advice: Control
 var _advice_btn: Button
+var _todo: Button
 var _adv := {}
 var _join: Button
 static var mission_gain := 0.0      # crédits gagnés par la mission pendant qu'on est à bord (affichés sur la carte)
@@ -77,6 +79,15 @@ func _init() -> void:
 	b3.pressed.connect(func():
 		b3.add_theme_color_override("font_color", UI.TEXT)
 		Help.show(self, "L’Aurore"))
+	# « À faire » (maquette XB) : tout ce qui attend ; pastille rouge = ce qui se réclame
+	_todo = _round_button("✓", Vector2(720 - 32 - 88, 612))
+	_todo.pressed.connect(func(): todo_requested.emit())
+	_todo.draw.connect(func():
+		var n := TodoScreen.claim_count()
+		if n > 0:
+			_todo.draw_circle(Vector2(76, 14), 18, UI.BAR)
+			_todo.draw_circle(Vector2(76, 14), 15, UI.RED)
+			_todo.draw_string(UI.bold_font(), Vector2(60, 22), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 20, Color.WHITE))
 	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "success", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
@@ -154,6 +165,8 @@ func _exit_tree() -> void:
 
 func _refresh() -> void:
 	var s: ShipState = Game.ship
+	if _todo != null:
+		_todo.queue_redraw()
 	if view.level != s.level or view.opened != s.rooms.duplicate():
 		view.setup(s.level, s.posts, s.rooms)
 	var ti := Ship.tier_info(s.level)

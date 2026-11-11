@@ -203,6 +203,8 @@ func collect(game: Node, r: String) -> Dictionary:
 		return {}
 	stock[r] = s - amount
 	harvests += 1
+	if "orders" in game:
+		game.orders.track("harvest")
 	match res:
 		"shards":
 			game.shards += int(amount)
@@ -307,6 +309,8 @@ func start_upgrade(game: Node, r: String) -> bool:
 	game.credits -= float(c.credits)
 	game.shards -= int(c.shards)
 	builds.append({"room": r, "to": lv + 1, "end": now() + int(c.time)})
+	if "orders" in game:
+		game.orders.track("upgrade")
 	return true
 
 

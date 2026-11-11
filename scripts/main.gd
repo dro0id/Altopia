@@ -223,7 +223,8 @@ func _build_skills() -> void:
 		b.hero = Data.HEROES[Game.squad[i]] if Game.squad[i] != "" else {}
 		b.pressed.connect(func(slot: int):
 			if battle.sim != null and battle.sim.cast(slot):
-				_manual_cast = true)
+				_manual_cast = true
+				Game.orders.track("cast"))
 		_skill_row.add_child(b)
 		skill_buttons.append(b)
 
@@ -249,6 +250,7 @@ func _build_squad() -> void:
 					n += 1
 		if n > 0:
 			_manual_cast = true
+			Game.orders.track("cast", n)
 		else:
 			Sfx.play("click", -10.0))
 	_fab_speed = _fab(_controls, "⚡", Rect2(576, 0, 112, 112), "secondary")
@@ -621,7 +623,27 @@ func _open_ship() -> void:
 	sc.builds_requested.connect(func(): _open_room.call_deferred("pont"))
 	sc.mission_requested.connect(_open_mission)
 	sc.recruit_requested.connect(func(): _open_recruit.call_deferred())
+	sc.todo_requested.connect(_open_todo)
 	_open_modal(sc, 2)
+
+
+## « À faire » (maquette XB) et ordres de l'Amirauté (WJ), par-dessus l'Aurore.
+func _open_todo() -> void:
+	if _modal == null or not is_instance_valid(_modal):
+		return
+	var t := TodoScreen.new()
+	t.open_shop.connect(func(): _open_shop.call_deferred())
+	t.open_room.connect(func(r: String): _open_room.call_deferred(r))
+	t.open_evolve.connect(func(id: String): _open_evolve.call_deferred(id))
+	t.open_items.connect(func(): _open_collection.call_deferred(1))
+	t.open_orders.connect(_open_orders)
+	_modal.add_child(t)
+
+
+func _open_orders() -> void:
+	if _modal == null or not is_instance_valid(_modal):
+		return
+	_modal.add_child(OrdersScreen.new())
 
 
 ## Retour à la mission (le combat) depuis l'Aurore.
@@ -826,6 +848,9 @@ func _on_cleared(_credits: float) -> void:
 	var shows_chest := frontier or Data.is_boss_stage(stage)
 	if frontier:
 		Game.record_generated(stage, true)
+	Game.orders.track("clear")
+	if Data.is_boss_stage(stage):
+		Game.orders.track("boss")
 	var chest: Dictionary = Game.stage_cleared(stars, battle.sim.max_combo, shows_chest)
 	Game.save_game()
 	if shows_chest:

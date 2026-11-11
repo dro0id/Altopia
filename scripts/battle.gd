@@ -93,6 +93,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 				bd = d
 				best = u
 	if best != null:
+		if sim.focus != best:
+			Game.orders.track("target")
 		sim.set_focus(best if sim.focus != best else null)
 		Sfx.play("click", -6.0, 1.2)
 		get_viewport().set_input_as_handled()
@@ -221,6 +223,7 @@ func _consume() -> void:
 				_ring_fx(_center(e.unit) + Vector2(0, -40), Color("7fdcff"), 260.0, 0.6, 0.0, 6.0)
 				Sfx.play("boom", -6.0, 1.3)
 			"interrupt":
+				Game.orders.track("interrupt")
 				banner_hero = ""
 				banner = "INTERROMPU !"
 				banner_sub = "boss exposé 3 s · dégâts +50 %"
@@ -228,6 +231,7 @@ func _consume() -> void:
 				Sfx.play("star", -2.0, 0.8)
 				_burst(_center(e.unit), 24, UI.GOLD, 160.0, 420.0, 0.7)
 			"parry_ready":
+				Game.orders.track("interrupt")
 				banner = "PARADE PRÊTE"
 				banner_t = 1.0
 			"parry":
