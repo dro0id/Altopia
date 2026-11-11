@@ -79,7 +79,7 @@ func _quote() -> String:
 	if not crew.is_empty():
 		var k := int(_report.get("seconds", 0.0)) / 600
 		s += " " + FLAVOR[k % FLAVOR.size()] % String(Data.HEROES[crew[k % crew.size()]].name).split(" ")[0]
-	return "« %s »" % s       # espaces insécables : les guillemets restent collés au texte
+	return "«\u00a0%s\u00a0»" % s       # espaces insécables : les guillemets restent collés au texte
 
 
 static func _de(room: String) -> String:
@@ -211,7 +211,7 @@ func _draw_body(c: Control) -> void:
 		var full := float(_ev.get("full", {}).get(_lost_room, 0.0))
 		var name := String(Ship.RES_NAMES[res])
 		var rn := String(Ship.ROOMS[_lost_room].short)
-		M3.para(c, Vector2(64, ly + 82), "%s est %s %s : %s %s perdus." % [_le(rn), "resté plein" if _masc(rn) else "restée pleine", UI.duration(full).replace(" ", " "), UI.num(lost) if res == "credits" else str(int(lost)), name], 24, UI.TEXT, 380, 1.3)
+		M3.para(c, Vector2(64, ly + 82), "%s est %s %s : %s %s perdus." % [_le(rn), "resté plein" if _masc(rn) else "restée pleine", UI.duration(full).replace(" ", "\u00a0"), UI.num(lost) if res == "credits" else str(int(lost)), name], 24, UI.TEXT, 380, 1.3)
 
 
 static func _le(room: String) -> String:
