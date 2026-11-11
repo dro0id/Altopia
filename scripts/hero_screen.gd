@@ -17,7 +17,7 @@ var _picker: Control
 var _page := 0
 var _head: Control
 var _body: Control
-var level_button: Button        # « Monter le niveau » (le tutoriel le met en avant)
+var level_button: Button        # bouton « Niveau N » (le tutoriel le met en avant)
 
 
 ## `page` : 0 statistiques, 1 équipement, 2 pouvoirs.
