@@ -73,6 +73,75 @@ func _add_fighter(u: BattleSim.Unit) -> void:
 	fighters[u] = f
 
 
+## Toucher un ennemi : toute l'escouade le vise ; toucher le sol : retour à l'ordre normal (maquette WC).
+func _unhandled_input(ev: InputEvent) -> void:
+	if sim == null or sim.state != "fighting":
+		return
+	var tap: bool = (ev is InputEventScreenTouch and ev.pressed) or (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT)
+	if not tap:
+		return
+	var p: Vector2 = make_input_local(ev).position
+	if not Rect2(Vector2.ZERO, SIZE).has_point(p):
+		return
+	var best: BattleSim.Unit = null
+	var bd := 90.0
+	for u in sim.units:
+		if u.side == 1 and u.alive and fighters.has(u):
+			var d := p.distance_to(_center(u))
+			if d < bd:
+				bd = d
+				best = u
+	if best != null:
+		sim.set_focus(best if sim.focus != best else null)
+		Sfx.play("click", -6.0, 1.2)
+		get_viewport().set_input_as_handled()
+	elif sim.focus != null and p.y > SIZE.y * 0.45:
+		sim.set_focus(null)
+		Sfx.play("click", -10.0, 0.8)
+		get_viewport().set_input_as_handled()
+
+
+## Intentions des ennemis (maquette WC) : qui ils visent, gros coup en préparation ; réticule sur la cible désignée.
+func _draw_intents() -> void:
+	if sim == null or sim.state != "fighting":
+		return
+	var f: Font = UI.bold_font()
+	for u in sim.units:
+		if u.side != 1 or not u.alive or not fighters.has(u):
+			continue
+		var c := _center(u)
+		var top := c + Vector2(0, -18.0 * (fighters[u] as Fighter).scale_k)
+		if u.boss and u.skill_cd > 0.0 and u.skill_cd <= 3.0:
+			# gros coup en préparation : ☄ et le compte à rebours
+			var txt := "%d s" % int(ceil(u.skill_cd))
+			var w := 74.0
+			var r := Rect2(top + Vector2(-w * 0.5, -20), Vector2(w, 34))
+			_ov.draw_style_box(UI.box(Color("3a1620", 0.92), Color(UI.RED, 0.9), 17, 0), r)
+			_ov.draw_string(f, r.position + Vector2(10, 25), "☄", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffb142"))
+			_ov.draw_string(f, r.position + Vector2(32, 25), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffcf8a"))
+		elif u.last_target != null and u.last_target.alive:
+			# qui il vise : ⚔ et le visage du héros
+			var r2 := Rect2(top + Vector2(-34, -18), Vector2(68, 32))
+			_ov.draw_style_box(UI.box(Color("0b1226", 0.85), Color(1, 0.45, 0.45, 0.7), 16, 0), r2)
+			_ov.draw_string(f, r2.position + Vector2(8, 24), "⚔", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 0.6, 0.6))
+			Art.draw_portrait(_ov, Data.HEROES[u.last_target.id], r2.position + Vector2(48, 16), 12.0, clock)
+	var fu: BattleSim.Unit = sim.focus
+	if fu != null and fu.alive and fighters.has(fu):
+		var c2 := _center(fu)
+		var rr := 58.0 * (fighters[fu] as Fighter).scale_k
+		var pulse := 1.0 + 0.06 * sin(clock * 6.0)
+		var h := rr * pulse
+		var arm := h * 0.45
+		for sx in [-1.0, 1.0]:
+			for sy in [-1.0, 1.0]:
+				var corner := c2 + Vector2(sx * h, sy * h)
+				_ov.draw_line(corner, corner - Vector2(sx * arm, 0), UI.GOLD, 5.0)
+				_ov.draw_line(corner, corner - Vector2(0, sy * arm), UI.GOLD, 5.0)
+		var lab := Rect2(c2 + Vector2(-50, h + 8), Vector2(100, 34))
+		_ov.draw_style_box(UI.box(UI.GOLD, Color(0, 0, 0, 0), 8, 0), lab)
+		_ov.draw_string(f, lab.position + Vector2(0, 25), "CIBLE", HORIZONTAL_ALIGNMENT_CENTER, 100, 20, Color("06101f"))
+
+
 func _center(u: BattleSim.Unit) -> Vector2:
 	var f: Fighter = fighters.get(u)
 	if f == null:
@@ -362,6 +431,7 @@ func _ellipse_line(c: Vector2, r: float, col: Color, w: float, flat: float = 0.4
 
 
 func _draw_overlay() -> void:
+	_draw_intents()
 	for s in shots:
 		if s.t < 0.0:
 			continue

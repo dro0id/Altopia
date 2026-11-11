@@ -24,7 +24,8 @@ class Unit:
 	var skill_max := 10.0
 	var shield := 0.0
 	var shield_t := 0.0
-	var shield_src := -1             # place du héros qui a posé le bouclier (part de soutien)
+	var shield_src := -1
+	var last_target: Unit = null     # dernière cible attaquée (intention affichée, maquette WC)             # place du héros qui a posé le bouclier (part de soutien)
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -61,7 +62,8 @@ var max_combo := 0
 var dealt := {}                  # dégâts infligés par place de héros (part de dégâts, maquettes XC et XD)
 var support := {}                # soins et dégâts absorbés par bouclier, par place de héros
 var finisher := -1
-var casts := {}                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
+var casts := {}
+var focus: Unit = null           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -378,6 +380,11 @@ func _cast(u: Unit) -> bool:
 	return true
 
 
+## Désigne la cible de l'escouade ; null revient à l'ordre normal.
+func set_focus(u: Unit) -> void:
+	focus = u if u != null and u.alive and u.side == 1 else null
+
+
 ## Bilan du combat pour l'écran de résultat (maquette XD).
 func report() -> Dictionary:
 	var ids := {}
@@ -423,6 +430,8 @@ func _pick_target(u: Unit) -> Unit:
 	if foes.is_empty():
 		return null
 	if u.side == 0:
+		if focus != null and focus.alive and focus.side == 1:
+			return focus                     # cible désignée par le joueur
 		return foes[0]                       # on vise l'ennemi le plus proche : la première place vivante
 	if rng.randf() < 0.6:
 		return foes[0]
@@ -486,6 +495,7 @@ func _act(u: Unit) -> void:
 	var t := _pick_target(u)
 	if t == null:
 		return
+	u.last_target = t
 	var delay := 0.35 if u.ranged else 0.14
 	var dmg := u.atk * rng.randf_range(0.92, 1.08)
 	var crit := false

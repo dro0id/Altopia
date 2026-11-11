@@ -67,6 +67,17 @@ func _initialize() -> void:
 			main._open_collection(1)
 			await process_frame
 			M3.toast(main, "Objet équipé sur Mara"),
+		"cible": func():
+			await _wait(2.45)
+			var best = null
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.alive and (best == null or u.hp > best.hp):
+					best = u
+			main.battle.sim.set_focus(best)
+			main.battle.speed = 0.0
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.alive and u.boss:
+					u.skill_cd = 2.5,
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -308,7 +319,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(2.6 if k == "victoire" or k == "cible" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()
