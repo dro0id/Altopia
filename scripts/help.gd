@@ -49,12 +49,14 @@ static func show(host: Control, title: String) -> void:
 	layer.z_index = 4096
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	var opened := Time.get_ticks_msec()
 	layer.gui_input.connect(func(ev: InputEvent):
-		if M3.is_tap(ev):
+		# l'appui qui a ouvert le panneau ne doit pas le refermer aussitôt
+		if M3.is_tap(ev) and Time.get_ticks_msec() - opened > 250:
 			layer.queue_free())
 	host.get_viewport().add_child(layer)
 	var box := Control.new()
-	box.position = Vector2(40, 120)
+	box.position = Vector2(40, 120 + UI.TOP)
 	box.size = Vector2(640, 200)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.draw.connect(func():

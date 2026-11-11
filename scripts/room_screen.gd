@@ -24,13 +24,14 @@ var _press := Vector2.ZERO
 func _init(r: String) -> void:
 	room = r
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	position = Vector2.ZERO
+	position = Vector2(0, UI.TOP)          # sous l'encoche
 	size = Vector2(720, UI.H - NavBar.total())
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 10
 	var bg := ColorRect.new()
 	bg.color = UI.BG
-	bg.size = size
+	bg.position.y = -UI.TOP
+	bg.size = size + Vector2(0, UI.TOP)
 	add_child(bg)
 	M3.top_bar(self, String(Ship.ROOMS[r].name), close)
 	_scroll = ScrollContainer.new()

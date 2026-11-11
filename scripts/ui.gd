@@ -63,6 +63,12 @@ static func role_of(kind: String) -> String:
 	return "main"
 
 
+## Clic de souris simulé à partir d'un toucher (Android) : le toucher arrive aussi, il ne faut le compter qu'une fois.
+## Sans ce filtre, un appui déclenchait deux fois l'action (son doublé, fenêtre ouverte puis aussitôt refermée).
+static func emulated(ev: InputEvent) -> bool:
+	return ev.device == InputEvent.DEVICE_ID_EMULATION
+
+
 ## Donne à un bouton le style de verre facetté d'un rôle (états normal, survol, appuyé, inactif).
 static func glassify(b: Button, role: String, chamfer := 0.26, inset := 0.0, hexagon := false) -> void:
 	for st in ["normal", "hover", "pressed", "disabled"]:
@@ -137,7 +143,12 @@ static func _wave(b: Button) -> void:
 
 
 ## Marges de sécurité en px de conception (720 de large) : encoche ou caméra en haut, barre de gestes en bas.
+static var fake_top := -1.0      # outils de capture : simule une encoche
+
+
 static func safe_insets(win: Window) -> Vector2:
+	if fake_top >= 0.0:
+		return Vector2(fake_top, 0.0)
 	var sa := DisplayServer.get_display_safe_area()
 	var sc := DisplayServer.screen_get_size()
 	if sa.size.x <= 0 or sc.x <= 0:
@@ -205,6 +216,7 @@ static func portrait(ci: CanvasItem, hero: Dictionary, c: Vector2, r: float, t: 
 
 static var _icons := {}
 static var text_scale := 1.0     # réglage « Taille du texte » : 1, 1,1 ou 1,2
+static var TOP := 0.0          # encoche ou caméra en haut (px de conception) : les fenêtres commencent en dessous
 static var H := 1280.0          # hauteur réelle de l'écran dans le jeu (1280 en 16:9, ~1600 sur un téléphone 20:9)
 static var _bold: FontVariation
 

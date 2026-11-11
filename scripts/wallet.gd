@@ -145,13 +145,15 @@ func _explain(keys_: Array) -> void:
 	layer.z_index = 4096
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS      # les fenêtres mettent le jeu en pause : sans ça, l'appui pour fermer n'arrive jamais
+	var opened := Time.get_ticks_msec()
 	layer.gui_input.connect(func(ev: InputEvent):
-		if M3.is_tap(ev):
+		# l'appui qui a ouvert le panneau ne doit pas le refermer aussitôt
+		if M3.is_tap(ev) and Time.get_ticks_msec() - opened > 250:
 			layer.queue_free())
 	host.add_child(layer)
 	var lh := 120.0
 	var box := Control.new()
-	box.position = Vector2(24, 104)
+	box.position = Vector2(24, 104 + UI.TOP)
 	box.size = Vector2(672, 40 + lh * keys_.size())
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.draw.connect(func():

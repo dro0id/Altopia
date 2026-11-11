@@ -297,7 +297,7 @@ func _form_input(ev: InputEvent) -> void:
 	var down := false
 	var up := false
 	var move := false
-	if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+	if ev is InputEventMouseButton and not UI.emulated(ev) and ev.button_index == MOUSE_BUTTON_LEFT:
 		pos = ev.position
 		down = ev.pressed
 		up = not ev.pressed

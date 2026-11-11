@@ -65,7 +65,7 @@ func _process(delta: float) -> void:
 
 func _gui_input(ev: InputEvent) -> void:
 	var pos := Vector2.ZERO
-	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+	if ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 		pos = ev.position
 	elif ev is InputEventScreenTouch and ev.pressed:
 		pos = ev.position

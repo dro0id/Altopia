@@ -50,6 +50,11 @@ func _init() -> void:
 	_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_labels.draw.connect(_draw_labels)
 	_st.add_child(_labels)
+	# la vue 3D montre une image non initialisée tant que ses premières images ne sont pas rendues
+	# (au tout premier affichage, le temps de compiler les shaders) : elle apparaît en fondu ensuite
+	view.modulate.a = 0.0
+	_labels.modulate.a = 0.0
+	_reveal_view.call_deferred()
 	var bar := M3.top_bar(_st, "L’Aurore", Callable(), [Wallet.make()], false)
 	var title: Label = bar.get_node("Title")
 	title.position.y = 18
@@ -122,6 +127,16 @@ func _init() -> void:
 	move_child(_st, get_child_count() - 1)
 	Game.changed.connect(_refresh)
 	_refresh()
+
+
+func _reveal_view() -> void:
+	for i in 4:
+		await RenderingServer.frame_post_draw
+	if not is_instance_valid(view):
+		return
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(view, "modulate:a", 1.0, 0.35)
+	tw.tween_property(_labels, "modulate:a", 1.0, 0.35)
 
 
 func _round_button(glyph: String, p: Vector2) -> Button:

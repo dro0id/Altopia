@@ -200,7 +200,7 @@ func _gui_input(ev: InputEvent) -> void:
 			var p: Array = _touches.values()
 			dist = clampf(_dist0 * _pinch0 / maxf(1.0, (p[0] as Vector2).distance_to(p[1])), 9.0, 42.0)
 		accept_event()
-	elif ev is InputEventMouseButton:
+	elif ev is InputEventMouseButton and not UI.emulated(ev):
 		if ev.button_index == MOUSE_BUTTON_WHEEL_UP:
 			dist = clampf(dist * 0.92, 9.0, 42.0)
 		elif ev.button_index == MOUSE_BUTTON_WHEEL_DOWN:

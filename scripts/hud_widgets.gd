@@ -46,7 +46,7 @@ func _has_point(point: Vector2) -> bool:
 func _gui_input(ev: InputEvent) -> void:
 	if not tappable:
 		return
-	if (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
+	if (ev is InputEventMouseButton and not UI.emulated(ev) and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT) or (ev is InputEventScreenTouch and ev.pressed):
 		Sfx.play("click", -6.0)
 		pressed.emit()
 

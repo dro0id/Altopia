@@ -60,8 +60,7 @@ func play(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 			g.haptic("reward")
 		elif sound in ["lose", "warn"]:
 			g.haptic("alert")
-		elif sound == "click":
-			g.haptic("tap")
+
 
 
 func refresh_music() -> void:

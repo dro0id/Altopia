@@ -24,6 +24,7 @@ func _init(width: float = 640.0) -> void:
 	add_child(dim)
 	center = CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.offset_top = UI.TOP           # sous l'encoche de la caméra
 	add_child(center)
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(width, 0)
@@ -48,6 +49,7 @@ func use_stage(dim_alpha: float = 1.0) -> Control:
 		set_backdrop(UI.ACCENT)
 	stage = Control.new()
 	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.offset_top = UI.TOP            # sous l'encoche de la caméra ; le fond, lui, passe dessous
 	add_child(stage)
 	return stage
 
