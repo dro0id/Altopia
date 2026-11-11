@@ -950,3 +950,60 @@ func test_ship() -> void:
 	_check(int(Ship.upgrade_cost("pont", 11).time) >= 1800, "chantiers longs au-delà du niveau 10")
 	_check(Ship.tier_of(1) == 1 and Ship.tier_of(6) == 2 and Ship.tier_of(15) == 3 and Ship.tier_of(19) == 4 and Ship.tier_of(20) == 5, "cinq versions du vaisseau")
 	ShipState.clock_offset = 0
+
+
+## Maquette WB : un contrôle dans la fenêtre interrompt le boss (exposé), un bouclier pare son coup.
+func test_boss_window() -> void:
+	var s := BattleSim.new(_team(30), 10, 3)
+	# on amène la vague du boss
+	while s.wave < s.waves_total and s.state == "fighting":
+		for e in s._alive(1):
+			if not e.boss:
+				e.hp = 0.0
+				e.alive = false
+		s.step(0.1)
+	var bu: BattleSim.Unit = null
+	for e in s._alive(1):
+		if e.boss:
+			bu = e
+	_check(bu != null, "le boss du secteur 10 arrive à la dernière vague")
+	if bu == null:
+		return
+	var oru: BattleSim.Unit = null
+	var mara: BattleSim.Unit = null
+	for u in s._alive(0):
+		if u.id == "oru":
+			oru = u
+		elif u.id == "mara":
+			mara = u
+	# hors fenêtre : aucun effet
+	bu.skill_cd = 6.0
+	oru.skill_cd = 0.0
+	s.cast(oru.slot)
+	_check(bu.exposed_t == 0.0 and bu.skill_cd == 6.0, "contrôle hors fenêtre : pas d'interruption")
+	# dans la fenêtre : interrompu et exposé
+	bu.skill_cd = 1.5
+	oru.skill_cd = 0.0
+	s.cast(oru.slot)
+	_check(bu.exposed_t > 0.0 and bu.skill_cd == bu.skill_max, "contrôle dans la fenêtre : boss interrompu et exposé")
+	var hp0 := bu.hp
+	s._apply_hit({"src": mara, "dst": bu, "dmg": 100.0, "fx": ""})
+	var exposed_dmg := hp0 - bu.hp
+	bu.exposed_t = 0.0
+	hp0 = bu.hp
+	s._apply_hit({"src": mara, "dst": bu, "dmg": 100.0, "fx": ""})
+	_check(is_equal_approx(exposed_dmg, (hp0 - bu.hp) * 1.5), "boss exposé : dégâts reçus +50 %")
+	# bouclier dans la fenêtre : le coup du boss est paré
+	bu.skill_cd = 1.0
+	mara.skill_cd = 0.0
+	s.cast(mara.slot)
+	var hp1 := mara.hp
+	var sh := mara.shield
+	s._apply_hit({"src": bu, "dst": mara, "dmg": 500.0, "fx": "slam"})
+	_check(mara.hp == hp1 and mara.shield == sh, "bouclier dans la fenêtre : coup du boss paré")
+	# auto tactique : le contrôle attend la fenêtre
+	s.tactical = true
+	bu.skill_cd = 8.0
+	_check(s._holds(oru), "auto tactique : contrôle gardé hors fenêtre")
+	bu.skill_cd = 1.0
+	_check(not s._holds(oru), "auto tactique : contrôle lancé dans la fenêtre")

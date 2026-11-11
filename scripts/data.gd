@@ -360,6 +360,13 @@ static func level_cap(rank: int) -> int:
 
 
 ## Bonus de dégâts d'un enchaînement de `n` pouvoirs rapprochés : +10 % par pouvoir au-delà du premier, plafonné à +50 %.
+## Fenêtre de tir du boss (maquette WB) : pendant les dernières secondes avant son gros coup,
+## un pouvoir de contrôle l'interrompt (exposé, dégâts reçus +50 %) et un bouclier pare le coup.
+const INTERRUPT_WINDOW := 2.0
+const EXPOSED_TIME := 3.0
+const EXPOSED_BONUS := 0.5
+
+
 static func combo_mult(n: int) -> float:
 	return 1.0 + minf(0.5, 0.1 * float(maxi(0, n - 1)))
 

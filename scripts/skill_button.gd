@@ -21,6 +21,7 @@ var t := 0.0
 var flash := 0.0
 var share := -1.0      # part des dégâts du combat (maquette XC) ; < 0 : rien à afficher
 var top := false       # meilleure part de l'escouade
+var hint := ""         # fenêtre du boss : « INTERROMPRE » ou « PARADE » sous le portrait
 
 
 func _init() -> void:
@@ -78,7 +79,11 @@ func _draw() -> void:
 	draw_style_box(UI.box(Color("1d2a52"), Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, 112, 12))
 	if hp > 0.0:
 		draw_style_box(UI.box(UI.GREEN if hp > 0.35 else UI.RED, Color(0, 0, 0, 0), 6, 0), Rect2(0, 112, maxf(12.0, 112.0 * hp), 12))
-	if share >= 0.0:
+	if hint != "":
+		var hc := 0.6 + 0.4 * sin(t * 8.0)
+		draw_polyline(_closed_hex(c, 54.0), Color(UI.GOLD, hc), 4.0, true)
+		M3.text(self, Vector2(-8, 150), hint, 18, UI.GOLD, true, 128, HORIZONTAL_ALIGNMENT_CENTER)
+	elif share >= 0.0:
 		M3.text(self, Vector2(0, 150), "%d %%" % int(round(share * 100.0)), 20, UI.GOLD if top else UI.MUTED, top, 112, HORIZONTAL_ALIGNMENT_CENTER)
 
 

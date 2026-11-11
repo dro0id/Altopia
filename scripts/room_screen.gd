@@ -463,8 +463,9 @@ func _labo(c: Control, y: float) -> float:
 		M3.card(c, r, M3.S2, 32, Color(UI.GOLD, 0.6) if running else Color(0, 0, 0, 0))
 		var rk := st.rank(id)
 		M3.text(c, r.position + Vector2(32, 48), String(info.name), 28, UI.TEXT, true)
-		M3.text(c, r.position + Vector2(32 + M3.text_w(String(info.name), 28, true) + 14, 48), "rang %d / %d" % [rk, Ship.RESEARCH_MAX], 22, UI.MUTED)
-		M3.text(c, r.position + Vector2(32, 92), "%s · actuel +%d %%" % [info.desc, int(round(st.research_bonus(id) * 100.0))], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else (360 if running else 420))
+		M3.text(c, r.position + Vector2(32 + M3.text_w(String(info.name), 28, true) + 14, 48), "rang %d / %d" % [rk, Ship.research_max(id)], 22, UI.MUTED)
+		var now_txt := (" · acquise" if rk > 0 else "") if Ship.research_max(id) == 1 else " · actuel +%d %%" % int(round(st.research_bonus(id) * 100.0))
+		M3.text(c, r.position + Vector2(32, 92), "%s%s" % [info.desc, now_txt], 22, Color("7dffb0"), false, 600 if (block_of(id) != "" and block_of(id) != "Pas assez de ressources" and not running) else (360 if running else 420))
 		var block := st.research_block(Game, id)
 		if running:
 			var rem := st.remaining(int(st.research_job.end))

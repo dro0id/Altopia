@@ -208,6 +208,21 @@ func _consume() -> void:
 				banner = "Attention !"
 				banner_t = 0.9
 				Sfx.play("warn")
+			"interrupt":
+				banner = "INTERROMPU !"
+				banner_sub = "boss exposé 3 s · dégâts +50 %"
+				banner_t = 1.6
+				Sfx.play("star", -2.0, 0.8)
+				_burst(_center(e.unit), 24, UI.GOLD, 160.0, 420.0, 0.7)
+			"parry_ready":
+				banner = "PARADE PRÊTE"
+				banner_t = 1.0
+			"parry":
+				texts.append({"pos": _center(e.unit) + Vector2(0, -50), "txt": "PARADE", "col": Color("7fdcff"), "t": 0.0, "dx": 0.0, "size": 30.0, "big": true})
+				if banner != "PARADE !":
+					banner = "PARADE !"
+					banner_sub = "coup du boss absorbé"
+					banner_t = 1.2
 			"combo":
 				banner = "COMBO x%d !" % e.n
 				banner_t = 1.2

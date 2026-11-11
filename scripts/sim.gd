@@ -24,8 +24,9 @@ class Unit:
 	var skill_max := 10.0
 	var shield := 0.0
 	var shield_t := 0.0
-	var shield_src := -1
-	var last_target: Unit = null     # dernière cible attaquée (intention affichée, maquette WC)             # place du héros qui a posé le bouclier (part de soutien)
+	var shield_src := -1             # place du héros qui a posé le bouclier (part de soutien)
+	var last_target: Unit = null     # dernière cible attaquée (intention affichée, maquette WC)
+	var exposed_t := 0.0             # boss interrompu : dégâts reçus +50 % (maquette WB)
 	var stun_t := 0.0
 	var alive := true
 	var ranged := false
@@ -63,7 +64,9 @@ var dealt := {}                  # dégâts infligés par place de héros (part 
 var support := {}                # soins et dégâts absorbés par bouclier, par place de héros
 var finisher := -1
 var casts := {}
-var focus: Unit = null           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
+var focus: Unit = null
+var tactical := false            # recherche « Auto tactique » : l'auto garde contrôle et bouclier pour la fenêtre du boss
+var parry_until := -1.0          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
@@ -88,6 +91,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 			u.skill_max *= 1.0 - minf(0.5, float(sb.get("cdr", 0.0)))
 			u.skill_cd = minf(u.skill_cd, u.skill_max)
 			u.boss_dmg += float(sb.get("boss", 0.0))
+			tactical = tactical or bool(sb.get("tactic", false))
 		units.append(u)
 		slot += 1
 	_apply_boosts(boosts)
@@ -377,7 +381,42 @@ func _cast(u: Unit) -> bool:
 				var sk := 1.2 if u.kind == "foreur" else (1.9 if u.phase2 else 1.6)
 				pending.append({"t": 0.55, "kind": "hit", "src": u, "dst": a, "dmg": u.atk * sk, "fx": "slam"})
 			events.append({"type": "cast", "unit": u, "kind": "slam"})
+	if u.side == 0:
+		_window_effect(u)
 	return true
+
+
+## Boss qui prépare son gros coup et dont la fenêtre de tir est ouverte (maquette WB), ou null.
+func charging_boss() -> Unit:
+	for e in _alive(1):
+		if e.boss and e.skill_cd > 0.0 and e.skill_cd <= Data.INTERRUPT_WINDOW:
+			return e
+	return null
+
+
+## Pouvoir lancé dans la fenêtre : un contrôle interrompt le boss (exposé 3 s), un bouclier pare son coup.
+func _window_effect(u: Unit) -> void:
+	var bu := charging_boss()
+	if bu == null:
+		return
+	if u.skill_kind == "gravity":
+		bu.skill_cd = bu.skill_max
+		bu.warned = false
+		bu.exposed_t = Data.EXPOSED_TIME
+		events.append({"type": "interrupt", "unit": bu, "by": u})
+	elif u.skill_kind == "shield":
+		parry_until = time + bu.skill_cd + 1.2
+		events.append({"type": "parry_ready", "unit": bu, "by": u})
+
+
+## Auto tactique : garder un contrôle ou un bouclier tant qu'un boss est là mais pas encore dans sa fenêtre.
+func _holds(u: Unit) -> bool:
+	if not tactical or not (u.skill_kind in ["gravity", "shield"]):
+		return false
+	for e in _alive(1):
+		if e.boss:
+			return e.skill_cd > Data.INTERRUPT_WINDOW
+	return false
 
 
 ## Désigne la cible de l'escouade ; null revient à l'ordre normal.
@@ -443,6 +482,13 @@ func _apply_hit(p: Dictionary) -> void:
 	if not dst.alive:
 		return
 	var dmg: float = p.dmg * 100.0 / (100.0 + dst.def)
+	var src0: Unit = p.get("src")
+	if dst.exposed_t > 0.0:
+		dmg *= 1.0 + Data.EXPOSED_BONUS
+	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
+		# parade : le coup du boss est absorbé en entier
+		events.append({"type": "parry", "unit": dst})
+		return
 	if dst.shield > 0.0:
 		var absorbed := minf(dst.shield, dmg)
 		dst.shield -= absorbed
@@ -523,6 +569,7 @@ func step(dt: float) -> void:
 		u.skill_cd = maxf(0.0, u.skill_cd - dt)
 		u.cd = maxf(0.0, u.cd - dt)
 		u.stun_t = maxf(0.0, u.stun_t - dt)
+		u.exposed_t = maxf(0.0, u.exposed_t - dt)
 		if u.shield_t > 0.0:
 			u.shield_t -= dt
 			if u.shield_t <= 0.0:
@@ -536,7 +583,7 @@ func step(dt: float) -> void:
 			events.append({"type": "warn", "unit": u})
 		if u.side == 1 and u.boss and u.skill_cd <= 0.0:
 			_cast(u)
-		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0:
+		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0 and not _holds(u):
 			_cast(u)
 		if u.cd <= 0.0 and u.alive:
 			u.cd = u.interval

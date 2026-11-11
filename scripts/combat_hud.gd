@@ -100,3 +100,5 @@ func _draw() -> void:
 	draw_colored_polygon(pl, Color(col.darkened(0.6), 0.85 * a))
 	draw_polyline(PackedVector2Array([pl[0], pl[1], pl[2], pl[3], pl[0]]), Color(col, 0.7 * a), 2.0, true)
 	M3.text(self, Vector2(r2.position.x, by + 30 + M3.fs(fsz) * 0.36), txt, fsz, Color(col.lightened(0.3), a), true, w2, HORIZONTAL_ALIGNMENT_CENTER)
+	if battle.banner_sub != "" and (txt.begins_with("INTERROMPU") or txt.begins_with("PARADE")):
+		M3.text(self, Vector2(0, by - 8), battle.banner_sub, 22, Color(1, 1, 1, a), true, 720, HORIZONTAL_ALIGNMENT_CENTER)

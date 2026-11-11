@@ -78,6 +78,45 @@ func _initialize() -> void:
 			for u in main.battle.sim.units:
 				if u.side == 1 and u.alive and u.boss:
 					u.skill_cd = 2.5,
+		"fenetre": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle()
+			var sim0 = main.battle.sim
+			for i in 60:
+				if sim0.wave >= sim0.waves_total:
+					break
+				for e in sim0.units:
+					if e.side == 1 and not e.boss:
+						e.hp = 0.0
+				await _wait(0.05)
+			await _wait(0.4)
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.boss and u.alive:
+					u.skill_cd = 1.5
+			main.battle.speed = 0.0,
+		"interrompu": func():
+			g.best_stage = 21
+			g.go_to(20)
+			main._start_battle()
+			var sim0 = main.battle.sim
+			for i in 60:
+				if sim0.wave >= sim0.waves_total:
+					break
+				for e in sim0.units:
+					if e.side == 1 and not e.boss:
+						e.hp = 0.0
+				await _wait(0.05)
+			await _wait(0.4)
+			for u in main.battle.sim.units:
+				if u.side == 1 and u.boss and u.alive:
+					u.skill_cd = 1.5
+			for u in main.battle.sim.units:
+				if u.side == 0 and u.skill_kind == "gravity":
+					u.skill_cd = 0.0
+					main.battle.sim.cast(u.slot)
+			await _wait(0.3)
+			main.battle.speed = 0.0,
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -194,7 +233,7 @@ func _initialize() -> void:
 			main._open_ship()
 			main._open_room("pont"),
 		"labo": func():
-			_ship(10)
+			_ship(15)
 			main._open_ship()
 			main._open_room("labo"),
 		"quartiers": func():
@@ -319,7 +358,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(2.6 if k == "victoire" or k == "cible" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

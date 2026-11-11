@@ -988,14 +988,19 @@ func _refresh_boss() -> void:
 		_boss_bar.phase = ""
 		if big:
 			_boss_bar.phase = "Phase 2" if bu.phase2 else "Phase 1"
-		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= 2.0 and battle.sim.state == "fighting"
+		if bu.exposed_t > 0.0:
+			_boss_bar.phase = "exposé · dégâts +50 %"
+		var warning: bool = bu.skill_cd > 0.0 and bu.skill_cd <= Data.INTERRUPT_WINDOW and battle.sim.state == "fighting"
 		_warn.visible = warning
 		if warning:
-			_warn.set_texts("⚠ %s dans %d s" % [info.attack, int(ceil(bu.skill_cd))])
-			_warn.size = Vector2(656, 80)
-			_warn.position = Vector2(32, _field.position.y + 260.0)
+			# fenêtre de tir (maquette WB) : un contrôle interrompt, un bouclier pare
+			_warn.set_texts("⚠ %s dans %d s · fenêtre !" % [info.attack, int(ceil(bu.skill_cd))])
+			_warn.size = Vector2(656, 72)
+			# sur écran haut, l'alerte prend la place du bandeau d'annonces, hors du terrain (maquette XC)
+			_warn.position = Vector2(32, _hud.position.y + _hud.size.y - 74.0) if _hud.visible else Vector2(32, _field.position.y + 260.0)
 	else:
 		_warn.visible = false
+	_hud.has_banner = not _warn.visible
 	_boss_bar.queue_redraw()
 
 
@@ -1049,6 +1054,11 @@ func _refresh() -> void:
 			best = b.slot
 	for b in skill_buttons:
 		b.top = b.slot == best
+		# pendant la fenêtre du boss, les pouvoirs qui interrompent ou parent s'allument (maquette WB)
+		var hint := ""
+		if b.unit != null and b.unit.alive and battle.sim.charging_boss() != null:
+			hint = {"gravity": "INTERROMPRE", "shield": "PARADE"}.get(b.unit.skill_kind, "")
+		b.hint = hint
 	var parts: Array = []
 	if Game.perseverance > 0:
 		parts.append("Persévérance + %d %%" % Game.perseverance_pct())

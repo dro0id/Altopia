@@ -978,7 +978,7 @@ func ship_update() -> Dictionary:
 
 ## Bonus du Labo appliqués au combat.
 func ship_combat() -> Dictionary:
-	return {"hp": ship.research_bonus("blindage"), "atk": ship.research_bonus("armement"), "cdr": ship.research_bonus("reacteurs"), "boss": ship.research_bonus("briseur")}
+	return {"hp": ship.research_bonus("blindage"), "atk": ship.research_bonus("armement"), "cdr": ship.research_bonus("reacteurs"), "boss": ship.research_bonus("briseur"), "tactic": ship.rank("tactique") > 0}
 
 
 func free_chest_remaining() -> float:

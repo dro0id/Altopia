@@ -376,8 +376,8 @@ func research_block(game: Node, id: String) -> String:
 		return "Labo niveau %d" % int(Ship.RESEARCH[id].labo)
 	if not research_job.is_empty():
 		return "Une recherche à la fois"
-	if rank(id) >= mini(Ship.RESEARCH_MAX, lab):
-		return "Rang maximal" if rank(id) >= Ship.RESEARCH_MAX else "Améliore le Labo"
+	if rank(id) >= mini(Ship.research_max(id), lab):
+		return ("Acquise" if Ship.research_max(id) == 1 else "Rang maximal") if rank(id) >= Ship.research_max(id) else "Améliore le Labo"
 	var c := research_cost(game, id)
 	if float(game.credits) < float(c.credits) or int(game.shards) < int(c.shards):
 		return "Pas assez de ressources"
@@ -510,7 +510,8 @@ static func from_dict(d: Dictionary) -> ShipState:
 			s.builds.append({"room": String(b.room), "to": int(b.to), "end": int(b.end)})
 	for k in d.get("research", {}):
 		if Ship.RESEARCH.has(String(k)):
-			s.research[String(k)] = clampi(int(d.research[k]), 0, Ship.RESEARCH_MAX)
+			if Ship.RESEARCH.has(String(k)):
+				s.research[String(k)] = clampi(int(d.research[k]), 0, Ship.research_max(String(k)))
 	var rj: Dictionary = d.get("research_job", {})
 	if not rj.is_empty() and Ship.RESEARCH.has(String(rj.get("id", ""))):
 		s.research_job = {"id": String(rj.id), "end": int(rj.end)}
