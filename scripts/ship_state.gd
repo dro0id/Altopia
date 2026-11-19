@@ -12,6 +12,7 @@ var level := 1                        # niveau du vaisseau = niveau du Pont
 var rooms := {}                       # salle -> niveau (0 = pas encore ouverte)
 var stock := {}                       # salle -> réserve produite (non récoltée)
 var builds: Array = []                # chantiers {room, to, end}
+var blocked := {}                     # salle -> fin d'arrêt (abordage perdu, maquette WM)
 var posts := {}                       # salle -> [héros]
 var harvests := 0                     # récoltes faites (objectif du chapitre 1)
 var research := {}                    # recherche -> rang
@@ -152,6 +153,8 @@ func tick(game: Node, t: int = -1) -> Dictionary:
 
 func _produce(game: Node, dt: float, out: Dictionary) -> void:
 	for r in producers():
+		if int(blocked.get(r, 0)) > now():
+			continue                          # salle perdue à l'abordage : arrêtée une heure
 		var cap := capacity(r, int(game.best_stage))
 		var before := float(stock.get(r, 0.0))
 		var made := rate(r, int(game.best_stage)) * dt / 3600.0
@@ -502,13 +505,15 @@ func rush_shuttle(game: Node, s: String) -> bool:
 
 func to_dict() -> Dictionary:
 	return {"unlocked": unlocked, "level": level, "rooms": rooms, "stock": stock, "builds": builds, "posts": posts, "research": research,
-		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier, "harvests": harvests}
+		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier, "harvests": harvests, "blocked": blocked}
 
 
 static func from_dict(d: Dictionary) -> ShipState:
 	var s := ShipState.new()
 	s.unlocked = bool(d.get("unlocked", false))
 	s.harvests = int(d.get("harvests", 0))
+	for k in d.get("blocked", {}):
+		s.blocked[String(k)] = int(d.blocked[k])
 	s.level = clampi(int(d.get("level", 1)), 1, Ship.MAX_LEVEL)
 	for r in Ship.ORDER:
 		s.rooms[r] = clampi(int(d.get("rooms", {}).get(r, 0)), 0, Ship.MAX_LEVEL)

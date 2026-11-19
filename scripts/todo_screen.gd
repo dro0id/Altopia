@@ -9,6 +9,7 @@ signal open_evolve(id: String)
 signal open_items
 signal open_orders
 signal open_event(e: Dictionary)
+signal open_boarding
 
 const ROW := 108.0
 
@@ -23,6 +24,8 @@ static func entries() -> Array:
 	var out := []
 	var o: Orders = Game.orders
 	o.refresh()
+	if Boarding.available(Game):
+		out.append({"kind": "boarding", "title": "Abordage ! L’Aurore est attaquée", "sub": "un essaim monte à bord · une fois par jour", "action": "Défendre", "rank": 0, "role": "danger"})
 	if Game.free_chest_ready():
 		out.append({"kind": "chest", "title": "Coffre gratuit prêt", "sub": "crédits et éclats", "action": "Ouvrir", "rank": 0, "role": "success"})
 	for i in o.list.size():
@@ -162,6 +165,8 @@ func _glyph(c: Control, kind: String, at: Vector2, col: Color) -> void:
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -13), at + Vector2(13, -2), at + Vector2(8, 13), at + Vector2(-8, 13), at + Vector2(-13, -2)]), col)
 		"shuttle":
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -12), at + Vector2(14, 0), at + Vector2(-10, 12), at + Vector2(-4, 0)]), col)
+		"boarding":
+			M3.text(c, at + Vector2(-20, 11), "⚠", 28, col, true, 40, HORIZONTAL_ALIGNMENT_CENTER)
 		"star", "talent":
 			Art.star(c, at, 15.0, col, 0.0)
 		"event":
@@ -211,6 +216,9 @@ func _act(e: Dictionary) -> void:
 				Sfx.play("coin")
 				M3.toast(self, "Chantier lancé", UI.GREEN)
 			_after()
+		"boarding":
+			close()
+			open_boarding.emit()
 		"orders":
 			close()
 			open_orders.emit()

@@ -1184,3 +1184,36 @@ func test_cosmetics() -> void:
 	_check(h.look.suit == Cosmetics.OUTFITS.seuil.suit and Data.HEROES["kai"].look.suit != Cosmetics.OUTFITS.seuil.suit, "la tenue change les couleurs sans toucher aux données")
 	var base := BattleSim.new([{"id": "kai", "level": 10}], 1, 1)
 	_check(base.units[0].atk > 0.0, "aucun effet de combat")
+
+
+## Maquette WM : abordage.
+func test_boarding() -> void:
+	_g.ship.unlock()
+	_g.ship.level = 10
+	_g.ship.open_rooms()
+	_g.chapters_done = [1]
+	for id in ["mara", "kai", "zyra", "t9", "oru", "gorn", "omega"]:
+		_g.owned[id] = true
+		_g.levels[id] = 20
+	_g.squad = ["mara", "kai", "zyra", "t9", "oru"]
+	for r in ["raffinerie", "centrale", "serre"]:
+		_g.ship.rooms[r] = 3
+	_g.ship.posts["raffinerie"] = ["gorn", "omega"]
+	_check(Boarding.available(_g), "abordage disponible une fois par jour")
+	var b := Boarding.new()
+	b.start(_g, 5)
+	_check(b.wave == 1 and not b.assaults.is_empty(), "première vague : des salles assaillies")
+	var r := String(b.assaults[0].room)
+	var d0 := b.defense(_g, r)
+	b.deploy(r)
+	_check(b.defense(_g, r) > d0, "l'escouade renforce la salle")
+	while not b.done():
+		b.step(_g, Boarding.WAVE_TIME)
+		b.next_wave(_g)
+	_check(b.held + b.lost == b.history.size() and b.history.size() >= Boarding.WAVES, "chaque salle assaillie est tenue ou perdue")
+	for h in b.history:
+		if not bool(h.held):
+			_check(int(_g.ship.blocked.get(String(h.room), 0)) > ShipState.now(), "une salle perdue s'arrête")
+			break
+	_g.boarding_day = Boarding.today()
+	_check(not Boarding.available(_g), "pas deux abordages le même jour")

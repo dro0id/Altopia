@@ -200,6 +200,23 @@ func _initialize() -> void:
 			main._open_ship()
 			await process_frame
 			main._modal.view.set_cut(false),
+		"abordage": func():
+			_ship(10)
+			main._open_ship()
+			await process_frame
+			var bs := BoardingScreen.new()
+			main._modal.add_child(bs)
+			bs._b.t = 11.0,
+		"abordage_fin": func():
+			_ship(10)
+			main._open_ship()
+			await process_frame
+			var bs := BoardingScreen.new()
+			main._modal.add_child(bs)
+			while not bs._b.done():
+				bs._b.step(g, Boarding.WAVE_TIME)
+				bs._b.next_wave(g)
+			bs._finish(),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -441,7 +458,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

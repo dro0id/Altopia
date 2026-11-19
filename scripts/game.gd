@@ -72,7 +72,8 @@ var bond_xp := {}                  # lien -> points (maquette WH)
 var bond_read: Array = []
 var paint := "amiraute"            # peinture de l'Aurore (maquette YG)
 var outfits := {}                  # héros -> tenue
-var ach_seen: Array = []           # succès déjà annoncés          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
+var ach_seen: Array = []
+var boarding_day := -1             # dernier abordage joué (maquette WM)           # succès déjà annoncés          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -116,6 +117,7 @@ func reset() -> void:
 	paint = "amiraute"
 	outfits = {}
 	ach_seen = []
+	boarding_day = -1
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -1122,7 +1124,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day,
 	}))
 
 
@@ -1302,6 +1304,7 @@ func load_game() -> bool:
 		paint = "amiraute"
 	outfits = parsed.get("outfits", {}) if parsed.get("outfits", {}) is Dictionary else {}
 	ach_seen = parsed.get("ach_seen", []) if parsed.get("ach_seen", []) is Array else []
+	boarding_day = int(parsed.get("boarding_day", -1))
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

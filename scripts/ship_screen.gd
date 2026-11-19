@@ -364,6 +364,8 @@ func _draw_labels() -> void:
 func _ticker_text() -> String:
 	var s: ShipState = Game.ship
 	var parts := []
+	if Boarding.available(Game):
+		parts.append("⚠ Abordage : un essaim approche (« À faire »)")
 	var best := ""
 	var bt := 1.0e12
 	for r in s.producers():
