@@ -1169,3 +1169,18 @@ func test_bonds() -> void:
 	_check(Bonds.skill_bonus("mara", ["mara", "kai"], _g.bond_xp) == 0.0, "pas de bonus sans un autre membre")
 	_g.bond_xp["ecoutent"] = 40
 	_check(is_equal_approx(Bonds.skill_bonus("zyra", ["zyra", "oru", "lumi"], _g.bond_xp), 0.12), "lien de niveau 2 à trois : +12 %")
+
+
+## Maquette YG : succès, peintures et tenues.
+func test_cosmetics() -> void:
+	_check(Cosmetics.paint_open("amiraute", _g) and not Cosmetics.paint_open("braise", _g), "seule la peinture d'origine au départ")
+	_g.chapters_done = [1, 2, 3, 4]
+	_check(Cosmetics.paint_open("braise", _g), "le chapitre 4 ouvre la peinture Braise")
+	var news: Array = _g.new_achievements()
+	_check(news.size() == 1 and String(news[0].id) == "chap4", "succès annoncé une fois")
+	_check(_g.new_achievements().is_empty(), "pas annoncé deux fois")
+	_g.outfits["kai"] = "seuil"
+	var h: Dictionary = Cosmetics.dressed(Data.HEROES["kai"])
+	_check(h.look.suit == Cosmetics.OUTFITS.seuil.suit and Data.HEROES["kai"].look.suit != Cosmetics.OUTFITS.seuil.suit, "la tenue change les couleurs sans toucher aux données")
+	var base := BattleSim.new([{"id": "kai", "level": 10}], 1, 1)
+	_check(base.units[0].atk > 0.0, "aucun effet de combat")

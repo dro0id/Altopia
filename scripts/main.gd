@@ -1117,6 +1117,10 @@ func _refresh() -> void:
 ## Onglets et pastilles de la barre du bas. Aussi appelé par la barre elle-même pendant qu'une fenêtre
 ## met le jeu en pause (sinon l'onglet Aurore et les pastilles restent figés jusqu'au retour au combat).
 func _update_nav() -> void:
+	# succès atteints (maquette YG) : annoncés une fois
+	for a in Game.new_achievements():
+		M3.toast(self, "Succès « %s » · %s" % [a.name, Cosmetics.reward_text(a)], UI.GOLD)
+		Game.save_game()
 	var affordable := 0
 	for id in Game.squad_ids():
 		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):

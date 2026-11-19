@@ -185,6 +185,21 @@ func _initialize() -> void:
 			var bs := BondsScreen.new()
 			main._modal.add_child(bs)
 			bs._open_convo(Bonds.get_bond("ecoutent"), 0),
+		"succes": func():
+			_ship(15)
+			g.chapters_done = [1, 2, 3, 4]
+			g.outfits = {"mara": "escorte"}
+			main._open_ship()
+			await process_frame
+			main._modal.add_child(CosmeticsScreen.new()),
+		"peinture": func():
+			_ship(15)
+			g.chapters_done = [1, 2, 3, 4]
+			g.paint = "braise"
+			g.outfits = {"kai": "quart", "zyra": "escorte"}
+			main._open_ship()
+			await process_frame
+			main._modal.view.set_cut(false),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
@@ -426,7 +441,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

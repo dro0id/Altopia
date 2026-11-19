@@ -83,6 +83,9 @@ func _init() -> void:
 	b3.pressed.connect(func():
 		b3.add_theme_color_override("font_color", UI.TEXT)
 		Help.show(self, "L’Aurore"))
+	# succès, peintures et tenues (maquette YG)
+	var b4 := _round_button("★", Vector2(344, _row_y()))
+	b4.pressed.connect(func(): add_child(CosmeticsScreen.new()))
 	# « À faire » (maquettes XA et XB) : tout ce qui attend ; pastille rouge = ce qui se réclame
 	_todo = M3.button(_st, "À faire", Rect2(448, _row_y(), 240, 88), "gold", 28)
 	_todo.pressed.connect(func(): todo_requested.emit())
@@ -175,7 +178,7 @@ func _refresh() -> void:
 	var s: ShipState = Game.ship
 	if _todo != null:
 		_todo.queue_redraw()
-	if view.level != s.level or view.opened != s.rooms.duplicate():
+	if view.level != s.level or view.opened != s.rooms.duplicate() or view.paint != Game.paint:
 		view.setup(s.level, s.posts, s.rooms)
 	var ti := Ship.tier_info(s.level)
 	# titres gagnés : Amiral de l'Aurore (niveau 20), sinon Héros de la Ceinture (fin de l'histoire)
