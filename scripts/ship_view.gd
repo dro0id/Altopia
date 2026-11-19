@@ -139,7 +139,28 @@ func set_cut(on: bool) -> void:
 			n.visible = on
 
 
+## Cadre serré sur une salle (maquette XI) : la vue de l'intérieur en haut de sa fiche.
+var focus_room := ""
+
+
+func focus(r: String) -> void:
+	focus_room = r
+	_frame()
+
+
 func _frame() -> void:
+	if focus_room != "" and boxes.has(focus_room):
+		var box: AABB = boxes[focus_room]
+		target = box.get_center() + Vector3(0, -0.15, 0)
+		var a := maxf(0.3, size.x / maxf(1.0, size.y))
+		var vf := deg_to_rad(cam.fov)
+		var hf := 2.0 * atan(tan(vf / 2.0) * a)
+		# la salle remplit la largeur ; on recule un peu pour voir le plafond et le sol
+		dist = maxf(box.size.x * 0.62 / tan(hf / 2.0), box.size.y * 0.75 / tan(vf / 2.0)) + box.size.z * 0.5
+		yaw = 0.0
+		pitch = 0.06
+		_home_dist = dist
+		return
 	var need_h := HULL_TOP + (7.0 if tier == 5 else 5.2)
 	var need_w := 8.6 if tier == 1 else (13.6 if tier == 5 else (14.2 if tier == 4 else 12.8))
 	var a := maxf(0.3, size.x / maxf(1.0, size.y))

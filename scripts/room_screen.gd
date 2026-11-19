@@ -19,6 +19,10 @@ var _dialog: Control
 var _t := 0.0
 var _branch := 0                      # Labo : 0 combat, 1 butin, 2 vaisseau
 var _press := Vector2.ZERO
+var _view: ShipView
+var _over: Control
+var _band_h := 0.0
+var _crew_hits: Array = []
 
 
 func _init(r: String) -> void:
@@ -33,10 +37,27 @@ func _init(r: String) -> void:
 	bg.position.y = -UI.TOP
 	bg.size = size + Vector2(0, UI.TOP)
 	add_child(bg)
+	# vue de l'intérieur (maquette XI) : la salle en coupe, l'équipage au travail, la réserve qui monte
+	var top := 112.0
+	if Game.ship.room_level(r) > 0:
+		_band_h = clampf(UI.H * 0.3, 300.0, 460.0)
+		_view = ShipView.new()
+		_view.size = Vector2(720, _band_h)
+		add_child(_view)
+		_view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
+		_view.set_cut(true)
+		_view.focus(r)
+		_view.modulate.a = 0.0
+		_over = Control.new()
+		_over.size = Vector2(720, _band_h)
+		_over.draw.connect(_draw_band)
+		_over.gui_input.connect(_band_input)
+		add_child(_over)
+		top = _band_h
 	M3.top_bar(self, String(Ship.ROOMS[r].name), close)
 	_scroll = ScrollContainer.new()
-	_scroll.position = Vector2(0, 112)
-	_scroll.size = Vector2(720, size.y - 112 - 144)
+	_scroll.position = Vector2(0, top)
+	_scroll.size = Vector2(720, size.y - top - 144)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(_scroll)
@@ -58,13 +79,76 @@ func close() -> void:
 	queue_free()
 
 
+func _ready() -> void:
+	# la grande vue de l'Aurore, dessous, s'arrête de dessiner pendant que la salle est ouverte
+	var p := get_parent()
+	if p is ShipScreen and _view != null:
+		(p as ShipScreen).view.vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if _view != null:
+		for i in 4:
+			await RenderingServer.frame_post_draw
+		if is_instance_valid(_view):
+			create_tween().tween_property(_view, "modulate:a", 1.0, 0.3)
+
+
+## Bandeau illustré : titre au-dessus, niveau et production, équipage (toucher : changer), réserve en bas.
+func _draw_band() -> void:
+	var c := _over
+	var st := s()
+	var info: Dictionary = Ship.ROOMS[room]
+	var col: Color = info.color
+	var h := c.size.y
+	# voiles sombres en haut (titre) et en bas (réserve)
+	for i in 10:
+		c.draw_rect(Rect2(0, i * 16.0, 720, 16), Color(UI.BG, 0.75 * (1.0 - i / 10.0)))
+		c.draw_rect(Rect2(0, h - 120 + i * 12.0, 720, 12), Color(UI.BG, 0.85 * (i + 1) / 10.0))
+	M3.text(c, Vector2(112, 104), "niveau %d · %s" % [st.room_level(room), _headline()], 24, col.lightened(0.2), true, 580)
+	# équipage au poste
+	_crew_hits = []
+	var crew: Array = st.posts.get(room, [])
+	for i in crew.size():
+		var hid := String(crew[i])
+		var cc := Vector2(660 - i * 96.0, h * 0.5 - 10.0)
+		var ideal := Ship.is_ideal(hid, room)
+		M3.avatar(c, Data.HEROES[hid], cc, 34.0, Color("7dffb0") if ideal else Color("4fb8c8"), _t)
+		var chip := "+%d %%" % int(Ship.worker_bonus(hid, room) * 100.0)
+		var cw := M3.text_w(chip, 20, true) + 20.0
+		c.draw_style_box(UI.box(Color(0.03, 0.06, 0.12, 0.9), Color(0, 0, 0, 0), 14, 0), Rect2(cc.x - cw * 0.5, cc.y + 40, cw, 30))
+		M3.text(c, Vector2(cc.x - cw * 0.5, cc.y + 62), chip, 20, Color("7dffb0") if ideal else UI.TEXT, true, cw, HORIZONTAL_ALIGNMENT_CENTER)
+		_crew_hits.append([Rect2(cc - Vector2(44, 44), Vector2(88, 120)), hid])
+	# réserve
+	var res := String(info.res)
+	if res != "":
+		var cap := st.capacity(room, Game.best_stage)
+		var v := float(st.stock.get(room, 0.0))
+		var left := (cap - v) / maxf(0.0001, st.rate(room, Game.best_stage)) * 3600.0
+		M3.text(c, Vector2(32, h - 40), "Réserve %s / %s" % [_n(v, res), _n(cap, res)], 24, UI.TEXT, true)
+		M3.text(c, Vector2(32, h - 40), "pleine" if left <= 1.0 else "pleine dans " + UI.duration(left), 24, UI.GOLD if left <= 1.0 else UI.TEXT, true, 656, HORIZONTAL_ALIGNMENT_RIGHT)
+		M3.bar(c, Rect2(32, h - 24, 656, 12), v / maxf(0.001, cap), col)
+
+
+func _band_input(ev: InputEvent) -> void:
+	if not M3.is_tap(ev):
+		return
+	for hit in _crew_hits:
+		if (hit[0] as Rect2).has_point(ev.position):
+			accept_event()
+			_assign_sheet(String(hit[1]))
+			return
+
+
 func _exit_tree() -> void:
+	var p := get_parent()
+	if p is ShipScreen and is_instance_valid((p as ShipScreen).view):
+		(p as ShipScreen).view.vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if Game.changed.is_connected(_refresh):
 		Game.changed.disconnect(_refresh)
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _over != null:
+		_over.queue_redraw()
 	if fmod(_t, 0.5) < delta:
 		_refresh()
 
@@ -150,15 +234,21 @@ func _draw_content() -> void:
 	var info: Dictionary = Ship.ROOMS[room]
 	var col: Color = info.color
 	var lv := st.room_level(room)
-	# carte d'en-tête
-	var hr := Rect2(32, 8, 656, 184)
-	M3.card(c, hr, M3.S2, 40, Color(col, 0.35))
-	c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 36, 0), Rect2(60, 36, 128, 128))
-	_room_glyph(c, room, Vector2(124, 100), col, 1.5)
-	M3.text(c, Vector2(216, 70), "NIVEAU %d" % lv, 24, col, true)
-	M3.text(c, Vector2(216, 116), _headline(), 38, UI.TEXT, true, 450)
-	M3.text(c, Vector2(216, 156), _subline(), 24, UI.MUTED, false, 450)
-	var y := 216.0
+	var y := 16.0
+	if _view == null:
+		# carte d'en-tête (salle sans vue : pas encore construite)
+		var hr := Rect2(32, 8, 656, 184)
+		M3.card(c, hr, M3.S2, 40, Color(col, 0.35))
+		c.draw_style_box(UI.box(Color("0a1424"), Color(0, 0, 0, 0), 36, 0), Rect2(60, 36, 128, 128))
+		_room_glyph(c, room, Vector2(124, 100), col, 1.5)
+		M3.text(c, Vector2(216, 70), "NIVEAU %d" % lv, 24, col, true)
+		M3.text(c, Vector2(216, 116), _headline(), 38, UI.TEXT, true, 450)
+		M3.text(c, Vector2(216, 156), _subline(), 24, UI.MUTED, false, 450)
+		y = 216.0
+	else:
+		# ce que fait la salle, en une ligne (le titre et la réserve sont sur l'image)
+		M3.text(c, Vector2(32, y + 28), _subline(), 24, UI.MUTED, false, 656)
+		y += 48.0
 	if lv <= 0:
 		# salle pas encore construite (maquette I8) : une seule carte qui dit quand elle s'ouvre, pas un écran de zéros
 		var open := st.is_buildable(room)
@@ -169,7 +259,7 @@ func _draw_content() -> void:
 		_content.custom_minimum_size.y = y + 200.0
 		return
 	var res := String(info.res)
-	if res != "":
+	if res != "" and _view == null:
 		var cap := st.capacity(room, Game.best_stage)
 		var v := float(st.stock.get(room, 0.0))
 		var left := (cap - v) / maxf(0.0001, st.rate(room, Game.best_stage)) * 3600.0
