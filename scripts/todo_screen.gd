@@ -37,6 +37,13 @@ static func entries() -> Array:
 		for sh in Game.ship.shuttles:
 			if bool(Game.ship.shuttles[sh].get("back", false)):
 				out.append({"kind": "shuttle", "title": "%s est rentrée" % String(Ship.SHUTTLES[sh].name) if Ship.SHUTTLES.has(sh) else "Navette rentrée", "sub": "rapport d’expédition au Hangar", "action": "Lire", "rank": 0, "role": "main"})
+	# chantier conseillé (il était sur l'accueil de l'Aurore, maquette XA)
+	if Game.ship.unlocked and Game.mission_open():
+		var adv: Dictionary = Game.ship.advice(Game)
+		if not adv.is_empty() and bool(adv.ok):
+			var r := String(adv.room)
+			var lv: int = Game.ship.room_level(r)
+			out.append({"kind": "advice", "title": "Chantier conseillé : %s" % (("construire " + String(Ship.ROOMS[r].short)) if lv <= 0 else "%s → niv. %d" % [Ship.ROOMS[r].short, lv + 1]), "sub": "⏱ " + UI.duration(float(Game.ship.cost_of(Game, r).time)), "action": "Lancer", "rank": 1, "role": "success", "data": r})
 	for e in Game.board.pending:
 		var t := BoardEvents.template(String(e.id))
 		out.append({"kind": "event", "title": "Événement · %s" % String(t.title), "sub": String(Ship.ROOMS[e.room].name), "action": "Voir", "rank": 1, "role": "main", "data": e})
@@ -148,6 +155,9 @@ func _glyph(c: Control, kind: String, at: Vector2, col: Color) -> void:
 			c.draw_rect(Rect2(at - Vector2(6, 4), Vector2(12, 8)), col)
 		"order", "orders":
 			c.draw_polyline(PackedVector2Array([at + Vector2(-11, 0), at + Vector2(-3, 9), at + Vector2(12, -9)]), col, 5.0, true)
+		"advice":
+			c.draw_line(at + Vector2(-11, 11), at + Vector2(9, -9), col, 4.0, true)
+			c.draw_rect(Rect2(at + Vector2(2, -14), Vector2(12, 8)), col)
 		"harvest":
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -13), at + Vector2(13, -2), at + Vector2(8, 13), at + Vector2(-8, 13), at + Vector2(-13, -2)]), col)
 		"shuttle":
@@ -195,6 +205,11 @@ func _act(e: Dictionary) -> void:
 			if n > 0:
 				Sfx.play("chest", -4.0)
 				M3.toast(self, "%d objet%s équipé%s" % [n, "s" if n > 1 else "", "s" if n > 1 else ""], UI.GREEN)
+			_after()
+		"advice":
+			if Game.ship.start_upgrade(Game, String(e.data)):
+				Sfx.play("coin")
+				M3.toast(self, "Chantier lancé", UI.GREEN)
 			_after()
 		"orders":
 			close()

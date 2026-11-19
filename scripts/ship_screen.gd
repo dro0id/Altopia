@@ -24,10 +24,10 @@ var _t := 0.0
 var _sub: Label
 var _lab_rects := {}
 var _mission: Control
-var _advice: Control
-var _advice_btn: Button
+var _builds: Button
 var _todo: Button
-var _adv := {}
+var _ticker: Control
+var _bubbles := {}
 var _join: Button
 static var mission_gain := 0.0      # crédits gagnés par la mission pendant qu'on est à bord (affichés sur la carte)
 
@@ -41,8 +41,8 @@ func _init() -> void:
 	_bg.draw.connect(_draw_bg)
 	_st.add_child(_bg)
 	view = ShipView.new()
-	view.position = Vector2(0, 236)
-	view.size = Vector2(720, UI.H - 236 - NavBar.total() - 150)
+	view.position = Vector2(0, 300)
+	view.size = Vector2(720, _row_y() - 8.0 - 300.0)
 	_st.add_child(view)
 	view.setup(Game.ship.level, Game.ship.posts, Game.ship.rooms)
 	view.room_tapped.connect(_select)
@@ -64,30 +64,32 @@ func _init() -> void:
 	_sub.position = Vector2(32, 66)
 	_sub.size = Vector2(340, 32)
 	_sub.clip_text = true
-	_cut = _round_button("◐", Vector2(720 - 32 - 88, 300))
+	# rangée du bas (maquette XA) : vue en coupe, chantiers, mémo à gauche ; « À faire » à droite
+	_cut = _round_button("◐", Vector2(32, _row_y()))
 	_cut.pressed.connect(func():
 		view.set_cut(not view.cut_mode)
 		_cut.text = "◐" if view.cut_mode else "●"
 		_close_sheet())
-	var b2 := _round_button("🛠", Vector2(720 - 32 - 88, 404))
-	b2.text = "⚒"
-	b2.pressed.connect(func(): builds_requested.emit())
-	# mémo de l'écran (maquette E5) : ici avec les boutons ronds, pour laisser les monnaies en haut
-	var b3 := _round_button("?", Vector2(720 - 32 - 88, 508))
+	_builds = _round_button("⚒", Vector2(136, _row_y()))
+	_builds.pressed.connect(func(): builds_requested.emit())
+	_builds.draw.connect(func():
+		var nb := Game.ship.buildable().size()
+		if nb > 0:
+			_badge(_builds, nb))
+	# mémo de l'écran (maquette E5)
+	var b3 := _round_button("?", Vector2(240, _row_y()))
 	if not Help.seen("L’Aurore"):
 		b3.add_theme_color_override("font_color", UI.GOLD)
 	b3.pressed.connect(func():
 		b3.add_theme_color_override("font_color", UI.TEXT)
 		Help.show(self, "L’Aurore"))
-	# « À faire » (maquette XB) : tout ce qui attend ; pastille rouge = ce qui se réclame
-	_todo = _round_button("✓", Vector2(720 - 32 - 88, 612))
+	# « À faire » (maquettes XA et XB) : tout ce qui attend ; pastille rouge = ce qui se réclame
+	_todo = M3.button(_st, "À faire", Rect2(448, _row_y(), 240, 88), "gold", 28)
 	_todo.pressed.connect(func(): todo_requested.emit())
 	_todo.draw.connect(func():
 		var n := TodoScreen.claim_count()
 		if n > 0:
-			_todo.draw_circle(Vector2(76, 14), 18, UI.BAR)
-			_todo.draw_circle(Vector2(76, 14), 15, UI.RED)
-			_todo.draw_string(UI.bold_font(), Vector2(60, 22), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 20, Color.WHITE))
+			_badge(_todo, n))
 	_harvest = M3.button(_st, "Tout récolter", Rect2(32, UI.H - NavBar.total() - 32 - 96, 656, 96), "success", 30)
 	_harvest.pressed.connect(_harvest_all)
 	# carte « Mission en cours » (maquette RC)
@@ -103,21 +105,14 @@ func _init() -> void:
 			mission_requested.emit()
 		else:
 			_objective_go())
-	# chantier conseillé
-	_advice = Control.new()
-	_advice.position = Vector2(24, UI.H - NavBar.total() - 32 - 96 - 16 - 124)
-	_advice.size = Vector2(672, 124)
-	_advice.draw.connect(_draw_advice)
-	_advice.gui_input.connect(func(ev: InputEvent):
-		if M3.is_tap(ev) and not _adv.is_empty():
-			accept_event()
-			if Game.ship.room_level(String(_adv.room)) <= 0:
-				_select(String(_adv.room))
-			else:
-				room_requested.emit(String(_adv.room)))
-	_st.add_child(_advice)
-	_advice_btn = M3.button(_advice, "Lancer", Rect2(452, 22, 204, 84), "success", 26)
-	_advice_btn.pressed.connect(_launch_advice)
+	# fil du bord (maquette XA)
+	_ticker = Control.new()
+	_ticker.position = Vector2(24, 248)
+	_ticker.size = Vector2(672, 44)
+	_ticker.clip_contents = true
+	_ticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ticker.draw.connect(_draw_ticker)
+	_st.add_child(_ticker)
 	_sheet = Control.new()
 	_sheet.size = Vector2(720, 420)
 	_sheet.position = Vector2(0, UI.H - NavBar.total() - 420)
@@ -150,6 +145,19 @@ func _reveal_view() -> void:
 	tw.tween_property(_labels, "modulate:a", 1.0, 0.35)
 
 
+## Haut de la rangée de boutons au-dessus de « Tout récolter ».
+static func _row_y() -> float:
+	return UI.H - NavBar.total() - 32.0 - 96.0 - 16.0 - 88.0
+
+
+## Pastille rouge chiffrée au coin d'un bouton.
+static func _badge(b: Control, n: int) -> void:
+	var c := Vector2(b.size.x - 12.0, 12.0)
+	b.draw_circle(c, 18, UI.BAR)
+	b.draw_circle(c, 15, UI.RED)
+	b.draw_string(UI.bold_font(), c + Vector2(-16, 8), str(mini(n, 9)), HORIZONTAL_ALIGNMENT_CENTER, 32, 20, Color.WHITE)
+
+
 func _round_button(glyph: String, p: Vector2) -> Button:
 	var b := M3.icon_button(_st, glyph, 34)
 	b.size = Vector2(88, 88)
@@ -180,8 +188,6 @@ func _refresh() -> void:
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0
-	_adv = s.advice(Game) if Game.mission_open() else {}
-	_advice.visible = not _adv.is_empty() and not _sheet.visible
 	var voyage := not Game.mission_open()
 	_mission.size.y = 184.0 if voyage else 128.0
 	_join.text = "Y aller" if voyage else "Rejoindre"
@@ -190,10 +196,10 @@ func _refresh() -> void:
 	_join.size.y = 72.0 if voyage else 80.0
 	var od := Game.voyage_done()
 	_join.visible = not voyage or (od < Story.OBJECTIVES.size() and String(Story.OBJECTIVES[od].go) != "signal")
-	if not _adv.is_empty():
-		_advice_btn.disabled = not bool(_adv.ok)
-		M3.price(_advice_btn, "Lancer" if bool(_adv.ok) else "Bientôt", RoomScreen.price_items(Game.ship.cost_of(Game, String(_adv.room))))
-	_advice.queue_redraw()
+	var todo_n := TodoScreen.entries().size()
+	M3.price(_todo, "À faire · %d" % todo_n if todo_n > 0 else "À faire", [])
+	_builds.queue_redraw()
+	_ticker.position.y = _mission.position.y + _mission.size.y + 8.0
 	_sheet.queue_redraw()
 
 
@@ -229,110 +235,177 @@ func _draw_bg() -> void:
 
 ## Étiquettes des salles : nom court, niveau, réserve prête (maquette KB).
 ## Largeur d'une pastille de salle (même calcul que le dessin).
-func _label_w(r: String) -> float:
-	var s: ShipState = Game.ship
-	var lv := s.room_level(r)
-	var to_build := s.is_buildable(r)
-	var w := M3.text_w(String(Ship.ROOMS[r].short), 22, true) + 32.0 + (30.0 if lv <= 0 and not to_build else 0.0)
-	if lv > 0:
-		w += M3.text_w(str(lv), 22, true) + 10.0
-	var ready := floorf(float(s.stock.get(r, 0.0)))
-	if to_build:
-		w += M3.text_w("Construire" if s.building(r).is_empty() else "En chantier", 18, true) + 20.0
-	if ready >= 1.0:
-		w += M3.text_w("+" + (UI.num(ready) if String(Ship.ROOMS[r].res) == "credits" else str(int(ready))), 20, true) + 28.0
-	return w
+const CREW_LINES := ["Cap tenu.", "Rien à signaler, Capitaine.", "Le verre chante, ce soir.", "Café froid, moteurs chauds.", "Les réserves se remplissent.", "Altopia est encore loin. On y sera."]
 
 
-## Deux salles sur un même pont : leurs pastilles s'écartent l'une de l'autre au lieu de se recouvrir.
-func _label_rects(order: Array) -> Dictionary:
-	var items: Array = []
-	for r in order:
+## Étiquettes de part et d'autre de la coque (maquette XA) : à gauche les salles de gauche, à droite celles
+## de droite, reliées à leur salle par un trait ; elles s'écartent verticalement au lieu de se recouvrir.
+func _side_layout() -> Array:
+	var sides := {-1: [], 1: []}
+	for r in view.anchors.keys():
 		var lp := view.label_pos(r)
 		if lp.is_empty() or not lp.visible:
 			continue
-		var w := _label_w(r)
-		items.append({"r": r, "x": clampf(float(lp.pos.x), 8.0, 712.0 - w), "y": float(lp.pos.y), "w": w})
-	items.sort_custom(func(a, b): return a.x < b.x)
-	for i in items.size():
-		for j in range(i + 1, items.size()):
-			var a: Dictionary = items[i]
-			var b: Dictionary = items[j]
-			if absf(a.y - b.y) > 40.0:
-				continue
-			var over: float = a.x + a.w + 8.0 - b.x
-			if over > 0.0:
-				a.x = maxf(8.0, a.x - over * 0.5)
-				b.x = minf(712.0 - b.w, maxf(b.x, a.x + a.w + 8.0))
-	var out := {}
-	for it in items:
-		out[it.r] = it.x
+		var a: Vector2 = lp.pos
+		sides[-1 if a.x < 360.0 else 1].append({"r": r, "a": a, "y": a.y, "side": -1 if a.x < 360.0 else 1})
+	var out := []
+	for sd in sides:
+		var lst: Array = sides[sd]
+		lst.sort_custom(func(p, q): return p.y < q.y)
+		for i in lst.size():
+			if i > 0:
+				lst[i].y = maxf(float(lst[i].y), float(lst[i - 1].y) + 76.0)
+			lst[i].y = clampf(float(lst[i].y), 40.0, _labels.size.y - 50.0)
+		out += lst
 	return out
+
+
+func _status(r: String) -> Array:
+	var s: ShipState = Game.ship
+	var lv := s.room_level(r)
+	var b := s.building(r)
+	if not b.is_empty():
+		return ["⏱ " + UI.duration(s.remaining(int(b.end))), UI.GOLD]
+	if lv <= 0:
+		return ["Construire", UI.GREEN] if s.is_buildable(r) else ["niv. %d" % int(Ship.ROOMS[r].unlock), UI.MUTED]
+	if String(Ship.ROOMS[r].res) != "":
+		var cap := s.capacity(r, Game.best_stage)
+		var v := float(s.stock.get(r, 0.0))
+		if v >= cap - 0.01:
+			return ["pleine" if not OfflineScreen._masc(String(Ship.ROOMS[r].short)) else "plein", UI.GOLD]
+		return ["%d %%" % int(v / maxf(0.001, cap) * 100.0), UI.GREEN]
+	return ["", UI.MUTED]
 
 
 func _draw_labels() -> void:
 	var c := _labels
 	_lab_rects = {}
+	_bubbles = {}
 	var s: ShipState = Game.ship
-	# les salles à construire passent en dernier, au-dessus des pastilles voisines
-	var order: Array = view.anchors.keys()
-	order.sort_custom(func(a, b): return int(s.is_buildable(a)) < int(s.is_buildable(b)))
-	var placed := _label_rects(order)
-	for r in order:
-		var lp := view.label_pos(r)
-		if lp.is_empty() or not lp.visible:
-			continue
+	var items := _side_layout()
+	var top_anchor := Vector2(-1, -1)
+	for it in items:
+		var r: String = it.r
+		var a: Vector2 = it.a
+		if top_anchor.x < 0.0 or a.y < top_anchor.y:
+			top_anchor = a
 		var col: Color = Ship.ROOMS[r].color
 		var lv := s.room_level(r)
-		var to_build := s.is_buildable(r)
-		var sealed := lv <= 0 and not to_build
+		var sealed := lv <= 0 and not s.is_buildable(r)
 		var name := String(Ship.ROOMS[r].short)
-		var txt := name
-		var w := M3.text_w(txt, 22, true) + 32.0 + (30.0 if sealed else 0.0)
 		var lvtxt := "" if lv <= 0 else str(lv)
-		var csz := 20
-		w += M3.text_w(lvtxt, 22, true) + (10.0 if lvtxt != "" else 0.0)
-		var ready := floorf(float(s.stock.get(r, 0.0)))
-		var rtxt := ""
-		if to_build:
-			rtxt = "Construire" if s.building(r).is_empty() else "En chantier"
-			csz = 18
-			w += M3.text_w(rtxt, csz, true) + 20.0
-		if ready >= 1.0:
-			rtxt = "+" + (UI.num(ready) if String(Ship.ROOMS[r].res) == "credits" else str(int(ready)))
-			w += M3.text_w(rtxt, 20, true) + 28.0
-		var p: Vector2 = lp.pos
-		var rect := Rect2(p.x, p.y - 22.0, w, 44.0)
-		rect.position.x = clampf(rect.position.x, 8.0, 712.0 - w)
-		if placed.has(r):
-			rect.position.x = float(placed[r])
-		var sb := UI.box(Color(0.04, 0.07, 0.15, 0.85), col if not sealed else UI.MUTED, 22, 0)
-		if to_build:
+		var w := 44.0 + M3.text_w(name, 22, true) + (M3.text_w(lvtxt, 22, true) + 10.0 if lvtxt != "" else 0.0) + (26.0 if sealed else 0.0)
+		var y: float = it.y
+		var left: bool = int(it.side) < 0
+		var rect := Rect2(12.0 if left else 708.0 - w, y - 22.0, w, 44.0)
+		# trait vers la salle
+		var from := Vector2(rect.end.x if left else rect.position.x, y)
+		c.draw_line(from, a, Color(col, 0.0 if sealed else 0.55), 2.0, true)
+		c.draw_circle(a, 4.0, Color(col, 0.0 if sealed else 0.9))
+		var sb := UI.box(Color(0.04, 0.07, 0.15, 0.88), col if not sealed else UI.MUTED, 10, 0)
+		if s.is_buildable(r) and s.building(r).is_empty():
 			sb.border_color = Color(col, 0.55 + 0.45 * absf(sin(_t * 3.0)))
 		sb.set_border_width_all(2)
 		c.draw_style_box(sb, rect)
-		var x := rect.position.x + 16.0
+		var dc := rect.position + Vector2(20, 22)
+		c.draw_colored_polygon(PackedVector2Array([dc + Vector2(0, -8), dc + Vector2(8, 0), dc + Vector2(0, 8), dc + Vector2(-8, 0)]), col if not sealed else UI.MUTED)
+		var x := rect.position.x + 36.0
 		if sealed:
-			M3.lock(c, Vector2(x + 10, rect.position.y + 22), UI.MUTED, 0.8)
-			x += 30.0
-		M3.text(c, Vector2(x, rect.position.y + 30), txt, 22, UI.TEXT if not sealed else UI.MUTED, true)
-		x += M3.text_w(txt, 22, true) + 10.0
+			M3.lock(c, Vector2(x + 8, rect.position.y + 22), UI.MUTED, 0.8)
+			x += 26.0
+		M3.text(c, Vector2(x, rect.position.y + 30), name, 22, UI.TEXT if not sealed else UI.MUTED, true)
+		x += M3.text_w(name, 22, true) + 10.0
 		if lvtxt != "":
 			M3.text(c, Vector2(x, rect.position.y + 30), lvtxt, 22, col, true)
-			x += M3.text_w(lvtxt, 22, true) + 10.0
-		if rtxt != "":
-			var rr := Rect2(x, rect.position.y + 6, M3.text_w(rtxt, csz, true) + 20.0, 32)
-			c.draw_style_box(UI.box(col, Color(0, 0, 0, 0), 16, 0), rr)
-			M3.text(c, Vector2(rr.position.x + 10, rr.position.y + 23), rtxt, csz, Color("06101f"), true)
-		# événement à bord (maquette WK) : un « ! » doré au bout de l'étiquette
+		var st := _status(r)
+		if String(st[0]) != "":
+			M3.text(c, Vector2(rect.position.x + (0.0 if left else 0.0), rect.end.y + 22.0), String(st[0]), 20, st[1], true, w, HORIZONTAL_ALIGNMENT_LEFT if left else HORIZONTAL_ALIGNMENT_RIGHT)
+		# événement à bord (maquette WK) : un « ! » doré au coin de l'étiquette
 		if not Game.board.at_room(r).is_empty():
-			var ec := Vector2(maxf(22.0, rect.position.x - 2.0), rect.position.y + 2.0)     # coin gauche : la voisine est souvent à droite
+			var ec := Vector2(rect.position.x + 2.0 if left else rect.end.x - 2.0, rect.position.y + 2.0)
 			var pulse := 1.0 + 0.12 * sin(_t * 5.0)
 			c.draw_circle(ec, 21.0 * pulse, Color(UI.GOLD, 0.25))
 			c.draw_circle(ec, 17.0, UI.GOLD)
 			M3.text(c, ec + Vector2(-17, 9), "!", 24, Color("06101f"), true, 34, HORIZONTAL_ALIGNMENT_CENTER)
-			rect = rect.grow_individual(24, 18, 0, 0)
-		_lab_rects[r] = Rect2(rect.position + c.position, rect.size)
+		_lab_rects[r] = Rect2(rect.position + c.position, rect.size + Vector2(0, 28)).grow(6)
+		# bulle de récolte sur la salle (toucher : récolter)
+		var ready := floorf(float(s.stock.get(r, 0.0)))
+		if ready >= 1.0 and lv > 0:
+			var txt := "+" + (UI.num(ready) if String(Ship.ROOMS[r].res) == "credits" else str(int(ready)))
+			var bw := M3.text_w(txt, 22, true) + 28.0
+			var bc := a + Vector2(-float(it.side) * (bw * 0.5 + 10.0), -4.0 + sin(_t * 2.0 + a.y) * 3.0)
+			var br := Rect2(bc - Vector2(bw * 0.5, 20), Vector2(bw, 40))
+			c.draw_style_box(UI.box(col.lightened(0.15), Color(0, 0, 0, 0), 20, 0), br)
+			M3.text(c, br.position + Vector2(0, 28), txt, 22, Color("06101f"), true, bw, HORIZONTAL_ALIGNMENT_CENTER)
+			_bubbles[r] = Rect2(br.position + c.position, br.size).grow(8)
+	# bulle d'équipage au-dessus du vaisseau
+	if top_anchor.x >= 0.0:
+		var who := "vance" if s.post_of("vance") != "" else ""
+		if who == "":
+			for rr in s.posts:
+				if not (s.posts[rr] as Array).is_empty():
+					who = String(s.posts[rr][0])
+					break
+		if who != "":
+			var k := int(_t / 9.0)
+			var line := "%s : « %s »" % [String(Data.HEROES[who].name).split(" ")[0], CREW_LINES[k % CREW_LINES.size()]]
+			var ph := fmod(_t, 9.0)
+			var alpha := clampf(minf(ph / 0.4, (9.0 - ph) / 0.4), 0.0, 1.0)
+			var lw := M3.text_w(line, 20, true) + 32.0
+			var qr := Rect2(clampf(top_anchor.x - lw * 0.5, 12.0, 708.0 - lw), maxf(4.0, top_anchor.y - 92.0), lw, 40)
+			c.draw_style_box(UI.box(Color(0.92, 0.95, 1.0, 0.92 * alpha), Color(0, 0, 0, 0), 20, 0), qr)
+			M3.text(c, qr.position + Vector2(0, 27), line, 20, Color(0.04, 0.07, 0.15, alpha), true, lw, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## Fil du bord (maquette XA) : ce qui arrive bientôt, en une ligne qui défile.
+func _ticker_text() -> String:
+	var s: ShipState = Game.ship
+	var parts := []
+	var best := ""
+	var bt := 1.0e12
+	for r in s.producers():
+		var cap := s.capacity(r, Game.best_stage)
+		var v := float(s.stock.get(r, 0.0))
+		var rate := s.rate(r, Game.best_stage)
+		if v < cap and rate > 0.0:
+			var left := (cap - v) / rate * 3600.0
+			if left < bt:
+				bt = left
+				best = String(r)
+	if best != "":
+		var nm := String(Ship.ROOMS[best].short)
+		parts.append("%s %s dans %s" % [nm, "plein" if OfflineScreen._masc(nm) else "pleine", UI.duration(bt)])
+	for b in s.builds:
+		parts.append("%s niv. %d dans %s" % [Ship.ROOMS[b.room].short, int(b.to), UI.duration(s.remaining(int(b.end)))])
+	if not s.research_job.is_empty():
+		parts.append("Labo : %s dans %s" % [Ship.RESEARCH[s.research_job.id].name, UI.duration(s.remaining(int(s.research_job.end)))])
+	for sh in s.shuttles:
+		var d: Dictionary = s.shuttles[sh]
+		if not d.is_empty() and not bool(d.get("back", false)):
+			parts.append("%s de retour dans %s" % [Ship.SHUTTLES[sh].name, UI.duration(s.remaining(int(d.end)))])
+	if not Game.board.pending.is_empty():
+		parts.append("%d événement%s à bord" % [Game.board.pending.size(), "s" if Game.board.pending.size() > 1 else ""])
+	return "   ·   ".join(parts) if not parts.is_empty() else "Tout est calme à bord."
+
+
+func _draw_ticker() -> void:
+	var c := _ticker
+	c.draw_style_box(UI.box(Color(0.06, 0.1, 0.2, 0.85), Color(0, 0, 0, 0), 12, 0), Rect2(Vector2.ZERO, c.size))
+	var txt := _ticker_text()
+	var tw := M3.text_w(txt, 22, false)
+	var room := c.size.x - 180.0
+	var off := 0.0
+	if tw > room:
+		off = fmod(_t * 40.0, tw + 80.0)
+	# le texte défile sous le titre « FIL DU BORD », coupé à gauche
+	for k in 2:
+		var x := 172.0 - off + k * (tw + 80.0)
+		if x < c.size.x and x + tw > 160.0:
+			M3.text(c, Vector2(x, 30), txt, 22, UI.TEXT)
+		if tw <= room:
+			break
+	c.draw_rect(Rect2(0, 0, 166, c.size.y), Color(0.06, 0.1, 0.2, 1.0))
+	M3.text(c, Vector2(16, 30), "FIL DU BORD", 20, UI.ACCENT, true)
 
 
 func _input(ev: InputEvent) -> void:
@@ -342,6 +415,15 @@ func _input(ev: InputEvent) -> void:
 	var p: Vector2 = _st.get_global_transform_with_canvas().affine_inverse() * ev.position
 	if _sheet.visible and Rect2(_sheet.position, _sheet.size).has_point(p):
 		return
+	for r in _bubbles:
+		if (_bubbles[r] as Rect2).has_point(p):
+			var got := Game.ship.collect(Game, r)
+			if not got.is_empty():
+				Sfx.play("coin")
+				Wallet.fly(get_tree(), _st.get_global_transform_with_canvas() * (_bubbles[r] as Rect2).get_center(), String(got.res))
+				Game.changed.emit()
+			get_viewport().set_input_as_handled()
+			return
 	for r in _lab_rects:
 		if (_lab_rects[r] as Rect2).has_point(p):
 			var ev2: Dictionary = Game.board.at_room(r)
@@ -365,7 +447,6 @@ func _select(r: String) -> void:
 	Sfx.play("click", -6.0)
 	_sheet.visible = true
 	_harvest.visible = false
-	_advice.visible = false
 	var res := String(Ship.ROOMS[r].res)
 	var b: Button = _sheet_btns[0]
 	b.visible = res != ""
@@ -378,7 +459,6 @@ func _close_sheet() -> void:
 	_sel = ""
 	_sheet.visible = false
 	_harvest.visible = true
-	_advice.visible = not _adv.is_empty()
 
 
 func _unhandled_input(ev: InputEvent) -> void:
@@ -528,27 +608,6 @@ func _objective_go() -> void:
 			room_requested.emit(go)
 
 
-## Chantier conseillé (maquette RC) : le Pont d'abord, sinon la salle la moins chère.
-func _draw_advice() -> void:
-	if _adv.is_empty():
-		return
-	var c := _advice
-	var s: ShipState = Game.ship
-	var r := String(_adv.room)
-	var col: Color = Ship.ROOMS[r].color
-	var sb := UI.box(Color("0d1733", 0.92), Color(UI.GREEN, 0.4), 36, 0)
-	sb.set_border_width_all(2)
-	c.draw_style_box(sb, Rect2(Vector2.ZERO, c.size))
-	c.draw_style_box(UI.box(Color("0a1424"), col, 20, 0), Rect2(16, 18, 88, 88))
-	RoomScreen._room_glyph(c, r, Vector2(60, 62), col, 0.8)
-	var lv := s.room_level(r)
-	var cost := s.cost_of(Game, r)
-	M3.text(c, Vector2(124, 40), "CHANTIER CONSEILLÉ", 20, UI.GREEN, true, 316)
-	M3.text(c, Vector2(124, 76), ("Construire : %s" % Ship.ROOMS[r].short) if lv <= 0 else ("%s → niveau %d" % [Ship.ROOMS[r].short, lv + 1]), 28, UI.TEXT, true, 316)
-	# le prix est dans le bouton (maquette E3) ; reste la durée
-	M3.text(c, Vector2(124, 108), "⏱ " + UI.duration(float(cost.time)), 22, UI.MUTED, false, 316)
-
-
 ## Ce que fait chaque salle, pour la proposer à la construction.
 const BLURB := {
 	"atelier": "Fabrique des jetons d’objet",
@@ -606,15 +665,6 @@ func _build_selected() -> void:
 		Game.save_game()
 		Game.changed.emit()
 		_sheet.queue_redraw()
-
-
-func _launch_advice() -> void:
-	if _adv.is_empty():
-		return
-	if Game.ship.start_upgrade(Game, String(_adv.room)):
-		Sfx.play("coin")
-		Game.save_game()
-		Game.changed.emit()
 
 
 func _n(v: float, res: String) -> String:
