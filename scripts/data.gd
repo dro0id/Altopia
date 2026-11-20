@@ -194,6 +194,15 @@ static func freq_advantaged(id: String, stage: int) -> bool:
 	return c != "" and String(FREQ.get(id, "")) == c
 
 
+## Recalibrage après la feuille de route ZA (signatures, talents, liens, Résonance, doctrine, familiers) :
+## les ennemis gagnent jusqu’à 45 % de PV et d'attaque entre les étages 12 et 40.
+const ZA_TOUGHEN := 0.45
+
+
+static func za_scale(stage: int) -> float:
+	return 1.0 + ZA_TOUGHEN * clampf(float(stage - 12) / 28.0, 0.0, 1.0)
+
+
 ## Ennemis à rôle qu'on peut croiser à cet étage.
 static func role_enemies_for(stage: int) -> Array:
 	if stage < 4:
@@ -289,6 +298,7 @@ static func team_power(levels: Dictionary, ids: Array = STARTER) -> float:
 ## Niveau moyen d'escouade recommandé pour un étage (ajusté sur les simulations de tools/calibrate.gd).
 static func recommended_level(stage: int) -> int:
 	var lv := 0.65 * float(stage) - 3.4
+	lv += 2.0 * clampf(float(stage - 12) / 28.0, 0.0, 1.0)      # ennemis recalibrés (za_scale)
 	match boss_type(stage):
 		"mini":
 			lv += 1.0

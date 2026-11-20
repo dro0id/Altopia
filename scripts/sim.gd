@@ -280,8 +280,9 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	var gk_hp := gk
 	var gk_atk := gk
 	u.max_hp = Data.ENEMY_HP * Sector.enemy_scale(stage, true) * e.hp * boss_k * gk_hp * (Sector.GEN_HP * (Sector.GEN_BOSS_HP if big else 1.0) if gen else 1.0) * (Data.BIG_BOSS_HP if big else 1.0)
+	u.max_hp *= Data.za_scale(stage)
 	u.hp = u.max_hp
-	u.atk = Data.ENEMY_ATK * s * e.atk * gk_atk * (Sector.GEN_ATK if gen else 1.0) * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
+	u.atk = Data.za_scale(stage) * Data.ENEMY_ATK * s * e.atk * gk_atk * (Sector.GEN_ATK if gen else 1.0) * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
 	u.def = (Data.ENEMY_DEF + stage * 0.6) * e.def
 	u.interval = e.interval
 	u.ranged = e.ranged
