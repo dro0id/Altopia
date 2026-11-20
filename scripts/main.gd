@@ -15,6 +15,7 @@ var _strip: Control
 var _controls: Control
 var _auto_b: Button
 var _fab_cast: Button
+var _reso_ring: Control
 var _fab_speed: Button
 var _field: Control
 var _boss_bar: BossBar
@@ -242,7 +243,16 @@ func _build_squad() -> void:
 		Game.save_game()
 		_refresh())
 	_fab_cast = _fab(_controls, "✦", Rect2(448, 0, 112, 112))
+	# jauge de Résonance (maquette WF) : anneau autour du bouton, qui prend sa place quand il est plein
+	_reso_ring = Control.new()
+	_reso_ring.size = Vector2(112, 112)
+	_reso_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reso_ring.draw.connect(_draw_reso_ring)
+	_fab_cast.add_child(_reso_ring)
 	_fab_cast.pressed.connect(func():
+		if battle.sim != null and battle.sim.resonance >= 1.0 and battle.sim.resonate():
+			_manual_cast = true
+			return
 		var n := 0
 		if battle.sim != null:
 			for u in battle.sim.units:
@@ -259,6 +269,23 @@ func _build_squad() -> void:
 		battle.speed = Game.speed
 		Game.save_game()
 		_refresh())
+
+
+func _draw_reso_ring() -> void:
+	if battle == null or battle.sim == null:
+		return
+	var c := Vector2(56, 56)
+	var v: float = battle.sim.resonance
+	var col: Color = Data.RESONANCE[battle.sim.res_kind].col
+	_reso_ring.draw_arc(c, 60.0, -PI / 2.0, -PI / 2.0 + TAU * v, 40, Color(col, 0.9), 6.0, true)
+	if v >= 1.0:
+		var k := 0.5 + 0.5 * sin(battle.clock * 6.0)
+		_reso_ring.draw_arc(c, 64.0 + k * 4.0, 0, TAU, 40, Color(UI.GOLD, 0.4 + 0.4 * k), 3.0, true)
+		var lab := "RÉSONANCE"
+		var w := M3.text_w(lab, 18, true) + 24.0
+		var r := Rect2(c.x - w * 0.5, -34, w, 30)
+		_reso_ring.draw_style_box(UI.box(Color(0.04, 0.06, 0.13, 0.95), Color(UI.GOLD, 0.8), 15, 0), r)
+		M3.text(_reso_ring, Vector2(r.position.x, r.position.y + 22), lab, 18, UI.GOLD, true, w, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 ## Bouton flottant carré arrondi (56 dp, rayon 16 dp) avec un glyphe dessiné.
@@ -958,6 +985,8 @@ func _process(delta: float) -> void:
 	if _battery_t > 60.0:
 		_battery_t = 0.0
 		Game.apply_performance()
+	if _reso_ring != null:
+		_reso_ring.queue_redraw()
 	_refresh_t += delta
 	if _refresh_t > 0.15:
 		_refresh_t = 0.0

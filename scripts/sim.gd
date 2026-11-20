@@ -58,6 +58,8 @@ class Unit:
 	var brood_t := 0.0           # Couveuse : temps avant la prochaine ponte
 	var weave_t := 0.0           # Tisseuse : temps avant la prochaine réparation
 	var freq_adv := false        # héros avantagé par la fréquence de l'étage (maquette WE)
+	var rage_t := 0.0            # Résonance « Feu nourri » : attaque deux fois plus vite
+	var amp_t := 0.0             # Résonance « Accord » : dégâts +30 %
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -87,6 +89,9 @@ var parry_until := -1.0
 var revived := false             # Second souffle déjà utilisé dans ce combat
 var bursts: Array = []           # Carapace : explosions de bouclier à venir {t, src, dmg}          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
+var resonance := 0.0             # jauge de Résonance d'escouade, 0 à 1 (maquette WF)
+var res_kind := "accord"
+var res_used := 0
 var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
@@ -116,6 +121,10 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 			tactical = tactical or bool(sb.get("tactic", false))
 		units.append(u)
 		slot += 1
+	var ids: Array = []
+	for e in team:
+		ids.append(String(e.id))
+	res_kind = Data.resonance_kind(ids)
 	_apply_boosts(boosts)
 	_apply_sector_heroes()
 	_spawn_wave()
@@ -362,6 +371,7 @@ func _cast(u: Unit) -> bool:
 		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo] * u.skill_mod
 		if combo >= 2:
 			events.append({"type": "combo", "n": combo, "mult": Data.combo_mult(combo)})
+		_charge(Data.RES_CAST + (Data.RES_COMBO if combo >= 2 else 0.0))
 	match u.skill_kind:
 		"shield":
 			for a in _alive(0):
@@ -467,6 +477,38 @@ func _cast(u: Unit) -> bool:
 
 
 ## Boss qui prépare son gros coup et dont la fenêtre de tir est ouverte (maquette WB), ou null.
+func _charge(k: float) -> void:
+	var was := resonance >= 1.0
+	resonance = minf(1.0, resonance + k)
+	if not was and resonance >= 1.0:
+		events.append({"type": "resonance_full"})
+
+
+## Déclenche la Résonance quand la jauge est pleine (maquette WF).
+func resonate() -> bool:
+	if resonance < 1.0 or state != "fighting":
+		return false
+	resonance = 0.0
+	res_used += 1
+	match res_kind:
+		"feu":
+			for a in _alive(0):
+				a.rage_t = 5.0
+		"surcharge":
+			for a in _alive(0):
+				a.skill_cd = 0.0
+		"choeur":
+			for a in _alive(0):
+				_heal(a, a.max_hp * 0.3)
+			for e in _alive(1):
+				e.stun_t = maxf(e.stun_t, 2.0)
+		_:
+			for a in _alive(0):
+				a.amp_t = 6.0
+	events.append({"type": "resonance", "kind": res_kind})
+	return true
+
+
 func charging_boss() -> Unit:
 	for e in _alive(1):
 		if e.boss and e.skill_cd > 0.0 and e.skill_cd <= Data.INTERRUPT_WINDOW:
@@ -484,9 +526,11 @@ func _window_effect(u: Unit) -> void:
 		bu.warned = false
 		bu.exposed_t = Data.EXPOSED_TIME
 		events.append({"type": "interrupt", "unit": bu, "by": u})
+		_charge(Data.RES_INTERRUPT)
 	elif u.skill_kind == "shield":
 		parry_until = time + bu.skill_cd + 1.2
 		events.append({"type": "parry_ready", "unit": bu, "by": u})
+		_charge(Data.RES_INTERRUPT)
 
 
 ## Auto tactique : garder un contrôle ou un bouclier tant qu'un boss est là mais pas encore dans sa fenêtre.
@@ -606,6 +650,8 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
+	if src0 != null and src0.amp_t > 0.0 and dst.side == 1:
+		dmg *= 1.3
 	if src0 != null and src0.freq_adv and dst.side == 1:
 		dmg *= 1.0 + Data.FREQ_DMG
 	if dst.freq_adv and dst.side == 0:
@@ -776,6 +822,8 @@ func step(dt: float) -> void:
 		u.haste_t = maxf(0.0, u.haste_t - dt)
 		u.dr_t = maxf(0.0, u.dr_t - dt)
 		u.vuln_t = maxf(0.0, u.vuln_t - dt)
+		u.rage_t = maxf(0.0, u.rage_t - dt)
+		u.amp_t = maxf(0.0, u.amp_t - dt)
 		if u.hot_t > 0.0:
 			u.hot_t -= dt
 			var before := u.hp
@@ -802,8 +850,10 @@ func step(dt: float) -> void:
 		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0 and not _holds(u):
 			_cast(u)
 		if u.cd <= 0.0 and u.alive:
-			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0)
+			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0) * (0.5 if u.rage_t > 0.0 else 1.0)
 			_act(u)
+	if auto_cast and resonance >= 1.0:
+		resonate()                       # en auto, la Résonance part dès que la jauge est pleine
 	# Carapace : le bouclier de Gorn explose quand il se termine
 	var bi := 0
 	while bi < bursts.size():

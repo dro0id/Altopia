@@ -24,6 +24,8 @@ var clock := 0.0
 var boss_wave := false
 var banner := ""
 var banner_t := 0.0
+var reso_t := 0.0                  # grand titre de la Résonance (maquette WF)
+var reso_kind := ""
 var banner_sub := ""
 var banner_in_field := true
 var banner_hero := ""             # annonce d'un pouvoir signature : identifiant du héros (maquette WA)       # faux quand le haut de l'écran (CombatHud) affiche les annonces
@@ -247,6 +249,15 @@ func _consume() -> void:
 				boss_wave = false
 				Sfx.play("star", -2.0, 0.9 + 0.1 * minf(e.n, 5.0))
 				fx.append({"kind": "ring", "pos": Vector2(360, 470), "t": 0.0, "dur": 0.5, "col": Color(1.0, 0.75, 0.3), "r": 200.0 + 30.0 * e.n, "shake": 0.0})
+			"resonance":
+				reso_t = 2.4
+				reso_kind = String(e.kind)
+				shake = maxf(shake, 6.0)
+				Sfx.play("star", 0.0, 0.8)
+				Game.haptic("reward")
+				for a in sim.allies():
+					if a.alive:
+						fx.append({"kind": "ring", "pos": _center(a), "t": 0.0, "dur": 0.6, "col": Data.RESONANCE[reso_kind].col, "r": 120.0, "shake": 0.0})
 			"blast":
 				# Mite ardente : explosion au premier rang
 				shake = maxf(shake, 7.0)
@@ -394,6 +405,7 @@ func _dmg_text(u: BattleSim.Unit, amount: float, crit: bool, skill: bool) -> voi
 
 func _process(delta: float) -> void:
 	clock += delta
+	reso_t = maxf(0.0, reso_t - delta)
 	if sim == null:
 		return
 	var dt := minf(delta, 0.1) * speed
@@ -475,7 +487,31 @@ func _ellipse_line(c: Vector2, r: float, col: Color, w: float, flat: float = 0.4
 	_ov.draw_polyline(pts, col, w)
 
 
+## Grand titre de la Résonance : rayons dorés, « RÉSONANCE », nom de l'effet et ce qu'il fait.
+func _draw_resonance() -> void:
+	if reso_t <= 0.0 or not Data.RESONANCE.has(reso_kind):
+		return
+	var r: Dictionary = Data.RESONANCE[reso_kind]
+	var a := minf(1.0, reso_t / 0.4) * minf(1.0, (2.4 - reso_t) * 6.0)
+	var col: Color = r.col
+	# bande sombre derrière le titre, pour qu'il se lise par-dessus les ennemis
+	_ov.draw_rect(Rect2(0, 56, SIZE.x, 170), Color(0.02, 0.03, 0.09, 0.55 * a))
+	for k in 7:
+		var x := 60.0 + k * 100.0 + sin(clock * 0.8 + k) * 20.0
+		_ov.draw_colored_polygon(PackedVector2Array([Vector2(x - 30, 0), Vector2(x + 30, 0), Vector2(x + 90, SIZE.y), Vector2(x - 10, SIZE.y)]), Color(1.0, 0.85, 0.45, 0.07 * a))
+	var f: Font = UI.bold_font()
+	var y := 96.0
+	var kick := "R É S O N A N C E"
+	_ov.draw_string(f, Vector2(0, y), kick, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 24, Color(UI.GOLD, a))
+	var title := String(r.name).to_upper()
+	var sz := 64
+	_ov.draw_string_outline(f, Vector2(0, y + 70), title, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, sz, 10, Color(col.darkened(0.6), a))
+	_ov.draw_string(f, Vector2(0, y + 70), title, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, sz, Color(1, 1, 1, a))
+	_ov.draw_string(f, Vector2(0, y + 108), String(r.sub), HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 22, Color(col.lightened(0.4), a))
+
+
 func _draw_overlay() -> void:
+	_draw_resonance()
 	_draw_intents()
 	for s in shots:
 		if s.t < 0.0:

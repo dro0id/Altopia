@@ -298,6 +298,14 @@ func _initialize() -> void:
 			j._ch = 3
 			j._chips.sel = 2
 			j._rebuild(),
+		"jauge": func():
+			main.battle.sim.auto_cast = false
+			main.battle.sim.resonance = 1.0,
+		"resonance": func():
+			main.battle.sim.resonance = 1.0
+			main.battle.sim.resonate()
+			await _wait(0.5)
+			main.battle.speed = 0.0,
 		"roles": func():
 			# les cinq ennemis à rôle (maquette WD) face à l'escouade
 			var sim = main.battle.sim

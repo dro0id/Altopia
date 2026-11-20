@@ -132,6 +132,33 @@ const BROOD_TIME := 6.0
 const WARD_REDUCTION := 0.4
 
 
+## Résonance d'escouade (maquette WF) : la jauge monte avec les pouvoirs, les combos et les interruptions.
+const RESONANCE := {
+	"feu": {"name": "Feu nourri", "who": "Humains en majorité", "desc": "Toute l’escouade attaque deux fois plus vite pendant 5 s.", "sub": "attaque ×2 pendant 5 s", "col": Color("4fa8ff")},
+	"surcharge": {"name": "Surcharge", "who": "Robots en majorité", "desc": "Tous les pouvoirs sont rechargés d’un coup.", "sub": "tous les pouvoirs rechargés", "col": Color("c8d4e6")},
+	"choeur": {"name": "Chœur", "who": "Extraterrestres en majorité", "desc": "Soigne 30 % des PV et étourdit les ennemis 2 s.", "sub": "soin 30 % · ennemis étourdis 2 s", "col": Color("7dffb0")},
+	"accord": {"name": "Accord", "who": "Escouade mêlée", "desc": "Dégâts +30 % pendant 6 s.", "sub": "dégâts +30 % pendant 6 s", "col": Color("ffd166")},
+}
+const RES_CAST := 0.035                  # jauge gagnée par pouvoir lancé
+const RES_COMBO := 0.02                  # en plus, par pouvoir lancé en combo
+const RES_INTERRUPT := 0.15              # boss interrompu ou coup paré
+
+
+## Résonance d'une escouade selon les espèces : trois d'une même espèce, sinon l'Accord.
+static func resonance_kind(ids: Array) -> String:
+	var n := {"human": 0, "robot": 0, "alien": 0}
+	for id in ids:
+		if HEROES.has(id):
+			n[String(HEROES[id].species)] += 1
+	if n.human >= 3:
+		return "feu"
+	if n.robot >= 3:
+		return "surcharge"
+	if n.alien >= 3:
+		return "choeur"
+	return "accord"
+
+
 ## Fréquences du verre (maquette WE) : cyan bat ambre, ambre bat violet, violet bat cyan.
 const FREQ := {
 	"kai": "cyan", "vance": "cyan", "t9": "cyan", "lumi": "cyan", "sora": "cyan",

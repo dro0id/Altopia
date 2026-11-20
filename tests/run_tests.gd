@@ -1217,3 +1217,37 @@ func test_boarding() -> void:
 			break
 	_g.boarding_day = Boarding.today()
 	_check(not Boarding.available(_g), "pas deux abordages le même jour")
+
+
+func test_role_enemies_and_frequencies() -> void:
+	_check(Data.role_enemies_for(3).is_empty(), "pas d'ennemi à rôle avant l'étage 4")
+	_check(Data.role_enemies_for(45).size() == 5, "tous les rôles dans les secteurs générés")
+	var s := BattleSim.new(_team(10), 12, 1)
+	var p := s._make_enemy("porteur", 1, false)
+	var m := s._make_enemy("mite", 2, false)
+	for u in s.units.duplicate():
+		if u.side == 1:
+			s.units.erase(u)
+	s.units.append(s._make_enemy("mite", 0, false))
+	s.units.append(p)
+	s.units.append(m)
+	_check(s._warded(m) and not s._warded(p), "le Porte-éclat protège ses voisins")
+	var hero: BattleSim.Unit = s.allies()[0]
+	_check(s._pick_target(hero) == p, "l'auto vise d'abord le protecteur")
+	_check(Data.stage_freq(5) == "cyan" and Data.stage_freq(15) == "violet" and Data.stage_freq(25) == "ambre" and Data.stage_freq(35) == "", "fréquences des chapitres")
+	_check(Data.freq_advantaged("mara", 15) and not Data.freq_advantaged("kai", 15), "ambre bat violet")
+
+
+func test_resonance() -> void:
+	_check(Data.resonance_kind(["mara", "kai", "dax", "t9", "oru"]) == "feu", "trois humains : Feu nourri")
+	_check(Data.resonance_kind(["t9", "pim", "brix", "mara", "zyra"]) == "surcharge", "trois robots : Surcharge")
+	_check(Data.resonance_kind(["mara", "kai", "t9", "pim", "zyra"]) == "accord", "escouade mêlée : Accord")
+	var s := BattleSim.new(_team(10), 6, 1)
+	s.auto_cast = false
+	_check(not s.resonate(), "jauge vide : rien")
+	for u in s.allies():
+		u.skill_cd = 0.0
+		s.cast(u.slot)
+	_check(s.resonance > 0.0, "les pouvoirs remplissent la jauge")
+	s.resonance = 1.0
+	_check(s.resonate() and s.resonance == 0.0, "jauge pleine : la Résonance part")
