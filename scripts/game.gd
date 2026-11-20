@@ -73,6 +73,7 @@ var bond_read: Array = []
 var paint := "amiraute"            # peinture de l'Aurore (maquette YG)
 var outfits := {}                  # héros -> tenue
 var ach_seen: Array = []
+var dive := Dive.new()              # la Plongée de la semaine (maquette WL)
 var eggs: Array = []                # œufs de familier {end} (maquette WI)
 var pets: Array = []                # familiers éclos {kind, lv}
 var pet_follow := -1                # familier qui suit l'escouade
@@ -128,6 +129,7 @@ func reset() -> void:
 	eggs = []
 	pets = []
 	pet_follow = -1
+	dive = Dive.new()
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -180,13 +182,32 @@ func reset() -> void:
 
 
 func team() -> Array:
+	return team_of(squad)
+
+
+## Escouade de combat pour ces héros (la Plongée y descend avec des remplaçants, maquette WL).
+func team_of(ids: Array) -> Array:
 	var out: Array = []
-	var mods: Dictionary = synergy().mods
-	for id in squad:
-		if id == "" or id == null:
-			continue
+	var clean: Array = ids.filter(func(i): return i != "" and i != null)
+	var mods: Dictionary = Data.synergies(clean).mods
+	for id in clean:
 		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp), "doc": doctrine, "pet": follower()})
 	return out
+
+
+# ---------------------------------------------------------------- la Plongée (maquette WL)
+
+## La Plongée s'ouvre depuis le Pont, après le chapitre 2 (étage 10) avec au moins cinq héros.
+func dive_open() -> bool:
+	return best_stage > 10 and Data.ALL_HEROES.filter(func(id): return is_owned(id)).size() >= Data.SQUAD_SIZE
+
+
+## Descente de la semaine en cours (remise à zéro le lundi).
+func current_dive() -> Dive:
+	var w := Dive.this_week()
+	if dive.week != w or dive.rows.is_empty():
+		dive.reset(w)
+	return dive
 
 
 # ---------------------------------------------------------------- familiers de verre (maquette WI)
@@ -1225,7 +1246,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow, "dive": dive.to_dict(),
 	}))
 
 
@@ -1411,6 +1432,7 @@ func load_game() -> bool:
 	eggs = Array(parsed.get("eggs", []))
 	pets = Array(parsed.get("pets", []))
 	pet_follow = int(parsed.get("pet_follow", -1))
+	dive = Dive.from_dict(parsed.get("dive", {}))
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

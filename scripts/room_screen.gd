@@ -484,6 +484,10 @@ func _destinations(c: Control, y: float) -> float:
 		["Choisir un secteur", "Descendre, ou farmer un secteur déjà vaincu", "map", func(): map_requested.emit()],
 		["Ceinture sans fin", ("Zones générées · front au secteur %d" % best) if belt else "Zones générées · après le secteur %d" % (Sector.GEN_START - 1), "belt" if belt else "lock", go_belt],
 	]
+	# la Plongée de la semaine (maquette WL)
+	var dv_open: bool = Game.dive_open()
+	var dv := Game.current_dive() if dv_open else null
+	rows.append(["La Plongée", ("Profondeur %d / %d · remise à zéro lundi" % [dv.depth, Dive.DEPTHS] if not dv.done else "Terminée cette semaine") if dv_open else "Descente hebdomadaire · après le secteur 10, cinq héros", "dive" if dv_open else "lock", func(): add_child(DiveScreen.new())])
 	for row in rows:
 		var r := Rect2(32, y, 656, 112)
 		var on: bool = row[2] == "run"

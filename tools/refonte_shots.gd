@@ -304,6 +304,28 @@ func _initialize() -> void:
 			g.pet_follow = 0
 			g.eggs = [{"end": int(Time.get_unix_time_from_system()) + 4320}]
 			main._open_modal(PetsScreen.new()),
+		"plongee": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			for i in 3:
+				var nx: Array = dv.next_cols()
+				dv.enter(g, int(nx[nx.size() - 1]), i)
+				if not dv.offer.is_empty():
+					dv.take_relic(String(dv.offer[0]))
+			dv.relics = ["prisme", "braise", "onde"]
+			main._open_modal(DiveScreen.new()),
+		"relique": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			dv.enter(g, int(dv.next_cols()[0]), 1)
+			dv.offer = ["prisme", "seve", "coeur"]
+			var ds := DiveScreen.new()
+			main._open_modal(ds)
+			ds._show({"kind": "elite", "ok": true, "text": "Victoire · Kaï tombe", "rw": {"credits": 5200.0, "shards": 12}}),
 		"combat_familier": func():
 			g.pets = [{"kind": "piquante", "lv": 3}]
 			g.pet_follow = 0
@@ -380,6 +402,8 @@ func _initialize() -> void:
 			main._open_ship()
 			main._open_room("raffinerie"),
 		"pont": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
 			_ship(10)
 			main._open_ship()
 			main._open_room("pont"),

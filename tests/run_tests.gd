@@ -1296,3 +1296,31 @@ func test_pets() -> void:
 	_g.pets = [{"kind": "piquante", "lv": 5}]
 	var a := BattleSim.new(_g.team(), 3, 1)
 	_check(a.run(300.0) == "clear", "Piquante : l'escouade gagne avec elle")
+
+
+func test_dive() -> void:
+	for id in Data.ALL_HEROES:
+		_g.owned[id] = true
+		_g.levels[id] = 30
+	_g.best_stage = 25
+	_check(_g.dive_open(), "la Plongée s'ouvre après le chapitre 2")
+	var dv: Dive = _g.current_dive()
+	_check(dv.rows.size() == Dive.DEPTHS and String(dv.rows[Dive.DEPTHS - 1][0].kind) == "boss", "douze profondeurs, un boss au fond")
+	for d in Dive.DEPTHS - 1:
+		for nd in dv.rows[d]:
+			_check(not (nd.links as Array).is_empty(), "chaque nœud mène plus bas")
+	var other := Dive.new()
+	other.reset(dv.week)
+	_check(JSON.stringify(other.rows) == JSON.stringify(dv.rows), "même carte pour la semaine")
+	var steps := 0
+	while not dv.done and steps < 40 and not dv.stuck(_g):
+		if not dv.offer.is_empty():
+			dv.take_relic(String(dv.offer[0]))
+		var nx: Array = dv.next_cols()
+		if nx.is_empty():
+			break
+		dv.enter(_g, int(nx[0]), steps)
+		steps += 1
+	_check(dv.done or dv.stuck(_g) or dv.depth > 3, "la descente avance")
+	var back := Dive.from_dict(JSON.parse_string(JSON.stringify(dv.to_dict())))
+	_check(back.depth == dv.depth and back.relics == dv.relics, "la descente se sauvegarde")
