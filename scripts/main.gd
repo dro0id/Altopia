@@ -497,6 +497,10 @@ func _open_map() -> void:
 		_start_battle())
 	m.chest_claimed.connect(_show_chest_toast)
 	m.journal_requested.connect(func(): _open_journal.call_deferred())
+	m.compose_requested.connect(func(n: int):
+		Game.go_to(n)
+		_start_battle()
+		_open_collection.call_deferred(0))
 	_open_modal(m)
 
 

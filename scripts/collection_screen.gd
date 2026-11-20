@@ -244,6 +244,7 @@ func _draw_grid() -> void:
 			_grid.draw_style_box(UI.box(Color(0, 0, 0, 0), Color(rc, 0.8), 14, 0), r)
 		# rôle en haut à gauche, escouade en haut à droite
 		_role_glyph(_grid, String(h.role), r.position + Vector2(22, 22), rc if have else UI.MUTED)
+		Freq.hex(_grid, String(Data.FREQ.get(id, "")), r.position + Vector2(22, 58), 11.0, not have)
 		if squad.has(id):
 			var tag := Rect2(r.end.x - 62, r.position.y + 6, 56, 28)
 			_grid.draw_style_box(UI.box(UI.ACCENT, Color(0, 0, 0, 0), 8, 0), tag)
@@ -344,6 +345,7 @@ func _draw_form() -> void:
 		M3.card(_form, r, M3.S2, 24, UI.ACCENT if hot else M3.OUT, 2)
 		if id != "" and _drag_slot != i:
 			M3.avatar(_form, Data.HEROES[id], r.position + Vector2(54, 54), 44.0, Data.RARITY_COLORS[Data.HEROES[id].rarity], _t)
+			Freq.hex(_form, String(Data.FREQ.get(id, "")), r.position + Vector2(92, 16), 11.0)
 		M3.text(_form, Vector2(r.position.x, r.end.y - 8), "Avant" if i < 3 else "Arrière", 20, UI.MUTED, false, r.size.x, HORIZONTAL_ALIGNMENT_CENTER)
 	var x := 0.0
 	for s in Game.synergy().list:

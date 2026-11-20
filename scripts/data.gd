@@ -132,6 +132,41 @@ const BROOD_TIME := 6.0
 const WARD_REDUCTION := 0.4
 
 
+## Fréquences du verre (maquette WE) : cyan bat ambre, ambre bat violet, violet bat cyan.
+const FREQ := {
+	"kai": "cyan", "vance": "cyan", "t9": "cyan", "lumi": "cyan", "sora": "cyan",
+	"mara": "ambre", "dax": "ambre", "brix": "ambre", "aria": "ambre", "pim": "ambre",
+	"zyra": "violet", "oru": "violet", "gorn": "violet", "neelo": "violet", "omega": "violet",
+}
+const FREQ_BEATS := {"cyan": "ambre", "ambre": "violet", "violet": "cyan"}
+const FREQ_NAMES := {"cyan": "Prisme", "ambre": "Braise", "violet": "Écho"}
+const FREQ_COLORS := {"cyan": Color("4fd8ff"), "ambre": Color("ffb142"), "violet": Color("b388ff")}
+const FREQ_DMG := 0.25                   # dégâts infligés en plus par un héros avantagé
+const FREQ_GUARD := 0.15                 # dégâts subis en moins
+
+
+## Fréquence d'un étage : une par chapitre de l'histoire (2 cyan, 3 violet, 4 ambre, 5 neutre ; le chapitre 2
+## couvre les étages 1 à 10), tirée au sort dans les secteurs générés.
+static func stage_freq(stage: int) -> String:
+	if stage > LAST_STORY_BOSS:
+		return ["cyan", "ambre", "violet"][posmod(stage * 7919 + 13, 3)]
+	return {1: "cyan", 2: "violet", 3: "ambre"}.get(chapter_of(stage), "")
+
+
+## Fréquence qui bat celle de l'étage (celle des héros avantagés).
+static func freq_counter(stage: int) -> String:
+	var f := stage_freq(stage)
+	for k in FREQ_BEATS:
+		if FREQ_BEATS[k] == f:
+			return k
+	return ""
+
+
+static func freq_advantaged(id: String, stage: int) -> bool:
+	var c := freq_counter(stage)
+	return c != "" and String(FREQ.get(id, "")) == c
+
+
 ## Ennemis à rôle qu'on peut croiser à cet étage.
 static func role_enemies_for(stage: int) -> Array:
 	if stage < 4:

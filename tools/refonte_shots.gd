@@ -223,6 +223,10 @@ func _initialize() -> void:
 			var w = root.find_children("*", "Wallet", true, false)[0]
 			w._explain(["coin", "shard", "crystal", "token", "itoken", "wild"]),
 		"carte": func(): main._open_map(),
+		"carte24": func():
+			g.best_stage = 26
+			g.go_to(24)
+			main._open_map(),
 		"reglages": func(): main._open_settings(),
 		"defaite": func(): main._open_modal(DefeatScreen.new(12)),
 		"renfort": func(): main._open_modal(BoostScreen.new(g.offer_boosts(), 15)),

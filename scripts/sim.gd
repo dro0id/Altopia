@@ -57,6 +57,7 @@ class Unit:
 	var fuse := 0.0              # Mite ardente : temps avant l'explosion
 	var brood_t := 0.0           # Couveuse : temps avant la prochaine ponte
 	var weave_t := 0.0           # Tisseuse : temps avant la prochaine réparation
+	var freq_adv := false        # héros avantagé par la fréquence de l'étage (maquette WE)
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -102,6 +103,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
 		_apply_talents(u, e.get("tal", {}))
 		u.skill_mod += float(e.get("bond", 0.0))        # liens d'équipage (maquette WH)
+		u.freq_adv = Data.freq_advantaged(u.id, stage)
 		var sb: Dictionary = e.get("ship", {})
 		if not sb.is_empty():
 			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss
@@ -604,6 +606,10 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
+	if src0 != null and src0.freq_adv and dst.side == 1:
+		dmg *= 1.0 + Data.FREQ_DMG
+	if dst.freq_adv and dst.side == 0:
+		dmg *= 1.0 - Data.FREQ_GUARD
 	if dst.side == 1 and _warded(dst):
 		dmg *= 1.0 - Data.WARD_REDUCTION
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:

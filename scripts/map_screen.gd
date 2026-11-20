@@ -5,6 +5,7 @@ extends Overlay
 signal stage_chosen(stage: int)
 signal chest_claimed(chest: Dictionary)
 signal journal_requested
+signal compose_requested(stage: int)
 
 const PER_SECTOR := 10
 
@@ -17,6 +18,8 @@ var _sel := 1
 var _sector := 0
 var _press := Vector2.ZERO
 var _down := false
+var _hint: Control
+var _compose: Button
 
 
 func _init() -> void:
@@ -60,6 +63,16 @@ func _init() -> void:
 	_list.draw.connect(_draw_list)
 	_list.gui_input.connect(_list_input)
 	_scroll.add_child(_list)
+	# « Avant de descendre » (maquette WE) : la fréquence de l'étage choisi et qui elle avantage
+	_hint = Control.new()
+	_hint.size = Vector2(656, 132)
+	_hint.position.x = 32
+	_hint.draw.connect(_draw_hint)
+	_st.add_child(_hint)
+	_compose = M3.button(_hint, "Composer", Rect2(480, 26, 160, 80), "secondary", 24)
+	_compose.pressed.connect(func():
+		compose_requested.emit(_sel)
+		close())
 	_go = M3.button(_st, "", Rect2(32, 0, 656, 104), "main")
 	_go.pressed.connect(func():
 		stage_chosen.emit(_sel)
@@ -72,7 +85,10 @@ func _init() -> void:
 func _layout() -> void:
 	var h := _st.size.y if _st.size.y > 0.0 else 1280.0
 	_go.position.y = h - 32.0 - 104.0
-	_scroll.size = Vector2(720, h - 192.0 - 152.0)
+	var hint := Data.stage_freq(_sel) != ""
+	_hint.visible = hint
+	_hint.position.y = h - 32.0 - 104.0 - 148.0
+	_scroll.size = Vector2(720, h - 192.0 - 152.0 - (148.0 if hint else 0.0))
 
 
 func _stages() -> Array:
@@ -87,7 +103,23 @@ func _refresh() -> void:
 	var n := _stages().size()
 	_list.custom_minimum_size = Vector2(720, n * 128.0 + 16.0)
 	_go.text = ("Descendre au secteur %d" if _sel >= Game.best_stage else "Farmer le secteur %d") % _sel
+	_layout()
+	_hint.queue_redraw()
 	_list.queue_redraw()
+
+
+func _draw_hint() -> void:
+	var c := _hint
+	var fq := Data.stage_freq(_sel)
+	if fq == "":
+		return
+	c.draw_style_box(UI.box(M3.S2, Color(UI.GOLD, 0.45), 24, 0), Rect2(Vector2.ZERO, c.size))
+	Freq.hex(c, fq, Vector2(52, 66), 24.0)
+	M3.text(c, Vector2(96, 34), "AVANT DE DESCENDRE", 18, UI.GOLD, true)
+	M3.text(c, Vector2(96, 70), "Secteur %d · fréquence %s" % [_sel, fq], 24, UI.TEXT, true, 370)
+	var cf := Data.freq_counter(_sel)
+	var n := Freq.advantaged(Game, _sel)
+	M3.text(c, Vector2(96, 104), "Avantage %s : %d dans l’escouade" % [cf, n], 22, Data.FREQ_COLORS[cf] if n > 0 else UI.MUTED, false, 370)
 
 
 func _row(i: int) -> Rect2:
@@ -123,6 +155,7 @@ func _draw_list() -> void:
 		M3.text(_list, r.position + Vector2(128, ty), title, 30, UI.MUTED if locked else UI.TEXT, true, 440)
 		if sub != "":
 			M3.text(_list, r.position + Vector2(128, 88), sub, 24, UI.MUTED if locked else (UI.ACCENT if nxt else UI.GOLD), nxt)
+		Freq.hex(_list, Data.stage_freq(n), r.position + Vector2(570, 56), 14.0, locked)
 		if locked:
 			M3.lock(_list, r.position + Vector2(612, 56), UI.MUTED, 1.2)
 		else:
