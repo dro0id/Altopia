@@ -504,7 +504,7 @@ func claim(game: Node, s: String) -> Dictionary:
 			var n := int(round(float(rw[k]) * loot))
 			game.set(k, int(game.get(k)) + n)
 			out[k] = n
-	if game.has_method("add_egg") and game.rng.randf() < Pets.EGG_EXPEDITION:
+	if game.has_method("add_egg") and game.rng.randf() < Pets.EGG_EXPEDITION + Port.egg_bonus(game):
 		game.add_egg()
 		out["egg"] = 1
 	if game.rng.randf() < Ship.RARE_FIND * float(info.rare):

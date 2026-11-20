@@ -554,7 +554,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(14.0 if k == "plongee_fin" else 6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "plongee_combat" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(14.0 if k == "plongee_fin" else 6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "plongee_combat" or k == "port" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

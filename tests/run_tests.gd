@@ -1344,3 +1344,19 @@ func test_port() -> void:
 	var tok: int = _g.item_tokens
 	_check(Port.forge_claim(_g) == 1 and _g.item_tokens == tok + 1, "Fonderie : un jeton par jour")
 	_check(Port.glass_for(45) >= 1, "verre brut des secteurs générés")
+
+
+func test_port_new_districts() -> void:
+	_g.chapters_done = [5]
+	_g.glass = 100
+	_g.credits = 1.0e9
+	_check(Port.ORDER.size() == Port.SLOTS, "huit districts à bâtir")
+	Port.build(_g, "archives")
+	var xp: int = _g.captain_xp
+	_g.captain_gain("order")
+	_check(_g.captain_xp - xp > int(Captain.XP.order), "Archives : expérience du Capitaine en plus")
+	Port.build(_g, "jardins")
+	_g.ship.unlocked = true
+	_g.add_egg()
+	var left := int(_g.eggs[0].end) - int(Time.get_unix_time_from_system())
+	_check(left < int(Pets.HATCH_HOURS * 3600.0) - 60, "Jardins : éclosion plus rapide")

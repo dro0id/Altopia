@@ -6,15 +6,17 @@ extends RefCounted
 const Data = preload("res://scripts/data.gd")
 
 const DISTRICTS := {
-	"domes": {"name": "Dômes", "col": Color("7dffb0"), "desc": "gains hors ligne +5 % par niveau", "at": Vector2(210, 292)},
-	"fonderie": {"name": "Fonderie", "col": Color("ff9f6b"), "desc": "forge un jeton d’objet toutes les 24 h (plus vite par niveau)", "at": Vector2(346, 270)},
-	"academie": {"name": "Académie", "col": Color("b388ff"), "desc": "entraînement des Quartiers +20 % par niveau", "at": Vector2(482, 276)},
-	"marche": {"name": "Marché", "col": Color("ffd166"), "desc": "échanger 40 éclats contre un jeton de recrutement (une fois par jour et par niveau)", "at": Vector2(586, 340)},
-	"phare": {"name": "Phare", "col": Color("4fd8ff"), "desc": "visiteurs : événements à bord +15 % par niveau", "at": Vector2(130, 370)},
-	"arene": {"name": "Arène", "col": Color("ff6b6b"), "desc": "une escouade rivale par jour : cristaux et verre", "at": Vector2(326, 410)},
+	"domes": {"name": "Dômes", "col": Color("7dffb0"), "desc": "gains hors ligne +5 % par niveau", "pos3": Vector2(-3.4, -1.6)},
+	"fonderie": {"name": "Fonderie", "col": Color("ff9f6b"), "desc": "forge un jeton d’objet toutes les 24 h (plus vite par niveau)", "pos3": Vector2(-0.6, -3.6)},
+	"academie": {"name": "Académie", "col": Color("b388ff"), "desc": "entraînement des Quartiers +20 % par niveau", "pos3": Vector2(1.6, -1.2)},
+	"marche": {"name": "Marché", "col": Color("ffd166"), "desc": "échanger 40 éclats contre un jeton de recrutement (une fois par jour et par niveau)", "pos3": Vector2(4.6, 0.8)},
+	"phare": {"name": "Phare", "col": Color("4fd8ff"), "desc": "visiteurs : événements à bord +15 % par niveau", "pos3": Vector2(-5.4, 1.4)},
+	"arene": {"name": "Arène", "col": Color("ff6b6b"), "desc": "une escouade rivale par jour : cristaux et verre", "pos3": Vector2(-1.4, 1.6)},
+	"jardins": {"name": "Jardins", "col": Color("9dff6b"), "desc": "œufs de familier : éclosion 20 % plus rapide et +5 % de chance par niveau", "pos3": Vector2(1.8, 3.8)},
+	"archives": {"name": "Archives", "col": Color("8ec5ff"), "desc": "expérience du Capitaine +10 % par niveau", "pos3": Vector2(-3.8, 4.4)},
 }
-const ORDER := ["domes", "fonderie", "academie", "marche", "phare", "arene"]
-const SLOTS := 8                        # deux places restent à bâtir plus tard
+const ORDER := ["domes", "fonderie", "academie", "marche", "phare", "arene", "jardins", "archives"]
+const SLOTS := 8
 const MAX_LV := 5
 
 
@@ -74,6 +76,18 @@ static func offline_mult(g: Node) -> float:
 
 static func train_mult(g: Node) -> float:
 	return 1.0 + 0.2 * lv(g, "academie")
+
+
+static func hatch_mult(g: Node) -> float:
+	return 1.0 + 0.2 * lv(g, "jardins")
+
+
+static func egg_bonus(g: Node) -> float:
+	return 0.05 * lv(g, "jardins")
+
+
+static func xp_mult(g: Node) -> float:
+	return 1.0 + 0.1 * lv(g, "archives")
 
 
 static func event_mult(g: Node) -> float:

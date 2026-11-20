@@ -235,7 +235,7 @@ func follower_power() -> float:
 
 ## Un œuf trouvé : il éclot dans la Serre au bout de deux heures (l'horloge part quand la Serre existe).
 func add_egg() -> void:
-	eggs.append({"end": int(Time.get_unix_time_from_system() + Pets.HATCH_HOURS * 3600.0)})
+	eggs.append({"end": int(Time.get_unix_time_from_system() + Pets.HATCH_HOURS * 3600.0 / Port.hatch_mult(self))})
 
 
 ## Œufs éclos : renvoie les nouveaux familiers.
@@ -286,7 +286,7 @@ func captain_grade() -> int:
 ## Expérience de commandement ; renvoie vrai si le Capitaine vient de monter en grade.
 func captain_gain(kind: String, n: int = 1) -> bool:
 	var before := captain_grade()
-	captain_xp += int(Captain.XP.get(kind, 0)) * n
+	captain_xp += int(round(float(Captain.XP.get(kind, 0)) * n * Port.xp_mult(self)))
 	return captain_grade() > before
 
 
@@ -1053,7 +1053,7 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 	captain_gain("clear")
 	if Data.boss_type(stage) == "big":
 		captain_gain("big_boss")
-		if rng.randf() < Pets.EGG_BIG_BOSS:
+		if rng.randf() < Pets.EGG_BIG_BOSS + Port.egg_bonus(self):
 			add_egg()
 	if Sector.is_generated(stage):
 		glass += Port.glass_for(stage)        # verre brut pour bâtir Port-Altopia
