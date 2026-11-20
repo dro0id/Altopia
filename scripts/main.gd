@@ -1157,6 +1157,10 @@ func _update_nav() -> void:
 	for a in Game.new_achievements():
 		M3.toast(self, "Succès « %s » · %s" % [a.name, Cosmetics.reward_text(a)], UI.GOLD)
 		Game.save_game()
+	# œufs de familier éclos dans la Serre (maquette WI)
+	for k in Game.hatch_eggs():
+		M3.toast(self, "Un œuf a éclos dans la Serre : %s" % Pets.KINDS[k].name, UI.GREEN)
+		Game.save_game()
 	var affordable := 0
 	for id in Game.squad_ids():
 		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):

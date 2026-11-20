@@ -24,6 +24,8 @@ var clock := 0.0
 var boss_wave := false
 var banner := ""
 var banner_t := 0.0
+var _pet: Node2D                   # familier qui suit l'escouade (maquette WI)
+var _pet_kind := ""
 var reso_t := 0.0                  # grand titre de la Résonance (maquette WF)
 var reso_kind := ""
 var banner_sub := ""
@@ -63,6 +65,16 @@ func start(team: Array, stage: int, auto_cast: bool, boosts: Array = []) -> void
 	for u in sim.units:
 		if u.side == 0:
 			_add_fighter(u)
+	_pet_kind = String(sim.pet.get("kind", ""))
+	if _pet == null:
+		_pet = Node2D.new()
+		_pet.position = Vector2(112, 520)
+		_pet.scale = Vector2(0.62, 0.62)
+		_pet.z_index = 520
+		_pet.draw.connect(func():
+			if _pet_kind != "":
+				EnemyArt.draw(_pet, "mite", {"t": clock, "pal": Pets.palette(_pet_kind), "move": 0.2}))
+		add_child(_pet)
 	_consume()
 
 
@@ -258,6 +270,9 @@ func _consume() -> void:
 				for a in sim.allies():
 					if a.alive:
 						fx.append({"kind": "ring", "pos": _center(a), "t": 0.0, "dur": 0.6, "col": Data.RESONANCE[reso_kind].col, "r": 120.0, "shake": 0.0})
+			"pet_bite":
+				if fighters.has(e.dst) and _pet != null:
+					shots.append({"from": _pet.position + Vector2(0, -16), "to": _center(e.dst), "t": 0.0, "dur": 0.25, "col": Pets.KINDS.piquante.col, "kind": "bolt"})
 			"blast":
 				# Mite ardente : explosion au premier rang
 				shake = maxf(shake, 7.0)
@@ -406,6 +421,8 @@ func _dmg_text(u: BattleSim.Unit, amount: float, crit: bool, skill: bool) -> voi
 func _process(delta: float) -> void:
 	clock += delta
 	reso_t = maxf(0.0, reso_t - delta)
+	if _pet != null:
+		_pet.queue_redraw()
 	if sim == null:
 		return
 	var dt := minf(delta, 0.1) * speed

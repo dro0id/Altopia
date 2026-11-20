@@ -70,6 +70,10 @@ func _init(r: String) -> void:
 	_b_left = M3.button(self, "", Rect2(32, size.y - 128, 300, 104), "secondary", 28)
 	_b_right = M3.button(self, "", Rect2(348, size.y - 128, 340, 104), "main", 28)
 	_b_left.pressed.connect(_on_left)
+	if room == "serre":
+		# familiers de verre (maquette WI) : l'éclosoir est dans la Serre
+		var pb := M3.button(self, "Familiers de verre · éclosoir", Rect2(32, size.y - 248, 656, 96), "secondary", 26)
+		pb.pressed.connect(func(): add_child(PetsScreen.new()))
 	_b_right.pressed.connect(_on_right)
 	Game.changed.connect(_refresh)
 	_refresh()

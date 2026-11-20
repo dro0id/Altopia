@@ -97,6 +97,7 @@ func production_mult(r: String) -> float:
 ## Production par heure d'une salle (dans son unité : éclats, jetons, crédits).
 func rate(r: String, best_stage: int) -> float:
 	var crew := 1.05 if _doc("soude") and not (posts.get(r, []) as Array).is_empty() else 1.0
+	crew *= 1.0 + 0.05 * _fileuse()
 	return Ship.base_rate(r, room_level(r), best_stage) * production_mult(r) * crew
 
 
@@ -106,6 +107,15 @@ func autonomy_hours() -> float:
 
 func capacity(r: String, best_stage: int) -> float:
 	return rate(r, best_stage) * autonomy_hours() * (1.1 if _doc("soutes") else 1.0)
+
+
+## Fileuse qui suit l'escouade (maquette WI) : sa force, 0 sinon.
+static func _fileuse() -> float:
+	var ml := Engine.get_main_loop()
+	var g: Node = (ml as SceneTree).root.get_node_or_null("Game") if ml is SceneTree else null
+	if g == null or g.follower_kind() != "fileuse":
+		return 0.0
+	return g.follower_power()
 
 
 ## Doctrine du Capitaine (maquette WN) : lue sur le jeu en cours, s'il existe.
@@ -494,6 +504,9 @@ func claim(game: Node, s: String) -> Dictionary:
 			var n := int(round(float(rw[k]) * loot))
 			game.set(k, int(game.get(k)) + n)
 			out[k] = n
+	if game.has_method("add_egg") and game.rng.randf() < Pets.EGG_EXPEDITION:
+		game.add_egg()
+		out["egg"] = 1
 	if game.rng.randf() < Ship.RARE_FIND * float(info.rare):
 		game.wild += Data.EXPEDITION_COPIES
 		out["copies"] = Data.EXPEDITION_COPIES

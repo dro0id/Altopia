@@ -1271,3 +1271,28 @@ func test_captain() -> void:
 	for u in s.allies():
 		_check(u.skill_cd <= u.skill_max * 0.25 + 0.001, "Salve d'ouverture")
 		break
+
+
+func test_pets() -> void:
+	_g.ship.unlocked = true
+	_g.ship.rooms["serre"] = 1
+	_g.add_egg()
+	_check(_g.hatch_eggs().is_empty(), "l'œuf couve deux heures")
+	_g.eggs[0].end = 0
+	var got: Array = _g.hatch_eggs()
+	_check(got.size() == 1 and _g.pets.size() == 1 and _g.pet_follow == 0, "l'œuf éclot et le familier suit l'escouade")
+	_g.eggs.append({"end": 0})
+	_g.pets[0].kind = String(got[0])
+	var lv := int(_g.pets[0].lv)
+	_g.rng.seed = 1
+	_g.hatch_eggs()
+	_check(_g.pets.size() == 2 or int(_g.pets[0].lv) == lv + 1, "un double fait grandir le familier")
+	_g.pets = [{"kind": "gardienne", "lv": 1}]
+	_g.pet_follow = 0
+	_g.shards = 100
+	_check(_g.feed_pet(0) and int(_g.pets[0].lv) == 2 and _g.shards == 90, "nourrir d'éclats")
+	var s := BattleSim.new(_g.team(), 3, 1)
+	_check(s.allies()[0].shield > 0.0, "Gardienne : bouclier au départ")
+	_g.pets = [{"kind": "piquante", "lv": 5}]
+	var a := BattleSim.new(_g.team(), 3, 1)
+	_check(a.run(300.0) == "clear", "Piquante : l'escouade gagne avec elle")

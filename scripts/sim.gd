@@ -94,6 +94,8 @@ var res_kind := "accord"
 var res_used := 0
 var doc: Array = []              # doctrine du Capitaine (maquette WN)
 var carre_used := false
+var pet: Dictionary = {}         # familier qui suit l'escouade (maquette WI)
+var pet_cd := 2.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
@@ -127,7 +129,12 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	for e in team:
 		ids.append(String(e.id))
 		doc = e.get("doc", doc)
+		pet = e.get("pet", pet)
+	var pk := String(pet.get("kind", ""))
+	var pp := Pets.power(int(pet.get("lv", 1)))
 	for u in units:
+		if pk == "veilleuse":
+			u.heal_mult *= 1.0 + 0.08 * pp
 		if doc.has("salve"):
 			u.skill_cd = minf(u.skill_cd, u.skill_max * 0.25)
 		if doc.has("seconde") and u.role in ["healer", "control"]:
@@ -136,6 +143,12 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	res_kind = Data.resonance_kind(ids)
 	_apply_boosts(boosts)
 	_apply_sector_heroes()
+	if pk == "luciole":
+		gold_mult *= 1.0 + 0.05 * pp
+	if pk == "gardienne":
+		for u in allies():
+			u.shield = maxf(u.shield, u.max_hp * 0.05 * pp)
+			u.shield_t = maxf(u.shield_t, 8.0)
 	_spawn_wave()
 
 
@@ -871,6 +884,20 @@ func step(dt: float) -> void:
 		if u.cd <= 0.0 and u.alive:
 			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0) * (0.5 if u.rage_t > 0.0 else 1.0)
 			_act(u)
+	if String(pet.get("kind", "")) == "piquante":
+		# Piquante : elle mord l'ennemi le plus proche toutes les 2 s
+		pet_cd -= dt
+		if pet_cd <= 0.0:
+			pet_cd = 2.0
+			var foes := _alive(1)
+			var team := _alive(0)
+			if not foes.is_empty() and not team.is_empty():
+				var avg := 0.0
+				for a in team:
+					avg += a.atk
+				avg /= team.size()
+				pending.append({"t": 0.1, "kind": "hit", "src": null, "dst": foes[0], "dmg": avg * 0.5 * Pets.power(int(pet.get("lv", 1))), "fx": ""})
+				events.append({"type": "pet_bite", "dst": foes[0]})
 	if auto_cast and resonance >= 1.0:
 		resonate()                       # en auto, la Résonance part dès que la jauge est pleine
 	# Carapace : le bouclier de Gorn explose quand il se termine

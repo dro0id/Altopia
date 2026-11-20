@@ -73,6 +73,9 @@ var bond_read: Array = []
 var paint := "amiraute"            # peinture de l'Aurore (maquette YG)
 var outfits := {}                  # héros -> tenue
 var ach_seen: Array = []
+var eggs: Array = []                # œufs de familier {end} (maquette WI)
+var pets: Array = []                # familiers éclos {kind, lv}
+var pet_follow := -1                # familier qui suit l'escouade
 var captain_xp := 0               # expérience de commandement (maquette WN)
 var doctrine: Array = []            # nœuds de doctrine choisis
 var boarding_day := -1             # dernier abordage joué (maquette WM)           # succès déjà annoncés          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
@@ -122,6 +125,9 @@ func reset() -> void:
 	boarding_day = -1
 	captain_xp = 0
 	doctrine = []
+	eggs = []
+	pets = []
+	pet_follow = -1
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -179,8 +185,70 @@ func team() -> Array:
 	for id in squad:
 		if id == "" or id == null:
 			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp), "doc": doctrine})
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp), "doc": doctrine, "pet": follower()})
 	return out
+
+
+# ---------------------------------------------------------------- familiers de verre (maquette WI)
+
+## Familier qui suit l'escouade : {kind, lv} ou {}.
+func follower() -> Dictionary:
+	if pet_follow >= 0 and pet_follow < pets.size():
+		return pets[pet_follow]
+	return {}
+
+
+func follower_kind() -> String:
+	return String(follower().get("kind", ""))
+
+
+func follower_power() -> float:
+	var f := follower()
+	return Pets.power(int(f.get("lv", 1))) if not f.is_empty() else 0.0
+
+
+## Un œuf trouvé : il éclot dans la Serre au bout de deux heures (l'horloge part quand la Serre existe).
+func add_egg() -> void:
+	eggs.append({"end": int(Time.get_unix_time_from_system() + Pets.HATCH_HOURS * 3600.0)})
+
+
+## Œufs éclos : renvoie les nouveaux familiers.
+func hatch_eggs() -> Array:
+	var out := []
+	if ship.room_level("serre") <= 0:
+		return out
+	var now := int(Time.get_unix_time_from_system())
+	for e in eggs.duplicate():
+		if int(e.end) <= now:
+			eggs.erase(e)
+			var kind := String(Pets.ORDER[rng.randi() % Pets.ORDER.size()])
+			var have := pet_index(kind)
+			if have >= 0:
+				pets[have].lv = mini(Pets.MAX_LV, int(pets[have].lv) + 1)     # un double fait grandir le familier
+			else:
+				pets.append({"kind": kind, "lv": 1})
+				if pet_follow < 0:
+					pet_follow = pets.size() - 1
+			out.append(kind)
+	return out
+
+
+func pet_index(kind: String) -> int:
+	for i in pets.size():
+		if String(pets[i].kind) == kind:
+			return i
+	return -1
+
+
+func feed_pet(i: int) -> bool:
+	if i < 0 or i >= pets.size():
+		return false
+	var lv := int(pets[i].lv)
+	if lv >= Pets.MAX_LV or shards < Pets.feed_cost(lv):
+		return false
+	shards -= Pets.feed_cost(lv)
+	pets[i].lv = lv + 1
+	return true
 
 
 # ---------------------------------------------------------------- grade du Capitaine (maquette WN)
@@ -959,6 +1027,10 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 	captain_gain("clear")
 	if Data.boss_type(stage) == "big":
 		captain_gain("big_boss")
+		if rng.randf() < Pets.EGG_BIG_BOSS:
+			add_egg()
+	if follower_kind() == "rongeuse":
+		shards += int(round(float(Data.WAVES_PER_STAGE) * follower_power()))
 	stars[stage] = maxi(int(stars.get(stage, 0)), star_count)
 	perseverance = 0
 	var loot := Data.combo_loot(combo)
@@ -1153,7 +1225,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow,
 	}))
 
 
@@ -1336,6 +1408,9 @@ func load_game() -> bool:
 	boarding_day = int(parsed.get("boarding_day", -1))
 	captain_xp = int(parsed.get("captain_xp", 0))
 	doctrine = Array(parsed.get("doctrine", []))
+	eggs = Array(parsed.get("eggs", []))
+	pets = Array(parsed.get("pets", []))
+	pet_follow = int(parsed.get("pet_follow", -1))
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

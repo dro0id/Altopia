@@ -298,6 +298,20 @@ func _initialize() -> void:
 			j._ch = 3
 			j._chips.sel = 2
 			j._rebuild(),
+		"familiers": func():
+			_ship(10)
+			g.pets = [{"kind": "veilleuse", "lv": 3}, {"kind": "luciole", "lv": 1}, {"kind": "piquante", "lv": 2}]
+			g.pet_follow = 0
+			g.eggs = [{"end": int(Time.get_unix_time_from_system()) + 4320}]
+			main._open_modal(PetsScreen.new()),
+		"combat_familier": func():
+			g.pets = [{"kind": "piquante", "lv": 3}]
+			g.pet_follow = 0
+			main._start_battle(),
+		"serre": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("serre"),
 		"capitaine": func():
 			g.captain_xp = 1200
 			g.doctrine = ["feu", "enchainement", "sangfroid", "bonvent", "soutes", "veille"]
@@ -495,7 +509,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

@@ -62,6 +62,10 @@ static func entries() -> Array:
 			better += 1
 	if better > 0:
 		out.append({"kind": "items", "title": "%d objet%s meilleur%s en stock" % [better, "s" if better > 1 else "", "s" if better > 1 else ""], "sub": "pour l’escouade", "action": "Équiper", "rank": 1, "role": "main"})
+	if not Game.eggs.is_empty() or not Game.pets.is_empty():
+		var sub := "%d œuf%s à la Serre" % [Game.eggs.size(), "s" if Game.eggs.size() > 1 else ""] if not Game.eggs.is_empty() else "%d familier%s" % [Game.pets.size(), "s" if Game.pets.size() > 1 else ""]
+		var fk := Game.follower_kind()
+		out.append({"kind": "pets", "title": "Familier : %s" % (Pets.KINDS[fk].name if fk != "" else "aucun"), "sub": sub, "action": "Voir", "rank": 2, "role": "secondary"})
 	var cp: int = Game.captain_unspent()
 	if cp > 0:
 		out.append({"kind": "captain", "title": "Doctrine : %d point%s à placer" % [cp, "s" if cp > 1 else ""], "sub": "%s · grade %d" % [Captain.title(Game.captain_grade()), Game.captain_grade()], "action": "Placer", "rank": 1, "role": "gold"})
@@ -204,6 +208,10 @@ func _act(e: Dictionary) -> void:
 			var bs := BondsScreen.new()
 			bs.closed.connect(_build)
 			add_child(bs)
+		"pets":
+			var ps := PetsScreen.new()
+			ps.closed.connect(_build)
+			add_child(ps)
 		"captain":
 			var cs := CaptainScreen.new()
 			cs.closed.connect(_build)
