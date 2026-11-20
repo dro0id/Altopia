@@ -115,7 +115,29 @@ const ENEMIES := {
 	"titan": {"name": "Gardien de verre", "hp": 140.0, "atk": 3.6, "def": 2.0, "interval": 1.6, "ranged": false, "gold": 30.0},
 	"sentinelle": {"name": "Sentinelle prismatique", "hp": 110.0, "atk": 3.0, "def": 2.0, "interval": 2.0, "ranged": true, "gold": 30.0},
 	"reine": {"name": "Reine des mites", "hp": 120.0, "atk": 3.2, "def": 1.5, "interval": 1.4, "ranged": false, "gold": 30.0},
+	# ennemis à rôle (maquette WD) : ils obligent à choisir sa cible
+	"porteur": {"name": "Porte-éclat", "hp": 1.4, "atk": 0.6, "def": 1.4, "interval": 1.8, "ranged": true, "gold": 2.5, "role": "protecteur", "tip": "ses voisins subissent 40 % de dégâts en moins"},
+	"ardente": {"name": "Mite ardente", "hp": 0.7, "atk": 0.6, "def": 0.4, "interval": 1.0, "ranged": false, "gold": 2.0, "role": "kamikaze", "tip": "explose au bout de 4 s : l’étourdir ou la tuer avant"},
+	"tisseuse": {"name": "Tisseuse", "hp": 0.9, "atk": 0.5, "def": 0.8, "interval": 1.8, "ranged": true, "gold": 2.5, "role": "soigneuse", "tip": "répare 5 % par seconde l’ennemi le plus blessé"},
+	"guetteur": {"name": "Guetteur", "hp": 0.8, "atk": 1.5, "def": 0.8, "interval": 2.2, "ranged": true, "gold": 2.5, "role": "tireur embusqué", "tip": "vise la deuxième ligne : soigneurs et contrôle"},
+	"couveuse": {"name": "Couveuse", "hp": 1.8, "atk": 0.7, "def": 1.0, "interval": 1.6, "ranged": false, "gold": 3.0, "role": "invocatrice", "tip": "pond une mite toutes les 6 s"},
 }
+## Ordre d'arrivée des ennemis à rôle : un nouveau par chapitre, tous mélangés dans les secteurs générés.
+const ROLE_ENEMIES := ["porteur", "ardente", "tisseuse", "guetteur", "couveuse"]
+const ROLE_COLORS := {"porteur": Color("4fd8ff"), "ardente": Color("ff8a4a"), "tisseuse": Color("7dffb0"), "guetteur": Color("ffd166"), "couveuse": Color("b388ff")}
+const ARDENT_FUSE := 4.0
+const ARDENT_BLAST := 6.0                # dégâts de l'explosion, en multiples de l'attaque de la mite
+const WEAVE_HEAL := 0.05
+const BROOD_TIME := 6.0
+const WARD_REDUCTION := 0.4
+
+
+## Ennemis à rôle qu'on peut croiser à cet étage.
+static func role_enemies_for(stage: int) -> Array:
+	if stage < 4:
+		return []
+	var n := mini(ROLE_ENEMIES.size(), chapter_of(stage)) if stage <= LAST_STORY_BOSS else ROLE_ENEMIES.size()
+	return ROLE_ENEMIES.slice(0, n)
 const BOSS_KINDS := ["foreur", "titan", "sentinelle", "reine"]
 const BIG_BOSSES := ["titan", "sentinelle", "reine"]
 ## Gros boss de l'histoire au nom propre (le dernier, à l'étage 40, est un Gardien doré : maquette HF).

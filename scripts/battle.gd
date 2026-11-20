@@ -247,6 +247,12 @@ func _consume() -> void:
 				boss_wave = false
 				Sfx.play("star", -2.0, 0.9 + 0.1 * minf(e.n, 5.0))
 				fx.append({"kind": "ring", "pos": Vector2(360, 470), "t": 0.0, "dur": 0.5, "col": Color(1.0, 0.75, 0.3), "r": 200.0 + 30.0 * e.n, "shake": 0.0})
+			"blast":
+				# Mite ardente : explosion au premier rang
+				shake = maxf(shake, 7.0)
+				fx.append({"kind": "flash", "pos": _center(e.unit), "t": 0.0, "dur": 0.35, "r": 80.0})
+				fx.append({"kind": "ring", "pos": _center(e.unit), "t": 0.0, "dur": 0.45, "col": Color(1.0, 0.55, 0.2), "r": 160.0, "shake": 0.0})
+				Sfx.play("boom", -4.0)
 			"phase":
 				banner = "PHASE 2 !"
 				banner_t = 1.6

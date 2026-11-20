@@ -294,6 +294,27 @@ func _initialize() -> void:
 			j._ch = 3
 			j._chips.sel = 2
 			j._rebuild(),
+		"roles": func():
+			# les cinq ennemis à rôle (maquette WD) face à l'escouade
+			var sim = main.battle.sim
+			for u in sim.units.duplicate():
+				if u.side == 0:
+					u.atk *= 0.02
+					u.skill_cd = 99.0
+				if u.side == 1:
+					var f = main.battle.fighters.get(u)
+					if f != null:
+						f.queue_free()
+						main.battle.fighters.erase(u)
+					sim.units.erase(u)
+			var k := 0
+			for kind in ["porteur", "tisseuse", "ardente", "guetteur", "couveuse"]:
+				var e = sim._make_enemy(kind, k, false)
+				sim.units.append(e)
+				sim.events.append({"type": "spawn", "unit": e})
+				k += 1
+			await _wait(2.4)
+			main.battle.speed = 0.0,
 		"secteur": func():
 			main._open_modal(SectorScreen.new(53)),
 		"combat53": func():
@@ -458,7 +479,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

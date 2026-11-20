@@ -54,6 +54,9 @@ class Unit:
 	var heal_mult := 1.0         # équipement : soins
 	var regen := 0.0             # PV rendus par seconde (part des PV max) : élites et boss Régénérants
 	var elite := ""              # trait d'élite (secteurs générés)
+	var fuse := 0.0              # Mite ardente : temps avant l'explosion
+	var brood_t := 0.0           # Couveuse : temps avant la prochaine ponte
+	var weave_t := 0.0           # Tisseuse : temps avant la prochaine réparation
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -256,6 +259,13 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 		u.skill_max = {"prism": 7.5, "swarm": 9.0}.get(u.skill_kind, 7.0)
 		u.skill_cd = 5.0
 	u.data = e
+	match kind:
+		"ardente":
+			u.fuse = Data.ARDENT_FUSE
+		"couveuse":
+			u.brood_t = Data.BROOD_TIME
+		"tisseuse":
+			u.weave_t = 1.0
 	var sec := Sector.info(stage)
 	if not sec.is_empty():
 		match String(sec.rule):
@@ -308,6 +318,12 @@ func _wave_kinds() -> Array:
 	var sec := Sector.info(stage)
 	if not sec.is_empty() and String(sec.rule) == "essaim":
 		kinds.append("mite" if w == 1 else "drone")
+	# ennemis à rôle (maquette WD) : l'un d'eux remplace un soldat dès la deuxième vague
+	var roles := Data.role_enemies_for(stage)
+	if w >= 2 and not roles.is_empty():
+		kinds[1] = roles[rng.randi() % roles.size()]
+		if Sector.is_generated(stage) and w == waves_total - 1 and kinds.size() >= 4:
+			kinds[3] = roles[rng.randi() % roles.size()]
 	return kinds
 
 
@@ -554,7 +570,18 @@ func _pick_target(u: Unit) -> Unit:
 	if u.side == 0:
 		if focus != null and focus.alive and focus.side == 1:
 			return focus                     # cible désignée par le joueur
+		# l'auto vise d'abord les soigneuses et les protecteurs, puis la mite qui va exploser
+		for k in ["tisseuse", "porteur", "ardente"]:
+			for f in foes:
+				if f.kind == k:
+					return f
 		return foes[0]                       # on vise l'ennemi le plus proche : la première place vivante
+	if u.kind == "guetteur":
+		# Guetteur : la deuxième ligne d'abord (soigneurs, contrôle), sinon le dernier rang
+		for f in foes:
+			if f.role in ["healer", "control"]:
+				return f
+		return foes[foes.size() - 1]
 	for f in foes:
 		if f.taunt > 0.0 and rng.randf() < f.taunt:
 			return f                         # Provocation : ce héros attire les coups
@@ -577,6 +604,8 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
+	if dst.side == 1 and _warded(dst):
+		dmg *= 1.0 - Data.WARD_REDUCTION
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
 		# parade : le coup du boss est absorbé en entier
 		events.append({"type": "parry", "unit": dst})
@@ -623,6 +652,62 @@ func _apply_hit(p: Dictionary) -> void:
 		_enter_phase2(dst)
 
 
+## Porte-éclat : un voisin vivant (dans l'ordre des places) protège cet ennemi.
+func _warded(u: Unit) -> bool:
+	if u.kind == "porteur":
+		return false
+	var row := _alive(1)
+	var i := row.find(u)
+	for j in [i - 1, i + 1]:
+		if j >= 0 and j < row.size() and row[j].kind == "porteur":
+			return true
+	return false
+
+
+## Comportements des ennemis à rôle (maquette WD) ; l'étourdissement les met en pause.
+func _role_step(u: Unit, dt: float) -> void:
+	match u.kind:
+		"ardente":
+			u.fuse -= dt
+			if u.fuse <= 0.0:
+				var foes := _alive(0)
+				if not foes.is_empty():
+					var t: Unit = foes[0]
+					pending.append({"t": 0.0, "kind": "hit", "src": u, "dst": t, "dmg": u.atk * Data.ARDENT_BLAST, "fx": "missile"})
+					if foes.size() > 1:
+						pending.append({"t": 0.0, "kind": "hit", "src": u, "dst": foes[1], "dmg": u.atk * Data.ARDENT_BLAST * 0.4, "fx": ""})
+				u.alive = false
+				u.hp = 0.0
+				events.append({"type": "blast", "unit": u})
+				events.append({"type": "death", "unit": u})
+		"tisseuse":
+			u.weave_t -= dt
+			if u.weave_t <= 0.0:
+				u.weave_t = 1.0
+				var low: Unit = null
+				for a in _alive(1):
+					if a != u and a.hp < a.max_hp and (low == null or a.hp_frac() < low.hp_frac()):
+						low = a
+				if low != null:
+					_heal(low, low.max_hp * Data.WEAVE_HEAL)
+					events.append({"type": "attack", "src": u, "dst": low, "ranged": true, "delay": 0.2, "heal": true})
+		"couveuse":
+			u.brood_t -= dt
+			if u.brood_t <= 0.0:
+				u.brood_t = Data.BROOD_TIME
+				var used := {}
+				for a in _alive(1):
+					used[a.slot] = true
+				for s in 6:
+					if not used.has(s):
+						var m := _make_enemy("mite", s, false)
+						m.gold *= 0.3                # les petites pondues rapportent peu
+						units.append(m)
+						events.append({"type": "spawn", "unit": m})
+						events.append({"type": "brood", "unit": u})
+						break
+
+
 ## Phase 2 du gros boss : plus rapide et plus fort, et deux mites arrivent en renfort.
 func _enter_phase2(b: Unit) -> void:
 	b.phase2 = true
@@ -638,6 +723,8 @@ func _enter_phase2(b: Unit) -> void:
 
 
 func _act(u: Unit) -> void:
+	if u.kind == "ardente":
+		return                           # elle ne frappe pas : elle fonce et explose
 	if u.role == "healer":
 		var low: Unit = null
 		for a in _alive(0):
@@ -697,6 +784,10 @@ func step(dt: float) -> void:
 			u.hp = minf(u.max_hp, u.hp + u.max_hp * u.regen * dt)
 		if u.stun_t > 0.0:
 			continue
+		if u.side == 1 and u.data.has("role"):
+			_role_step(u, dt)
+			if not u.alive:
+				continue
 		if u.side == 1 and u.boss and u.skill_cd <= 0.9 and u.skill_cd > 0.0 and not u.warned:
 			u.warned = true
 			events.append({"type": "warn", "unit": u})
