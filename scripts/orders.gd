@@ -122,6 +122,8 @@ func claim(i: int, game: Node) -> Dictionary:
 	o.claimed = true
 	var rw: Dictionary = template(String(o.id)).reward
 	give(rw, game)
+	if game.has_method("captain_gain"):
+		game.captain_gain("order")
 	week_done += 1
 	# les paliers atteints sont versés tout de suite
 	for w in week_claimable():

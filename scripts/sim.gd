@@ -92,6 +92,8 @@ var gold_mult := 1.0
 var resonance := 0.0             # jauge de Résonance d'escouade, 0 à 1 (maquette WF)
 var res_kind := "accord"
 var res_used := 0
+var doc: Array = []              # doctrine du Capitaine (maquette WN)
+var carre_used := false
 var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
@@ -124,6 +126,13 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 	var ids: Array = []
 	for e in team:
 		ids.append(String(e.id))
+		doc = e.get("doc", doc)
+	for u in units:
+		if doc.has("salve"):
+			u.skill_cd = minf(u.skill_cd, u.skill_max * 0.25)
+		if doc.has("seconde") and u.role in ["healer", "control"]:
+			u.max_hp *= 1.1
+			u.hp = u.max_hp
 	res_kind = Data.resonance_kind(ids)
 	_apply_boosts(boosts)
 	_apply_sector_heroes()
@@ -365,7 +374,7 @@ func _cast(u: Unit) -> bool:
 	var k := 1.0
 	if u.side == 0:
 		casts[u.slot] = int(casts.get(u.slot, 0)) + 1
-		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
+		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW + (1.0 if doc.has("enchainement") else 0.0) else 1
 		_last_cast = time
 		max_combo = maxi(max_combo, combo)
 		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo] * u.skill_mod
@@ -524,7 +533,7 @@ func _window_effect(u: Unit) -> void:
 	if u.skill_kind == "gravity":
 		bu.skill_cd = bu.skill_max
 		bu.warned = false
-		bu.exposed_t = Data.EXPOSED_TIME
+		bu.exposed_t = Data.EXPOSED_TIME + (1.0 if doc.has("brise") else 0.0)
 		events.append({"type": "interrupt", "unit": bu, "by": u})
 		_charge(Data.RES_INTERRUPT)
 	elif u.skill_kind == "shield":
@@ -650,6 +659,10 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
+	if src0 != null and src0.side == 0 and dst == focus and doc.has("feu"):
+		dmg *= 1.05
+	if dst.side == 0 and doc.has("sangfroid"):
+		dmg *= 0.95
 	if src0 != null and src0.amp_t > 0.0 and dst.side == 1:
 		dmg *= 1.3
 	if src0 != null and src0.freq_adv and dst.side == 1:
@@ -661,6 +674,8 @@ func _apply_hit(p: Dictionary) -> void:
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
 		# parade : le coup du boss est absorbé en entier
 		events.append({"type": "parry", "unit": dst})
+		if doc.has("parade"):
+			_heal(dst, dst.max_hp * 0.05)
 		return
 	if dst.shield > 0.0:
 		var absorbed := minf(dst.shield, dmg)
@@ -679,6 +694,10 @@ func _apply_hit(p: Dictionary) -> void:
 		dealt[src.slot] = float(dealt.get(src.slot, 0.0)) + minf(dmg, maxf(0.0, dst.hp))
 		if dst.boss and dst.hp - dmg <= 0.0:
 			finisher = src.slot
+	if dst.side == 0 and doc.has("carre") and not carre_used and dst.hp - dmg <= 0.0 and dst.hp > 1.0:
+		dmg = dst.hp - 1.0                # Dernier carré : une fois par combat, un héros tient à 1 PV
+		carre_used = true
+		events.append({"type": "carre", "unit": dst})
 	dst.hp -= dmg
 	if src0 != null and src0.lifesteal > 0.0 and src0.alive and dst.side != src0.side:
 		src0.hp = minf(src0.max_hp, src0.hp + dmg * src0.lifesteal)

@@ -298,6 +298,10 @@ func _initialize() -> void:
 			j._ch = 3
 			j._chips.sel = 2
 			j._rebuild(),
+		"capitaine": func():
+			g.captain_xp = 1200
+			g.doctrine = ["feu", "enchainement", "sangfroid", "bonvent", "soutes", "veille"]
+			main._open_modal(CaptainScreen.new()),
 		"jauge": func():
 			main.battle.sim.auto_cast = false
 			main.battle.sim.resonance = 1.0,

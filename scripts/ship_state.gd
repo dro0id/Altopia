@@ -96,7 +96,8 @@ func production_mult(r: String) -> float:
 
 ## Production par heure d'une salle (dans son unité : éclats, jetons, crédits).
 func rate(r: String, best_stage: int) -> float:
-	return Ship.base_rate(r, room_level(r), best_stage) * production_mult(r)
+	var crew := 1.05 if _doc("soude") and not (posts.get(r, []) as Array).is_empty() else 1.0
+	return Ship.base_rate(r, room_level(r), best_stage) * production_mult(r) * crew
 
 
 func autonomy_hours() -> float:
@@ -104,7 +105,14 @@ func autonomy_hours() -> float:
 
 
 func capacity(r: String, best_stage: int) -> float:
-	return rate(r, best_stage) * autonomy_hours()
+	return rate(r, best_stage) * autonomy_hours() * (1.1 if _doc("soutes") else 1.0)
+
+
+## Doctrine du Capitaine (maquette WN) : lue sur le jeu en cours, s'il existe.
+static func _doc(id: String) -> bool:
+	var ml := Engine.get_main_loop()
+	var g: Node = (ml as SceneTree).root.get_node_or_null("Game") if ml is SceneTree else null
+	return g != null and (g.doctrine as Array).has(id)
 
 
 func producers() -> Array:
@@ -213,6 +221,8 @@ func collect(game: Node, r: String) -> Dictionary:
 		return {}
 	stock[r] = s - amount
 	harvests += 1
+	if game.has_method("captain_gain"):
+		game.captain_gain("harvest")
 	if "orders" in game:
 		game.orders.track("harvest")
 	if "bond_xp" in game:
@@ -288,6 +298,8 @@ func cost_of(game: Node, r: String) -> Dictionary:
 	var c := Ship.build_cost(r, rank("logistique")) if room_level(r) == 0 else Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique"))
 	if game.has_method("mission_open") and not game.mission_open():
 		c.credits = 0
+	if _doc("bonvent") and c.has("time"):
+		c.time = float(c.time) * 0.95
 	return c
 
 

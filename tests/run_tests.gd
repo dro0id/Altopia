@@ -1251,3 +1251,23 @@ func test_resonance() -> void:
 	_check(s.resonance > 0.0, "les pouvoirs remplissent la jauge")
 	s.resonance = 1.0
 	_check(s.resonate() and s.resonance == 0.0, "jauge pleine : la Résonance part")
+
+
+func test_captain() -> void:
+	_check(_g.captain_grade() == 1 and _g.captain_unspent() == 0, "grade 1 au départ, aucun point")
+	_g.captain_xp = Captain.need(1) + Captain.need(2)
+	_check(_g.captain_grade() == 3 and _g.captain_unspent() == 2, "un point par grade")
+	_check(not Captain.can_take("enchainement", _g.doctrine, 3), "dans l'ordre de la branche")
+	_check(Captain.can_take("feu", _g.doctrine, 3), "premier nœud libre")
+	_g.doctrine = ["feu", "enchainement"]
+	_check(not Captain.can_take("sangfroid", _g.doctrine, 3), "plus de point")
+	_check(Captain.drop("feu", _g.doctrine).is_empty(), "rendre un nœud rend la suite")
+	_check(Captain.title(10) == "Commodore" and Captain.title(30) == "Amiral", "titres")
+	_g.doctrine = ["veille"]
+	var cap0 := Data.OFFLINE_CAP_HOURS
+	_check(_g.offline_cap_hours() >= cap0 + 1.0, "Longue veille : +1 h hors ligne")
+	_g.doctrine = ["feu", "enchainement", "brise", "salve"]
+	var s := BattleSim.new(_g.team(), 3, 1)
+	for u in s.allies():
+		_check(u.skill_cd <= u.skill_max * 0.25 + 0.001, "Salve d'ouverture")
+		break

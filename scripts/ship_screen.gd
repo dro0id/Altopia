@@ -64,6 +64,16 @@ func _init() -> void:
 	_sub.position = Vector2(32, 66)
 	_sub.size = Vector2(340, 32)
 	_sub.clip_text = true
+	# grade du Capitaine (maquette WN) : le titre s'affiche sous l'Aurore, on le touche pour la doctrine
+	var cap := Button.new()
+	cap.flat = true
+	cap.position = Vector2(24, 60)
+	cap.size = Vector2(360, 44)
+	UI.no_focus(cap)
+	cap.pressed.connect(func():
+		Sfx.play("click", -6.0)
+		add_child(CaptainScreen.new()))
+	bar.add_child(cap)
 	# rangée du bas (maquette XA) : vue en coupe, chantiers, mémo à gauche ; « À faire » à droite
 	_cut = _round_button("◐", Vector2(32, _row_y()))
 	_cut.pressed.connect(func():
@@ -180,14 +190,10 @@ func _refresh() -> void:
 		_todo.queue_redraw()
 	if view.level != s.level or view.opened != s.rooms.duplicate() or view.paint != Game.paint:
 		view.setup(s.level, s.posts, s.rooms)
-	var ti := Ship.tier_info(s.level)
 	# titres gagnés : Amiral de l'Aurore (niveau 20), sinon Héros de la Ceinture (fin de l'histoire)
-	if Game.tips.has("prestige"):
-		_sub.text = "Niveau %d · Amiral de l’Aurore" % s.level
-	elif Game.tips.has("badge:Héros de la Ceinture"):
-		_sub.text = "Niveau %d · Héros de la Ceinture" % s.level
-	else:
-		_sub.text = "Niveau %d · %s" % [s.level, ti.name]
+	var gr: int = Game.captain_grade()
+	_sub.text = "%s · grade %d · niv. %d%s" % [Captain.title(gr), gr, s.level, "  ●" if Game.captain_unspent() > 0 else "  ›"]
+	_sub.add_theme_color_override("font_color", UI.GOLD if Game.captain_unspent() > 0 else UI.MUTED)
 	var n := s.ready_rooms().size()
 	_harvest.text = "Tout récolter · %d salle%s" % [n, "s" if n > 1 else ""] if n > 0 else "Rien à récolter pour l’instant"
 	_harvest.disabled = n == 0

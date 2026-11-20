@@ -133,6 +133,7 @@ func _pay() -> void:
 		return
 	_paid = true
 	Orders.give(_b.reward(), Game)
+	Game.captain_gain("boarding")
 	Game.boarding_day = Boarding.today()
 	Game.save_game()
 	Game.changed.emit()
