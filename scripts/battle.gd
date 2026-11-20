@@ -24,6 +24,7 @@ var clock := 0.0
 var boss_wave := false
 var banner := ""
 var banner_t := 0.0
+var dive := false                  # combat de la Plongée (maquette WL)
 var _pet: Node2D                   # familier qui suit l'escouade (maquette WI)
 var _pet_kind := ""
 var reso_t := 0.0                  # grand titre de la Résonance (maquette WF)
@@ -60,7 +61,21 @@ func start(team: Array, stage: int, auto_cast: bool, boosts: Array = []) -> void
 	parts.clear()
 	_done = false
 	_result_timer = 0.0
-	sim = BattleSim.new(team, stage, int(Time.get_ticks_msec()), boosts)
+	start_sim(BattleSim.new(team, stage, int(Time.get_ticks_msec()), boosts), auto_cast)
+
+
+## Combat déjà préparé (la Plongée : PV de la descente et reliques, maquette WL).
+func start_sim(prepared: BattleSim, auto_cast: bool) -> void:
+	for f in fighters.values():
+		f.queue_free()
+	fighters.clear()
+	shots.clear()
+	texts.clear()
+	fx.clear()
+	parts.clear()
+	_done = false
+	_result_timer = 0.0
+	sim = prepared
 	sim.auto_cast = auto_cast
 	for u in sim.units:
 		if u.side == 0:
@@ -83,8 +98,8 @@ func _add_fighter(u: BattleSim.Unit) -> void:
 	var pos: Vector2 = ALLY_POS[u.slot] if u.side == 0 else ENEMY_POS[mini(u.slot, ENEMY_POS.size() - 1)]
 	if u.boss:
 		pos = Vector2(360, 272)
-	f.setup(u, pos)
 	add_child(f)
+	f.setup(u, pos)
 	fighters[u] = f
 
 
@@ -645,6 +660,6 @@ func _draw_overlay() -> void:
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))
 	if sim != null and sim.state != "fighting":
-		var txt := "SECTEUR VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
+		var txt := ("NŒUD FRANCHI" if dive else "SECTEUR VAINCU") if sim.state == "clear" else ("REPOUSSÉS" if dive else "ESCOUADE TOMBÉE")
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250) + Vector2(2, 2), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0, 0, 0))
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0.5, 1, 0.7) if sim.state == "clear" else Color(1, 0.5, 0.45))

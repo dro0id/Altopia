@@ -40,13 +40,13 @@ func _draw() -> void:
 	var sim: BattleSim = battle.sim
 	# puissance : verte si l'escouade dépasse la puissance conseillée, dorée sinon
 	var pw := Game.power()
-	var rec := Data.recommended_power(Game.stage)
+	var rec := Data.recommended_power(sim.stage)
 	var ok := pw >= rec
 	M3.text(self, Vector2(32, 30), "Puissance %s · conseillée %s" % [UI.num(roundf(pw)), UI.num(roundf(rec))], 22, UI.GREEN if ok else UI.GOLD, true, 656)
 	# fréquence de l'étage (maquette WE) et héros avantagés
-	var fq := Data.stage_freq(Game.stage)
+	var fq := Data.stage_freq(sim.stage)
 	if fq != "":
-		var adv := Freq.advantaged(Game, Game.stage)
+		var adv := Freq.advantaged(Game, sim.stage)
 		var lab := "%s · %d avantagé%s" % [Data.FREQ_NAMES[fq], adv, "s" if adv > 1 else ""]
 		M3.text(self, Vector2(0, 30), lab, 20, Data.FREQ_COLORS[fq], true, 652, HORIZONTAL_ALIGNMENT_RIGHT)
 		Freq.hex(self, fq, Vector2(652 - M3.text_w(lab, 20, true) - 20, 23), 11.0)
@@ -71,7 +71,7 @@ func _draw() -> void:
 		var r := 22.0 if (now or is_boss) else 18.0
 		var fill := UI.GREEN if done else (UI.ACCENT if now else M3.S3)
 		if is_boss and not done:
-			fill = UI.RED if Data.boss_type(Game.stage) == "big" else Color("ffb142")
+			fill = UI.RED if Data.boss_type(sim.stage) == "big" else Color("ffb142")
 		var hex := PackedVector2Array()
 		for k in 6:
 			var a := PI / 6.0 + k * PI / 3.0

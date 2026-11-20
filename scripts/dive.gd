@@ -192,17 +192,12 @@ func enter(g: Node, c: int, seed: int = 0) -> Dictionary:
 	var out := {"kind": kind, "ok": true, "text": "", "fell": [], "rw": {}}
 	match kind:
 		"combat", "elite", "boss":
-			var res := fight(g, d, kind, seed)
-			out.ok = res.ok
-			out.fell = res.fell
-			if not res.ok:
-				out.text = "L’escouade est repoussée : les remplaçants reprendront ce nœud."
+			var sim := prepare(g, d, kind, seed)
+			if sim == null:
+				out.ok = false
 				return out
-			out.text = "Victoire" + (" · %s tombe" % ", ".join(res.fell.map(func(i): return String(Data.HEROES[i].name).split(" ")[0])) if not res.fell.is_empty() else "")
-			if kind == "elite":
-				offer = _roll_offer(seed + d)
-			if kind == "boss":
-				done = true
+			sim.run(300.0)
+			return resolve(g, c, sim, sim.state == "clear", seed)
 		"repos":
 			for id in team_ids(g):
 				hp[id] = minf(1.0, hp_of(id) + REST_HEAL)
@@ -235,11 +230,16 @@ func enter(g: Node, c: int, seed: int = 0) -> Dictionary:
 	return out
 
 
-## Combat d'un nœud : PV de la descente, reliques ; les blessures sont reportées ensuite.
-func fight(g: Node, d: int, kind: String, seed: int = 0) -> Dictionary:
+## Le combat d'un nœud est-il un combat ? (il se joue alors à l'écran, voir main.gd)
+func is_fight(c: int) -> bool:
+	return String(node(depth, c).get("kind", "")) in ["combat", "elite", "boss"]
+
+
+## Combat d'un nœud prêt à jouer : PV de la descente et reliques appliqués.
+func prepare(g: Node, d: int, kind: String, seed: int = 0) -> BattleSim:
 	var ids := team_ids(g)
 	if ids.is_empty():
-		return {"ok": false, "fell": []}
+		return null
 	var sim := BattleSim.new(g.team_of(ids), stage_for(g, d, kind), seed + week * 101 + d)
 	for u in sim.allies():
 		u.hp = u.max_hp * hp_of(u.id)
@@ -256,7 +256,11 @@ func fight(g: Node, d: int, kind: String, seed: int = 0) -> Dictionary:
 			u.heal_mult *= 1.25
 		if relics.has("rempart"):
 			u.def *= 1.25
-	var state := sim.run(300.0)
+	return sim
+
+
+## Blessures d'un combat reportées sur la descente ; renvoie les héros tombés.
+func wounds(sim: BattleSim, won: bool) -> Array:
 	var fell := []
 	for u in sim.allies():
 		if not u.alive:
@@ -264,8 +268,32 @@ func fight(g: Node, d: int, kind: String, seed: int = 0) -> Dictionary:
 			hp.erase(u.id)
 			fell.append(u.id)
 		else:
-			hp[u.id] = clampf(u.hp / u.max_hp + (0.1 if relics.has("coeur") else 0.0), 0.05, 1.0)
-	return {"ok": state == "clear", "fell": fell}
+			hp[u.id] = clampf(u.hp / u.max_hp + (0.1 if relics.has("coeur") and won else 0.0), 0.05, 1.0)
+	return fell
+
+
+## Fin d'un combat de nœud (colonne c), joué à l'écran ou en automatique : rapport comme enter().
+func resolve(g: Node, c: int, sim: BattleSim, won: bool, seed: int = 0) -> Dictionary:
+	var d := depth
+	var kind := String(node(d, c).get("kind", "combat"))
+	var fell := wounds(sim, won)
+	var out := {"kind": kind, "ok": won, "text": "", "fell": fell, "rw": {}}
+	var names := ", ".join(fell.map(func(i): return String(Data.HEROES[i].name).split(" ")[0]))
+	if not won:
+		out.text = "L’escouade est repoussée" + (" · %s à terre" % names if not fell.is_empty() else "") + " : les remplaçants reprendront ce nœud."
+		return out
+	out.text = "Victoire" + (" · %s tombe" % names if not fell.is_empty() else "")
+	if kind == "elite":
+		offer = _roll_offer(seed + d)
+	if kind == "boss":
+		done = true
+	var rw := reward_for(g, d, kind)
+	_give(g, rw)
+	out.rw = rw
+	depth = d + 1
+	pos = c
+	path.append(c)
+	return out
 
 
 func _roll_offer(seed: int) -> Array:

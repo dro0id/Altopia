@@ -15,6 +15,7 @@ var _strip: Control
 var _controls: Control
 var _auto_b: Button
 var _fab_cast: Button
+var _dive_col := -1                # combat de la Plongée en cours : colonne du nœud (maquette WL)
 var _reso_ring: Control
 var _fab_speed: Button
 var _field: Control
@@ -79,6 +80,7 @@ func _ready() -> void:
 	_field.add_child(shade)
 	battle.stage_cleared.connect(_on_cleared)
 	battle.stage_failed.connect(_on_failed)
+	Game.dive_fight.connect(_start_dive_fight)
 	Game.ship_events.connect(_on_ship_events)
 	_build_top()
 	_build_skills()
@@ -416,7 +418,7 @@ func _layout() -> void:
 	# bas : rangée d'actions puis bande des portraits, posées au-dessus de la barre de navigation
 	_controls.position = Vector2(0, h - NavBar.total() - 128.0)
 	_strip.position = Vector2(0, _controls.position.y - 164.0)
-	_boss = Data.boss_type(Game.stage)
+	_boss = Data.boss_type(_fight_stage())
 	var top := 112.0 + _dy
 	_fh = _strip.position.y - top
 	# écran haut : la place au-dessus du terrain sert au suivi du combat (maquette XC)
@@ -772,6 +774,12 @@ func _show_item_toast(drop: Dictionary) -> void:
 
 
 func _start_battle() -> void:
+	if _dive_col >= 0:
+		# combat de la Plongée quitté en route : ses blessures restent, le nœud reste à prendre
+		Game.current_dive().wounds(battle.sim, false)
+		_dive_col = -1
+		Game.save_game()
+	battle.dive = false
 	_layout()
 	battle.speed = Game.speed
 	battle.start(Game.team(), Game.stage, Game.auto_cast, Game.boosts)
@@ -883,7 +891,57 @@ func _open_journal() -> void:
 	move_child(_nav, get_child_count() - 1)
 
 
+## La Plongée (maquette WL) : le combat d'un nœud se joue ici, avec les PV de la descente et ses reliques.
+func _start_dive_fight(col: int) -> void:
+	var dv: Dive = Game.current_dive()
+	var kind := String(dv.node(dv.depth, col).get("kind", "combat"))
+	var sim := dv.prepare(Game, dv.depth, kind, int(Time.get_ticks_msec()))
+	if sim == null:
+		return
+	if _dive_col >= 0:
+		dv.wounds(battle.sim, false)
+	if _modal != null and is_instance_valid(_modal):
+		_modal.queue_free()
+		_modal = null
+	_nav.visible = true
+	_dive_col = col
+	_layout()
+	battle.speed = Game.speed
+	battle.start_sim(sim, Game.auto_cast)
+	battle.dive = true
+	_claimed = 0.0
+	for i in skill_buttons.size():
+		skill_buttons[i].unit = null
+	for u in battle.sim.units:
+		if u.side == 0:
+			skill_buttons[u.slot].unit = u
+			skill_buttons[u.slot].hero = Data.HEROES[u.id]
+	_show_toast("La Plongée · profondeur %d · %s" % [dv.depth + 1, String(Dive.KINDS[kind].name).to_lower()], 2.0)
+	_refresh()
+
+
+func _end_dive_fight(won: bool) -> void:
+	var dv: Dive = Game.current_dive()
+	var col := _dive_col
+	_dive_col = -1
+	var rep := dv.resolve(Game, col, battle.sim, won, int(Time.get_ticks_msec()))
+	Game.save_game()
+	Game.changed.emit()
+	_start_battle()
+	var ds := DiveScreen.new()
+	_open_modal(ds)
+	ds.show_report(rep)
+
+
+## Étage du combat affiché : celui de la Plongée pendant un de ses combats.
+func _fight_stage() -> int:
+	return int(battle.sim.stage) if _dive_col >= 0 and battle.sim != null else int(Game.stage)
+
+
 func _on_cleared(_credits: float) -> void:
+	if _dive_col >= 0:
+		_end_dive_fight(true)
+		return
 	var stage := Game.stage
 	var stars: int = battle.sim.stars
 	var frontier := Game.is_frontier()
@@ -949,6 +1007,9 @@ func _pick_boost(then: Callable) -> void:
 
 
 func _on_failed() -> void:
+	if _dive_col >= 0:
+		_end_dive_fight(false)
+		return
 	if Game.is_frontier():
 		Game.record_generated(Game.stage, false)
 	Game.defeated()
@@ -1049,11 +1110,11 @@ func _refresh_boss() -> void:
 			bu = u
 	var big := _boss == "big"
 	_boss_bar.col = UI.RED if big else Color("ffb142")
-	_boss_bar.title = Data.boss_name(Game.stage)
+	_boss_bar.title = Data.boss_name(_fight_stage())
 	_boss_bar.phase = "arrive à la vague %d" % battle.sim.waves_total
 	_boss_bar.frac = 1.0
 	_boss_bar.wait = true
-	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(Game.stage), BOSS_INFO.titan)
+	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(_fight_stage()), BOSS_INFO.titan)
 	if bu != null:
 		_boss_bar.frac = bu.hp_frac()
 		_boss_bar.wait = false
@@ -1078,7 +1139,10 @@ func _refresh_boss() -> void:
 
 func _refresh() -> void:
 	var big := _boss == "big"
-	_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
+	if _dive_col >= 0:
+		_stage_btn.set_texts("Plongée · %d / %d" % [Game.current_dive().depth + 1, Dive.DEPTHS])
+	else:
+		_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
 	_stage_btn.text_color = Color("ff9b9b") if big else UI.TEXT
 	_stage_btn.role = "danger" if big else ""
 	_stage_btn.queue_redraw()
@@ -1098,9 +1162,9 @@ func _refresh() -> void:
 	var sub := "Vague %d/%d" % [mini(battle.sim.wave, battle.sim.waves_total), battle.sim.waves_total]
 	if battle.sim.combo > 1:
 		sub += " · Combo ×%d" % battle.sim.combo
-	if not Game.is_frontier() and _boss == "":
+	if not Game.is_frontier() and _boss == "" and _dive_col < 0:
 		sub = "Farm · " + sub
-	var sec := Sector.info(Game.stage)
+	var sec := Sector.info(_fight_stage())
 	if sec.is_empty():
 		_info.visible = false
 	else:

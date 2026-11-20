@@ -321,6 +321,22 @@ func _initialize() -> void:
 			g.glass = 37
 			g.port = {"lv": {"domes": 2, "fonderie": 1, "academie": 1, "marche": 1, "phare": 1, "arene": 1}, "forge_t": 0}
 			main._open_modal(PortScreen.new()),
+		"plongee_combat": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			g.dive_fight.emit(int(dv.next_cols()[0])),
+		"plongee_fin": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			g.dive_fight.emit(int(dv.next_cols()[0]))
+			main.battle.speed = 8.0
+			while main._dive_col >= 0:
+				await process_frame
+			pass,
 		"relique": func():
 			for id in g.levels.keys():
 				g.owned[id] = true
@@ -538,7 +554,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(14.0 if k == "plongee_fin" else 6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "plongee_combat" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

@@ -47,7 +47,15 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 			scale_k = depth * 1.25
 		"couveuse":
 			scale_k = depth * 1.3
-	_pal = EnemyArt.palette_for(Game.stage) if u.side == 1 else {}
+	_pal = EnemyArt.palette_for(_stage()) if u.side == 1 else {}
+
+
+## Étage du combat en cours (celui de la Plongée peut différer de l'étage de la mission).
+func _stage() -> int:
+	var b := get_parent()
+	if b != null and b.get("sim") != null:
+		return int(b.sim.stage)
+	return int(Game.stage)
 
 
 func play_attack(melee: bool) -> void:
@@ -125,7 +133,7 @@ func _draw() -> void:
 		p["phase2"] = unit.phase2
 		p["elite"] = unit.elite != ""
 		p["fuse"] = unit.fuse
-		p["gold"] = unit.boss and unit.kind == "titan" and Game.stage == Data.LAST_STORY_BOSS
+		p["gold"] = unit.boss and unit.kind == "titan" and _stage() == Data.LAST_STORY_BOSS
 	if unit.side == 0:
 		Art.draw_hero_back(self, unit.data, p)
 	else:

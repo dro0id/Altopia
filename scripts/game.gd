@@ -4,6 +4,7 @@ extends Node
 const Data = preload("res://scripts/data.gd")
 
 signal changed
+signal dive_fight(col: int)         # un combat de la Plongée à jouer à l'écran (maquette WL)
 
 const SAVE_VERSION := 4
 const AUTOSAVE_EVERY := 10.0

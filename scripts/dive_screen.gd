@@ -209,6 +209,12 @@ func _map_input(ev: InputEvent) -> void:
 		return
 	for col in dv.next_cols():
 		if _npos(dv.depth, int(col)).distance_to(ev.position) < 50.0:
+			if dv.is_fight(int(col)) and Game.dive_fight.get_connections().size() > 0:
+				# le combat se joue à l'écran de combat ; la descente reprend ensuite
+				Sfx.play("warn", -6.0)
+				close()
+				Game.dive_fight.emit(int(col))
+				return
 			var rep := dv.enter(Game, int(col), int(Time.get_ticks_msec()))
 			if rep.is_empty():
 				return
@@ -217,6 +223,10 @@ func _map_input(ev: InputEvent) -> void:
 			Game.changed.emit()
 			_show(rep)
 			return
+
+
+func show_report(rep: Dictionary) -> void:
+	_show(rep)
 
 
 func _show(rep: Dictionary) -> void:
