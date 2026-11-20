@@ -1324,3 +1324,23 @@ func test_dive() -> void:
 	_check(dv.done or dv.stuck(_g) or dv.depth > 3, "la descente avance")
 	var back := Dive.from_dict(JSON.parse_string(JSON.stringify(dv.to_dict())))
 	_check(back.depth == dv.depth and back.relics == dv.relics, "la descente se sauvegarde")
+
+
+func test_port() -> void:
+	_check(not Port.open(_g), "Port-Altopia fermé avant la fin de l'histoire")
+	_g.chapters_done = [1, 2, 3, 4, 5]
+	_check(Port.open(_g), "ouvert après le chapitre 5")
+	_g.glass = 0
+	_g.credits = 1.0e9
+	_check(not Port.can_build(_g, "domes"), "il faut du verre brut")
+	_g.glass = 100
+	_check(Port.build(_g, "domes") and Port.lv(_g, "domes") == 1 and _g.glass == 96, "bâtir les Dômes")
+	_check(Port.offline_mult(_g) > 1.0, "Dômes : gains hors ligne")
+	Port.build(_g, "marche")
+	_g.shards = 100
+	_check(Port.trade(_g) and _g.shards == 60 and not Port.trade(_g), "Marché : un échange par jour et par niveau")
+	Port.build(_g, "fonderie")
+	_g.port["forge_t"] = int(Time.get_unix_time_from_system()) - 25 * 3600
+	var tok: int = _g.item_tokens
+	_check(Port.forge_claim(_g) == 1 and _g.item_tokens == tok + 1, "Fonderie : un jeton par jour")
+	_check(Port.glass_for(45) >= 1, "verre brut des secteurs générés")

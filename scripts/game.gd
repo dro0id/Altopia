@@ -73,6 +73,8 @@ var bond_read: Array = []
 var paint := "amiraute"            # peinture de l'Aurore (maquette YG)
 var outfits := {}                  # héros -> tenue
 var ach_seen: Array = []
+var glass := 0                     # verre brut des secteurs générés (Port-Altopia, maquette WO)
+var port := {}                      # {lv: {district: niveau}, forge_t, market_day, market_n, arena_day}
 var dive := Dive.new()              # la Plongée de la semaine (maquette WL)
 var eggs: Array = []                # œufs de familier {end} (maquette WI)
 var pets: Array = []                # familiers éclos {kind, lv}
@@ -102,7 +104,7 @@ func _process(delta: float) -> void:
 		ship_update()
 		# événements à bord : seulement une fois le voyage du chapitre 1 terminé (pas pendant le tutoriel)
 		if mission_open() and tips.has("ship"):
-			if not board.update(1.0, ship, rng, int(Time.get_unix_time_from_system())).is_empty():
+			if not board.update(Port.event_mult(self), ship, rng, int(Time.get_unix_time_from_system())).is_empty():
 				changed.emit()
 	_timer += delta
 	if _timer >= AUTOSAVE_EVERY:
@@ -130,6 +132,8 @@ func reset() -> void:
 	pets = []
 	pet_follow = -1
 	dive = Dive.new()
+	glass = 0
+	port = {}
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -1050,6 +1054,8 @@ func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dict
 		captain_gain("big_boss")
 		if rng.randf() < Pets.EGG_BIG_BOSS:
 			add_egg()
+	if Sector.is_generated(stage):
+		glass += Port.glass_for(stage)        # verre brut pour bâtir Port-Altopia
 	if follower_kind() == "rongeuse":
 		shards += int(round(float(Data.WAVES_PER_STAGE) * follower_power()))
 	stars[stage] = maxi(int(stars.get(stage, 0)), star_count)
@@ -1179,7 +1185,7 @@ func offline_rate_per_minute() -> float:
 
 func compute_offline(away_seconds: float) -> Dictionary:
 	var capped := minf(away_seconds, offline_cap_hours() * 3600.0)
-	var gain := offline_rate_per_minute() * capped / 60.0
+	var gain := offline_rate_per_minute() * capped / 60.0 * Port.offline_mult(self)
 	# quelques éclats de verre aussi : environ 1 par heure et par tranche de 8 étages atteints
 	var sh := int(floor(capped / 3600.0 * maxf(0.5, float(best_stage) / 8.0)))
 	return {"seconds": capped, "credits": gain, "shards": sh}
@@ -1246,7 +1252,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow, "dive": dive.to_dict(),
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow, "dive": dive.to_dict(), "glass": glass, "port": port,
 	}))
 
 
@@ -1433,6 +1439,8 @@ func load_game() -> bool:
 	pets = Array(parsed.get("pets", []))
 	pet_follow = int(parsed.get("pet_follow", -1))
 	dive = Dive.from_dict(parsed.get("dive", {}))
+	glass = int(parsed.get("glass", 0))
+	port = parsed.get("port", {})
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

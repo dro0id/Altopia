@@ -205,7 +205,7 @@ func _train(game: Node, dt: float, out: Dictionary) -> void:
 	var lv := room_level("quartiers")
 	if lv <= 0:
 		return
-	var step := Ship.train_hours(lv) * 3600.0
+	var step := Ship.train_hours(lv) * 3600.0 / (Port.train_mult(game) if game.get("port") != null else 1.0)
 	var target := int(game.squad_avg_level()) - 3
 	for h in posts.get("quartiers", []):
 		var hid := String(h)

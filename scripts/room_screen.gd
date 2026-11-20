@@ -487,6 +487,9 @@ func _destinations(c: Control, y: float) -> float:
 	# la Plongée de la semaine (maquette WL)
 	var dv_open: bool = Game.dive_open()
 	var dv := Game.current_dive() if dv_open else null
+	# Port-Altopia, la Base (maquette WO) : après l'histoire
+	var port_open: bool = Port.open(Game)
+	rows.append(["Port-Altopia", ("La Base · %d district%s bâti%s · %d verre brut" % [Port.built(Game), "s" if Port.built(Game) > 1 else "", "s" if Port.built(Game) > 1 else "", int(Game.glass)]) if port_open else "La Base · après le chapitre 5", "port" if port_open else "lock", func(): add_child(PortScreen.new())])
 	rows.append(["La Plongée", ("Profondeur %d / %d · remise à zéro lundi" % [dv.depth, Dive.DEPTHS] if not dv.done else "Terminée cette semaine") if dv_open else "Descente hebdomadaire · après le secteur 10, cinq héros", "dive" if dv_open else "lock", func(): add_child(DiveScreen.new())])
 	for row in rows:
 		var r := Rect2(32, y, 656, 112)

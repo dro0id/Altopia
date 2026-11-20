@@ -316,6 +316,11 @@ func _initialize() -> void:
 					dv.take_relic(String(dv.offer[0]))
 			dv.relics = ["prisme", "braise", "onde"]
 			main._open_modal(DiveScreen.new()),
+		"port": func():
+			g.chapters_done = [1, 2, 3, 4, 5]
+			g.glass = 37
+			g.port = {"lv": {"domes": 2, "fonderie": 1, "academie": 1, "marche": 1, "phare": 1, "arene": 1}, "forge_t": 0}
+			main._open_modal(PortScreen.new()),
 		"relique": func():
 			for id in g.levels.keys():
 				g.owned[id] = true

@@ -66,6 +66,12 @@ static func entries() -> Array:
 		var sub := "%d œuf%s à la Serre" % [Game.eggs.size(), "s" if Game.eggs.size() > 1 else ""] if not Game.eggs.is_empty() else "%d familier%s" % [Game.pets.size(), "s" if Game.pets.size() > 1 else ""]
 		var fk := Game.follower_kind()
 		out.append({"kind": "pets", "title": "Familier : %s" % (Pets.KINDS[fk].name if fk != "" else "aucun"), "sub": sub, "action": "Voir", "rank": 2, "role": "secondary"})
+	if Port.open(Game):
+		var fr := Port.forge_ready(Game)
+		if fr > 0:
+			out.append({"kind": "port", "title": "Fonderie : %d jeton%s d’objet forgé%s" % [fr, "s" if fr > 1 else "", "s" if fr > 1 else ""], "sub": "Port-Altopia", "action": "Récupérer", "rank": 0, "role": "success"})
+		elif Port.arena_ready(Game):
+			out.append({"kind": "port", "title": "Arène : une escouade rivale attend", "sub": "Port-Altopia · une fois par jour", "action": "Voir", "rank": 2, "role": "secondary"})
 	if Game.dive_open():
 		var dv := Game.current_dive()
 		if not dv.done and not dv.stuck(Game):
@@ -212,6 +218,14 @@ func _act(e: Dictionary) -> void:
 			var bs := BondsScreen.new()
 			bs.closed.connect(_build)
 			add_child(bs)
+		"port":
+			if Port.forge_claim(Game) > 0:
+				Sfx.play("chest", -4.0)
+				_after()
+			else:
+				var pts := PortScreen.new()
+				pts.closed.connect(_build)
+				add_child(pts)
 		"dive":
 			var ds := DiveScreen.new()
 			ds.closed.connect(_build)
