@@ -150,6 +150,36 @@ static func draw(ci: CanvasItem, kind: String, p: Dictionary) -> void:
 			_sentinelle(ci, p, pal, t, wind, hit, air)
 		"reine":
 			_reine(ci, p, pal, t, wind, hit, air)
+		"porteur":
+			_porteur(ci, p, pal, t, wind, hit)
+		"ardente":
+			var hot := pal.duplicate()
+			var burn := 1.0 - clampf(float(p.get("fuse", 4.0)) / Data.ARDENT_FUSE, 0.0, 1.0)
+			hot.base = Color("c4573a").lerp(Color("ff7a3a"), burn)
+			hot.acc = Color("ffb142")
+			hot.eye = Color("ffffff")
+			_mite(ci, p, hot, t * (1.0 + burn), wind, hit)
+			# cœur qui chauffe : la lueur grossit et bat de plus en plus vite
+			var k := 0.5 + 0.5 * sin(t * (6.0 + burn * 22.0))
+			_glow(ci, Vector2(0, -22), 14.0 + burn * 22.0 * k, Color(1.0, 0.55, 0.2), 0.45 + 0.4 * burn)
+			ci.draw_circle(Vector2(0, -22), 4.0 + burn * 4.0, Color(1.0, 0.95, 0.7))
+		"tisseuse":
+			var g := pal.duplicate()
+			g.eye = Color("7dffb0")
+			g.acc = Color("7dffb0")
+			_drone(ci, p, g, t, wind, hit, false, Color("4a5a6a"))
+			# fils de réparation qui flottent autour
+			for k in 3:
+				var a := t * 1.6 + k * TAU / 3.0
+				ci.draw_arc(Vector2(0, -62), 52.0, a, a + 0.7, 8, Color(0.5, 1.0, 0.7, 0.55), 2.0, true)
+		"guetteur":
+			var r := pal.duplicate()
+			r.eye = Color("ff3a3a")
+			_drone(ci, p, r, t, wind, hit, true, Color("8a3a40"))
+			# viseur qui tourne autour de l'œil
+			ci.draw_arc(Vector2(0, -60), 22.0, t * 2.0, t * 2.0 + PI * 1.4, 14, Color(1.0, 0.82, 0.4, 0.8), 2.0, true)
+		"couveuse":
+			_couveuse(ci, p, pal, t, wind, hit)
 		_:
 			_foreur(ci, p, pal, t, wind, hit, cast, air)
 	Art.shatter(ci, Vector2(0, -50 if not big else -70), Color(pal.acc).lerp(Color.WHITE, 0.2), dead)
@@ -205,10 +235,12 @@ static func atk_hit(p: Dictionary) -> bool:
 
 # ---------------------------------------------------------------- drone foreur et canonnier
 
-static func _drone(ci: CanvasItem, p: Dictionary, pal: Dictionary, t: float, wind: float, hit: float, gun: bool) -> void:
+static func _drone(ci: CanvasItem, p: Dictionary, pal: Dictionary, t: float, wind: float, hit: float, gun: bool, body_over := Color(0, 0, 0, 0)) -> void:
 	var hover := sin(t * 2.6) * 5.0 + wind * 6.0 - hit * 4.0
 	var wob := sin(t * 40.0) * float(p.get("hurt", 0.0)) * 3.0
 	var body := Color("56628c") if not gun else Color("9a4a52")
+	if body_over.a > 0.0:
+		body = body_over
 	var cy := -62.0 + hover
 	# réacteur : la flamme grandit à la préparation
 	var fl := 8.0 + sin(t * 30.0) * 3.0 + wind * 8.0
@@ -258,6 +290,73 @@ static func _drone(ci: CanvasItem, p: Dictionary, pal: Dictionary, t: float, win
 			_poly(ci, PackedVector2Array([Vector2(cx - 6, cy + 19), Vector2(cx + 6, cy + 19), Vector2(cx, tip)]), Color(0.81, 0.84, 0.92), 1.6)
 			ci.draw_line(Vector2(cx - 4, cy + 25), Vector2(cx + 4, cy + 25), OUT, 1.5)
 			ci.draw_line(Vector2(cx - 3, cy + 31), Vector2(cx + 3, cy + 31), OUT, 1.5)
+
+
+# ---------------------------------------------------------------- Porte-éclat (protecteur)
+
+static func _porteur(ci: CanvasItem, p: Dictionary, pal: Dictionary, t: float, wind: float, hit: float) -> void:
+	var c := pal.duplicate()
+	c.eye = Color("4fd8ff")
+	_drone(ci, p, c, t, wind, hit, false, Color("3e6a8c"))
+	# cube de verre autour du corps : faces translucides et arêtes claires
+	var cy := -62.0 + sin(t * 2.6) * 5.0
+	var k := 0.5 + 0.5 * sin(t * 2.0)
+	var front := PackedVector2Array([Vector2(-34, cy - 26), Vector2(34, cy - 26), Vector2(34, cy + 30), Vector2(-34, cy + 30)])
+	var top := PackedVector2Array([Vector2(-34, cy - 26), Vector2(-18, cy - 40), Vector2(50, cy - 40), Vector2(34, cy - 26)])
+	var side := PackedVector2Array([Vector2(34, cy - 26), Vector2(50, cy - 40), Vector2(50, cy + 16), Vector2(34, cy + 30)])
+	ci.draw_colored_polygon(front, Color(0.55, 0.9, 1.0, 0.18 + 0.08 * k))
+	ci.draw_colored_polygon(top, Color(0.75, 0.97, 1.0, 0.3))
+	ci.draw_colored_polygon(side, Color(0.4, 0.75, 1.0, 0.22))
+	for poly in [front, top, side]:
+		var closed: PackedVector2Array = poly.duplicate()
+		closed.append(poly[0])
+		ci.draw_polyline(closed, Color(0.8, 0.97, 1.0, 0.8), 2.0, true)
+
+
+# ---------------------------------------------------------------- Couveuse (invocatrice)
+
+static func _couveuse(ci: CanvasItem, p: Dictionary, pal: Dictionary, t: float, wind: float, hit: float) -> void:
+	# ailes membraneuses derrière le corps
+	var flap := sin(t * 3.0) * 0.12
+	for s in [-1, 1]:
+		var w := PackedVector2Array([Vector2(s * 16, -40), Vector2(s * 70, -86 + flap * 60.0), Vector2(s * 76, -36), Vector2(s * 40, -18)])
+		ci.draw_colored_polygon(w, Color(0.6, 0.45, 0.95, 0.42))
+		var closed := w.duplicate()
+		closed.append(w[0])
+		ci.draw_polyline(closed, Color(0.8, 0.7, 1.0, 0.7), 2.0, true)
+	var v := pal.duplicate()
+	v.base = Color("6a4aa8")
+	v.acc = Color("b388ff")
+	v.eye = Color("ff7ad9")
+	_mite(ci, p, v, t * 0.7, wind, hit)
+	# sac d'œufs lumineux sous l'abdomen
+	ci.draw_circle(Vector2(0, -10), 15.0, Color(0.3, 0.2, 0.45))
+	for k in 4:
+		var a := k * 1.7 + t * 0.4
+		ci.draw_circle(Vector2(cos(a) * 8.0, -10 + sin(a) * 6.0), 3.2, Color(1.0, 0.9, 0.6, 0.7 + 0.3 * sin(t * 4.0 + k)))
+
+
+## Pastille de rôle (maquette WD) : protecteur, kamikaze, soigneuse, tireur embusqué, invocatrice.
+static func role_badge(ci: CanvasItem, kind: String, at: Vector2, r: float) -> void:
+	var col: Color = Data.ROLE_COLORS.get(kind, Color.WHITE)
+	ci.draw_circle(at, r + 2.0, Color(0.03, 0.05, 0.12, 0.9))
+	ci.draw_circle(at, r, col)
+	var ink := Color(0.05, 0.07, 0.14)
+	match kind:
+		"porteur":
+			ci.draw_colored_polygon(PackedVector2Array([at + Vector2(-r * 0.5, -r * 0.5), at + Vector2(r * 0.5, -r * 0.5), at + Vector2(r * 0.5, 0), at + Vector2(0, r * 0.6), at + Vector2(-r * 0.5, 0)]), ink)
+		"ardente":
+			Art.star(ci, at, r * 0.62, ink, 0.0)
+		"tisseuse":
+			ci.draw_rect(Rect2(at + Vector2(-r * 0.15, -r * 0.55), Vector2(r * 0.3, r * 1.1)), ink)
+			ci.draw_rect(Rect2(at + Vector2(-r * 0.55, -r * 0.15), Vector2(r * 1.1, r * 0.3)), ink)
+		"guetteur":
+			ci.draw_arc(at, r * 0.45, 0, TAU, 14, ink, 2.0, true)
+			ci.draw_line(at + Vector2(-r * 0.7, 0), at + Vector2(r * 0.7, 0), ink, 2.0)
+			ci.draw_line(at + Vector2(0, -r * 0.7), at + Vector2(0, r * 0.7), ink, 2.0)
+		"couveuse":
+			ci.draw_arc(at, r * 0.5, 0, TAU, 14, ink, 2.5, true)
+			ci.draw_circle(at, r * 0.22, ink)
 
 
 # ---------------------------------------------------------------- Foreur éclaté (mini-boss)

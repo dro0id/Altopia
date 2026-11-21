@@ -24,6 +24,11 @@ var clock := 0.0
 var boss_wave := false
 var banner := ""
 var banner_t := 0.0
+var dive := false                  # combat de la Plongée (maquette WL)
+var _pet: Node2D                   # familier qui suit l'escouade (maquette WI)
+var _pet_kind := ""
+var reso_t := 0.0                  # grand titre de la Résonance (maquette WF)
+var reso_kind := ""
 var banner_sub := ""
 var banner_in_field := true
 var banner_hero := ""             # annonce d'un pouvoir signature : identifiant du héros (maquette WA)       # faux quand le haut de l'écran (CombatHud) affiche les annonces
@@ -56,11 +61,35 @@ func start(team: Array, stage: int, auto_cast: bool, boosts: Array = []) -> void
 	parts.clear()
 	_done = false
 	_result_timer = 0.0
-	sim = BattleSim.new(team, stage, int(Time.get_ticks_msec()), boosts)
+	start_sim(BattleSim.new(team, stage, int(Time.get_ticks_msec()), boosts), auto_cast)
+
+
+## Combat déjà préparé (la Plongée : PV de la descente et reliques, maquette WL).
+func start_sim(prepared: BattleSim, auto_cast: bool) -> void:
+	for f in fighters.values():
+		f.queue_free()
+	fighters.clear()
+	shots.clear()
+	texts.clear()
+	fx.clear()
+	parts.clear()
+	_done = false
+	_result_timer = 0.0
+	sim = prepared
 	sim.auto_cast = auto_cast
 	for u in sim.units:
 		if u.side == 0:
 			_add_fighter(u)
+	_pet_kind = String(sim.pet.get("kind", ""))
+	if _pet == null:
+		_pet = Node2D.new()
+		_pet.position = Vector2(112, 520)
+		_pet.scale = Vector2(0.62, 0.62)
+		_pet.z_index = 520
+		_pet.draw.connect(func():
+			if _pet_kind != "":
+				EnemyArt.draw(_pet, "mite", {"t": clock, "pal": Pets.palette(_pet_kind), "move": 0.2}))
+		add_child(_pet)
 	_consume()
 
 
@@ -69,8 +98,8 @@ func _add_fighter(u: BattleSim.Unit) -> void:
 	var pos: Vector2 = ALLY_POS[u.slot] if u.side == 0 else ENEMY_POS[mini(u.slot, ENEMY_POS.size() - 1)]
 	if u.boss:
 		pos = Vector2(360, 272)
-	f.setup(u, pos)
 	add_child(f)
+	f.setup(u, pos)
 	fighters[u] = f
 
 
@@ -247,6 +276,24 @@ func _consume() -> void:
 				boss_wave = false
 				Sfx.play("star", -2.0, 0.9 + 0.1 * minf(e.n, 5.0))
 				fx.append({"kind": "ring", "pos": Vector2(360, 470), "t": 0.0, "dur": 0.5, "col": Color(1.0, 0.75, 0.3), "r": 200.0 + 30.0 * e.n, "shake": 0.0})
+			"resonance":
+				reso_t = 2.4
+				reso_kind = String(e.kind)
+				shake = maxf(shake, 6.0)
+				Sfx.play("star", 0.0, 0.8)
+				Game.haptic("reward")
+				for a in sim.allies():
+					if a.alive:
+						fx.append({"kind": "ring", "pos": _center(a), "t": 0.0, "dur": 0.6, "col": Data.RESONANCE[reso_kind].col, "r": 120.0, "shake": 0.0})
+			"pet_bite":
+				if fighters.has(e.dst) and _pet != null:
+					shots.append({"from": _pet.position + Vector2(0, -16), "to": _center(e.dst), "t": 0.0, "dur": 0.25, "col": Pets.KINDS.piquante.col, "kind": "bolt"})
+			"blast":
+				# Mite ardente : explosion au premier rang
+				shake = maxf(shake, 7.0)
+				fx.append({"kind": "flash", "pos": _center(e.unit), "t": 0.0, "dur": 0.35, "r": 80.0})
+				fx.append({"kind": "ring", "pos": _center(e.unit), "t": 0.0, "dur": 0.45, "col": Color(1.0, 0.55, 0.2), "r": 160.0, "shake": 0.0})
+				Sfx.play("boom", -4.0)
 			"phase":
 				banner = "PHASE 2 !"
 				banner_t = 1.6
@@ -388,6 +435,9 @@ func _dmg_text(u: BattleSim.Unit, amount: float, crit: bool, skill: bool) -> voi
 
 func _process(delta: float) -> void:
 	clock += delta
+	reso_t = maxf(0.0, reso_t - delta)
+	if _pet != null:
+		_pet.queue_redraw()
 	if sim == null:
 		return
 	var dt := minf(delta, 0.1) * speed
@@ -469,7 +519,31 @@ func _ellipse_line(c: Vector2, r: float, col: Color, w: float, flat: float = 0.4
 	_ov.draw_polyline(pts, col, w)
 
 
+## Grand titre de la Résonance : rayons dorés, « RÉSONANCE », nom de l'effet et ce qu'il fait.
+func _draw_resonance() -> void:
+	if reso_t <= 0.0 or not Data.RESONANCE.has(reso_kind):
+		return
+	var r: Dictionary = Data.RESONANCE[reso_kind]
+	var a := minf(1.0, reso_t / 0.4) * minf(1.0, (2.4 - reso_t) * 6.0)
+	var col: Color = r.col
+	# bande sombre derrière le titre, pour qu'il se lise par-dessus les ennemis
+	_ov.draw_rect(Rect2(0, 56, SIZE.x, 170), Color(0.02, 0.03, 0.09, 0.55 * a))
+	for k in 7:
+		var x := 60.0 + k * 100.0 + sin(clock * 0.8 + k) * 20.0
+		_ov.draw_colored_polygon(PackedVector2Array([Vector2(x - 30, 0), Vector2(x + 30, 0), Vector2(x + 90, SIZE.y), Vector2(x - 10, SIZE.y)]), Color(1.0, 0.85, 0.45, 0.07 * a))
+	var f: Font = UI.bold_font()
+	var y := 96.0
+	var kick := "R É S O N A N C E"
+	_ov.draw_string(f, Vector2(0, y), kick, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 24, Color(UI.GOLD, a))
+	var title := String(r.name).to_upper()
+	var sz := 64
+	_ov.draw_string_outline(f, Vector2(0, y + 70), title, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, sz, 10, Color(col.darkened(0.6), a))
+	_ov.draw_string(f, Vector2(0, y + 70), title, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, sz, Color(1, 1, 1, a))
+	_ov.draw_string(f, Vector2(0, y + 108), String(r.sub), HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 22, Color(col.lightened(0.4), a))
+
+
 func _draw_overlay() -> void:
+	_draw_resonance()
 	_draw_intents()
 	for s in shots:
 		if s.t < 0.0:
@@ -586,6 +660,6 @@ func _draw_overlay() -> void:
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372) + Vector2(2, 2), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(0, 0, 0, a))
 			_ov.draw_string(ThemeDB.fallback_font, Vector2(slide, 372), banner_sub, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 32, Color(1, 0.8, 0.75, a))
 	if sim != null and sim.state != "fighting":
-		var txt := "SECTEUR VAINCU" if sim.state == "clear" else "ESCOUADE TOMBÉE"
+		var txt := ("NŒUD FRANCHI" if dive else "SECTEUR VAINCU") if sim.state == "clear" else ("REPOUSSÉS" if dive else "ESCOUADE TOMBÉE")
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250) + Vector2(2, 2), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0, 0, 0))
 		_ov.draw_string(ThemeDB.fallback_font, Vector2(0, 250), txt, HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 56, Color(0.5, 1, 0.7) if sim.state == "clear" else Color(1, 0.5, 0.45))

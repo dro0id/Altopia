@@ -185,12 +185,48 @@ func _initialize() -> void:
 			var bs := BondsScreen.new()
 			main._modal.add_child(bs)
 			bs._open_convo(Bonds.get_bond("ecoutent"), 0),
+		"succes": func():
+			_ship(15)
+			g.chapters_done = [1, 2, 3, 4]
+			g.outfits = {"mara": "escorte"}
+			main._open_ship()
+			await process_frame
+			main._modal.add_child(CosmeticsScreen.new()),
+		"peinture": func():
+			_ship(15)
+			g.chapters_done = [1, 2, 3, 4]
+			g.paint = "braise"
+			g.outfits = {"kai": "quart", "zyra": "escorte"}
+			main._open_ship()
+			await process_frame
+			main._modal.view.set_cut(false),
+		"abordage": func():
+			_ship(10)
+			main._open_ship()
+			await process_frame
+			var bs := BoardingScreen.new()
+			main._modal.add_child(bs)
+			bs._b.t = 11.0,
+		"abordage_fin": func():
+			_ship(10)
+			main._open_ship()
+			await process_frame
+			var bs := BoardingScreen.new()
+			main._modal.add_child(bs)
+			while not bs._b.done():
+				bs._b.step(g, Boarding.WAVE_TIME)
+				bs._b.next_wave(g)
+			bs._finish(),
 		"monnaies": func():
 			main._open_shop()
 			await process_frame
 			var w = root.find_children("*", "Wallet", true, false)[0]
 			w._explain(["coin", "shard", "crystal", "token", "itoken", "wild"]),
 		"carte": func(): main._open_map(),
+		"carte24": func():
+			g.best_stage = 26
+			g.go_to(24)
+			main._open_map(),
 		"reglages": func(): main._open_settings(),
 		"defaite": func(): main._open_modal(DefeatScreen.new(12)),
 		"renfort": func(): main._open_modal(BoostScreen.new(g.offer_boosts(), 15)),
@@ -262,6 +298,96 @@ func _initialize() -> void:
 			j._ch = 3
 			j._chips.sel = 2
 			j._rebuild(),
+		"familiers": func():
+			_ship(10)
+			g.pets = [{"kind": "veilleuse", "lv": 3}, {"kind": "luciole", "lv": 1}, {"kind": "piquante", "lv": 2}]
+			g.pet_follow = 0
+			g.eggs = [{"end": int(Time.get_unix_time_from_system()) + 4320}]
+			main._open_modal(PetsScreen.new()),
+		"plongee": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			for i in 3:
+				var nx: Array = dv.next_cols()
+				dv.enter(g, int(nx[nx.size() - 1]), i)
+				if not dv.offer.is_empty():
+					dv.take_relic(String(dv.offer[0]))
+			dv.relics = ["prisme", "braise", "onde"]
+			main._open_modal(DiveScreen.new()),
+		"port": func():
+			g.chapters_done = [1, 2, 3, 4, 5]
+			g.glass = 37
+			g.port = {"lv": {"domes": 2, "fonderie": 1, "academie": 1, "marche": 1, "phare": 1, "arene": 1}, "forge_t": 0}
+			main._open_modal(PortScreen.new()),
+		"plongee_combat": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			g.dive_fight.emit(int(dv.next_cols()[0])),
+		"plongee_fin": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			g.dive_fight.emit(int(dv.next_cols()[0]))
+			main.battle.speed = 8.0
+			while main._dive_col >= 0:
+				await process_frame
+			pass,
+		"relique": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
+			g.best_stage = 25
+			var dv = g.current_dive()
+			dv.enter(g, int(dv.next_cols()[0]), 1)
+			dv.offer = ["prisme", "seve", "coeur"]
+			var ds := DiveScreen.new()
+			main._open_modal(ds)
+			ds._show({"kind": "elite", "ok": true, "text": "Victoire · Kaï tombe", "rw": {"credits": 5200.0, "shards": 12}}),
+		"combat_familier": func():
+			g.pets = [{"kind": "piquante", "lv": 3}]
+			g.pet_follow = 0
+			main._start_battle(),
+		"serre": func():
+			_ship(10)
+			main._open_ship()
+			main._open_room("serre"),
+		"capitaine": func():
+			g.captain_xp = 1200
+			g.doctrine = ["feu", "enchainement", "sangfroid", "bonvent", "soutes", "veille"]
+			main._open_modal(CaptainScreen.new()),
+		"jauge": func():
+			main.battle.sim.auto_cast = false
+			main.battle.sim.resonance = 1.0,
+		"resonance": func():
+			main.battle.sim.resonance = 1.0
+			main.battle.sim.resonate()
+			await _wait(0.5)
+			main.battle.speed = 0.0,
+		"roles": func():
+			# les cinq ennemis à rôle (maquette WD) face à l'escouade
+			var sim = main.battle.sim
+			for u in sim.units.duplicate():
+				if u.side == 0:
+					u.atk *= 0.02
+					u.skill_cd = 99.0
+				if u.side == 1:
+					var f = main.battle.fighters.get(u)
+					if f != null:
+						f.queue_free()
+						main.battle.fighters.erase(u)
+					sim.units.erase(u)
+			var k := 0
+			for kind in ["porteur", "tisseuse", "ardente", "guetteur", "couveuse"]:
+				var e = sim._make_enemy(kind, k, false)
+				sim.units.append(e)
+				sim.events.append({"type": "spawn", "unit": e})
+				k += 1
+			await _wait(2.4)
+			main.battle.speed = 0.0,
 		"secteur": func():
 			main._open_modal(SectorScreen.new(53)),
 		"combat53": func():
@@ -297,6 +423,8 @@ func _initialize() -> void:
 			main._open_ship()
 			main._open_room("raffinerie"),
 		"pont": func():
+			for id in g.levels.keys():
+				g.owned[id] = true
 			_ship(10)
 			main._open_ship()
 			main._open_room("pont"),
@@ -426,7 +554,7 @@ func _initialize() -> void:
 		if not only.is_empty() and not only.has(k):
 			continue
 		(shots[k] as Callable).call()
-		await _wait(6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k.begins_with("evenement") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
+		await _wait(14.0 if k == "plongee_fin" else 6.0 if k == "fenetre" or k == "interrompu" else 2.6 if k == "victoire" or k == "roles" or k == "plongee_combat" or k == "port" or k == "cible" or k == "signature" else (1.4 if k == "combat53" or k.begins_with("vaisseau") or k == "serre" or k.begins_with("evenement") or k == "peinture" or k == "succes" or k.begins_with("abordage") or k == "fiche_salle" else (3.5 if k == "intro" or k == "boss" else 0.6)))
 		await _snap(out + "/" + k + ".png")
 		if main._modal != null and is_instance_valid(main._modal):
 			main._modal.queue_free()

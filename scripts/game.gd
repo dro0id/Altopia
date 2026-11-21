@@ -4,6 +4,7 @@ extends Node
 const Data = preload("res://scripts/data.gd")
 
 signal changed
+signal dive_fight(col: int)         # un combat de la Plongée à jouer à l'écran (maquette WL)
 
 const SAVE_VERSION := 4
 const AUTOSAVE_EVERY := 10.0
@@ -69,7 +70,19 @@ var orders := Orders.new()
 var board := BoardEvents.new()
 var talents := {}
 var bond_xp := {}                  # lien -> points (maquette WH)
-var bond_read: Array = []          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
+var bond_read: Array = []
+var paint := "amiraute"            # peinture de l'Aurore (maquette YG)
+var outfits := {}                  # héros -> tenue
+var ach_seen: Array = []
+var glass := 0                     # verre brut des secteurs générés (Port-Altopia, maquette WO)
+var port := {}                      # {lv: {district: niveau}, forge_t, market_day, market_n, arena_day}
+var dive := Dive.new()              # la Plongée de la semaine (maquette WL)
+var eggs: Array = []                # œufs de familier {end} (maquette WI)
+var pets: Array = []                # familiers éclos {kind, lv}
+var pet_follow := -1                # familier qui suit l'escouade
+var captain_xp := 0               # expérience de commandement (maquette WN)
+var doctrine: Array = []            # nœuds de doctrine choisis
+var boarding_day := -1             # dernier abordage joué (maquette WM)           # succès déjà annoncés          # conversations lues : "lien:niveau"                  # héros -> {"2": 0 ou 1, "3": …} (maquette WG)     # événements à bord (maquette WK)       # ordres du jour et solde de la semaine (maquette WJ)
 var ship := ShipState.new()      # le vaisseau l'Aurore (branche 5)
 var rng := RandomNumberGenerator.new()
 var _timer := 0.0
@@ -92,7 +105,7 @@ func _process(delta: float) -> void:
 		ship_update()
 		# événements à bord : seulement une fois le voyage du chapitre 1 terminé (pas pendant le tutoriel)
 		if mission_open() and tips.has("ship"):
-			if not board.update(1.0, ship, rng, int(Time.get_unix_time_from_system())).is_empty():
+			if not board.update(Port.event_mult(self), ship, rng, int(Time.get_unix_time_from_system())).is_empty():
 				changed.emit()
 	_timer += delta
 	if _timer >= AUTOSAVE_EVERY:
@@ -110,6 +123,18 @@ func reset() -> void:
 	talents = {}
 	bond_xp = {}
 	bond_read = []
+	paint = "amiraute"
+	outfits = {}
+	ach_seen = []
+	boarding_day = -1
+	captain_xp = 0
+	doctrine = []
+	eggs = []
+	pets = []
+	pet_follow = -1
+	dive = Dive.new()
+	glass = 0
+	port = {}
 	board = BoardEvents.new()
 	items = []
 	next_item = 1
@@ -162,13 +187,115 @@ func reset() -> void:
 
 
 func team() -> Array:
+	return team_of(squad)
+
+
+## Escouade de combat pour ces héros (la Plongée y descend avec des remplaçants, maquette WL).
+func team_of(ids: Array) -> Array:
 	var out: Array = []
-	var mods: Dictionary = synergy().mods
-	for id in squad:
-		if id == "" or id == null:
-			continue
-		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp)})
+	var clean: Array = ids.filter(func(i): return i != "" and i != null)
+	var mods: Dictionary = Data.synergies(clean).mods
+	for id in clean:
+		out.append({"id": id, "level": int(levels[id]), "evo": tier(id), "bonus": 1.0 + Data.PERSEVERANCE_STEP * perseverance, "stars": int(hero_stars[id]), "mods": mods, "eq": Items.totals(hero_items(id)), "ship": ship_combat(), "tal": talent_fx(id), "bond": Bonds.skill_bonus(id, squad_ids(), bond_xp), "doc": doctrine, "pet": follower()})
 	return out
+
+
+# ---------------------------------------------------------------- la Plongée (maquette WL)
+
+## La Plongée s'ouvre depuis le Pont, après le chapitre 2 (étage 10) avec au moins cinq héros.
+func dive_open() -> bool:
+	return best_stage > 10 and Data.ALL_HEROES.filter(func(id): return is_owned(id)).size() >= Data.SQUAD_SIZE
+
+
+## Descente de la semaine en cours (remise à zéro le lundi).
+func current_dive() -> Dive:
+	var w := Dive.this_week()
+	if dive.week != w or dive.rows.is_empty():
+		dive.reset(w)
+	return dive
+
+
+# ---------------------------------------------------------------- familiers de verre (maquette WI)
+
+## Familier qui suit l'escouade : {kind, lv} ou {}.
+func follower() -> Dictionary:
+	if pet_follow >= 0 and pet_follow < pets.size():
+		return pets[pet_follow]
+	return {}
+
+
+func follower_kind() -> String:
+	return String(follower().get("kind", ""))
+
+
+func follower_power() -> float:
+	var f := follower()
+	return Pets.power(int(f.get("lv", 1))) if not f.is_empty() else 0.0
+
+
+## Un œuf trouvé : il éclot dans la Serre au bout de deux heures (l'horloge part quand la Serre existe).
+func add_egg() -> void:
+	eggs.append({"end": int(Time.get_unix_time_from_system() + Pets.HATCH_HOURS * 3600.0 / Port.hatch_mult(self))})
+
+
+## Œufs éclos : renvoie les nouveaux familiers.
+func hatch_eggs() -> Array:
+	var out := []
+	if ship.room_level("serre") <= 0:
+		return out
+	var now := int(Time.get_unix_time_from_system())
+	for e in eggs.duplicate():
+		if int(e.end) <= now:
+			eggs.erase(e)
+			var kind := String(Pets.ORDER[rng.randi() % Pets.ORDER.size()])
+			var have := pet_index(kind)
+			if have >= 0:
+				pets[have].lv = mini(Pets.MAX_LV, int(pets[have].lv) + 1)     # un double fait grandir le familier
+			else:
+				pets.append({"kind": kind, "lv": 1})
+				if pet_follow < 0:
+					pet_follow = pets.size() - 1
+			out.append(kind)
+	return out
+
+
+func pet_index(kind: String) -> int:
+	for i in pets.size():
+		if String(pets[i].kind) == kind:
+			return i
+	return -1
+
+
+func feed_pet(i: int) -> bool:
+	if i < 0 or i >= pets.size():
+		return false
+	var lv := int(pets[i].lv)
+	if lv >= Pets.MAX_LV or shards < Pets.feed_cost(lv):
+		return false
+	shards -= Pets.feed_cost(lv)
+	pets[i].lv = lv + 1
+	return true
+
+
+# ---------------------------------------------------------------- grade du Capitaine (maquette WN)
+
+func captain_grade() -> int:
+	return Captain.grade_of(captain_xp)
+
+
+## Expérience de commandement ; renvoie vrai si le Capitaine vient de monter en grade.
+func captain_gain(kind: String, n: int = 1) -> bool:
+	var before := captain_grade()
+	captain_xp += int(round(float(Captain.XP.get(kind, 0)) * n * Port.xp_mult(self)))
+	return captain_grade() > before
+
+
+func captain_unspent() -> int:
+	return maxi(0, Captain.points(captain_grade()) - doctrine.size())
+
+
+func has_doctrine(id: String) -> bool:
+	return doctrine.has(id)
 
 
 # ---------------------------------------------------------------- liens d'équipage (maquette WH)
@@ -184,6 +311,16 @@ func bond_gain(ids: Array, n: int = 1) -> Array:
 		if Bonds.level_of(int(bond_xp[id])) > before:
 			up.append(a.bond)
 	return up
+
+
+## Succès atteints depuis la dernière fois (maquette YG) ; ils sont marqués comme annoncés.
+func new_achievements() -> Array:
+	var out := []
+	for a in Cosmetics.LIST:
+		if not ach_seen.has(String(a.id)) and Cosmetics.is_done(a, self):
+			ach_seen.append(String(a.id))
+			out.append(a)
+	return out
 
 
 func bond_level(id: String) -> int:
@@ -913,6 +1050,15 @@ func is_frontier() -> bool:
 ## Étage vaincu : enregistre les étoiles, débloque le suivant. Renvoie le coffre obtenu {rarity, credits, shards}.
 ## Avec `defer`, le butin du coffre n'est versé qu'à l'ouverture (voir claim_pending) : l'écran de résultat l'affiche après l'animation.
 func stage_cleared(star_count: int, combo: int = 1, defer: bool = false) -> Dictionary:
+	captain_gain("clear")
+	if Data.boss_type(stage) == "big":
+		captain_gain("big_boss")
+		if rng.randf() < Pets.EGG_BIG_BOSS + Port.egg_bonus(self):
+			add_egg()
+	if Sector.is_generated(stage):
+		glass += Port.glass_for(stage)        # verre brut pour bâtir Port-Altopia
+	if follower_kind() == "rongeuse":
+		shards += int(round(float(Data.WAVES_PER_STAGE) * follower_power()))
 	stars[stage] = maxi(int(stars.get(stage, 0)), star_count)
 	perseverance = 0
 	var loot := Data.combo_loot(combo)
@@ -1040,7 +1186,7 @@ func offline_rate_per_minute() -> float:
 
 func compute_offline(away_seconds: float) -> Dictionary:
 	var capped := minf(away_seconds, offline_cap_hours() * 3600.0)
-	var gain := offline_rate_per_minute() * capped / 60.0
+	var gain := offline_rate_per_minute() * capped / 60.0 * Port.offline_mult(self)
 	# quelques éclats de verre aussi : environ 1 par heure et par tranche de 8 étages atteints
 	var sh := int(floor(capped / 3600.0 * maxf(0.5, float(best_stage) / 8.0)))
 	return {"seconds": capped, "credits": gain, "shards": sh}
@@ -1048,7 +1194,8 @@ func compute_offline(away_seconds: float) -> Dictionary:
 
 ## Plafond des gains hors ligne : 8 h, ou l'autonomie de l'Aurore si elle est plus longue (Centrale).
 func offline_cap_hours() -> float:
-	return maxf(Data.OFFLINE_CAP_HOURS, ship.autonomy_hours()) if ship.unlocked else Data.OFFLINE_CAP_HOURS
+	var extra := 1.0 if doctrine.has("veille") else 0.0
+	return (maxf(Data.OFFLINE_CAP_HOURS, ship.autonomy_hours()) if ship.unlocked else Data.OFFLINE_CAP_HOURS) + extra
 
 
 # ---------------------------------------------------------------- vaisseau
@@ -1106,7 +1253,7 @@ func save_game() -> void:
 		"tutorial": tutorial_done, "intro": intro_seen, "last_seen": last_seen, "free_chest": last_free_chest,
 		"perseverance": perseverance, "boosts": boosts, "wild": wild, "pending": pending_chest,
 		"owned": owned.keys(), "hero_stars": hero_stars, "fragments": fragments, "squad": squad, "tokens": tokens, "crystals": crystals,
-		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read,
+		"recruit_pity": recruit_pity, "pulls": pulls, "items": items, "next_item": next_item, "stash": stash, "auto_recycle": auto_recycle, "item_pity": item_pity, "item_tokens": item_tokens, "seen_scenes": seen_scenes, "story_choices": story_choices, "chapters_done": chapters_done, "story_v": 2, "tips": tips, "inf_diff": inf_diff, "gen_tries": gen_tries, "gen_wins": gen_wins, "sectors_seen": sectors_seen, "item_pack_pity": item_pack_pity, "item_pulls": item_pulls, "daily_day": daily_day, "last_pulls": last_pulls, "boost_until": boost_until, "ship": ship.to_dict(), "orders": orders.to_dict(), "board": board.to_dict(), "talents": talents, "bond_xp": bond_xp, "bond_read": bond_read, "paint": paint, "outfits": outfits, "ach_seen": ach_seen, "boarding_day": boarding_day, "captain_xp": captain_xp, "doctrine": doctrine, "eggs": eggs, "pets": pets, "pet_follow": pet_follow, "dive": dive.to_dict(), "glass": glass, "port": port,
 	}))
 
 
@@ -1281,6 +1428,20 @@ func load_game() -> bool:
 	talents = parsed.get("talents", {}) if parsed.get("talents", {}) is Dictionary else {}
 	bond_xp = parsed.get("bond_xp", {}) if parsed.get("bond_xp", {}) is Dictionary else {}
 	bond_read = parsed.get("bond_read", []) if parsed.get("bond_read", []) is Array else []
+	paint = String(parsed.get("paint", "amiraute"))
+	if not Cosmetics.PAINTS.has(paint):
+		paint = "amiraute"
+	outfits = parsed.get("outfits", {}) if parsed.get("outfits", {}) is Dictionary else {}
+	ach_seen = parsed.get("ach_seen", []) if parsed.get("ach_seen", []) is Array else []
+	boarding_day = int(parsed.get("boarding_day", -1))
+	captain_xp = int(parsed.get("captain_xp", 0))
+	doctrine = Array(parsed.get("doctrine", []))
+	eggs = Array(parsed.get("eggs", []))
+	pets = Array(parsed.get("pets", []))
+	pet_follow = int(parsed.get("pet_follow", -1))
+	dive = Dive.from_dict(parsed.get("dive", {}))
+	glass = int(parsed.get("glass", 0))
+	port = parsed.get("port", {})
 	if int(parsed.get("story_v", 1)) < 2:
 		_migrate_story()
 	var away := maxi(0, int(Time.get_unix_time_from_system()) - last_seen)

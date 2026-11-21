@@ -9,6 +9,7 @@ signal open_evolve(id: String)
 signal open_items
 signal open_orders
 signal open_event(e: Dictionary)
+signal open_boarding
 
 const ROW := 108.0
 
@@ -23,6 +24,8 @@ static func entries() -> Array:
 	var out := []
 	var o: Orders = Game.orders
 	o.refresh()
+	if Boarding.available(Game):
+		out.append({"kind": "boarding", "title": "Abordage ! L’Aurore est attaquée", "sub": "un essaim monte à bord · une fois par jour", "action": "Défendre", "rank": 0, "role": "danger"})
 	if Game.free_chest_ready():
 		out.append({"kind": "chest", "title": "Coffre gratuit prêt", "sub": "crédits et éclats", "action": "Ouvrir", "rank": 0, "role": "success"})
 	for i in o.list.size():
@@ -37,6 +40,13 @@ static func entries() -> Array:
 		for sh in Game.ship.shuttles:
 			if bool(Game.ship.shuttles[sh].get("back", false)):
 				out.append({"kind": "shuttle", "title": "%s est rentrée" % String(Ship.SHUTTLES[sh].name) if Ship.SHUTTLES.has(sh) else "Navette rentrée", "sub": "rapport d’expédition au Hangar", "action": "Lire", "rank": 0, "role": "main"})
+	# chantier conseillé (il était sur l'accueil de l'Aurore, maquette XA)
+	if Game.ship.unlocked and Game.mission_open():
+		var adv: Dictionary = Game.ship.advice(Game)
+		if not adv.is_empty() and bool(adv.ok):
+			var r := String(adv.room)
+			var lv: int = Game.ship.room_level(r)
+			out.append({"kind": "advice", "title": "Chantier conseillé : %s" % (("construire " + String(Ship.ROOMS[r].short)) if lv <= 0 else "%s → niv. %d" % [Ship.ROOMS[r].short, lv + 1]), "sub": "⏱ " + UI.duration(float(Game.ship.cost_of(Game, r).time)), "action": "Lancer", "rank": 1, "role": "success", "data": r})
 	for e in Game.board.pending:
 		var t := BoardEvents.template(String(e.id))
 		out.append({"kind": "event", "title": "Événement · %s" % String(t.title), "sub": String(Ship.ROOMS[e.room].name), "action": "Voir", "rank": 1, "role": "main", "data": e})
@@ -52,6 +62,23 @@ static func entries() -> Array:
 			better += 1
 	if better > 0:
 		out.append({"kind": "items", "title": "%d objet%s meilleur%s en stock" % [better, "s" if better > 1 else "", "s" if better > 1 else ""], "sub": "pour l’escouade", "action": "Équiper", "rank": 1, "role": "main"})
+	if not Game.eggs.is_empty() or not Game.pets.is_empty():
+		var sub := "%d œuf%s à la Serre" % [Game.eggs.size(), "s" if Game.eggs.size() > 1 else ""] if not Game.eggs.is_empty() else "%d familier%s" % [Game.pets.size(), "s" if Game.pets.size() > 1 else ""]
+		var fk := Game.follower_kind()
+		out.append({"kind": "pets", "title": "Familier : %s" % (Pets.KINDS[fk].name if fk != "" else "aucun"), "sub": sub, "action": "Voir", "rank": 2, "role": "secondary"})
+	if Port.open(Game):
+		var fr := Port.forge_ready(Game)
+		if fr > 0:
+			out.append({"kind": "port", "title": "Fonderie : %d jeton%s d’objet forgé%s" % [fr, "s" if fr > 1 else "", "s" if fr > 1 else ""], "sub": "Port-Altopia", "action": "Récupérer", "rank": 0, "role": "success"})
+		elif Port.arena_ready(Game):
+			out.append({"kind": "port", "title": "Arène : une escouade rivale attend", "sub": "Port-Altopia · une fois par jour", "action": "Voir", "rank": 2, "role": "secondary"})
+	if Game.dive_open():
+		var dv := Game.current_dive()
+		if not dv.done and not dv.stuck(Game):
+			out.append({"kind": "dive", "title": "La Plongée de la semaine", "sub": "profondeur %d / %d · remise à zéro lundi" % [dv.depth, Dive.DEPTHS], "action": "Plonger", "rank": 2, "role": "secondary"})
+	var cp: int = Game.captain_unspent()
+	if cp > 0:
+		out.append({"kind": "captain", "title": "Doctrine : %d point%s à placer" % [cp, "s" if cp > 1 else ""], "sub": "%s · grade %d" % [Captain.title(Game.captain_grade()), Game.captain_grade()], "action": "Placer", "rank": 1, "role": "gold"})
 	var unread: int = Game.bond_unread()
 	if unread > 0:
 		out.append({"kind": "bond", "title": "Conversation%s d’équipage" % ("s" if unread > 1 else ""), "sub": "%d à lire · liens d’équipage" % unread, "action": "Lire", "rank": 2, "role": "secondary"})
@@ -148,10 +175,15 @@ func _glyph(c: Control, kind: String, at: Vector2, col: Color) -> void:
 			c.draw_rect(Rect2(at - Vector2(6, 4), Vector2(12, 8)), col)
 		"order", "orders":
 			c.draw_polyline(PackedVector2Array([at + Vector2(-11, 0), at + Vector2(-3, 9), at + Vector2(12, -9)]), col, 5.0, true)
+		"advice":
+			c.draw_line(at + Vector2(-11, 11), at + Vector2(9, -9), col, 4.0, true)
+			c.draw_rect(Rect2(at + Vector2(2, -14), Vector2(12, 8)), col)
 		"harvest":
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -13), at + Vector2(13, -2), at + Vector2(8, 13), at + Vector2(-8, 13), at + Vector2(-13, -2)]), col)
 		"shuttle":
 			c.draw_colored_polygon(PackedVector2Array([at + Vector2(-10, -12), at + Vector2(14, 0), at + Vector2(-10, 12), at + Vector2(-4, 0)]), col)
+		"boarding":
+			M3.text(c, at + Vector2(-20, 11), "⚠", 28, col, true, 40, HORIZONTAL_ALIGNMENT_CENTER)
 		"star", "talent":
 			Art.star(c, at, 15.0, col, 0.0)
 		"event":
@@ -186,6 +218,26 @@ func _act(e: Dictionary) -> void:
 			var bs := BondsScreen.new()
 			bs.closed.connect(_build)
 			add_child(bs)
+		"port":
+			if Port.forge_claim(Game) > 0:
+				Sfx.play("chest", -4.0)
+				_after()
+			else:
+				var pts := PortScreen.new()
+				pts.closed.connect(_build)
+				add_child(pts)
+		"dive":
+			var ds := DiveScreen.new()
+			ds.closed.connect(_build)
+			add_child(ds)
+		"pets":
+			var ps := PetsScreen.new()
+			ps.closed.connect(_build)
+			add_child(ps)
+		"captain":
+			var cs := CaptainScreen.new()
+			cs.closed.connect(_build)
+			add_child(cs)
 		"talent":
 			var ts := TalentScreen.new(String(e.data))
 			ts.closed.connect(_build)
@@ -196,6 +248,14 @@ func _act(e: Dictionary) -> void:
 				Sfx.play("chest", -4.0)
 				M3.toast(self, "%d objet%s équipé%s" % [n, "s" if n > 1 else "", "s" if n > 1 else ""], UI.GREEN)
 			_after()
+		"advice":
+			if Game.ship.start_upgrade(Game, String(e.data)):
+				Sfx.play("coin")
+				M3.toast(self, "Chantier lancé", UI.GREEN)
+			_after()
+		"boarding":
+			close()
+			open_boarding.emit()
 		"orders":
 			close()
 			open_orders.emit()

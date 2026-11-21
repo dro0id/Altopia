@@ -119,6 +119,7 @@ static func _shade(c: Color, k: float) -> Color:
 # ---------------------------------------------------------------- héros
 
 static func draw_hero(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
+	h = Cosmetics.dressed(h)                 # tenue choisie (maquette YG)
 	var look: Dictionary = h.look
 	var t: float = p.get("t", 0.0)
 	var atk: float = p.get("atk", 0.0)
@@ -444,6 +445,7 @@ static func _strike(atk: float) -> float:
 
 
 static func draw_hero_back(ci: CanvasItem, h: Dictionary, p: Dictionary) -> void:
+	h = Cosmetics.dressed(h)
 	var look: Dictionary = h.look
 	var t: float = p.get("t", 0.0)
 	var atk: float = p.get("atk", 0.0)
@@ -649,6 +651,7 @@ static func draw_enemy_front(ci: CanvasItem, kind: String, p: Dictionary) -> voi
 
 ## Portrait rond d'un héros (boutons de pouvoir, liste) : on dessine la tête agrandie, sans le corps.
 static func draw_portrait(ci: CanvasItem, h: Dictionary, center: Vector2, radius: float, t: float = 0.0) -> void:
+	h = Cosmetics.dressed(h)
 	var s := radius / 38.0
 	ci.draw_set_transform(center + Vector2(-2, 112) * s, 0.0, Vector2(s, s))
 	_draw_head(ci, h, h.look, Vector2(2, -112), t, 0.0, 0.0, false)

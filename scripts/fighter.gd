@@ -43,7 +43,19 @@ func setup(u: BattleSim.Unit, pos: Vector2) -> void:
 			scale_k *= 0.75
 		"reine":
 			scale_k *= 1.0
-	_pal = EnemyArt.palette_for(Game.stage) if u.side == 1 else {}
+		"ardente":
+			scale_k = depth * 1.25
+		"couveuse":
+			scale_k = depth * 1.3
+	_pal = EnemyArt.palette_for(_stage()) if u.side == 1 else {}
+
+
+## Étage du combat en cours (celui de la Plongée peut différer de l'étage de la mission).
+func _stage() -> int:
+	var b := get_parent()
+	if b != null and b.get("sim") != null:
+		return int(b.sim.stage)
+	return int(Game.stage)
 
 
 func play_attack(melee: bool) -> void:
@@ -93,6 +105,11 @@ func _process(delta: float) -> void:
 	var hk := 1.0 - hurt_t
 	var knock := hk * hk * 9.0 * flip
 	position = home + Vector2(sin(t * 60.0) * hk * 2.0, -off * flip + drop + knock)
+	if unit != null and unit.kind == "ardente" and unit.alive:
+		# la mite ardente fonce vers le premier rang pendant que sa mèche brûle
+		var burn := 1.0 - clampf(unit.fuse / Data.ARDENT_FUSE, 0.0, 1.0)
+		position += Vector2((360.0 - home.x) * burn * 0.5, 180.0 * smoothstep(0.0, 1.0, burn))
+		move = maxf(move, 0.6)
 	var sc := scale_k
 	var squash := 0.12 * hk + (0.06 * sin(PI * clampf(appear, 0.0, 1.0)) if appear < 1.0 else 0.0)
 	scale = Vector2(sc * (1.0 + squash), sc * (1.0 - squash))
@@ -115,7 +132,8 @@ func _draw() -> void:
 		p["pal"] = _pal
 		p["phase2"] = unit.phase2
 		p["elite"] = unit.elite != ""
-		p["gold"] = unit.boss and unit.kind == "titan" and Game.stage == Data.LAST_STORY_BOSS
+		p["fuse"] = unit.fuse
+		p["gold"] = unit.boss and unit.kind == "titan" and _stage() == Data.LAST_STORY_BOSS
 	if unit.side == 0:
 		Art.draw_hero_back(self, unit.data, p)
 	else:
@@ -123,7 +141,7 @@ func _draw() -> void:
 	# barre de vie
 	if unit.alive:
 		var w := 62.0
-		var top := -165.0 if unit.side == 0 else (-62.0 if unit.kind == "mite" else -118.0)
+		var top := -165.0 if unit.side == 0 else (-62.0 if unit.kind in ["mite", "ardente"] else (-104.0 if unit.kind == "couveuse" else -118.0))
 		if unit.boss:
 			top = -155.0
 		match unit.kind:
@@ -141,6 +159,11 @@ func _draw() -> void:
 		draw_rect(Rect2(-w * 0.5, 0, w * unit.hp_frac(), 7), col)
 		if unit.shield > 0.0:
 			draw_rect(Rect2(-w * 0.5, -4, w * minf(1.0, unit.shield / unit.max_hp), 3), Color(0.5, 0.85, 1.0))
+		if Data.ROLE_COLORS.has(unit.kind):
+			# pastille de rôle (maquette WD) ; la mite ardente montre son compte à rebours
+			EnemyArt.role_badge(self, unit.kind, Vector2(w * 0.5 + 16, 4), 12.0)
+			if unit.kind == "ardente":
+				draw_rect(Rect2(-w * 0.5, 10, w * clampf(unit.fuse / Data.ARDENT_FUSE, 0.0, 1.0), 4), Color(1.0, 0.6, 0.25))
 		if unit.elite != "":
 			# étiquette d'élite (maquette FC) au-dessus de la barre de vie
 			var lab := "★ Élite · %s" % unit.elite

@@ -108,7 +108,11 @@ func _init() -> void:
 
 
 ## Construit (ou reconstruit) le vaisseau pour un niveau donné.
+var paint := "amiraute"
+
+
 func setup(p_level: int, p_crew: Dictionary = {}, p_rooms: Dictionary = {}) -> void:
+	paint = Game.paint
 	level = clampi(p_level, 1, Ship.MAX_LEVEL)
 	tier = Ship.tier_of(level)
 	crew = p_crew
@@ -139,7 +143,28 @@ func set_cut(on: bool) -> void:
 			n.visible = on
 
 
+## Cadre serré sur une salle (maquette XI) : la vue de l'intérieur en haut de sa fiche.
+var focus_room := ""
+
+
+func focus(r: String) -> void:
+	focus_room = r
+	_frame()
+
+
 func _frame() -> void:
+	if focus_room != "" and boxes.has(focus_room):
+		var box: AABB = boxes[focus_room]
+		target = box.get_center() + Vector3(0, -0.15, 0)
+		var a := maxf(0.3, size.x / maxf(1.0, size.y))
+		var vf := deg_to_rad(cam.fov)
+		var hf := 2.0 * atan(tan(vf / 2.0) * a)
+		# la salle remplit la largeur ; on recule un peu pour voir le plafond et le sol
+		dist = maxf(box.size.x * 0.62 / tan(hf / 2.0), box.size.y * 0.75 / tan(vf / 2.0)) + box.size.z * 0.5
+		yaw = 0.0
+		pitch = 0.06
+		_home_dist = dist
+		return
 	var need_h := HULL_TOP + (7.0 if tier == 5 else 5.2)
 	var need_w := 8.6 if tier == 1 else (13.6 if tier == 5 else (14.2 if tier == 4 else 12.8))
 	var a := maxf(0.3, size.x / maxf(1.0, size.y))
@@ -344,11 +369,14 @@ func _materials() -> void:
 	m_inner = _mat(Color("0f1630"), 0.15, 0.85)
 	m_inner.cull_mode = BaseMaterial3D.CULL_FRONT
 	m_deck = _mat(Color("1b2547"), 0.5, 0.55)
-	m_deck_side = _mat(Color("c9d3ea"), 0.4, 0.4)
+	# peinture choisie (maquette YG) : plaques claires et bandes sombres, visibles aussi en coupe
+	var pt: Dictionary = Cosmetics.PAINTS.get(paint, Cosmetics.PAINTS.amiraute)
+	var light: Color = pt.light
+	m_deck_side = _mat(Color("c9d3ea") if paint == "amiraute" else light.darkened(0.08), 0.4, 0.4)
 	m_dark = _mat(Color("121a36"), 0.45, 0.5)
 	m_metal = _mat(Color("8d9cc4"), 0.85, 0.3)
-	m_paint = _mat(Color("dfe6f5"), 0.3, 0.4)
-	m_navy = _mat(Color("1e2a55"), 0.4, 0.45)
+	m_paint = _mat(light, 0.3, 0.4)
+	m_navy = _mat(pt.navy, 0.4, 0.45)
 	m_gold = _mat(Color("e0b24f") if tier == 5 else Color("c99a3a"), 0.85, 0.18)
 	if tier == 5:
 		m_gold.emission_enabled = true
@@ -552,8 +580,10 @@ func _livery() -> ImageTexture:
 	var W := 256
 	var H := 1024
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
-	var light := Color("f4f1ff") if tier == 5 else Color("dfe6f5")
-	var navy := Color("0e0f1a") if tier == 5 else Color("1e2a55")
+	# peinture choisie (maquette YG) ; l'Amirauté garde le blanc et or du niveau 20
+	var pt: Dictionary = Cosmetics.PAINTS.get(paint, Cosmetics.PAINTS.amiraute)
+	var light: Color = Color("f4f1ff") if (tier == 5 and paint == "amiraute") else pt.light
+	var navy: Color = Color("0e0f1a") if (tier == 5 and paint == "amiraute") else pt.navy
 	var joint := Color("d9a53a") if tier >= 4 else navy
 	img.fill(light)
 	var yv := func(v: float) -> int: return clampi(int((1.0 - (v - 0.25) / (HULL_TOP - 0.25)) * H), 0, H)
@@ -564,7 +594,7 @@ func _livery() -> ImageTexture:
 			img.fill_rect(Rect2i(0, a, W, b - a), c)
 	band.call(0.25, 1.02, navy)
 	band.call(CROWN.x, CROWN.y - 0.06, navy)
-	var mc := [Color("ffd166"), Color("4fd8ff"), Color("ff9f6b"), Color("b388ff"), Color("9dff6b")]
+	var mc: Array = pt.marks
 	for i in MODS.size():
 		var m: Vector2 = MODS[i]
 		band.call(m.y - 0.12, m.y + 0.06, joint)

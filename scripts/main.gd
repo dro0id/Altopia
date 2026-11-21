@@ -15,6 +15,8 @@ var _strip: Control
 var _controls: Control
 var _auto_b: Button
 var _fab_cast: Button
+var _dive_col := -1                # combat de la Plongée en cours : colonne du nœud (maquette WL)
+var _reso_ring: Control
 var _fab_speed: Button
 var _field: Control
 var _boss_bar: BossBar
@@ -78,6 +80,7 @@ func _ready() -> void:
 	_field.add_child(shade)
 	battle.stage_cleared.connect(_on_cleared)
 	battle.stage_failed.connect(_on_failed)
+	Game.dive_fight.connect(_start_dive_fight)
 	Game.ship_events.connect(_on_ship_events)
 	_build_top()
 	_build_skills()
@@ -242,7 +245,16 @@ func _build_squad() -> void:
 		Game.save_game()
 		_refresh())
 	_fab_cast = _fab(_controls, "✦", Rect2(448, 0, 112, 112))
+	# jauge de Résonance (maquette WF) : anneau autour du bouton, qui prend sa place quand il est plein
+	_reso_ring = Control.new()
+	_reso_ring.size = Vector2(112, 112)
+	_reso_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reso_ring.draw.connect(_draw_reso_ring)
+	_fab_cast.add_child(_reso_ring)
 	_fab_cast.pressed.connect(func():
+		if battle.sim != null and battle.sim.resonance >= 1.0 and battle.sim.resonate():
+			_manual_cast = true
+			return
 		var n := 0
 		if battle.sim != null:
 			for u in battle.sim.units:
@@ -259,6 +271,23 @@ func _build_squad() -> void:
 		battle.speed = Game.speed
 		Game.save_game()
 		_refresh())
+
+
+func _draw_reso_ring() -> void:
+	if battle == null or battle.sim == null:
+		return
+	var c := Vector2(56, 56)
+	var v: float = battle.sim.resonance
+	var col: Color = Data.RESONANCE[battle.sim.res_kind].col
+	_reso_ring.draw_arc(c, 60.0, -PI / 2.0, -PI / 2.0 + TAU * v, 40, Color(col, 0.9), 6.0, true)
+	if v >= 1.0:
+		var k := 0.5 + 0.5 * sin(battle.clock * 6.0)
+		_reso_ring.draw_arc(c, 64.0 + k * 4.0, 0, TAU, 40, Color(UI.GOLD, 0.4 + 0.4 * k), 3.0, true)
+		var lab := "RÉSONANCE"
+		var w := M3.text_w(lab, 18, true) + 24.0
+		var r := Rect2(c.x - w * 0.5, -34, w, 30)
+		_reso_ring.draw_style_box(UI.box(Color(0.04, 0.06, 0.13, 0.95), Color(UI.GOLD, 0.8), 15, 0), r)
+		M3.text(_reso_ring, Vector2(r.position.x, r.position.y + 22), lab, 18, UI.GOLD, true, w, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 ## Bouton flottant carré arrondi (56 dp, rayon 16 dp) avec un glyphe dessiné.
@@ -389,7 +418,7 @@ func _layout() -> void:
 	# bas : rangée d'actions puis bande des portraits, posées au-dessus de la barre de navigation
 	_controls.position = Vector2(0, h - NavBar.total() - 128.0)
 	_strip.position = Vector2(0, _controls.position.y - 164.0)
-	_boss = Data.boss_type(Game.stage)
+	_boss = Data.boss_type(_fight_stage())
 	var top := 112.0 + _dy
 	_fh = _strip.position.y - top
 	# écran haut : la place au-dessus du terrain sert au suivi du combat (maquette XC)
@@ -497,6 +526,10 @@ func _open_map() -> void:
 		_start_battle())
 	m.chest_claimed.connect(_show_chest_toast)
 	m.journal_requested.connect(func(): _open_journal.call_deferred())
+	m.compose_requested.connect(func(n: int):
+		Game.go_to(n)
+		_start_battle()
+		_open_collection.call_deferred(0))
 	_open_modal(m)
 
 
@@ -637,6 +670,9 @@ func _open_todo() -> void:
 	t.open_evolve.connect(func(id: String): _open_evolve.call_deferred(id))
 	t.open_items.connect(func(): _open_collection.call_deferred(1))
 	t.open_orders.connect(_open_orders)
+	t.open_boarding.connect(func():
+		if _modal != null and is_instance_valid(_modal):
+			_modal.add_child(BoardingScreen.new()))
 	t.open_event.connect(func(e: Dictionary):
 		if _modal is ShipScreen:
 			(_modal as ShipScreen).open_event(e))
@@ -738,6 +774,12 @@ func _show_item_toast(drop: Dictionary) -> void:
 
 
 func _start_battle() -> void:
+	if _dive_col >= 0:
+		# combat de la Plongée quitté en route : ses blessures restent, le nœud reste à prendre
+		Game.current_dive().wounds(battle.sim, false)
+		_dive_col = -1
+		Game.save_game()
+	battle.dive = false
 	_layout()
 	battle.speed = Game.speed
 	battle.start(Game.team(), Game.stage, Game.auto_cast, Game.boosts)
@@ -849,7 +891,57 @@ func _open_journal() -> void:
 	move_child(_nav, get_child_count() - 1)
 
 
+## La Plongée (maquette WL) : le combat d'un nœud se joue ici, avec les PV de la descente et ses reliques.
+func _start_dive_fight(col: int) -> void:
+	var dv: Dive = Game.current_dive()
+	var kind := String(dv.node(dv.depth, col).get("kind", "combat"))
+	var sim := dv.prepare(Game, dv.depth, kind, int(Time.get_ticks_msec()))
+	if sim == null:
+		return
+	if _dive_col >= 0:
+		dv.wounds(battle.sim, false)
+	if _modal != null and is_instance_valid(_modal):
+		_modal.queue_free()
+		_modal = null
+	_nav.visible = true
+	_dive_col = col
+	_layout()
+	battle.speed = Game.speed
+	battle.start_sim(sim, Game.auto_cast)
+	battle.dive = true
+	_claimed = 0.0
+	for i in skill_buttons.size():
+		skill_buttons[i].unit = null
+	for u in battle.sim.units:
+		if u.side == 0:
+			skill_buttons[u.slot].unit = u
+			skill_buttons[u.slot].hero = Data.HEROES[u.id]
+	_show_toast("La Plongée · profondeur %d · %s" % [dv.depth + 1, String(Dive.KINDS[kind].name).to_lower()], 2.0)
+	_refresh()
+
+
+func _end_dive_fight(won: bool) -> void:
+	var dv: Dive = Game.current_dive()
+	var col := _dive_col
+	_dive_col = -1
+	var rep := dv.resolve(Game, col, battle.sim, won, int(Time.get_ticks_msec()))
+	Game.save_game()
+	Game.changed.emit()
+	_start_battle()
+	var ds := DiveScreen.new()
+	_open_modal(ds)
+	ds.show_report(rep)
+
+
+## Étage du combat affiché : celui de la Plongée pendant un de ses combats.
+func _fight_stage() -> int:
+	return int(battle.sim.stage) if _dive_col >= 0 and battle.sim != null else int(Game.stage)
+
+
 func _on_cleared(_credits: float) -> void:
+	if _dive_col >= 0:
+		_end_dive_fight(true)
+		return
 	var stage := Game.stage
 	var stars: int = battle.sim.stars
 	var frontier := Game.is_frontier()
@@ -915,6 +1007,9 @@ func _pick_boost(then: Callable) -> void:
 
 
 func _on_failed() -> void:
+	if _dive_col >= 0:
+		_end_dive_fight(false)
+		return
 	if Game.is_frontier():
 		Game.record_generated(Game.stage, false)
 	Game.defeated()
@@ -951,6 +1046,8 @@ func _process(delta: float) -> void:
 	if _battery_t > 60.0:
 		_battery_t = 0.0
 		Game.apply_performance()
+	if _reso_ring != null:
+		_reso_ring.queue_redraw()
 	_refresh_t += delta
 	if _refresh_t > 0.15:
 		_refresh_t = 0.0
@@ -1013,11 +1110,11 @@ func _refresh_boss() -> void:
 			bu = u
 	var big := _boss == "big"
 	_boss_bar.col = UI.RED if big else Color("ffb142")
-	_boss_bar.title = Data.boss_name(Game.stage)
+	_boss_bar.title = Data.boss_name(_fight_stage())
 	_boss_bar.phase = "arrive à la vague %d" % battle.sim.waves_total
 	_boss_bar.frac = 1.0
 	_boss_bar.wait = true
-	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(Game.stage), BOSS_INFO.titan)
+	var info: Dictionary = BOSS_INFO.get(Data.boss_kind(_fight_stage()), BOSS_INFO.titan)
 	if bu != null:
 		_boss_bar.frac = bu.hp_frac()
 		_boss_bar.wait = false
@@ -1042,7 +1139,10 @@ func _refresh_boss() -> void:
 
 func _refresh() -> void:
 	var big := _boss == "big"
-	_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
+	if _dive_col >= 0:
+		_stage_btn.set_texts("Plongée · %d / %d" % [Game.current_dive().depth + 1, Dive.DEPTHS])
+	else:
+		_stage_btn.set_texts(("☠ Secteur %d" if big else "Secteur %d ▾") % Game.stage)
 	_stage_btn.text_color = Color("ff9b9b") if big else UI.TEXT
 	_stage_btn.role = "danger" if big else ""
 	_stage_btn.queue_redraw()
@@ -1062,9 +1162,9 @@ func _refresh() -> void:
 	var sub := "Vague %d/%d" % [mini(battle.sim.wave, battle.sim.waves_total), battle.sim.waves_total]
 	if battle.sim.combo > 1:
 		sub += " · Combo ×%d" % battle.sim.combo
-	if not Game.is_frontier() and _boss == "":
+	if not Game.is_frontier() and _boss == "" and _dive_col < 0:
 		sub = "Farm · " + sub
-	var sec := Sector.info(Game.stage)
+	var sec := Sector.info(_fight_stage())
 	if sec.is_empty():
 		_info.visible = false
 	else:
@@ -1117,6 +1217,14 @@ func _refresh() -> void:
 ## Onglets et pastilles de la barre du bas. Aussi appelé par la barre elle-même pendant qu'une fenêtre
 ## met le jeu en pause (sinon l'onglet Aurore et les pastilles restent figés jusqu'au retour au combat).
 func _update_nav() -> void:
+	# succès atteints (maquette YG) : annoncés une fois
+	for a in Game.new_achievements():
+		M3.toast(self, "Succès « %s » · %s" % [a.name, Cosmetics.reward_text(a)], UI.GOLD)
+		Game.save_game()
+	# œufs de familier éclos dans la Serre (maquette WI)
+	for k in Game.hatch_eggs():
+		M3.toast(self, "Un œuf a éclos dans la Serre : %s" % Pets.KINDS[k].name, UI.GREEN)
+		Game.save_game()
 	var affordable := 0
 	for id in Game.squad_ids():
 		if (Game.credits >= Game.level_cost(id) and not Game.at_cap(id)) or Game.can_star_up(id):

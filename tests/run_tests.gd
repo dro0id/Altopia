@@ -1169,3 +1169,194 @@ func test_bonds() -> void:
 	_check(Bonds.skill_bonus("mara", ["mara", "kai"], _g.bond_xp) == 0.0, "pas de bonus sans un autre membre")
 	_g.bond_xp["ecoutent"] = 40
 	_check(is_equal_approx(Bonds.skill_bonus("zyra", ["zyra", "oru", "lumi"], _g.bond_xp), 0.12), "lien de niveau 2 à trois : +12 %")
+
+
+## Maquette YG : succès, peintures et tenues.
+func test_cosmetics() -> void:
+	_check(Cosmetics.paint_open("amiraute", _g) and not Cosmetics.paint_open("braise", _g), "seule la peinture d'origine au départ")
+	_g.chapters_done = [1, 2, 3, 4]
+	_check(Cosmetics.paint_open("braise", _g), "le chapitre 4 ouvre la peinture Braise")
+	var news: Array = _g.new_achievements()
+	_check(news.size() == 1 and String(news[0].id) == "chap4", "succès annoncé une fois")
+	_check(_g.new_achievements().is_empty(), "pas annoncé deux fois")
+	_g.outfits["kai"] = "seuil"
+	var h: Dictionary = Cosmetics.dressed(Data.HEROES["kai"])
+	_check(h.look.suit == Cosmetics.OUTFITS.seuil.suit and Data.HEROES["kai"].look.suit != Cosmetics.OUTFITS.seuil.suit, "la tenue change les couleurs sans toucher aux données")
+	var base := BattleSim.new([{"id": "kai", "level": 10}], 1, 1)
+	_check(base.units[0].atk > 0.0, "aucun effet de combat")
+
+
+## Maquette WM : abordage.
+func test_boarding() -> void:
+	_g.ship.unlock()
+	_g.ship.level = 10
+	_g.ship.open_rooms()
+	_g.chapters_done = [1]
+	for id in ["mara", "kai", "zyra", "t9", "oru", "gorn", "omega"]:
+		_g.owned[id] = true
+		_g.levels[id] = 20
+	_g.squad = ["mara", "kai", "zyra", "t9", "oru"]
+	for r in ["raffinerie", "centrale", "serre"]:
+		_g.ship.rooms[r] = 3
+	_g.ship.posts["raffinerie"] = ["gorn", "omega"]
+	_check(Boarding.available(_g), "abordage disponible une fois par jour")
+	var b := Boarding.new()
+	b.start(_g, 5)
+	_check(b.wave == 1 and not b.assaults.is_empty(), "première vague : des salles assaillies")
+	var r := String(b.assaults[0].room)
+	var d0 := b.defense(_g, r)
+	b.deploy(r)
+	_check(b.defense(_g, r) > d0, "l'escouade renforce la salle")
+	while not b.done():
+		b.step(_g, Boarding.WAVE_TIME)
+		b.next_wave(_g)
+	_check(b.held + b.lost == b.history.size() and b.history.size() >= Boarding.WAVES, "chaque salle assaillie est tenue ou perdue")
+	for h in b.history:
+		if not bool(h.held):
+			_check(int(_g.ship.blocked.get(String(h.room), 0)) > ShipState.now(), "une salle perdue s'arrête")
+			break
+	_g.boarding_day = Boarding.today()
+	_check(not Boarding.available(_g), "pas deux abordages le même jour")
+
+
+func test_role_enemies_and_frequencies() -> void:
+	_check(Data.role_enemies_for(3).is_empty(), "pas d'ennemi à rôle avant l'étage 4")
+	_check(Data.role_enemies_for(45).size() == 5, "tous les rôles dans les secteurs générés")
+	var s := BattleSim.new(_team(10), 12, 1)
+	var p := s._make_enemy("porteur", 1, false)
+	var m := s._make_enemy("mite", 2, false)
+	for u in s.units.duplicate():
+		if u.side == 1:
+			s.units.erase(u)
+	s.units.append(s._make_enemy("mite", 0, false))
+	s.units.append(p)
+	s.units.append(m)
+	_check(s._warded(m) and not s._warded(p), "le Porte-éclat protège ses voisins")
+	var hero: BattleSim.Unit = s.allies()[0]
+	_check(s._pick_target(hero) == p, "l'auto vise d'abord le protecteur")
+	_check(Data.stage_freq(5) == "cyan" and Data.stage_freq(15) == "violet" and Data.stage_freq(25) == "ambre" and Data.stage_freq(35) == "", "fréquences des chapitres")
+	_check(Data.freq_advantaged("mara", 15) and not Data.freq_advantaged("kai", 15), "ambre bat violet")
+
+
+func test_resonance() -> void:
+	_check(Data.resonance_kind(["mara", "kai", "dax", "t9", "oru"]) == "feu", "trois humains : Feu nourri")
+	_check(Data.resonance_kind(["t9", "pim", "brix", "mara", "zyra"]) == "surcharge", "trois robots : Surcharge")
+	_check(Data.resonance_kind(["mara", "kai", "t9", "pim", "zyra"]) == "accord", "escouade mêlée : Accord")
+	var s := BattleSim.new(_team(10), 6, 1)
+	s.auto_cast = false
+	_check(not s.resonate(), "jauge vide : rien")
+	for u in s.allies():
+		u.skill_cd = 0.0
+		s.cast(u.slot)
+	_check(s.resonance > 0.0, "les pouvoirs remplissent la jauge")
+	s.resonance = 1.0
+	_check(s.resonate() and s.resonance == 0.0, "jauge pleine : la Résonance part")
+
+
+func test_captain() -> void:
+	_check(_g.captain_grade() == 1 and _g.captain_unspent() == 0, "grade 1 au départ, aucun point")
+	_g.captain_xp = Captain.need(1) + Captain.need(2)
+	_check(_g.captain_grade() == 3 and _g.captain_unspent() == 2, "un point par grade")
+	_check(not Captain.can_take("enchainement", _g.doctrine, 3), "dans l'ordre de la branche")
+	_check(Captain.can_take("feu", _g.doctrine, 3), "premier nœud libre")
+	_g.doctrine = ["feu", "enchainement"]
+	_check(not Captain.can_take("sangfroid", _g.doctrine, 3), "plus de point")
+	_check(Captain.drop("feu", _g.doctrine).is_empty(), "rendre un nœud rend la suite")
+	_check(Captain.title(10) == "Commodore" and Captain.title(30) == "Amiral", "titres")
+	_g.doctrine = ["veille"]
+	var cap0 := Data.OFFLINE_CAP_HOURS
+	_check(_g.offline_cap_hours() >= cap0 + 1.0, "Longue veille : +1 h hors ligne")
+	_g.doctrine = ["feu", "enchainement", "brise", "salve"]
+	var s := BattleSim.new(_g.team(), 3, 1)
+	for u in s.allies():
+		_check(u.skill_cd <= u.skill_max * 0.25 + 0.001, "Salve d'ouverture")
+		break
+
+
+func test_pets() -> void:
+	_g.ship.unlocked = true
+	_g.ship.rooms["serre"] = 1
+	_g.add_egg()
+	_check(_g.hatch_eggs().is_empty(), "l'œuf couve deux heures")
+	_g.eggs[0].end = 0
+	var got: Array = _g.hatch_eggs()
+	_check(got.size() == 1 and _g.pets.size() == 1 and _g.pet_follow == 0, "l'œuf éclot et le familier suit l'escouade")
+	_g.eggs.append({"end": 0})
+	_g.pets[0].kind = String(got[0])
+	var lv := int(_g.pets[0].lv)
+	_g.rng.seed = 1
+	_g.hatch_eggs()
+	_check(_g.pets.size() == 2 or int(_g.pets[0].lv) == lv + 1, "un double fait grandir le familier")
+	_g.pets = [{"kind": "gardienne", "lv": 1}]
+	_g.pet_follow = 0
+	_g.shards = 100
+	_check(_g.feed_pet(0) and int(_g.pets[0].lv) == 2 and _g.shards == 90, "nourrir d'éclats")
+	var s := BattleSim.new(_g.team(), 3, 1)
+	_check(s.allies()[0].shield > 0.0, "Gardienne : bouclier au départ")
+	_g.pets = [{"kind": "piquante", "lv": 5}]
+	var a := BattleSim.new(_g.team(), 3, 1)
+	_check(a.run(300.0) == "clear", "Piquante : l'escouade gagne avec elle")
+
+
+func test_dive() -> void:
+	for id in Data.ALL_HEROES:
+		_g.owned[id] = true
+		_g.levels[id] = 30
+	_g.best_stage = 25
+	_check(_g.dive_open(), "la Plongée s'ouvre après le chapitre 2")
+	var dv: Dive = _g.current_dive()
+	_check(dv.rows.size() == Dive.DEPTHS and String(dv.rows[Dive.DEPTHS - 1][0].kind) == "boss", "douze profondeurs, un boss au fond")
+	for d in Dive.DEPTHS - 1:
+		for nd in dv.rows[d]:
+			_check(not (nd.links as Array).is_empty(), "chaque nœud mène plus bas")
+	var other := Dive.new()
+	other.reset(dv.week)
+	_check(JSON.stringify(other.rows) == JSON.stringify(dv.rows), "même carte pour la semaine")
+	var steps := 0
+	while not dv.done and steps < 40 and not dv.stuck(_g):
+		if not dv.offer.is_empty():
+			dv.take_relic(String(dv.offer[0]))
+		var nx: Array = dv.next_cols()
+		if nx.is_empty():
+			break
+		dv.enter(_g, int(nx[0]), steps)
+		steps += 1
+	_check(dv.done or dv.stuck(_g) or dv.depth > 3, "la descente avance")
+	var back := Dive.from_dict(JSON.parse_string(JSON.stringify(dv.to_dict())))
+	_check(back.depth == dv.depth and back.relics == dv.relics, "la descente se sauvegarde")
+
+
+func test_port() -> void:
+	_check(not Port.open(_g), "Port-Altopia fermé avant la fin de l'histoire")
+	_g.chapters_done = [1, 2, 3, 4, 5]
+	_check(Port.open(_g), "ouvert après le chapitre 5")
+	_g.glass = 0
+	_g.credits = 1.0e9
+	_check(not Port.can_build(_g, "domes"), "il faut du verre brut")
+	_g.glass = 100
+	_check(Port.build(_g, "domes") and Port.lv(_g, "domes") == 1 and _g.glass == 96, "bâtir les Dômes")
+	_check(Port.offline_mult(_g) > 1.0, "Dômes : gains hors ligne")
+	Port.build(_g, "marche")
+	_g.shards = 100
+	_check(Port.trade(_g) and _g.shards == 60 and not Port.trade(_g), "Marché : un échange par jour et par niveau")
+	Port.build(_g, "fonderie")
+	_g.port["forge_t"] = int(Time.get_unix_time_from_system()) - 25 * 3600
+	var tok: int = _g.item_tokens
+	_check(Port.forge_claim(_g) == 1 and _g.item_tokens == tok + 1, "Fonderie : un jeton par jour")
+	_check(Port.glass_for(45) >= 1, "verre brut des secteurs générés")
+
+
+func test_port_new_districts() -> void:
+	_g.chapters_done = [5]
+	_g.glass = 100
+	_g.credits = 1.0e9
+	_check(Port.ORDER.size() == Port.SLOTS, "huit districts à bâtir")
+	Port.build(_g, "archives")
+	var xp: int = _g.captain_xp
+	_g.captain_gain("order")
+	_check(_g.captain_xp - xp > int(Captain.XP.order), "Archives : expérience du Capitaine en plus")
+	Port.build(_g, "jardins")
+	_g.ship.unlocked = true
+	_g.add_egg()
+	var left := int(_g.eggs[0].end) - int(Time.get_unix_time_from_system())
+	_check(left < int(Pets.HATCH_HOURS * 3600.0) - 60, "Jardins : éclosion plus rapide")

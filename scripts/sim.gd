@@ -54,6 +54,12 @@ class Unit:
 	var heal_mult := 1.0         # équipement : soins
 	var regen := 0.0             # PV rendus par seconde (part des PV max) : élites et boss Régénérants
 	var elite := ""              # trait d'élite (secteurs générés)
+	var fuse := 0.0              # Mite ardente : temps avant l'explosion
+	var brood_t := 0.0           # Couveuse : temps avant la prochaine ponte
+	var weave_t := 0.0           # Tisseuse : temps avant la prochaine réparation
+	var freq_adv := false        # héros avantagé par la fréquence de l'étage (maquette WE)
+	var rage_t := 0.0            # Résonance « Feu nourri » : attaque deux fois plus vite
+	var amp_t := 0.0             # Résonance « Accord » : dégâts +30 %
 	var data: Dictionary = {}
 
 	func hp_frac() -> float:
@@ -83,6 +89,13 @@ var parry_until := -1.0
 var revived := false             # Second souffle déjà utilisé dans ce combat
 var bursts: Array = []           # Carapace : explosions de bouclier à venir {t, src, dmg}          # bouclier posé dans la fenêtre : le coup du boss est paré jusqu'à cet instant           # ennemi désigné par le joueur : toute l'escouade le vise (maquette WC)                  # pouvoirs lancés par place de héros               # place du héros qui a porté le coup de grâce au boss
 var gold_mult := 1.0
+var resonance := 0.0             # jauge de Résonance d'escouade, 0 à 1 (maquette WF)
+var res_kind := "accord"
+var res_used := 0
+var doc: Array = []              # doctrine du Capitaine (maquette WN)
+var carre_used := false
+var pet: Dictionary = {}         # familier qui suit l'escouade (maquette WI)
+var pet_cd := 2.0
 var _last_cast := -100.0
 var clear_bonus := 0.0
 var auto_cast := true
@@ -99,6 +112,7 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 		var u := _make_hero(String(e.id), int(e.level), slot, float(e.get("bonus", 1.0)), int(e.get("evo", 0)), int(e.get("stars", 1)), e.get("mods", {}), e.get("eq", {}))
 		_apply_talents(u, e.get("tal", {}))
 		u.skill_mod += float(e.get("bond", 0.0))        # liens d'équipage (maquette WH)
+		u.freq_adv = Data.freq_advantaged(u.id, stage)
 		var sb: Dictionary = e.get("ship", {})
 		if not sb.is_empty():
 			# recherches du Labo (vaisseau) : PV, attaque, recharge des pouvoirs, dégâts aux boss
@@ -111,8 +125,30 @@ func _init(team: Array, p_stage: int, p_seed: int = 1, boosts: Array = []) -> vo
 			tactical = tactical or bool(sb.get("tactic", false))
 		units.append(u)
 		slot += 1
+	var ids: Array = []
+	for e in team:
+		ids.append(String(e.id))
+		doc = e.get("doc", doc)
+		pet = e.get("pet", pet)
+	var pk := String(pet.get("kind", ""))
+	var pp := Pets.power(int(pet.get("lv", 1)))
+	for u in units:
+		if pk == "veilleuse":
+			u.heal_mult *= 1.0 + 0.08 * pp
+		if doc.has("salve"):
+			u.skill_cd = minf(u.skill_cd, u.skill_max * 0.25)
+		if doc.has("seconde") and u.role in ["healer", "control"]:
+			u.max_hp *= 1.1
+			u.hp = u.max_hp
+	res_kind = Data.resonance_kind(ids)
 	_apply_boosts(boosts)
 	_apply_sector_heroes()
+	if pk == "luciole":
+		gold_mult *= 1.0 + 0.05 * pp
+	if pk == "gardienne":
+		for u in allies():
+			u.shield = maxf(u.shield, u.max_hp * 0.05 * pp)
+			u.shield_t = maxf(u.shield_t, 8.0)
 	_spawn_wave()
 
 
@@ -244,8 +280,9 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 	var gk_hp := gk
 	var gk_atk := gk
 	u.max_hp = Data.ENEMY_HP * Sector.enemy_scale(stage, true) * e.hp * boss_k * gk_hp * (Sector.GEN_HP * (Sector.GEN_BOSS_HP if big else 1.0) if gen else 1.0) * (Data.BIG_BOSS_HP if big else 1.0)
+	u.max_hp *= Data.za_scale(stage)
 	u.hp = u.max_hp
-	u.atk = Data.ENEMY_ATK * s * e.atk * gk_atk * (Sector.GEN_ATK if gen else 1.0) * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
+	u.atk = Data.za_scale(stage) * Data.ENEMY_ATK * s * e.atk * gk_atk * (Sector.GEN_ATK if gen else 1.0) * (Data.BIG_BOSS_ATK * (1.0 + Data.BIG_BOSS_ATK_GROWTH * maxf(0.0, float(stage - 10)) / 10.0) if big else (Data.MINI_BOSS_ATK if kind == "foreur" else 1.0))
 	u.def = (Data.ENEMY_DEF + stage * 0.6) * e.def
 	u.interval = e.interval
 	u.ranged = e.ranged
@@ -256,6 +293,13 @@ func _make_enemy(kind: String, slot: int, boss: bool) -> Unit:
 		u.skill_max = {"prism": 7.5, "swarm": 9.0}.get(u.skill_kind, 7.0)
 		u.skill_cd = 5.0
 	u.data = e
+	match kind:
+		"ardente":
+			u.fuse = Data.ARDENT_FUSE
+		"couveuse":
+			u.brood_t = Data.BROOD_TIME
+		"tisseuse":
+			u.weave_t = 1.0
 	var sec := Sector.info(stage)
 	if not sec.is_empty():
 		match String(sec.rule):
@@ -308,6 +352,12 @@ func _wave_kinds() -> Array:
 	var sec := Sector.info(stage)
 	if not sec.is_empty() and String(sec.rule) == "essaim":
 		kinds.append("mite" if w == 1 else "drone")
+	# ennemis à rôle (maquette WD) : l'un d'eux remplace un soldat dès la deuxième vague
+	var roles := Data.role_enemies_for(stage)
+	if w >= 2 and not roles.is_empty():
+		kinds[1] = roles[rng.randi() % roles.size()]
+		if Sector.is_generated(stage) and w == waves_total - 1 and kinds.size() >= 4:
+			kinds[3] = roles[rng.randi() % roles.size()]
 	return kinds
 
 
@@ -338,12 +388,13 @@ func _cast(u: Unit) -> bool:
 	var k := 1.0
 	if u.side == 0:
 		casts[u.slot] = int(casts.get(u.slot, 0)) + 1
-		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW else 1
+		combo = combo + 1 if time - _last_cast <= Data.COMBO_WINDOW + (1.0 if doc.has("enchainement") else 0.0) else 1
 		_last_cast = time
 		max_combo = maxi(max_combo, combo)
 		k = Data.combo_mult(combo) * Data.EVO_SKILL_MULT[u.evo] * u.skill_mod
 		if combo >= 2:
 			events.append({"type": "combo", "n": combo, "mult": Data.combo_mult(combo)})
+		_charge(Data.RES_CAST + (Data.RES_COMBO if combo >= 2 else 0.0))
 	match u.skill_kind:
 		"shield":
 			for a in _alive(0):
@@ -449,6 +500,38 @@ func _cast(u: Unit) -> bool:
 
 
 ## Boss qui prépare son gros coup et dont la fenêtre de tir est ouverte (maquette WB), ou null.
+func _charge(k: float) -> void:
+	var was := resonance >= 1.0
+	resonance = minf(1.0, resonance + k)
+	if not was and resonance >= 1.0:
+		events.append({"type": "resonance_full"})
+
+
+## Déclenche la Résonance quand la jauge est pleine (maquette WF).
+func resonate() -> bool:
+	if resonance < 1.0 or state != "fighting":
+		return false
+	resonance = 0.0
+	res_used += 1
+	match res_kind:
+		"feu":
+			for a in _alive(0):
+				a.rage_t = 5.0
+		"surcharge":
+			for a in _alive(0):
+				a.skill_cd = 0.0
+		"choeur":
+			for a in _alive(0):
+				_heal(a, a.max_hp * 0.3)
+			for e in _alive(1):
+				e.stun_t = maxf(e.stun_t, 2.0)
+		_:
+			for a in _alive(0):
+				a.amp_t = 6.0
+	events.append({"type": "resonance", "kind": res_kind})
+	return true
+
+
 func charging_boss() -> Unit:
 	for e in _alive(1):
 		if e.boss and e.skill_cd > 0.0 and e.skill_cd <= Data.INTERRUPT_WINDOW:
@@ -464,11 +547,13 @@ func _window_effect(u: Unit) -> void:
 	if u.skill_kind == "gravity":
 		bu.skill_cd = bu.skill_max
 		bu.warned = false
-		bu.exposed_t = Data.EXPOSED_TIME
+		bu.exposed_t = Data.EXPOSED_TIME + (1.0 if doc.has("brise") else 0.0)
 		events.append({"type": "interrupt", "unit": bu, "by": u})
+		_charge(Data.RES_INTERRUPT)
 	elif u.skill_kind == "shield":
 		parry_until = time + bu.skill_cd + 1.2
 		events.append({"type": "parry_ready", "unit": bu, "by": u})
+		_charge(Data.RES_INTERRUPT)
 
 
 ## Auto tactique : garder un contrôle ou un bouclier tant qu'un boss est là mais pas encore dans sa fenêtre.
@@ -554,7 +639,18 @@ func _pick_target(u: Unit) -> Unit:
 	if u.side == 0:
 		if focus != null and focus.alive and focus.side == 1:
 			return focus                     # cible désignée par le joueur
+		# l'auto vise d'abord les soigneuses et les protecteurs, puis la mite qui va exploser
+		for k in ["tisseuse", "porteur", "ardente"]:
+			for f in foes:
+				if f.kind == k:
+					return f
 		return foes[0]                       # on vise l'ennemi le plus proche : la première place vivante
+	if u.kind == "guetteur":
+		# Guetteur : la deuxième ligne d'abord (soigneurs, contrôle), sinon le dernier rang
+		for f in foes:
+			if f.role in ["healer", "control"]:
+				return f
+		return foes[foes.size() - 1]
 	for f in foes:
 		if f.taunt > 0.0 and rng.randf() < f.taunt:
 			return f                         # Provocation : ce héros attire les coups
@@ -577,9 +673,23 @@ func _apply_hit(p: Dictionary) -> void:
 		dmg *= 1.0 + src0.execute
 	if dst.dr_t > 0.0:
 		dmg *= 0.8
+	if src0 != null and src0.side == 0 and dst == focus and doc.has("feu"):
+		dmg *= 1.05
+	if dst.side == 0 and doc.has("sangfroid"):
+		dmg *= 0.95
+	if src0 != null and src0.amp_t > 0.0 and dst.side == 1:
+		dmg *= 1.3
+	if src0 != null and src0.freq_adv and dst.side == 1:
+		dmg *= 1.0 + Data.FREQ_DMG
+	if dst.freq_adv and dst.side == 0:
+		dmg *= 1.0 - Data.FREQ_GUARD
+	if dst.side == 1 and _warded(dst):
+		dmg *= 1.0 - Data.WARD_REDUCTION
 	if src0 != null and src0.side == 1 and src0.boss and time <= parry_until and String(p.get("fx", "")) in ["slam", "pierce"]:
 		# parade : le coup du boss est absorbé en entier
 		events.append({"type": "parry", "unit": dst})
+		if doc.has("parade"):
+			_heal(dst, dst.max_hp * 0.05)
 		return
 	if dst.shield > 0.0:
 		var absorbed := minf(dst.shield, dmg)
@@ -598,6 +708,10 @@ func _apply_hit(p: Dictionary) -> void:
 		dealt[src.slot] = float(dealt.get(src.slot, 0.0)) + minf(dmg, maxf(0.0, dst.hp))
 		if dst.boss and dst.hp - dmg <= 0.0:
 			finisher = src.slot
+	if dst.side == 0 and doc.has("carre") and not carre_used and dst.hp - dmg <= 0.0 and dst.hp > 1.0:
+		dmg = dst.hp - 1.0                # Dernier carré : une fois par combat, un héros tient à 1 PV
+		carre_used = true
+		events.append({"type": "carre", "unit": dst})
 	dst.hp -= dmg
 	if src0 != null and src0.lifesteal > 0.0 and src0.alive and dst.side != src0.side:
 		src0.hp = minf(src0.max_hp, src0.hp + dmg * src0.lifesteal)
@@ -623,6 +737,62 @@ func _apply_hit(p: Dictionary) -> void:
 		_enter_phase2(dst)
 
 
+## Porte-éclat : un voisin vivant (dans l'ordre des places) protège cet ennemi.
+func _warded(u: Unit) -> bool:
+	if u.kind == "porteur":
+		return false
+	var row := _alive(1)
+	var i := row.find(u)
+	for j in [i - 1, i + 1]:
+		if j >= 0 and j < row.size() and row[j].kind == "porteur":
+			return true
+	return false
+
+
+## Comportements des ennemis à rôle (maquette WD) ; l'étourdissement les met en pause.
+func _role_step(u: Unit, dt: float) -> void:
+	match u.kind:
+		"ardente":
+			u.fuse -= dt
+			if u.fuse <= 0.0:
+				var foes := _alive(0)
+				if not foes.is_empty():
+					var t: Unit = foes[0]
+					pending.append({"t": 0.0, "kind": "hit", "src": u, "dst": t, "dmg": u.atk * Data.ARDENT_BLAST, "fx": "missile"})
+					if foes.size() > 1:
+						pending.append({"t": 0.0, "kind": "hit", "src": u, "dst": foes[1], "dmg": u.atk * Data.ARDENT_BLAST * 0.4, "fx": ""})
+				u.alive = false
+				u.hp = 0.0
+				events.append({"type": "blast", "unit": u})
+				events.append({"type": "death", "unit": u})
+		"tisseuse":
+			u.weave_t -= dt
+			if u.weave_t <= 0.0:
+				u.weave_t = 1.0
+				var low: Unit = null
+				for a in _alive(1):
+					if a != u and a.hp < a.max_hp and (low == null or a.hp_frac() < low.hp_frac()):
+						low = a
+				if low != null:
+					_heal(low, low.max_hp * Data.WEAVE_HEAL)
+					events.append({"type": "attack", "src": u, "dst": low, "ranged": true, "delay": 0.2, "heal": true})
+		"couveuse":
+			u.brood_t -= dt
+			if u.brood_t <= 0.0:
+				u.brood_t = Data.BROOD_TIME
+				var used := {}
+				for a in _alive(1):
+					used[a.slot] = true
+				for s in 6:
+					if not used.has(s):
+						var m := _make_enemy("mite", s, false)
+						m.gold *= 0.3                # les petites pondues rapportent peu
+						units.append(m)
+						events.append({"type": "spawn", "unit": m})
+						events.append({"type": "brood", "unit": u})
+						break
+
+
 ## Phase 2 du gros boss : plus rapide et plus fort, et deux mites arrivent en renfort.
 func _enter_phase2(b: Unit) -> void:
 	b.phase2 = true
@@ -638,6 +808,8 @@ func _enter_phase2(b: Unit) -> void:
 
 
 func _act(u: Unit) -> void:
+	if u.kind == "ardente":
+		return                           # elle ne frappe pas : elle fonce et explose
 	if u.role == "healer":
 		var low: Unit = null
 		for a in _alive(0):
@@ -683,6 +855,8 @@ func step(dt: float) -> void:
 		u.haste_t = maxf(0.0, u.haste_t - dt)
 		u.dr_t = maxf(0.0, u.dr_t - dt)
 		u.vuln_t = maxf(0.0, u.vuln_t - dt)
+		u.rage_t = maxf(0.0, u.rage_t - dt)
+		u.amp_t = maxf(0.0, u.amp_t - dt)
 		if u.hot_t > 0.0:
 			u.hot_t -= dt
 			var before := u.hp
@@ -697,6 +871,10 @@ func step(dt: float) -> void:
 			u.hp = minf(u.max_hp, u.hp + u.max_hp * u.regen * dt)
 		if u.stun_t > 0.0:
 			continue
+		if u.side == 1 and u.data.has("role"):
+			_role_step(u, dt)
+			if not u.alive:
+				continue
 		if u.side == 1 and u.boss and u.skill_cd <= 0.9 and u.skill_cd > 0.0 and not u.warned:
 			u.warned = true
 			events.append({"type": "warn", "unit": u})
@@ -705,8 +883,24 @@ func step(dt: float) -> void:
 		elif u.side == 0 and auto_cast and u.skill_cd <= 0.0 and not _holds(u):
 			_cast(u)
 		if u.cd <= 0.0 and u.alive:
-			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0)
+			u.cd = u.interval * (1.25 if u.slow_t > 0.0 else 1.0) * (0.87 if u.haste_t > 0.0 else 1.0) * (0.5 if u.rage_t > 0.0 else 1.0)
 			_act(u)
+	if String(pet.get("kind", "")) == "piquante":
+		# Piquante : elle mord l'ennemi le plus proche toutes les 2 s
+		pet_cd -= dt
+		if pet_cd <= 0.0:
+			pet_cd = 2.0
+			var foes := _alive(1)
+			var team := _alive(0)
+			if not foes.is_empty() and not team.is_empty():
+				var avg := 0.0
+				for a in team:
+					avg += a.atk
+				avg /= team.size()
+				pending.append({"t": 0.1, "kind": "hit", "src": null, "dst": foes[0], "dmg": avg * 0.5 * Pets.power(int(pet.get("lv", 1))), "fx": ""})
+				events.append({"type": "pet_bite", "dst": foes[0]})
+	if auto_cast and resonance >= 1.0:
+		resonate()                       # en auto, la Résonance part dès que la jauge est pleine
 	# Carapace : le bouclier de Gorn explose quand il se termine
 	var bi := 0
 	while bi < bursts.size():

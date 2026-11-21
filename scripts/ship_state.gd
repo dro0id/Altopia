@@ -12,6 +12,7 @@ var level := 1                        # niveau du vaisseau = niveau du Pont
 var rooms := {}                       # salle -> niveau (0 = pas encore ouverte)
 var stock := {}                       # salle -> réserve produite (non récoltée)
 var builds: Array = []                # chantiers {room, to, end}
+var blocked := {}                     # salle -> fin d'arrêt (abordage perdu, maquette WM)
 var posts := {}                       # salle -> [héros]
 var harvests := 0                     # récoltes faites (objectif du chapitre 1)
 var research := {}                    # recherche -> rang
@@ -95,7 +96,9 @@ func production_mult(r: String) -> float:
 
 ## Production par heure d'une salle (dans son unité : éclats, jetons, crédits).
 func rate(r: String, best_stage: int) -> float:
-	return Ship.base_rate(r, room_level(r), best_stage) * production_mult(r)
+	var crew := 1.05 if _doc("soude") and not (posts.get(r, []) as Array).is_empty() else 1.0
+	crew *= 1.0 + 0.05 * _fileuse()
+	return Ship.base_rate(r, room_level(r), best_stage) * production_mult(r) * crew
 
 
 func autonomy_hours() -> float:
@@ -103,7 +106,23 @@ func autonomy_hours() -> float:
 
 
 func capacity(r: String, best_stage: int) -> float:
-	return rate(r, best_stage) * autonomy_hours()
+	return rate(r, best_stage) * autonomy_hours() * (1.1 if _doc("soutes") else 1.0)
+
+
+## Fileuse qui suit l'escouade (maquette WI) : sa force, 0 sinon.
+static func _fileuse() -> float:
+	var ml := Engine.get_main_loop()
+	var g: Node = (ml as SceneTree).root.get_node_or_null("Game") if ml is SceneTree else null
+	if g == null or g.follower_kind() != "fileuse":
+		return 0.0
+	return g.follower_power()
+
+
+## Doctrine du Capitaine (maquette WN) : lue sur le jeu en cours, s'il existe.
+static func _doc(id: String) -> bool:
+	var ml := Engine.get_main_loop()
+	var g: Node = (ml as SceneTree).root.get_node_or_null("Game") if ml is SceneTree else null
+	return g != null and (g.doctrine as Array).has(id)
 
 
 func producers() -> Array:
@@ -152,6 +171,8 @@ func tick(game: Node, t: int = -1) -> Dictionary:
 
 func _produce(game: Node, dt: float, out: Dictionary) -> void:
 	for r in producers():
+		if int(blocked.get(r, 0)) > now():
+			continue                          # salle perdue à l'abordage : arrêtée une heure
 		var cap := capacity(r, int(game.best_stage))
 		var before := float(stock.get(r, 0.0))
 		var made := rate(r, int(game.best_stage)) * dt / 3600.0
@@ -184,7 +205,7 @@ func _train(game: Node, dt: float, out: Dictionary) -> void:
 	var lv := room_level("quartiers")
 	if lv <= 0:
 		return
-	var step := Ship.train_hours(lv) * 3600.0
+	var step := Ship.train_hours(lv) * 3600.0 / (Port.train_mult(game) if game.get("port") != null else 1.0)
 	var target := int(game.squad_avg_level()) - 3
 	for h in posts.get("quartiers", []):
 		var hid := String(h)
@@ -210,6 +231,8 @@ func collect(game: Node, r: String) -> Dictionary:
 		return {}
 	stock[r] = s - amount
 	harvests += 1
+	if game.has_method("captain_gain"):
+		game.captain_gain("harvest")
 	if "orders" in game:
 		game.orders.track("harvest")
 	if "bond_xp" in game:
@@ -285,6 +308,8 @@ func cost_of(game: Node, r: String) -> Dictionary:
 	var c := Ship.build_cost(r, rank("logistique")) if room_level(r) == 0 else Ship.upgrade_cost(r, room_level(r) + 1, rank("logistique"))
 	if game.has_method("mission_open") and not game.mission_open():
 		c.credits = 0
+	if _doc("bonvent") and c.has("time"):
+		c.time = float(c.time) * 0.95
 	return c
 
 
@@ -479,6 +504,9 @@ func claim(game: Node, s: String) -> Dictionary:
 			var n := int(round(float(rw[k]) * loot))
 			game.set(k, int(game.get(k)) + n)
 			out[k] = n
+	if game.has_method("add_egg") and game.rng.randf() < Pets.EGG_EXPEDITION + Port.egg_bonus(game):
+		game.add_egg()
+		out["egg"] = 1
 	if game.rng.randf() < Ship.RARE_FIND * float(info.rare):
 		game.wild += Data.EXPEDITION_COPIES
 		out["copies"] = Data.EXPEDITION_COPIES
@@ -502,13 +530,15 @@ func rush_shuttle(game: Node, s: String) -> bool:
 
 func to_dict() -> Dictionary:
 	return {"unlocked": unlocked, "level": level, "rooms": rooms, "stock": stock, "builds": builds, "posts": posts, "research": research,
-		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier, "harvests": harvests}
+		"research_job": research_job, "training": training, "shuttles": shuttles, "last_tick": last_tick, "seen_tier": seen_tier, "harvests": harvests, "blocked": blocked}
 
 
 static func from_dict(d: Dictionary) -> ShipState:
 	var s := ShipState.new()
 	s.unlocked = bool(d.get("unlocked", false))
 	s.harvests = int(d.get("harvests", 0))
+	for k in d.get("blocked", {}):
+		s.blocked[String(k)] = int(d.blocked[k])
 	s.level = clampi(int(d.get("level", 1)), 1, Ship.MAX_LEVEL)
 	for r in Ship.ORDER:
 		s.rooms[r] = clampi(int(d.get("rooms", {}).get(r, 0)), 0, Ship.MAX_LEVEL)

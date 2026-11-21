@@ -93,6 +93,8 @@ func resolve(e: Dictionary, i: int, game: Node, rng: RandomNumberGenerator) -> S
 		return "Pas assez d’éclats"
 	pending.erase(e)
 	game.shards -= int(fx.get("cost_shards", 0))
+	if game.has_method("captain_gain"):
+		game.captain_gain("event")
 	var parts := []
 	if int(fx.get("cost_shards", 0)) > 0:
 		parts.append("−%d éclats" % int(fx.cost_shards))
